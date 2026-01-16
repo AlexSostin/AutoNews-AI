@@ -54,10 +54,24 @@ ai_engine/config.py
 ai_engine/output/articles/*.json
 ai_engine/output/logs/*.log
 ai_engine/output/transcripts/*.txt
+ai_engine/output/transcripts/*.mp3
+ai_engine/output/transcripts/*.webp
+ai_engine/output/transcripts/*.jpg
+ai_engine/output/transcripts/*.png
+ai_engine/output/transcripts/*.mp4
 
 # Thumbnails and media
 media/articles/*
 !media/articles/.gitkeep
+
+# Large media files (don't commit to git)
+*.mp3
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.flv
+*.webm
 
 # Cache
 __pycache__/
