@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}About - Auto News{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <h1 class="mb-4">About AutoNews</h1>
+        
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-5">
+                <h2 class="h3 mb-3">🚗 Our Mission</h2>
+                <p class="lead">
+                    AutoNews is your premier destination for the latest automotive news, reviews, and insights. 
+                    We leverage cutting-edge AI technology to bring you comprehensive, timely, and engaging content 
+                    about the automotive world.
+                </p>
+                
+                <hr class="my-4">
+                
+                <h2 class="h3 mb-3">🤖 AI-Powered Content</h2>
+                <p>
+                    Our unique platform uses Google Gemini AI to automatically generate high-quality automotive articles 
+                    from YouTube video reviews. This allows us to quickly cover the latest car releases, reviews, 
+                    and automotive news from around the world.
+                </p>
+                
+                <hr class="my-4">
+                
+                <h2 class="h3 mb-3">📰 What We Cover</h2>
+                <div class="row mt-3">
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-primary">
+                            <div class="card-body">
+                                <h5 class="card-title">📢 News</h5>
+                                <p class="card-text">Breaking automotive news, industry updates, and market trends.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-success">
+                            <div class="card-body">
+                                <h5 class="card-title">⭐ Reviews</h5>
+                                <p class="card-text">In-depth car reviews, test drives, and expert opinions.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 border-info">
+                            <div class="card-body">
+                                <h5 class="card-title">⚡ Electric Vehicles</h5>
+                                <p class="card-text">Latest EV news, charging infrastructure, and sustainable mobility.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <h2 class="h3 mb-3">💡 Technology Stack</h2>
+                <ul class="list-unstyled">
+                    <li class="mb-2">✅ <strong>Django</strong> - Robust web framework</li>
+                    <li class="mb-2">✅ <strong>Google Gemini AI</strong> - Advanced content generation</li>
+                    <li class="mb-2">✅ <strong>Bootstrap 5</strong> - Modern responsive design</li>
+                    <li class="mb-2">✅ <strong>Jazzmin</strong> - Professional admin interface</li>
+                </ul>
+                
+                <hr class="my-4">
+                
+                <h2 class="h3 mb-3">📧 Contact Us</h2>
+                <p>
+                    Have questions or suggestions? We'd love to hear from you!<br>
+                    <strong>Email:</strong> contact@autonews.com
+                </p>
+                
+                <div class="mt-4">
+                    <a href="{% url 'news:home' %}" class="btn btn-primary btn-lg">← Back to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

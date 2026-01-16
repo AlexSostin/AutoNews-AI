@@ -1,0 +1,262 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+    .generate-form-container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .generate-form-container h1 {
+        color: #667eea;
+        margin-bottom: 10px;
+    }
+    .help {
+        color: #666;
+        margin-bottom: 30px;
+    }
+    .info-box {
+        margin-top: 40px;
+        padding: 20px;
+        background: #f0f8ff;
+        border-left: 4px solid #667eea;
+        border-radius: 5px;
+    }
+    .info-box h3 {
+        color: #667eea;
+        margin-top: 0;
+    }
+    .info-box ol {
+        margin: 15px 0;
+        padding-left: 20px;
+    }
+    .info-box code {
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
+    .submit-button {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        font-size: 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+    .submit-button:hover {
+        background: #5568d3;
+    }
+    .submit-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+    
+    /* Progress bar styles */
+    .progress-container {
+        display: none;
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    .progress-container.active {
+        display: block;
+    }
+    .progress-bar-wrapper {
+        width: 100%;
+        height: 30px;
+        background: #e9ecef;
+        border-radius: 15px;
+        overflow: hidden;
+        margin: 15px 0;
+    }
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        width: 0%;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    .progress-steps {
+        margin-top: 15px;
+    }
+    .progress-step {
+        padding: 8px 0;
+        color: #666;
+    }
+    .progress-step.active {
+        color: #667eea;
+        font-weight: bold;
+    }
+    .progress-step.completed {
+        color: #28a745;
+    }
+    .progress-step::before {
+        content: "⏳ ";
+    }
+    .progress-step.active::before {
+        content: "🔄 ";
+    }
+    .progress-step.completed::before {
+        content: "✅ ";
+    }
+    }
+    .submit-button:hover {
+        background: #764ba2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="generate-form-container">
+    <h1>🎥 Generate Article from YouTube Video</h1>
+    <p class="help">Paste a YouTube URL below to automatically generate a car review article using AI.</p>
+    
+    <form method="post" id="generateForm">
+        {% csrf_token %}
+        <table>
+            {{ form.as_table }}
+        </table>
+        <button type="submit" class="submit-button" id="submitBtn">
+            🚀 Generate Article
+        </button>
+        <a href="{% url 'admin:news_article_changelist' %}" style="margin-left: 15px; color: #666;">Cancel</a>
+    </form>
+    
+    <!-- Progress Container -->
+    <div class="progress-container" id="progressContainer">
+        <h3 style="color: #667eea; margin-top: 0;">⏳ Generating article...</h3>
+        <div style="margin: 15px 0; color: #666; font-size: 14px;">
+            <div><strong>Started:</strong> <span id="startTime">--</span></div>
+            <div><strong>Elapsed:</strong> <span id="elapsedTime" style="color: #667eea; font-weight: bold;">0:00</span></div>
+            <div><strong>Estimated:</strong> <span id="estimatedTime">3-7 minutes (depends on video length)</span></div>
+            <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+                ⏳ <strong>Note:</strong> Progress bar is approximate. Process continues even if bar reaches 85%. Please wait for page redirect.
+            </div>
+        </div>
+        <div class="progress-bar-wrapper">
+            <div class="progress-bar" id="progressBar">0%</div>
+        </div>
+        <div class="progress-steps">
+            <div class="progress-step" id="step1">Downloading YouTube audio and thumbnail</div>
+            <div class="progress-step" id="step2">Transcribing audio with Gemini AI</div>
+            <div class="progress-step" id="step3">Analyzing car specifications</div>
+            <div class="progress-step" id="step4">Generating article content</div>
+            <div class="progress-step" id="step5">Saving article to database</div>
+        </div>
+    </div>
+    
+    <div class="info-box">
+        <h3>ℹ️ How it works:</h3>
+        <ol>
+            <li>Downloads audio and thumbnail from YouTube</li>
+            <li>Transcribes audio using Google Gemini</li>
+            <li>Analyzes car specifications using Gemini AI</li>
+            <li>Generates a unique article with HTML formatting</li>
+            <li>Saves as a draft for your review</li>
+        </ol>
+        <p><strong>Note:</strong> Generation takes 2-3 minutes. Please be patient!</p>
+    </div>
+</div>
+
+<script>
+// WebSocket connection for real-time progress
+let socket = null;
+const taskId = '{{ task_id }}';
+
+document.getElementById('generateForm').addEventListener('submit', function(e) {
+    const progressContainer = document.getElementById('progressContainer');
+    const submitBtn = document.getElementById('submitBtn');
+    const progressBar = document.getElementById('progressBar');
+    const startTimeEl = document.getElementById('startTime');
+    const elapsedTimeEl = document.getElementById('elapsedTime');
+    
+    // Record start time
+    const startTime = new Date();
+    startTimeEl.textContent = startTime.toLocaleTimeString('en-US', { hour12: false });
+    
+    progressContainer.classList.add('active');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Processing...';
+    
+    // Timer for elapsed time
+    const timerInterval = setInterval(() => {
+        const now = new Date();
+        const elapsedSeconds = Math.floor((now - startTime) / 1000);
+        const minutes = Math.floor(elapsedSeconds / 60);
+        const seconds = elapsedSeconds % 60;
+        elapsedTimeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+    
+    // Don't prevent form submission - let it go through
+    // WebSocket will connect after page reload with task_id
+});
+
+// If we have a task_id (after form submission), connect WebSocket
+if (taskId && taskId !== 'None') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/generation/${taskId}/`;
+    
+    console.log('Connecting to WebSocket:', wsUrl);
+    socket = new WebSocket(wsUrl);
+    
+    socket.onopen = function() {
+        console.log('✓ WebSocket connected');
+        document.getElementById('progressContainer').classList.add('active');
+    };
+    
+    socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        console.log('Progress update:', data);
+        
+        const progressBar = document.getElementById('progressBar');
+        const stepEl = document.getElementById('step' + data.step);
+        
+        // Update progress bar
+        progressBar.style.width = data.progress + '%';
+        progressBar.textContent = data.progress + '%';
+        
+        // Update step status
+        document.querySelectorAll('.progress-step').forEach((el, idx) => {
+            if (idx + 1 < data.step) {
+                el.classList.remove('active');
+                el.classList.add('completed');
+            } else if (idx + 1 === data.step) {
+                el.classList.add('active');
+                el.classList.remove('completed');
+            } else {
+                el.classList.remove('active', 'completed');
+            }
+        });
+        
+        // Update step message
+        if (stepEl) {
+            stepEl.textContent = data.message;
+        }
+        
+        // If complete, close socket
+        if (data.progress >= 100) {
+            setTimeout(() => socket.close(), 1000);
+        }
+    };
+    
+    socket.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+    
+    socket.onclose = function() {
+        console.log('WebSocket closed');
+    };
+}
+</script>
+{% endblock %}

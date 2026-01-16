@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Search: {{ query }} - Auto News{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="mb-4">🔍 Search Results</h1>
+            
+            <div class="search-info mb-4">
+                <p class="lead">
+                    {% if query %}
+                        Found <strong>{{ count }}</strong> result{{ count|pluralize }} for "<strong>{{ query }}</strong>"
+                    {% else %}
+                        Please enter a search term
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Search Results -->
+            {% if results %}
+                <div class="search-results">
+                    {% for article in results %}
+                    <div class="card mb-4 shadow-sm hover-lift">
+                        <div class="row g-0">
+                            {% if article.image %}
+                            <div class="col-md-4">
+                                <img src="{{ article.image.url }}" class="img-fluid rounded-start" alt="{{ article.title }}" style="height: 200px; object-fit: cover;">
+                            </div>
+                            {% endif %}
+                            <div class="{% if article.image %}col-md-8{% else %}col-md-12{% endif %}">
+                                <div class="card-body">
+                                    <span class="badge bg-primary mb-2">{{ article.category.name }}</span>
+                                    <h3 class="card-title h5">
+                                        <a href="{% url 'news:article_detail' article.slug %}" class="text-decoration-none text-dark">
+                                            {{ article.title }}
+                                        </a>
+                                    </h3>
+                                    <p class="card-text text-muted small">
+                                        {{ article.summary|truncatewords:30 }}
+                                    </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            📅 {{ article.created_at|date:"d.m.Y" }}
+                                        </small>
+                                        <a href="{% url 'news:article_detail' article.slug %}" class="btn btn-sm btn-outline-primary">
+                                            Read More →
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% elif query %}
+                <div class="alert alert-info">
+                    <h4>No results found</h4>
+                    <p>Try different keywords or browse our categories:</p>
+                    <div class="mt-3">
+                        <a href="{% url 'news:category' 'news' %}" class="btn btn-outline-primary me-2">News</a>
+                        <a href="{% url 'news:category' 'reviews' %}" class="btn btn-outline-primary me-2">Reviews</a>
+                        <a href="{% url 'news:category' 'evs' %}" class="btn btn-outline-primary">EVs</a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.hover-lift {
+    transition: transform 0.2s;
+}
+.hover-lift:hover {
+    transform: translateY(-5px);
+}
+</style>
+{% endblock %}

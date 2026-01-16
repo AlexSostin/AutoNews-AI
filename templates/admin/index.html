@@ -1,0 +1,32 @@
+{% extends "admin/index.html" %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <p>📰 Total Articles</p>
+        <h3>{{ total_articles }}</h3>
+        <p style="color: #28a745; font-weight: 600;">{{ published_articles }} Published</p>
+    </div>
+    
+    <div class="stat-card">
+        <p>📁 Categories</p>
+        <h3>{{ total_categories }}</h3>
+        <p>Active sections</p>
+    </div>
+    
+    <div class="stat-card">
+        <p>🏷️ Tags</p>
+        <h3>{{ total_tags }}</h3>
+        <p>For organization</p>
+    </div>
+    
+    <div class="stat-card">
+        <p>⏰ Recent Activity</p>
+        <h3>{{ recent_count }}</h3>
+        <p>Last 7 days</p>
+    </div>
+</div>
+
+{{ block.super }}
+{% endblock %}

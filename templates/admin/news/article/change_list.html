@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static %}
+
+{% block object-tools-items %}
+    <li>
+        <a href="{% url 'admin:news_article_generate_youtube' %}" class="addlink" style="background-color: #ff0000; color: white; padding: 10px 15px; border-radius: 5px; text-decoration: none; font-weight: bold;">
+            📺 Generate from YouTube
+        </a>
+    </li>
+    {{ block.super }}
+{% endblock %}
