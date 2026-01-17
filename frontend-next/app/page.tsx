@@ -4,31 +4,50 @@ import ArticleCard from '@/components/public/ArticleCard';
 import AdBanner from '@/components/public/AdBanner';
 import StickyBottomAd from '@/components/public/StickyBottomAd';
 import TrendingSection from '@/components/public/TrendingSection';
+import EmptyState from '@/components/public/EmptyState';
 import Link from 'next/link';
 
 async function getArticles() {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/articles/?is_published=true`, {
       cache: 'no-store',
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
+    
     if (!res.ok) return { results: [] };
     return await res.json();
   } catch (error) {
-    console.error('Error fetching articles:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('API request timed out - backend may not be running');
+    } else {
+      console.warn('Backend API not available yet:', error instanceof Error ? error.message : error);
+    }
     return { results: [] };
   }
 }
 
 async function getCategories() {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories/`, {
       next: { revalidate: 3600 },
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
+    
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : data.results || [];
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.warn('Backend API not available for categories');
     return [];
   }
 }
@@ -95,13 +114,7 @@ export default async function Home() {
               </div>
               
               {articles.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
-                  <div className="text-6xl mb-4">📰</div>
-                  <p className="text-gray-600 text-lg mb-6">No articles available yet.</p>
-                  <Link href="/admin" className="bg-indigo-600 text-white px-6 sm:px-8 py-3 rounded-full hover:bg-indigo-700 transition-colors inline-block font-semibold">
-                    Go to Admin Panel
-                  </Link>
-                </div>
+                <EmptyState />
               ) : (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">

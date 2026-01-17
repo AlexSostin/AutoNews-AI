@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import AdBanner from './AdBanner';
 import { createRoot } from 'react-dom/client';
 
@@ -9,6 +9,20 @@ interface AdInjectorProps {
 }
 
 export default function AdInjector({ contentId }: AdInjectorProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   useEffect(() => {
     const articleContent = document.getElementById(contentId);
     if (!articleContent) return;
@@ -18,10 +32,14 @@ export default function AdInjector({ contentId }: AdInjectorProps) {
     
     if (headings.length < 2) return; // Need at least 2 sections
 
-    // Insert ads after 2nd and 4th h2
-    const insertAfter = [1, 3]; // 0-indexed: after 2nd (index 1) and 4th (index 3)
+    // Mobile: insert after every 2nd h2 (indices 1, 3, 5, 7...)
+    // Desktop: insert after 2nd and 4th h2 (indices 1, 3)
+    const insertAfter = isMobile 
+      ? Array.from({ length: Math.floor(headings.length / 2) }, (_, i) => i * 2 + 1)
+      : [1, 3];
+    
     let insertedCount = 0;
-    const maxAds = 2;
+    const maxAds = isMobile ? 4 : 2; // More ads on mobile
 
     headings.forEach((heading, index) => {
       if (insertAfter.includes(index) && insertedCount < maxAds) {
@@ -65,7 +83,7 @@ export default function AdInjector({ contentId }: AdInjectorProps) {
       const injectedAds = articleContent.querySelectorAll('.fade-in');
       injectedAds.forEach(ad => ad.remove());
     };
-  }, [contentId]);
+  }, [contentId, isMobile]);
 
   return null; // This component doesn't render anything itself
 }
