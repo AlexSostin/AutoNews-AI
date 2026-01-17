@@ -1,297 +1,437 @@
 # 🚗 AutoNews - AI-Powered Automotive News Platform
 
 ![Django](https://img.shields.io/badge/Django-6.0.1-green)
+![Next.js](https://img.shields.io/badge/Next.js-16.1-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 ![Python](https://img.shields.io/badge/Python-3.13-blue)
-![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple)
-![License](https://img.shields.io/badge/License-MIT-yellow)
 
-**AutoNews** is an automated automotive news platform that generates high-quality articles from YouTube videos using AI. The system automatically downloads content, transcribes audio, analyzes information, and publishes beautifully formatted articles with images, specifications, and interactive features.
+**AutoNews** - современная платформа автомобильных новостей с AI генерацией контента из YouTube видео. Построена на микросервисной архитектуре с Django REST API и Next.js frontend.
 
-## ✨ Features
+## 🌟 Основные возможности
 
-### 🤖 AI-Powered Content Generation
-- **Automatic Article Creation** - Generate articles from YouTube URLs in ~15 seconds
-- **Smart Video Analysis** - Extracts car specifications, brands, models, and features
-- **3 Screenshot Extraction** - Automatically captures key moments (15%, 50%, 85% timestamps)
-- **Subtitle Transcription** - Uses yt-dlp for accurate subtitle extraction
-- **Groq AI Integration** - Powered by llama-3.3-70b-versatile model
-- **Clean Title Processing** - Removes HTML entities and formats properly
+- 🤖 **AI генерация статей** из YouTube видео через Groq API (llama-3.3-70b)
+- 📝 Полнофункциональная админ-панель для управления контентом
+- 🎨 Современный публичный сайт на Next.js 16 с SSR
+- 🔐 JWT аутентификация с защитой API
+- 📱 Адаптивный дизайн для всех устройств
+- 🔒 Защита от уязвимостей (CSRF, XSS, rate limiting)
+- 💬 Комментарии и рейтинги статей
+- 📊 SEO оптимизация с dynamic metadata
 
-### 📰 Content Management
-- **9 Categories** - News, Reviews, EVs, Technology, Industry, Classics, Motorsport, Modifications, Comparisons
-- **95 Automotive Tags** - Comprehensive tagging system (brands, types, technologies, features)
-- **Car Specifications** - Automatic extraction of make, model, year, horsepower, torque, 0-60, top speed
-- **Image Gallery** - Carousel with multiple screenshots per article
-- **Rich Text Editor** - HTML content with proper formatting
-
-### 🎨 Modern Design
-- **Purple Gradient Theme** - Consistent design across all pages (#667eea → #764ba2)
-- **Hero Section** - Eye-catching landing page with featured articles
-- **Clickable Cards** - Entire article cards are clickable with hover effects
-- **Responsive Layout** - Mobile-friendly Bootstrap 5 design
-- **Social Icons** - Real favicons for Facebook, X, WhatsApp, Telegram, Instagram, YouTube, LinkedIn
-- **Dropdown Navigation** - Organized categories in header dropdown
-
-### 💬 Interactive Features
-- **Comments System** - Users can leave feedback on articles
-- **5-Star Ratings** - Rate articles and see average ratings
-- **Search Functionality** - Full-text search across articles
-- **Share Buttons** - Facebook, X (Twitter), WhatsApp, Telegram with real icons
-- **Avatar Comments** - First letter circles for comment authors
-
-### 💰 Monetization Ready
-- **Google AdSense Integration** - Pre-configured ad placements
-- **5 Ad Positions** - Top banner, in-article, in-content (auto), content bottom, sidebar
-- **Automatic In-Content Ads** - JavaScript auto-inserts ads after 2nd and 4th h2 sections
-- **Comprehensive Guide** - AD_SETUP_GUIDE.md with revenue estimates and setup instructions
-
-### 📄 Legal Pages
-- **Privacy Policy** - GDPR-compliant privacy page
-- **Contact Form** - Beautiful contact page with social links
-- **About Page** - Company information
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Django 6.0.1** - Web framework
-- **Python 3.13.3** - Programming language
-- **SQLite** - Database (easily upgradeable to PostgreSQL)
-- **Channels 4.2.1** - WebSocket support (partial implementation)
-- **Daphne 4.2.1** - ASGI server
-
-### AI & Media Processing
-- **Groq API** - AI text generation (llama-3.3-70b-versatile)
-- **yt-dlp** - YouTube video/subtitle extraction
-- **FFmpeg 8.0.1** - Video screenshot extraction
-- **Gemini API** - Backup AI model
-
-### Frontend
-- **Bootstrap 5.3.0** - Responsive framework
-- **Font Awesome** - Icons (via CDN)
-- **Google Favicons API** - Social media icons
-- **Custom CSS** - Gradient themes and animations
-
-### Admin
-- **Django Jazzmin** - Beautiful admin interface
-- **Custom Admin Actions** - Generate articles directly from admin panel
-
-## 📋 Requirements
-
-- Python 3.13+
-- FFmpeg (for video processing)
-- Groq API Key (free tier available)
-- Optional: Gemini API Key (backup)
-
-## 🚀 Installation
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/Auto_News.git
-cd Auto_News
-```
-
-### 2. Create Virtual Environment
-```bash
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-source .venv/bin/activate  # Linux/Mac
-```
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Install FFmpeg
-**Windows:**
-- Download from https://ffmpeg.org/download.html
-- Add to PATH
-
-**Linux:**
-```bash
-sudo apt install ffmpeg
-```
-
-**Mac:**
-```bash
-brew install ffmpeg
-```
-
-### 5. Configure API Keys
-Create `ai_engine/config.py`:
-```python
-GROQ_API_KEY = "your_groq_api_key_here"
-GROQ_MODEL = "llama-3.3-70b-versatile"
-GEMINI_API_KEY = "your_gemini_api_key_here"  # Optional backup
-```
-
-**Get API Keys:**
-- Groq: https://console.groq.com/ (Free tier: 30 requests/minute)
-- Gemini: https://makersuite.google.com/app/apikey (Optional)
-
-### 6. Run Migrations
-```bash
-python manage.py migrate
-```
-
-### 7. Create Superuser
-```bash
-python manage.py createsuperuser
-```
-
-### 8. Create Categories and Tags
-```bash
-python create_categories.py
-python create_tags.py
-```
-
-### 9. Run Development Server
-```bash
-python manage.py runserver 8001
-```
-
-Visit: http://127.0.0.1:8001
-
-## 📖 Usage
-
-### Generate Article from Admin Panel
-1. Login to admin: http://127.0.0.1:8001/admin
-2. Go to **News → Articles**
-3. Click **"Add Article"**
-4. Paste YouTube URL in **"YouTube URL"** field
-5. Click **"Save"** - article generates automatically in ~15 seconds
-6. View published article on homepage
-
-### Generate Article from Command Line
-```bash
-python ai_engine/main.py "https://www.youtube.com/watch?v=VIDEO_ID"
-```
-
-### Features Generated Automatically:
-✅ Article title (cleaned and formatted)  
-✅ Full article content (HTML formatted)  
-✅ 3 screenshots from video  
-✅ Car specifications (make, model, year, horsepower, etc.)  
-✅ Category assignment  
-✅ Tag assignment  
-✅ SEO-friendly slug  
-
-## 📁 Project Structure
+## 📁 Структура проекта
 
 ```
 Auto_News/
-├── ai_engine/              # AI article generation engine
-│   ├── config.py          # API keys configuration
-│   ├── main.py            # Main orchestrator
-│   └── modules/
-│       ├── downloader.py  # YouTube download & screenshot extraction
-│       ├── transcriber.py # Subtitle extraction
-│       ├── analyzer.py    # Car spec extraction
-│       ├── article_generator.py  # AI article generation
-│       ├── publisher.py   # Database publication
-│       └── utils.py       # Helper functions
-├── auto_news_site/        # Django project settings
-├── news/                  # Main Django app
-│   ├── models.py         # Article, Category, Tag, Comment, Rating, CarSpec
-│   ├── views.py          # All page views
-│   ├── admin.py          # Admin interface with AI integration
-│   └── urls.py           # URL routing
-├── templates/             # HTML templates
-│   ├── base.html         # Base template with header/footer
-│   ├── news/
-│   │   ├── home.html     # Homepage with hero section
-│   │   ├── article_detail.html  # Article page with all features
-│   │   ├── privacy.html  # Privacy policy
-│   │   └── contact.html  # Contact page
-│   └── ads/              # Ad templates
-├── static/               # CSS, JS, images
-├── media/                # Uploaded images
-├── requirements.txt     # Python dependencies
-└── README.md           # This file
+├── backend/              # Django REST API
+│   ├── manage.py
+│   ├── .env             # Переменные окружения (не в Git)
+│   ├── auto_news_site/  # Настройки Django
+│   ├── news/            # Основное приложение
+│   ├── ai_engine/       # AI генерация контента
+│   └── media/           # Загруженные файлы
+│
+├── frontend-next/        # Next.js Public Site
+│   ├── app/             # App Router (Next.js 16)
+│   ├── components/      # React компоненты
+│   ├── lib/             # Утилиты и API клиент
+│   └── types/           # TypeScript типы
+│
+└── README.md
 ```
 
-## 🎨 Customization
+## 🛠 Технологический стек
 
-### Change Theme Colors
-Edit `templates/base.html` and search for gradient colors:
-```css
-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-```
-Replace with your colors.
+### Backend
+- **Django 6.0.1** + Django REST Framework 3.15
+- **JWT Authentication** (djangorestframework-simplejwt)
+- **Rate Limiting** (100 req/hour для анонимов)
+- **Security Headers** (HSTS, XSS protection, etc.)
+- **Groq API** - AI генерация статей
+- **SQLite** (dev) / **PostgreSQL** (prod)
 
-### Add More Categories
-Edit `create_categories.py` and run:
+### Frontend
+- **Next.js 16.1** (App Router, Server Components, SSR)
+- **TypeScript 5.0** - Type safety
+- **Tailwind CSS** - Styling
+- **Lucide React** - Иконки
+- **React Hook Form** - Формы в админке
+
+## 🚀 Быстрый старт
+
+### Системные требования
+- Python 3.13+
+- Node.js 18+
+- Git
+
+### 1. Клонирование и настройка
+
 ```bash
-python create_categories.py
+# Клонировать репозиторий
+git clone <your-repo-url>
+cd Auto_News
+
+# Установить Python зависимости
+cd backend
+pip install -r requirements.txt
+
+# Применить миграции
+python manage.py migrate
+
+# Создать суперпользователя
+python manage.py createsuperuser
+
+# Установить Node.js зависимости
+cd ../frontend-next
+npm install
 ```
 
-### Modify AI Prompts
-Edit prompts in:
-- `ai_engine/modules/article_generator.py` - Article generation
-- `ai_engine/modules/analyzer.py` - Specification extraction
+### 2. Настройка переменных окружения
 
-### Configure Ad Placements
-1. Get AdSense code from https://www.google.com/adsense
-2. Edit templates in `templates/ads/`
-3. See `AD_SETUP_GUIDE.md` for detailed instructions
+Файл `.env` уже создан в `backend/.env` с настройками для разработки.
 
-## 💰 Monetization
+**⚠️ Для продакшена** обязательно измените:
+```env
+DEBUG=False
+SECRET_KEY=<новый-секретный-ключ>
+ALLOWED_HOSTS=yourdomain.com
+CORS_ORIGINS=https://yourdomain.com
+```
 
-The platform is **monetization-ready** with:
-- **5 ad positions** pre-configured
-- **Automatic in-content ads** (JavaScript injection)
-- **AdSense guide** with revenue estimates
+### 3. Запуск проекта
 
-**Estimated Revenue** (Google AdSense):
-- 10k visitors/month: $50-150
-- 50k visitors/month: $300-800
+**Откройте 2 терминала:**
 
-See [AD_SETUP_GUIDE.md](AD_SETUP_GUIDE.md) for complete setup instructions.
+#### Терминал 1 - Django Backend API
+```bash
+cd backend
+python manage.py runserver 8001
+```
+✅ API запущен на `http://127.0.0.1:8001/`
+- Django Admin: http://127.0.0.1:8001/admin/
+- API Root: http://127.0.0.1:8001/api/v1/
 
-## 🔒 Security Notes
+#### Терминал 2 - Next.js Frontend
+```bash
+cd frontend-next
+npm run dev
+```
+✅ Сайт запущен на `http://localhost:3000/`
+- Публичный сайт: http://localhost:3000/
+- Админ-панель: http://localhost:3000/admin/
 
-**Before Production:**
-1. Change `SECRET_KEY` in `settings.py`
-2. Set `DEBUG = False`
-3. Configure `ALLOWED_HOSTS`
-4. Use PostgreSQL instead of SQLite
-5. Set up HTTPS/SSL
-6. Never commit `config.py` with API keys
-7. Use environment variables for secrets
+## 🎯 Основные URL-адреса
 
-## 📄 License
+### Backend (Django)
+| Endpoint | Описание |
+|----------|----------|
+| `/admin/` | Django Admin Panel |
+| `/api/v1/articles/` | Список статей (API) |
+| `/api/v1/categories/` | Категории |
+| `/api/v1/tags/` | Теги |
+| `/api/v1/comments/` | Комментарии |
+| `/api/v1/auth/login/` | JWT Login |
 
-MIT License - feel free to use for commercial projects!
+### Frontend (Next.js)
+| URL | Описание |
+|-----|----------|
+| `/` | Главная страница |
+| `/articles/[slug]` | Детальная страница статьи |
+| `/categories/[slug]` | Статьи по категории |
+| `/admin/` | Админ-панель |
+| `/admin/articles` | Управление статьями |
 
-## 🤝 Contributing
+## 📚 Руководства
 
-Contributions welcome! Please:
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+- [Настройка AI генерации](backend/GEMINI_SETUP.md)
+- [Безопасность](backend/SECURITY.md)
+- [Исправления безопасности](backend/SECURITY_FIXES.md)
 
-## 🐛 Known Issues
+## 🔐 Безопасность
 
-- WebSocket real-time progress not fully functional (task_id passing)
-- Some videos without subtitles use fallback (title + description)
+✅ Все критические уязвимости исправлены:
+- SECRET_KEY в переменных окружения
+- Rate limiting (100 req/h анонимы, 1000 req/h авторизованные)
+- CSRF & XSS protection
+- Secure headers (HSTS, Content-Type-Nosniff)
+- Валидация YouTube URL
+- Ограничение загрузки файлов (5MB max)
 
-## 📞 Support
+Подробнее в [SECURITY_FIXES.md](backend/SECURITY_FIXES.md)
 
-- **Issues**: Open a GitHub issue
-- **Documentation**: See `GEMINI_SETUP.md` and `AD_SETUP_GUIDE.md`
+## 🚀 Развертывание на продакшене
 
-## 🌟 Acknowledgments
+### 1. Обновите .env
+```env
+DEBUG=False
+SECRET_KEY=<сгенерируйте новый>
+ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+CORS_ORIGINS=https://yourdomain.com
+```
 
-- **Groq** - Fast AI inference
-- **yt-dlp** - YouTube extraction
-- **FFmpeg** - Video processing
-- **Django** - Web framework
-- **Bootstrap** - UI framework
+### 2. Настройте PostgreSQL
+```bash
+pip install psycopg2-binary
+```
+
+В .env:
+```env
+DB_NAME=autonews_db
+DB_USER=autonews_user
+DB_PASSWORD=<сильный-пароль>
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+### 3. Соберите статические файлы
+```bash
+python manage.py collectstatic
+```
+
+### 4. Используйте Gunicorn
+```bash
+pip install gunicorn
+gunicorn auto_news_site.wsgi:application --bind 0.0.0.0:8001
+```
+
+### 5. Настройте Nginx
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+## 🤝 Как использовать AI генерацию
+
+1. Войдите в админ-панель: http://localhost:3000/admin/
+2. Перейдите в "Articles"
+3. Нажмите "Generate from YouTube"
+4. Вставьте YouTube URL
+5. AI автоматически создаст статью!
+
+**Требуется:** API ключи в `.env` (Groq или Gemini)
+
+## 📝 Создание контента вручную
+
+1. Django Admin: http://127.0.0.1:8001/admin/
+2. Или Next.js Admin: http://localhost:3000/admin/
+
+Создайте:
+- Категории (News, Reviews, EVs, etc.)
+- Теги
+- Статьи с изображениями
+- Характеристики автомобилей
+
+## 🐛 Отладка
+
+### Backend не запускается
+```bash
+# Проверьте миграции
+python manage.py migrate
+
+# Проверьте .env файл
+cat backend/.env
+```
+
+### Frontend показывает ошибки API
+```bash
+# Убедитесь что Django запущен на порту 8001
+curl http://127.0.0.1:8001/api/v1/articles/
+
+# Проверьте CORS настройки в backend/auto_news_site/settings.py
+```
+
+### Rate Limiting блокирует запросы
+Это нормально для разработки. В `settings.py` измените:
+```python
+'DEFAULT_THROTTLE_RATES': {
+    'anon': '1000/hour',  # Увеличьте для dev
+    'user': '10000/hour'
+}
+```
+
+✅ React админка запустится на **http://localhost:5173/**
+
+### Результат
+
+После запуска обоих серверов у вас будет:
+
+| Сервер | URL | Описание |
+|--------|-----|----------|
+| Django API | http://127.0.0.1:8001/api/v1/ | REST API для React |
+| React Admin | http://localhost:5173/ | Админ панель (React + TypeScript) |
+| Public Site | http://127.0.0.1:8001/news/ | Публичный сайт |
+| Django Admin | http://127.0.0.1:8001/admin/ | Старая админка Django (backup) |
+
+## ✨ Основные возможности
+
+### 🤖 AI Генерация контента
+- Автоматическое создание статей из YouTube видео
+- Извлечение субтитров и транскрипция
+- Анализ спецификаций автомобилей
+- Захват скриншотов (3 кадра на 15%, 50%, 85%)
+- Генерация за ~15 секунд
+
+### ⚛️ React Admin Panel
+- 🔐 JWT аутентификация с auto-refresh
+- 📝 CRUD для статей с YouTube генерацией
+- 🏷️ Inline редактирование категорий и тегов
+- 💬 Модерация комментариев (approve/delete)
+- 📊 Dashboard с live статистикой
+- 🎨 Современный UI с градиентами (#667eea → #764ba2)
+
+### 🌐 Public Site
+- 9 категорий новостей
+- Поиск и фильтрация
+- Комментарии с модерацией
+- Рейтинги статей
+- Адаптивный дизайн
+- SEO оптимизация
+
+## 📚 API Endpoints
+
+### Authentication
+```
+POST /api/v1/token/           # Login (получить токены)
+POST /api/v1/token/refresh/   # Обновить access токен
+```
+
+### Articles
+```
+GET    /api/v1/articles/                    # Список статей
+POST   /api/v1/articles/                    # Создать статью
+GET    /api/v1/articles/{id}/               # Получить статью
+PUT    /api/v1/articles/{id}/               # Обновить статью
+DELETE /api/v1/articles/{id}/               # Удалить статью
+POST   /api/v1/articles/generate_from_youtube/  # Генерация из YouTube
+POST   /api/v1/articles/{id}/increment_views/   # Увеличить просмотры
+```
+
+### Categories & Tags
+```
+GET    /api/v1/categories/     # Список категорий
+POST   /api/v1/categories/     # Создать категорию
+PUT    /api/v1/categories/{id}/
+DELETE /api/v1/categories/{id}/
+
+GET    /api/v1/tags/           # Список тегов
+POST   /api/v1/tags/
+PUT    /api/v1/tags/{id}/
+DELETE /api/v1/tags/{id}/
+```
+
+### Comments
+```
+GET    /api/v1/comments/           # Список комментариев
+POST   /api/v1/comments/{id}/approve/  # Одобрить комментарий
+DELETE /api/v1/comments/{id}/      # Удалить комментарий
+```
+
+## 🔧 Настройка окружения
+
+### Backend Setup
+
+1. Создайте виртуальное окружение Python:
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+2. Установите зависимости:
+```powershell
+cd backend
+pip install -r requirements.txt
+```
+
+3. Настройте Groq API:
+```powershell
+cd ai_engine
+cp config.example.py config.py
+# Отредактируйте config.py и добавьте ваш GROQ_API_KEY
+```
+
+4. Примените миграции:
+```powershell
+python manage.py migrate
+```
+
+5. Создайте суперпользователя:
+```powershell
+python manage.py createsuperuser
+```
+
+### Frontend Setup
+
+```powershell
+cd frontend
+npm install
+```
+
+## 🎯 Использование
+
+### Создание статьи из YouTube
+
+**Через React Admin:**
+1. Откройте http://localhost:5173/
+2. Войдите с Django admin credentials
+3. Articles → New Article
+4. Вставьте YouTube URL и нажмите "Generate"
+5. AI создаст статью за ~15 секунд
+6. Отредактируйте при необходимости
+7. Опубликуйте
+
+**Через API:**
+```bash
+curl -X POST http://127.0.0.1:8001/api/v1/articles/generate_from_youtube/ \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID"}'
+```
+
+## 📝 Категории
+
+1. News - Автомобильные новости
+2. Reviews - Обзоры автомобилей
+3. EVs - Электромобили
+4. Technology - Автомобильные технологии
+5. Industry - Автомобильная индустрия
+6. Classics - Классические автомобили
+7. Motorsport - Автоспорт
+8. Modifications - Тюнинг и модификации
+9. Comparisons - Сравнения автомобилей
+
+## 🔐 Безопасность
+
+- JWT токены с коротким lifetime (5 часов access, 1 день refresh)
+- CORS настроен только для localhost
+- CSRF защита Django
+- XSS защита через React
+- SQL injection защита через ORM
+
+## 📄 Лицензия
+
+MIT License
+
+## 👨‍💻 Разработка
+
+Проект использует:
+- Hot reload для React (Vite HMR)
+- Auto-reload для Django (runserver)
+- TypeScript для type safety
+- ESLint для code quality
 
 ---
 
-Made with ❤️ for automotive enthusiasts
-
-**Star ⭐ this repo if you find it useful!**
+**Made with ❤️ and AI**
