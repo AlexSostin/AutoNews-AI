@@ -11,6 +11,7 @@ export default function Header() {
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const categoriesRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -26,8 +27,13 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Don't close if clicking inside desktop categories dropdown
       if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
         setIsCategoriesOpen(false);
+      }
+      // Don't close mobile menu categories if clicking inside mobile menu
+      if (mobileMenuRef.current && mobileMenuRef.current.contains(event.target as Node)) {
+        return;
       }
     };
 
@@ -108,31 +114,61 @@ export default function Header() {
 
         {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="md:hidden pb-4 space-y-2">
+          <div ref={mobileMenuRef} className="md:hidden pb-4 space-y-2">
             <Link href="/" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
             <Link href="/articles" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Articles</Link>
             
             {/* Mobile Categories */}
             <div>
               <button
-                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                className="flex items-center gap-1 py-2 hover:text-purple-300 transition-colors w-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Categories button clicked');
+                  setIsCategoriesOpen(!isCategoriesOpen);
+                }}
+                className="flex items-center gap-1 py-2 hover:text-purple-300 transition-colors w-full text-left"
               >
                 Categories
                 <ChevronDown size={16} className={`transition-transform ${isCategoriesOpen ? 'rotate-180' : ''}`} />
               </button>
               {isCategoriesOpen && (
-                <div className="pl-4 space-y-1 mt-1">
-                  {categories.map((category) => (
-                    <Link
-                      key={category.id}
-                      href={`/categories/${category.slug}`}
-                      onClick={() => { setIsMenuOpen(false); setIsCategoriesOpen(false); }}
-                      className="block py-1 text-sm text-purple-200 hover:text-purple-300"
+                <div className="mt-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 overflow-hidden shadow-lg">
+                  <div className="py-1">
+                    {categories.map((category) => (
+                      <a
+                        key={category.id}
+                        href={`/categories/${category.slug}`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const slug = category.slug;
+                          setIsMenuOpen(false); 
+                          setIsCategoriesOpen(false);
+                          // Use router.push for instant navigation
+                          router.push(`/categories/${slug}`);
+                        }}
+                        className="block px-4 py-2 text-white hover:bg-white/20 transition-colors cursor-pointer"
+                      >
+                        <div className="font-medium">{category.name}</div>
+                        {category.article_count > 0 && (
+                          <div className="text-xs text-purple-200 opacity-80">{category.article_count} articles</div>
+                        )}
+                      </a>
+                    ))}
+                    <a
+                      href="/articles"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        setIsCategoriesOpen(false);
+                        router.push('/articles');
+                      }}
+                      className="block px-4 py-2 mt-1 border-t border-white/20 text-purple-300 hover:bg-white/20 font-medium transition-colors cursor-pointer"
                     >
-                      {category.name}
-                    </Link>
-                  ))}
+                      View All Categories →
+                    </a>
+                  </div>
                 </div>
               )}
             </div>
