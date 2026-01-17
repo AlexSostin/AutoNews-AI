@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from '@/components/public/Header';
 import Footer from '@/components/public/Footer';
 import ArticleCard from '@/components/public/ArticleCard';
@@ -13,71 +15,103 @@ import SearchInput from '@/components/public/SearchInput';
 import AdBanner from '@/components/public/AdBanner';
 import StickyBottomAd from '@/components/public/StickyBottomAd';
 
-async function getArticles(page = 1, category = '', tag = '', search = '') {
-  const params = new URLSearchParams();
-  params.append('page', page.toString());
-  params.append('page_size', '12');
-  if (category) params.append('category', category);
-  if (tag) params.append('tag', tag);
-  if (search) params.append('search', search);
-
-  const res = await fetch(`http://127.0.0.1:8001/api/v1/articles/?${params.toString()}`, {
-    cache: 'no-store'
-  });
+export default function ArticlesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   
-  if (!res.ok) {
-    return { results: [], count: 0, next: null, previous: null };
+  const [articles, setArticles] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [tags, setTags] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  
+  const page = parseInt(searchParams.get('page') || '1');
+  const category = searchParams.get('category') || '';
+  const tag = searchParams.get('tag') || '';
+  const search = searchParams.get('search') || '';
+  
+  const totalPages = Math.ceil(totalCount / 12);
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    async function loadData() {
+      setLoading(true);
+      
+      try {
+        // Fetch articles
+        const params = new URLSearchParams();
+        params.append('page', page.toString());
+        params.append('page_size', '12');
+        if (category) params.append('category', category);
+        if (tag) params.append('tag', tag);
+        if (search) params.append('search', search);
+
+        const articlesRes = await fetch(`http://127.0.0.1:8001/api/v1/articles/?${params.toString()}`);
+        if (articlesRes.ok && isMounted) {
+          const articlesData = await articlesRes.json();
+          setArticles(articlesData.results || []);
+          setTotalCount(articlesData.count || 0);
+        }
+      } catch (error) {
+        console.error('Error loading articles:', error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [page, category, tag, search]);
+  
+  // Load categories and tags only once
+  useEffect(() => {
+    let isMounted = true;
+    
+    async function loadFilters() {
+      try {
+        const [categoriesRes, tagsRes] = await Promise.all([
+          fetch('http://127.0.0.1:8001/api/v1/categories/'),
+          fetch('http://127.0.0.1:8001/api/v1/tags/')
+        ]);
+        
+        if (categoriesRes.ok && isMounted) {
+          const categoriesData = await categoriesRes.json();
+          setCategories(Array.isArray(categoriesData) ? categoriesData : categoriesData.results || []);
+        }
+        
+        if (tagsRes.ok && isMounted) {
+          const tagsData = await tagsRes.json();
+          setTags(Array.isArray(tagsData) ? tagsData : tagsData.results || []);
+        }
+      } catch (error) {
+        console.error('Error loading filters:', error);
+      }
+    }
+    
+    loadFilters();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <main className="flex-1 bg-gray-50">
+          <div className="container mx-auto px-4 py-12">
+            <ArticleGridSkeleton />
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
   }
-  
-  return res.json();
-}
-
-async function getCategories() {
-  const res = await fetch('http://127.0.0.1:8001/api/v1/categories/', {
-    cache: 'no-store'
-  });
-  
-  if (!res.ok) {
-    return [];
-  }
-  
-  const data = await res.json();
-  // Handle both array and paginated response
-  return Array.isArray(data) ? data : data.results || [];
-}
-
-async function getTags() {
-  const res = await fetch('http://127.0.0.1:8001/api/v1/tags/', {
-    cache: 'no-store'
-  });
-  
-  if (!res.ok) {
-    return [];
-  }
-  
-  const data = await res.json();
-  // Handle both array and paginated response
-  return Array.isArray(data) ? data : data.results || [];
-}
-
-export default async function ArticlesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string; category?: string; tag?: string; search?: string }>;
-}) {
-  const params = await searchParams;
-  const page = parseInt(params.page || '1');
-  const category = params.category || '';
-  const tag = params.tag || '';
-  const search = params.search || '';
-
-  const [articlesData, categories, tags] = await Promise.all([
-    getArticles(page, category, tag, search),
-    getCategories(),
-    getTags()
-  ]);
-
-  const totalPages = Math.ceil(articlesData.count / 12);
 
   return (
     <>
@@ -96,7 +130,7 @@ export default async function ArticlesPage({
           <div className="mb-12 text-center">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4">All Articles</h1>
             <p className="text-lg sm:text-xl text-gray-600">
-              {articlesData.count} {articlesData.count === 1 ? 'article' : 'articles'} found
+              {totalCount} {totalCount === 1 ? 'article' : 'articles'} found
             </p>
           </div>
 
@@ -180,7 +214,7 @@ export default async function ArticlesPage({
             {/* Articles Grid */}
             <div className="lg:col-span-3">
               {/* Articles Grid */}
-              {articlesData.results.length === 0 ? (
+              {articles.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-xl shadow-md">
                   <div className="text-6xl mb-4">🔍</div>
                   <h3 className="text-2xl font-bold text-gray-800 mb-2">No articles found</h3>
@@ -195,21 +229,21 @@ export default async function ArticlesPage({
               ) : (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12">
-                    {articlesData.results.slice(0, 6).map((article: any) => (
+                    {articles.slice(0, 6).map((article: any) => (
                       <ArticleCard key={article.id} article={article} />
                     ))}
                   </div>
 
                   {/* Mid-section Ad */}
-                  {articlesData.results.length > 6 && (
+                  {articles.length > 6 && (
                     <div className="flex justify-center my-12">
                       <AdBanner format="leaderboard" />
                     </div>
                   )}
 
-                  {articlesData.results.length > 6 && (
+                  {articles.length > 6 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12">
-                      {articlesData.results.slice(6).map((article: any) => (
+                      {articles.slice(6).map((article: any) => (
                         <ArticleCard key={article.id} article={article} />
                       ))}
                     </div>

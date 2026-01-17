@@ -138,16 +138,11 @@ export default function Header() {
             </div>
             
             <Link href="/admin" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Admin</Link>
-            <form onSubmit={handleSearch} className="flex items-center gap-2 bg-white/20 rounded-full px-4 py-2 mt-2">
-              <Search size={20} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search..."
-                className="bg-transparent border-none outline-none placeholder-white/70 w-full"
-              />
-            </form>
+            
+            {/* Mobile Search */}
+            <div className="mt-2">
+              <SearchBar />
+            </div>
           </div>
         )}
       </div>
