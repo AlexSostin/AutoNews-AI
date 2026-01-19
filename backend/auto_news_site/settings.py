@@ -126,10 +126,23 @@ except (redis.ConnectionError, redis.RedisError, Exception):
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('POSTGRES_DB', 'autonews'),
+        'USER': os.getenv('POSTGRES_USER', 'autonews_user'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'SecurePass123'),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),  # Use 'postgres' in Docker, '127.0.0.1' locally
+        'PORT': os.getenv('DB_PORT', '5433'),  # Use '5432' in Docker, '5433' locally
     }
 }
+
+# SQLite configuration (для отката если нужно):
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 
 
 # Password validation
@@ -168,6 +181,98 @@ DATETIME_FORMAT = 'd.m.Y H:i:s'
 SHORT_DATETIME_FORMAT = 'd.m.Y H:i'
 USE_L10N = False
 
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'level': 'WARNING',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'maxBytes': 1024 * 1024 * 15,  # 15MB
+            'backupCount': 10,
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'django_errors.log',
+            'maxBytes': 1024 * 1024 * 15,  # 15MB
+            'backupCount': 10,
+            'formatter': 'verbose',
+        },
+        'ai_engine_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'ai_engine.log',
+            'maxBytes': 1024 * 1024 * 10,  # 10MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Set to DEBUG to see all SQL queries
+            'propagate': False,
+        },
+        'ai_engine': {
+            'handlers': ['console', 'ai_engine_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'news': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+}
+
+# Create logs directory if it doesn't exist
+import os
+LOGS_DIR = BASE_DIR / 'logs'
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
@@ -309,12 +414,32 @@ SIMPLE_JWT = {
 }
 
 # CORS Settings
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in DEBUG mode
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ORIGINS', 
     'http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173'
 ).split(',')
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 # Security Headers
 SECURE_CONTENT_TYPE_NOSNIFF = True

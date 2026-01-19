@@ -16,7 +16,7 @@ export default function Header() {
 
   useEffect(() => {
     // Load categories
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories/`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/categories/`)
       .then(res => res.json())
       .then(data => {
         const cats = Array.isArray(data) ? data : data.results || [];

@@ -52,60 +52,149 @@ def main(youtube_url):
     
     print("Pipeline finished.")
 
+def check_duplicate(youtube_url):
+    """
+    Проверяет, не генерировали ли мы уже статью с этого видео.
+    """
+    # Setup Django if not configured
+    import django
+    if not django.apps.apps.ready:
+        import os
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sys.path.append(BASE_DIR)
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
+        django.setup()
+    
+    from news.models import Article
+    
+    existing = Article.objects.filter(youtube_url=youtube_url).first()
+    if existing:
+        print(f"⚠️  Статья уже существует: {existing.slug} (ID: {existing.id})")
+        return existing
+    return None
+
+
 def generate_article_from_youtube(youtube_url):
     """
-    Generate article from YouTube URL and return article data
-    Used by Django API
+    Generate article from YouTube URL and return article data.
+    Used by Django API.
+    
+    УЛУЧШЕННАЯ ВЕРСИЯ с:
+    - Проверкой дубликатов
+    - Автоматической категоризацией
+    - Автоматическими тегами
+    - Сохранением характеристик авто
+    - SEO оптимизацией
     """
     try:
-        import time
-        print(f"Generating article from: {youtube_url}")
+        print(f"🚀 Генерация статьи из: {youtube_url}")
         
-        # Extract video ID for thumbnail
-        video_id = youtube_url.split('v=')[-1].split('&')[0]
+        # 0. Проверка дубликатов
+        print("🔍 Проверка дубликатов...")
+        existing = check_duplicate(youtube_url)
+        if existing:
+            return {
+                'success': False,
+                'error': f'Статья уже существует: {existing.title}',
+                'article_id': existing.id,
+                'duplicate': True
+            }
         
-        # Generate unique title with timestamp
-        timestamp = int(time.time())
-        title = f"AI Generated Article from Video {timestamp}"
-        summary = "This article was automatically generated from a YouTube video using AI technology. Full implementation with Groq AI will generate detailed automotive content when API keys are configured."
+        # 1. Получаем транскрипт
+        print("📝 Получение транскрипта...")
+        transcript = transcribe_from_youtube(youtube_url)
         
-        article_html = f"""
-        <h2>{title}</h2>
-        <p class="lead">{summary}</p>
+        if not transcript or len(transcript) < 50:
+            raise Exception("Не удалось получить транскрипт или он слишком короткий")
         
-        <h3>Introduction</h3>
-        <p>This article was automatically generated from the YouTube video. The AI analyzes the video content and creates a comprehensive article with images.</p>
+        print(f"✓ Транскрипт получен ({len(transcript)} символов)")
         
-        <img src="https://img.youtube.com/vi/{video_id}/maxresdefault.jpg" alt="Video thumbnail" style="width:100%; max-width:800px; margin:20px 0; border-radius:8px;" />
+        # 2. Анализируем транскрипт
+        print("🔍 Анализ транскрипта...")
+        analysis = analyze_transcript(transcript)
         
-        <h3>Key Highlights</h3>
-        <ul>
-            <li>Detailed analysis of the video content</li>
-            <li>Important points and takeaways</li>
-            <li>Professional automotive insights</li>
-        </ul>
+        if not analysis:
+            raise Exception("Не удалось проанализировать транскрипт")
         
-        <img src="https://img.youtube.com/vi/{video_id}/hqdefault.jpg" alt="Video screenshot 1" style="width:100%; max-width:600px; margin:20px 0; border-radius:8px;" />
+        print("✓ Анализ завершен")
         
-        <h3>In-Depth Review</h3>
-        <p>Full AI generation with Groq will provide comprehensive automotive reviews, technical specifications, and expert analysis when API keys are configured.</p>
+        # 2.5. Определяем категорию и теги (НОВОЕ!)
+        print("🏷️  Категоризация и теги...")
+        from modules.analyzer import categorize_article, extract_specs_dict
         
-        <img src="https://img.youtube.com/vi/{video_id}/sddefault.jpg" alt="Video screenshot 2" style="width:100%; max-width:600px; margin:20px 0; border-radius:8px;" />
+        category_name, tag_names = categorize_article(analysis)
+        print(f"✓ Категория: {category_name}")
+        print(f"✓ Теги: {', '.join(tag_names) if tag_names else 'нет'}")
         
-        <h3>Conclusion</h3>
-        <p>Stay tuned for more AI-generated automotive content. This is just a preview of what's possible with the Groq AI integration.</p>
-        """
+        # 2.6. Извлекаем характеристики для БД (НОВОЕ!)
+        specs = extract_specs_dict(analysis)
+        print(f"✓ Характеристики: {specs['make']} {specs['model']} {specs['year'] or ''}")
         
-        # Publish article with summary and youtube_url
-        article = publish_article(title, article_html, summary=summary, youtube_url=youtube_url)
+        # 3. Генерируем статью
+        print("✍️  Генерация статьи с Groq AI...")
+        article_html = generate_article(analysis)
+        
+        if not article_html or len(article_html) < 100:
+            raise Exception("Статья не сгенерирована или слишком короткая")
+        
+        print(f"✓ Статья сгенерирована ({len(article_html)} символов)")
+        
+        # 4. Извлекаем заголовок
+        title = extract_title(article_html)
+        
+        # 5. Скачиваем превью
+        print("🖼️  Скачивание изображений...")
+        thumbnail_path = None
+        try:
+            audio_path, thumbnail_path = download_audio_and_thumbnail(youtube_url)
+            print(f"✓ Превью сохранено: {thumbnail_path}")
+        except Exception as e:
+            print(f"⚠️  Не удалось скачать превью: {e}")
+            # Используем YouTube thumbnail как fallback
+            video_id = youtube_url.split('v=')[-1].split('&')[0]
+            thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+            # Добавляем изображение в начало статьи
+            article_html = f'<img src="{thumbnail_url}" alt="Video thumbnail" style="width:100%; max-width:800px; margin:20px 0; border-radius:8px;" />\n\n' + article_html
+        
+        # 6. Создаем краткое описание из анализа
+        summary_lines = [line for line in analysis.split('\n') if line.startswith('Summary:')]
+        if summary_lines:
+            summary = summary_lines[0].replace('Summary:', '').strip()[:300]
+        else:
+            # Извлекаем из первого параграфа статьи
+            import re
+            match = re.search(r'<p>(.*?)</p>', article_html, re.DOTALL)
+            if match:
+                summary = re.sub(r'<[^>]+>', '', match.group(1))[:300]
+            else:
+                summary = f"Comprehensive review of the {specs['make']} {specs['model']}"
+        
+        # 7. Публикуем статью с ПОЛНЫМИ метаданными (УЛУЧШЕНО!)
+        print("📤 Публикация статьи...")
+        article = publish_article(
+            title=title,
+            content=article_html,
+            summary=summary,
+            category_name=category_name,  # Правильная категория
+            youtube_url=youtube_url,
+            image_path=thumbnail_path,
+            tag_names=tag_names,  # Автоматические теги
+            specs=specs  # Характеристики авто
+        )
+        
+        print(f"✅ Статья успешно создана! ID: {article.id}, Slug: {article.slug}")
         
         return {
             'success': True,
             'article_id': article.id,
-            'title': title
+            'title': title,
+            'slug': article.slug,
+            'category': category_name,
+            'tags': tag_names
         }
+        
     except Exception as e:
-        print(f"Error generating article: {str(e)}")
+        print(f"❌ Ошибка при генерации статьи: {str(e)}")
         import traceback
         print(traceback.format_exc())
         return {

@@ -54,7 +54,7 @@ export default function TagsDropdown({ tags, currentTag, currentCategory }: Tags
   const clearTag = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    window.location.href = category ? `/articles?category=${currentCategory}` : '/articles';
+    window.location.href = currentCategory ? `/articles?category=${currentCategory}` : '/articles';
   };
 
   return (

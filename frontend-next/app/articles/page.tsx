@@ -14,6 +14,9 @@ import CategoriesDropdown from '@/components/public/CategoriesDropdown';
 import SearchInput from '@/components/public/SearchInput';
 import AdBanner from '@/components/public/AdBanner';
 import StickyBottomAd from '@/components/public/StickyBottomAd';
+import { Article, Category, Tag } from '@/types';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 
 export default function ArticlesPage() {
   const searchParams = useSearchParams();
@@ -47,7 +50,7 @@ export default function ArticlesPage() {
         if (tag) params.append('tag', tag);
         if (search) params.append('search', search);
 
-        const articlesRes = await fetch(`http://127.0.0.1:8001/api/v1/articles/?${params.toString()}`);
+        const articlesRes = await fetch(`${API_URL}/articles/?${params.toString()}`);
         if (articlesRes.ok && isMounted) {
           const articlesData = await articlesRes.json();
           setArticles(articlesData.results || []);
@@ -74,8 +77,8 @@ export default function ArticlesPage() {
     async function loadFilters() {
       try {
         const [categoriesRes, tagsRes] = await Promise.all([
-          fetch('http://127.0.0.1:8001/api/v1/categories/'),
-          fetch('http://127.0.0.1:8001/api/v1/tags/')
+          fetch(`${API_URL}/categories/`),
+          fetch(`${API_URL}/tags/`)
         ]);
         
         if (categoriesRes.ok && isMounted) {

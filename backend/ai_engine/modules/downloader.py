@@ -8,9 +8,20 @@ try:
 except ImportError:
     from config import TRANSCRIPTS_DIR
 
+# Import utils
+try:
+    from ai_engine.modules.utils import retry_on_failure, extract_video_id
+except ImportError:
+    from modules.utils import retry_on_failure, extract_video_id
+
+
 # FFmpeg path for Windows
 FFMPEG_PATH = r"C:\Users\kille\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin"
 
+from modules.utils import retry_on_failure, extract_video_id
+
+
+@retry_on_failure(max_retries=3, delay=10, exceptions=(Exception,))
 def download_audio_and_thumbnail(youtube_url):
     """
     Downloads audio from YouTube video as MP3 and fetches the thumbnail.

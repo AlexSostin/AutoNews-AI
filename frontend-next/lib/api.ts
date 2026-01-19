@@ -1,7 +1,18 @@
 import axios from 'axios';
 
+// Use backend service name for server-side requests (inside Docker)
+// Use localhost for client-side requests (from browser)
+const getBaseURL = () => {
+  // Server-side (inside Docker container)
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL_SERVER || 'http://backend:8001/api/v1';
+  }
+  // Client-side (browser)
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+};
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json',
   },

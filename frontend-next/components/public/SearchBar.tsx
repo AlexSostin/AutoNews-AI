@@ -37,7 +37,7 @@ export default function SearchBar() {
       setLoading(true);
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/articles/?search=${encodeURIComponent(query)}&is_published=true`
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/articles/?search=${encodeURIComponent(query)}&is_published=true`
         );
         const data = await res.json();
         setResults(data.results?.slice(0, 5) || []);

@@ -5,36 +5,37 @@ import { Star } from 'lucide-react';
 import api from '@/lib/api';
 
 interface RatingStarsProps {
-  articleId: number;
+  articleSlug: string;
   initialRating: number;
   ratingCount: number;
 }
 
-export default function RatingStars({ articleId, initialRating, ratingCount }: RatingStarsProps) {
-  const [rating, setRating] = useState(initialRating);
-  const [count, setCount] = useState(ratingCount);
+export default function RatingStars({ articleSlug, initialRating, ratingCount }: RatingStarsProps) {
+  const [rating, setRating] = useState(initialRating || 0);
+  const [count, setCount] = useState(ratingCount || 0);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [userRating, setUserRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
   const handleRate = async (stars: number) => {
-    if (userRating > 0) {
-      setMessage('You have already rated this article!');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      const response = await api.post(`/articles/${articleId}/rate/`, {
+      const response = await api.post(`/articles/${articleSlug}/rate/`, {
         rating: stars
       });
       
+      console.log('Rating response:', response.data);
       setRating(response.data.average_rating);
       setCount(response.data.rating_count);
       setUserRating(stars);
-      setMessage('✓ Thank you for rating!');
+      
+      // Update the article rating display at the top of the page
+      if (typeof window !== 'undefined' && (window as any).updateArticleRating) {
+        (window as any).updateArticleRating(response.data.average_rating, response.data.rating_count);
+      }
+      
+      setMessage('✓ Rating updated!');
       setTimeout(() => setMessage(''), 3000);
     } catch (error: any) {
       console.error('Rating error:', error);
@@ -59,7 +60,7 @@ export default function RatingStars({ articleId, initialRating, ratingCount }: R
               onClick={() => handleRate(star)}
               onMouseEnter={() => setHoveredStar(star)}
               onMouseLeave={() => setHoveredStar(0)}
-              disabled={isSubmitting || userRating > 0}
+              disabled={isSubmitting}
               className="transition-all transform hover:scale-110 disabled:cursor-not-allowed"
             >
               <Star
@@ -76,10 +77,10 @@ export default function RatingStars({ articleId, initialRating, ratingCount }: R
         
         <div className="text-center">
           <div className="text-3xl font-bold text-gray-900">
-            {rating.toFixed(1)}
+            {(rating || 0).toFixed(1)}
           </div>
           <div className="text-sm text-gray-500">
-            ({count} {count === 1 ? 'vote' : 'votes'})
+            ({count || 0} {count === 1 ? 'vote' : 'votes'})
           </div>
         </div>
       </div>

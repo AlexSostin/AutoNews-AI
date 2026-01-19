@@ -17,9 +17,10 @@ def invalidate_article_cache(sender, instance, **kwargs):
         f'category_{instance.category.slug}_articles',
         f'trending_articles',
     ])
-    # Clear article list cache patterns
-    cache.delete_pattern('article_list*')
-    cache.delete_pattern('articles*')
+    # Clear article list cache patterns (only if cache supports pattern deletion)
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern('article_list*')
+        cache.delete_pattern('articles*')
 
 
 @receiver([post_save, post_delete], sender=Category)
@@ -30,7 +31,8 @@ def invalidate_category_cache(sender, instance, **kwargs):
         f'category_{instance.id}',
         f'category_{instance.slug}',
     ])
-    cache.delete_pattern('category*')
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern('category*')
 
 
 @receiver([post_save, post_delete], sender=Tag)
@@ -41,7 +43,8 @@ def invalidate_tag_cache(sender, instance, **kwargs):
         f'tag_{instance.id}',
         f'tag_{instance.slug}',
     ])
-    cache.delete_pattern('tag*')
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern('tag*')
 
 
 @receiver(m2m_changed, sender=Article.tags.through)
@@ -52,4 +55,5 @@ def invalidate_article_tags_cache(sender, instance, **kwargs):
             f'article_{instance.id}',
             f'article_{instance.slug}',
         ])
-        cache.delete_pattern('article_list*')
+        if hasattr(cache, 'delete_pattern'):
+            cache.delete_pattern('article_list*')

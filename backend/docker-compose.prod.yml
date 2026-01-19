@@ -1,0 +1,135 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: autonews_postgres_prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-autonews_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-autonews_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # ОБЯЗАТЕЛЬНО установить в .env.prod
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autonews_user} -d ${POSTGRES_DB:-autonews_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - autonews_network_prod
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: autonews_backend_prod
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn auto_news_site.wsgi:application -c gunicorn.conf.py"
+    volumes:
+      - static_volume_prod:/app/staticfiles
+      - media_volume_prod:/app/media
+    expose:
+      - "8001"
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY}  # ОБЯЗАТЕЛЬНО установить в .env.prod
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-autonews_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-autonews_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-yourdomain.com,www.yourdomain.com,api.yourdomain.com}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://yourdomain.com,https://www.yourdomain.com}
+      - REDIS_URL=redis://redis:6379/1
+      # AI Engine
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - AI_PROVIDER=${AI_PROVIDER:-groq}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - autonews_network_prod
+
+  frontend:
+    build:
+      context: ../frontend-next
+      dockerfile: Dockerfile.prod
+    container_name: autonews_frontend_prod
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.yourdomain.com/api/v1}
+      - NEXT_PUBLIC_API_URL_SERVER=http://backend:8001/api/v1
+      - NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL:-https://api.yourdomain.com/media}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://yourdomain.com}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - autonews_network_prod
+
+  redis:
+    image: redis:7-alpine
+    container_name: autonews_redis_prod
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_prod:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - autonews_network_prod
+
+  nginx:
+    image: nginx:alpine
+    container_name: autonews_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - static_volume_prod:/app/staticfiles:ro
+      - media_volume_prod:/app/media:ro
+      - ./nginx/logs:/var/log/nginx
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - autonews_network_prod
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  certbot:
+    image: certbot/certbot
+    container_name: autonews_certbot
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  postgres_data_prod:
+  static_volume_prod:
+  media_volume_prod:
+  redis_data_prod:
+  certbot_conf:
+  certbot_www:
+
+networks:
+  autonews_network_prod:
+    driver: bridge

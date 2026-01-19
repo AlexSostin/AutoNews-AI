@@ -19,7 +19,7 @@ export default function TrendingSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/articles/?is_published=true&ordering=-views&page_size=5`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/articles/?is_published=true&ordering=-views&page_size=5`)
       .then(res => res.json())
       .then(data => {
         setArticles(data.results || []);
@@ -73,7 +73,7 @@ export default function TrendingSection() {
               {article.image && (
                 <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden">
                   <Image
-                    src={article.image.startsWith('http') ? article.image : `http://127.0.0.1:8001${article.image}`}
+                    src={article.image.startsWith('http') ? article.image : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001/media'}${article.image}`}
                     alt={article.title}
                     fill
                     className="object-cover group-hover:scale-110 transition-transform"

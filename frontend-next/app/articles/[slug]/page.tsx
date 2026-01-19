@@ -8,14 +8,19 @@ import AdBanner from '@/components/public/AdBanner';
 import StickyBottomAd from '@/components/public/StickyBottomAd';
 import ShareButtons from '@/components/public/ShareButtons';
 import RatingStars from '@/components/public/RatingStars';
+import ArticleRating from '@/components/public/ArticleRating';
 import CommentSection from '@/components/public/CommentSection';
 import ImageGallery from '@/components/public/ImageGallery';
 import Breadcrumbs from '@/components/public/Breadcrumbs';
 import { Article } from '@/types';
 import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
 
+const getApiUrl = () => {
+  return process.env.NEXT_PUBLIC_API_URL_SERVER || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+};
+
 async function getArticle(slug: string): Promise<Article | null> {
-  const res = await fetch(`http://127.0.0.1:8001/api/v1/articles/${slug}/`, {
+  const res = await fetch(`${getApiUrl()}/articles/${slug}/`, {
     cache: 'no-store'
   });
   
@@ -27,7 +32,7 @@ async function getArticle(slug: string): Promise<Article | null> {
 }
 
 async function getRelatedArticles(categorySlug: string, currentSlug: string) {
-  const res = await fetch(`http://127.0.0.1:8001/api/v1/articles/?category=${categorySlug}&page_size=3`, {
+  const res = await fetch(`${getApiUrl()}/articles/?category=${categorySlug}&page_size=3`, {
     cache: 'no-store'
   });
   
@@ -63,10 +68,10 @@ export default async function ArticleDetailPage({
   const imageUrl = article.image
     ? (article.image.startsWith('http://') || article.image.startsWith('https://') 
         ? article.image 
-        : `http://127.0.0.1:8001${article.image}`)
+        : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001/media'}${article.image}`)
     : 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200';
 
-  const fullUrl = `http://localhost:3000/articles/${article.slug}`;
+  const fullUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/articles/${article.slug}`;
   
   // Prepare article content HTML
   const articleContentHtml = article.content;
@@ -145,14 +150,10 @@ export default async function ArticleDetailPage({
                     </div>
                   )}
                   
-                  {(article.average_rating > 0) && (
-                    <div className="flex items-center gap-2">
-                      <Star size={18} className="fill-amber-400 text-amber-400" />
-                      <span className="font-semibold text-amber-600">
-                        {article.average_rating.toFixed(1)} ({article.rating_count} ratings)
-                      </span>
-                    </div>
-                  )}
+                  <ArticleRating 
+                    initialRating={article.average_rating}
+                    initialCount={article.rating_count}
+                  />
                 </div>
               </div>
 
@@ -258,7 +259,7 @@ export default async function ArticleDetailPage({
 
               {/* Rating System */}
               <RatingStars 
-                articleId={article.id}
+                articleSlug={article.slug}
                 initialRating={article.average_rating}
                 ratingCount={article.rating_count}
               />

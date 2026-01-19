@@ -7,12 +7,17 @@ import TrendingSection from '@/components/public/TrendingSection';
 import EmptyState from '@/components/public/EmptyState';
 import Link from 'next/link';
 
+// Get API URL - use backend service name for server-side
+const getApiUrl = () => {
+  return process.env.NEXT_PUBLIC_API_URL_SERVER || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+};
+
 async function getArticles() {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
     
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/articles/?is_published=true`, {
+    const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
       cache: 'no-store',
       signal: controller.signal,
     });
@@ -36,7 +41,7 @@ async function getCategories() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories/`, {
+    const res = await fetch(`${getApiUrl()}/categories/`, {
       next: { revalidate: 3600 },
       signal: controller.signal,
     });

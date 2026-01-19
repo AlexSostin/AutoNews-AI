@@ -4,9 +4,17 @@ import Header from '@/components/public/Header';
 import Footer from '@/components/public/Footer';
 import ArticleCard from '@/components/public/ArticleCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Article, Category } from '@/types';
+import { Metadata } from 'next';
+
+const getApiUrl = () => {
+  return typeof window === 'undefined' 
+    ? (process.env.NEXT_PUBLIC_API_URL_SERVER || 'http://backend:8001/api/v1')
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1');
+};
 
 async function getCategory(slug: string) {
-  const res = await fetch(`http://127.0.0.1:8001/api/v1/categories/?search=${slug}`, {
+  const res = await fetch(`${getApiUrl()}/categories/?search=${slug}`, {
     cache: 'no-store'
   });
   
@@ -21,7 +29,7 @@ async function getCategory(slug: string) {
 
 async function getArticlesByCategory(categorySlug: string, page = 1) {
   const res = await fetch(
-    `http://127.0.0.1:8001/api/v1/articles/?category=${categorySlug}&page=${page}&page_size=12`,
+    `${getApiUrl()}/articles/?category=${categorySlug}&page=${page}&page_size=12`,
     { cache: 'no-store' }
   );
   

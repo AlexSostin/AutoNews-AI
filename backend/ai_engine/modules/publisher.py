@@ -9,39 +9,123 @@ if not django.apps.apps.ready:
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
     django.setup()
 
-from news.models import Article, Category, Tag
+from news.models import Article, Category, Tag, CarSpecification
 from django.core.files import File
+from django.utils.text import slugify
+import re
 
-def publish_article(title, content, category_name="Reviews", image_path=None, youtube_url=None, summary=None):
+def publish_article(title, content, category_name="Reviews", image_path=None, youtube_url=None, summary=None, tag_names=None, specs=None):
     """
-    Publishes the article to the Django database.
+    Publishes the article to the Django database with full metadata.
     """
-    print(f"Publishing article: {title}")
+    print(f"📤 Publishing article: {title}")
     
     # Get or Create Category
-    category, created = Category.objects.get_or_create(name=category_name)
+    category, created = Category.objects.get_or_create(
+        name=category_name,
+        defaults={'slug': slugify(category_name)}
+    )
+    if created:
+        print(f"  ✓ Created new category: {category_name}")
     
     # Generate summary if not provided
     if not summary:
-        # Extract first paragraph or create default summary
-        summary = "AI-generated article from YouTube video."
+        # Extract first paragraph from content
+        summary = extract_summary(content)
+    
+    # Trim summary to 300 chars
+    if len(summary) > 300:
+        summary = summary[:297] + "..."
+    
+    # Generate SEO fields
+    seo_title = generate_seo_title(title)
+    seo_description = summary[:160]  # Meta description limit
     
     # Create Article
-    # Note: Slug is auto-generated in Model save()
     article = Article(
         title=title,
         summary=summary,
         content=content,
         category=category,
         youtube_url=youtube_url or '',
-        is_published=True # Auto publish for now
+        is_published=True,
+        seo_title=seo_title,
+        seo_description=seo_description
     )
     
+    # Add image if available
     if image_path and os.path.exists(image_path):
         with open(image_path, 'rb') as f:
             article.image.save(os.path.basename(image_path), File(f), save=False)
-            
-    article.save()
+            print(f"  ✓ Image attached: {os.path.basename(image_path)}")
     
-    print(f"Article published successfully! Slug: {article.slug}")
+    article.save()
+    print(f"  ✓ Article saved with slug: {article.slug}")
+    
+    # Add tags
+    if tag_names:
+        added_tags = []
+        for tag_name in tag_names:
+            tag, created = Tag.objects.get_or_create(
+                name=tag_name,
+                defaults={'slug': slugify(tag_name)}
+            )
+            article.tags.add(tag)
+            added_tags.append(tag_name)
+        
+        if added_tags:
+            print(f"  ✓ Tags added: {', '.join(added_tags)}")
+    
+    # Save car specifications
+    if specs and specs.get('make') != 'Not specified':
+        try:
+            car_spec = CarSpecification.objects.create(
+                article=article,
+                make=specs.get('make', ''),
+                model=specs.get('model', ''),
+                year=specs.get('year'),
+                engine_type=specs.get('engine', ''),
+                horsepower=specs.get('horsepower'),
+                torque=specs.get('torque', ''),
+                zero_to_sixty=specs.get('acceleration', ''),
+                top_speed=specs.get('top_speed', ''),
+                price=specs.get('price', ''),
+            )
+            print(f"  ✓ Car specs saved: {specs['make']} {specs['model']}")
+        except Exception as e:
+            print(f"  ⚠️  Failed to save specs: {e}")
+    
+    print(f"✅ Article published successfully! ID: {article.id}")
     return article
+
+
+def extract_summary(content):
+    """Извлекает первый параграф из HTML контента для summary."""
+    # Удаляем заголовок
+    content = re.sub(r'<h2>.*?</h2>', '', content, count=1, flags=re.DOTALL)
+    
+    # Ищем первый <p> тег
+    match = re.search(r'<p>(.*?)</p>', content, re.DOTALL)
+    if match:
+        summary = match.group(1)
+        # Очищаем от HTML тегов
+        summary = re.sub(r'<[^>]+>', '', summary)
+        return summary.strip()
+    
+    return "AI-generated automotive article with detailed analysis and specifications."
+
+
+def generate_seo_title(title):
+    """Генерирует SEO-оптимизированный title (до 60 символов)."""
+    # Если title уже короткий, используем как есть
+    if len(title) <= 60:
+        return title
+    
+    # Извлекаем основную информацию: марку, модель, год
+    match = re.search(r'(\d{4})\s+(\w+)\s+(\w+)', title)
+    if match:
+        year, make, model = match.groups()
+        return f"{year} {make} {model} Review & Specs"
+    
+    # Если не нашли паттерн, обрезаем title
+    return title[:57] + "..."

@@ -43,10 +43,28 @@ env/
 *~
 .DS_Store
 
-# Environment variables
+# Environment variables (CRITICAL - never commit!)
 .env
+.env.*
 *.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
 !.env.example
+!.env.template
+
+# Logs directory
+logs/
+*.log
+
+# API Keys and Secrets (extra protection)
+*secret*
+*SECRET*
+*api_key*
+*API_KEY*
+config.py
+!config.example.py
 
 # API Keys (keep config example but ignore actual keys)
 ai_engine/config.py

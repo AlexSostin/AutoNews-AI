@@ -50,7 +50,7 @@ class SiteSettings(models.Model):
         return obj
 
 class Category(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, db_index=True)
     slug = models.SlugField(unique=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -63,9 +63,12 @@ class Category(models.Model):
     
     class Meta:
         verbose_name_plural = "Categories"
+        indexes = [
+            models.Index(fields=['name']),
+        ]
 
 class Tag(models.Model):
-    name = models.CharField(max_length=50)
+    name = models.CharField(max_length=50, db_index=True)
     slug = models.SlugField(unique=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -92,10 +95,18 @@ class Article(models.Model):
     seo_description = models.CharField(max_length=160, blank=True)
     
     # Meta
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_published = models.BooleanField(default=False)
-    views = models.PositiveIntegerField(default=0, help_text="Number of times this article has been viewed")
+    is_published = models.BooleanField(default=False, db_index=True)
+    views = models.PositiveIntegerField(default=0, help_text="Number of times this article has been viewed", db_index=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at', 'is_published'], name='article_created_published_idx'),
+            models.Index(fields=['category', '-created_at'], name='article_category_created_idx'),
+            models.Index(fields=['-views'], name='article_views_idx'),
+        ]
     
     def save(self, *args, **kwargs):
         # Optimize image before saving
@@ -146,10 +157,13 @@ class Comment(models.Model):
     email = models.EmailField(help_text="Your email (won't be published)")
     content = models.TextField(help_text="Your comment")
     created_at = models.DateTimeField(auto_now_add=True)
-    is_approved = models.BooleanField(default=False, help_text="Admin must approve")
+    is_approved = models.BooleanField(default=False, help_text="Admin must approve", db_index=True)
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['article', 'is_approved', '-created_at']),
+        ]
     
     def __str__(self):
         return f"Comment by {self.name} on {self.article.title}"

@@ -35,7 +35,7 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
   const getImageUrl = (img: GalleryImage) => {
     if (img.image_url) return img.image_url;
     if (img.image.startsWith('http')) return img.image;
-    return `http://127.0.0.1:8001${img.image}`;
+    return `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001/media'}${img.image}`;
   };
 
   return (

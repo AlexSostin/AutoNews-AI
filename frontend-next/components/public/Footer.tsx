@@ -56,13 +56,13 @@ export default function Footer() {
 
   useEffect(() => {
     // Load settings
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/settings/`)
       .then(res => res.json())
       .then(data => setSettings(data))
       .catch(err => console.error('Failed to load settings:', err));
 
     // Load categories
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories/`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/categories/`)
       .then(res => res.json())
       .then(data => {
         const cats = Array.isArray(data) ? data : data.results || [];

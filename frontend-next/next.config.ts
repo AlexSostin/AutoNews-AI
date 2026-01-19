@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://127.0.0.1:8001/api/:path*',
+        destination: process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') + '/api/:path*' || 'http://localhost:8001/api/:path*',
       },
     ];
   },

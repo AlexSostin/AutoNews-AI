@@ -19,7 +19,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
       imageUrl = thumbnailUrl;
     } else {
       // If relative path, prepend Django URL
-      imageUrl = `http://127.0.0.1:8001${thumbnailUrl}`;
+      imageUrl = `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001/media'}${thumbnailUrl}`;
     }
   }
 

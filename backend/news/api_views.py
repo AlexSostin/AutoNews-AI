@@ -188,46 +188,82 @@ class ArticleViewSet(viewsets.ModelViewSet):
             )
     
     @action(detail=True, methods=['post'])
-    def rate(self, request, pk=None):
+    def rate(self, request, slug=None):
         """Rate an article"""
         article = self.get_object()
         rating_value = request.data.get('rating')
         
-        if not rating_value or not (1 <= int(rating_value) <= 5):
+        print(f"DEBUG: Received rating_value: {rating_value}, type: {type(rating_value)}")
+        print(f"DEBUG: Request data: {request.data}")
+        
+        if not rating_value:
             return Response(
-                {'error': 'Rating must be between 1 and 5'},
+                {'error': 'Rating value is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            rating_int = int(rating_value)
+            if not (1 <= rating_int <= 5):
+                return Response(
+                    {'error': 'Rating must be between 1 and 5'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Rating must be a valid number'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Get user IP for preventing duplicate votes
-        user_ip = request.META.get('REMOTE_ADDR', 'unknown')
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = request.META.get('REMOTE_ADDR', 'unknown')
+        
+        print(f"DEBUG: IP address: {ip_address}")
+        print(f"DEBUG: Article: {article.id} - {article.title}")
         
         # Check if user already rated
-        existing_rating = Rating.objects.filter(article=article, user_ip=user_ip).first()
+        existing_rating = Rating.objects.filter(article=article, ip_address=ip_address).first()
+        print(f"DEBUG: Existing rating: {existing_rating}")
         
         if existing_rating:
-            return Response(
-                {'error': 'You have already rated this article'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Create new rating
-        Rating.objects.create(
-            article=article,
-            rating=int(rating_value),
-            user_ip=user_ip
-        )
+            # Update existing rating
+            print(f"DEBUG: Updating existing rating from {existing_rating.rating} to {rating_int}")
+            existing_rating.rating = rating_int
+            existing_rating.save()
+            print(f"DEBUG: Rating updated successfully")
+        else:
+            # Create new rating
+            print(f"DEBUG: Creating rating with article={article.id}, rating={rating_int}, ip_address={ip_address}")
+            try:
+                rating_obj = Rating.objects.create(
+                    article=article,
+                    rating=rating_int,
+                    ip_address=ip_address
+                )
+                print(f"DEBUG: Rating created successfully: {rating_obj.id}")
+            except Exception as e:
+                print(f"DEBUG: Error creating rating: {e}")
+                import traceback
+                traceback.print_exc()
+                return Response(
+                    {'error': f'Failed to create rating: {str(e)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         
         # Recalculate average
         article.refresh_from_db()
         
         return Response({
-            'average_rating': article.average_rating,
-            'rating_count': article.rating_count
+            'average_rating': article.average_rating(),
+            'rating_count': article.rating_count()
         })
     
     @action(detail=True, methods=['post'])
-    def increment_views(self, request, pk=None):
+    def increment_views(self, request, slug=None):
         """Increment article views"""
         article = self.get_object()
         article.views += 1

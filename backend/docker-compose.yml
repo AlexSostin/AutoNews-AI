@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: autonews_postgres
+    environment:
+      POSTGRES_DB: autonews
+      POSTGRES_USER: autonews_user
+      POSTGRES_PASSWORD: SecurePass123
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c listen_addresses='*'
+      -c log_connections=on
+      -c log_disconnections=on
+      -c log_statement=all
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autonews_user -d autonews"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - autonews_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: autonews_backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8001"
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8001:8001"
+    environment:
+      - DEBUG=True
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - POSTGRES_DB=autonews
+      - POSTGRES_USER=autonews_user
+      - POSTGRES_PASSWORD=SecurePass123
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - autonews_network
+
+  frontend:
+    build:
+      context: ../frontend-next
+      dockerfile: Dockerfile
+    container_name: autonews_frontend
+    volumes:
+      - ../frontend-next:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
+      - NEXT_PUBLIC_API_URL_SERVER=http://backend:8001/api/v1
+      - NEXT_PUBLIC_MEDIA_URL=http://localhost:8001/media
+      - NEXT_PUBLIC_SITE_URL=http://localhost:3000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - autonews_network
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+
+networks:
+  autonews_network:
+    driver: bridge
