@@ -2,12 +2,6 @@ import os
 import yt_dlp
 import sys
 
-# Import config from ai_engine
-try:
-    from ai_engine.config import GEMINI_API_KEY
-except ImportError:
-    from config import GEMINI_API_KEY
-
 def transcribe_from_youtube(youtube_url, max_retries=3):
     """
     Gets transcript from YouTube subtitles (much faster and more reliable than audio transcription).
