@@ -141,7 +141,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('POSTGRES_DB', 'autonews'),
         'USER': os.getenv('POSTGRES_USER', 'autonews_user'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'SecurePass123'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),  # MUST be set in environment
         'HOST': os.getenv('DB_HOST', '127.0.0.1'),  # Use 'postgres' in Docker, '127.0.0.1' locally
         'PORT': os.getenv('DB_PORT', '5433'),  # Use '5432' in Docker, '5433' locally
     }
