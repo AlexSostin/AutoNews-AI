@@ -7,6 +7,8 @@ import TrendingSection from '@/components/public/TrendingSection';
 import EmptyState from '@/components/public/EmptyState';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 // Get API URL - use backend service name for server-side
 const getApiUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL_SERVER || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';

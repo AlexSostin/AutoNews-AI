@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -18,7 +18,9 @@ import { Article, Category, Tag } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 
-export default function ArticlesPage() {
+export const dynamic = 'force-dynamic';
+
+function ArticlesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -330,5 +332,13 @@ export default function ArticlesPage() {
       <Footer />
       <StickyBottomAd />
     </>
+  );
+}
+
+export default function ArticlesPage() {
+  return (
+    <Suspense fallback={<ArticleGridSkeleton />}>
+      <ArticlesContent />
+    </Suspense>
   );
 }
