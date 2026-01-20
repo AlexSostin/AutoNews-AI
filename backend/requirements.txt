@@ -43,3 +43,9 @@ gunicorn==23.0.0
 
 # Error tracking
 sentry-sdk==2.22.0
+
+# Static files serving
+whitenoise==6.8.2
+
+# Admin theme
+django-jazzmin==3.0.0
