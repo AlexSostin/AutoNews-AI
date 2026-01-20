@@ -9,6 +9,9 @@ RUN npm ci
 # Copy source files
 COPY . .
 
+# Set memory limit for build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # Build Next.js application
 RUN npm run build
 
@@ -17,15 +20,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files and install production dependencies only
-COPY package*.json ./
-RUN npm ci --only=production
+ENV NODE_ENV=production
 
-# Copy built application from builder
-COPY --from=builder /app/.next ./.next
+# Copy only necessary files from standalone build
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
 EXPOSE 3000
 
-# Start Next.js in production mode
-CMD ["npm", "start"]
+# Start Next.js in production mode using standalone server
+CMD ["node", "server.js"]
