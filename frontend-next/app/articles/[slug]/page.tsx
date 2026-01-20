@@ -92,7 +92,7 @@ export default async function ArticleDetailPage({
     article.thumbnail_url || article.image,
     article.image_2_url || article.image_2,
     article.image_3_url || article.image_3
-  ].filter(Boolean).map(url => {
+  ].filter((url): url is string => Boolean(url)).map(url => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url.replace('http://backend:8001', 'http://localhost:8001');
     }
