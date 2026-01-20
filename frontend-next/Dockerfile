@@ -1,20 +1,34 @@
-# Use Node.js 20 image
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm install
-
-# Copy project files
+# Copy source files
 COPY . .
 
-# Expose port
+# Set memory limit for build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# Build Next.js application
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+
+# Copy only necessary files from standalone build
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
 EXPOSE 3000
 
-# Start the app in development mode (no build needed)
-CMD ["npm", "run", "dev"]
+# Start Next.js in production mode using standalone server
+CMD ["sh", "-c", "PORT=${PORT:-3000} node server.js"]
