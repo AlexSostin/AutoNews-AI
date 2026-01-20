@@ -29,5 +29,5 @@ RUN mkdir -p /app/media/articles /app/static /app/staticfiles
 # Expose port
 EXPOSE 8001
 
-# Run server
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8001"]
+# Run server with Daphne ASGI
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8001 auto_news_site.asgi:application"]
