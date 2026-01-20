@@ -18,7 +18,7 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
     // Split content by closing tags to preserve structure
     const htmlParts = content.split(/(<\/[^>]+>)/g).filter(s => s.trim());
     
-    const parts: JSX.Element[] = [];
+    const parts: ReactElement[] = [];
     let imageIndex = 0;
     let elementCount = 0;
     
