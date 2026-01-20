@@ -4,12 +4,12 @@ from django.db.models import Q
 from .models import Article, Category
 
 def home(request):
-    articles = Article.objects.filter(is_published=True).order_by('-created_at')
+    articles = Article.objects.filter(is_published=True, is_deleted=False).order_by('-created_at')
     categories = Category.objects.all()
     return render(request, 'news/home.html', {'articles': articles, 'categories': categories})
 
 def article_detail(request, slug):
-    article = get_object_or_404(Article, slug=slug, is_published=True)
+    article = get_object_or_404(Article, slug=slug, is_published=True, is_deleted=False)
     comments = article.comments.filter(is_approved=True).order_by('-created_at')
     
     # Handle comment submission
@@ -38,7 +38,7 @@ def article_detail(request, slug):
 
 def category_list(request, slug):
     category = get_object_or_404(Category, slug=slug)
-    articles = category.articles.filter(is_published=True).order_by('-created_at')
+    articles = category.articles.filter(is_published=True, is_deleted=False).order_by('-created_at')
     return render(request, 'news/home.html', {'articles': articles, 'current_category': category})
 
 def logout_view(request):
@@ -65,7 +65,8 @@ def search(request):
             Q(content__icontains=query) |
             Q(category__name__icontains=query) |
             Q(tags__name__icontains=query),
-            is_published=True
+            is_published=True,
+            is_deleted=False
         ).distinct().order_by('-created_at')
     
     return render(request, 'news/search_results.html', {

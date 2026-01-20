@@ -8,15 +8,24 @@ import AdBanner from '@/components/public/AdBanner';
 import StickyBottomAd from '@/components/public/StickyBottomAd';
 import ShareButtons from '@/components/public/ShareButtons';
 import RatingStars from '@/components/public/RatingStars';
+import ArticleContentWithImages from '@/components/public/ArticleContentWithImages';
 import ArticleRating from '@/components/public/ArticleRating';
 import CommentSection from '@/components/public/CommentSection';
 import ImageGallery from '@/components/public/ImageGallery';
 import Breadcrumbs from '@/components/public/Breadcrumbs';
+import FavoriteButton from '@/components/public/FavoriteButton';
+import ReadingProgressBar from '@/components/public/ReadingProgressBar';
+import ReadingTime from '@/components/public/ReadingTime';
+import ViewStats from '@/components/public/ViewStats';
 import { Article } from '@/types';
 import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
 
 const getApiUrl = () => {
-  return process.env.NEXT_PUBLIC_API_URL_SERVER || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+  // Server-side (inside Docker) uses backend service name
+  // Client-side uses localhost
+  return typeof window === 'undefined'
+    ? (process.env.NEXT_PUBLIC_API_URL_SERVER || 'http://backend:8001/api/v1')
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1');
 };
 
 async function getArticle(slug: string): Promise<Article | null> {
@@ -67,24 +76,39 @@ export default async function ArticleDetailPage({
 
   const imageUrl = article.image
     ? (article.image.startsWith('http://') || article.image.startsWith('https://') 
-        ? article.image 
-        : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001/media'}${article.image}`)
+        ? article.image.replace('http://backend:8001', 'http://localhost:8001')
+        : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.image}`)
     : 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200';
 
   const fullUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/articles/${article.slug}`;
   
-  // Prepare article content HTML
+  // Prepare article content HTML with images between paragraphs
   const articleContentHtml = article.content;
   const hasYoutubeVideo = Boolean(article.youtube_url);
   const youtubeEmbedUrl = article.youtube_url ? article.youtube_url.replace('watch?v=', 'embed/') : '';
+  
+  // Get article images URLs
+  const articleImages = [
+    article.thumbnail_url || article.image,
+    article.image_2_url || article.image_2,
+    article.image_3_url || article.image_3
+  ].filter(Boolean).map(url => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url.replace('http://backend:8001', 'http://localhost:8001');
+    }
+    return `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${url}`;
+  });
 
   return (
     <>
       <Header />
       
+      {/* Reading Progress Bar */}
+      <ReadingProgressBar />
+      
       <main className="flex-1 bg-gray-50">
         {/* Hero Image */}
-        <div className="relative h-[300px] sm:h-[400px] md:h-[500px] w-full">
+        <div className="relative h-[250px] sm:h-[350px] md:h-[500px] lg:h-[600px] xl:h-[650px] 2xl:h-[700px] max-h-[700px] w-full">
           <Image
             src={imageUrl}
             alt={article.title}
@@ -93,69 +117,85 @@ export default async function ArticleDetailPage({
             priority
             unoptimized
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
-          
-          {/* Article Title Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-            <div className="container mx-auto">
-              {article.category_name && (
-                <Link 
-                  href={`/categories/${article.category_slug}`}
-                  className="inline-block bg-indigo-600 px-4 py-2 rounded-full text-sm font-bold mb-4 hover:bg-indigo-700 transition-colors"
-                >
-                  {article.category_name}
-                </Link>
-              )}
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4 drop-shadow-lg max-w-4xl">
-                {article.title}
-              </h1>
-              <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-3xl">
-                {article.summary}
-              </p>
-            </div>
-          </div>
         </div>
 
-        <div className="container mx-auto px-4 py-12">
+        <div className="container mx-auto px-4 py-8">
           {/* Breadcrumbs */}
-          <Breadcrumbs 
-            items={[
-              { label: article.category_name, href: `/categories/${article.category_slug}` },
-              { label: article.title }
-            ]}
-          />
+          <div className="mb-6">
+            <Breadcrumbs 
+              items={[
+                { label: article.category_name, href: `/categories/${article.category_slug}` },
+                { label: article.title }
+              ]}
+            />
+          </div>
+          
+          {/* Article Meta */}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600 items-center">
+              <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-indigo-600" />
+                <span>{formatDate(article.created_at)}</span>
+              </div>
+              
+              {article.author && (
+                <div className="flex items-center gap-2">
+                  <User size={16} className="text-indigo-600" />
+                  <span>{article.author}</span>
+                </div>
+              )}
+              
+              {/* Reading Time */}
+              <ReadingTime content={article.content} />
+              
+              {(article.average_rating > 0 && article.rating_count > 0) && (
+                <ArticleRating 
+                  initialRating={article.average_rating}
+                  initialCount={article.rating_count}
+                />
+              )}
+            </div>
+            
+            {/* View Stats with Trending Badge */}
+            {article.views && article.views > 0 && (
+              <div className="mt-4">
+                <ViewStats 
+                  views={article.views} 
+                  createdAt={article.created_at}
+                  isTrending={article.views > 100}
+                />
+              </div>
+            )}
+          </div>
+          
+          {/* Title Section */}
+          <div className="mb-8">
+            {article.category_name && (
+              <Link 
+                href={`/categories/${article.category_slug}`}
+                className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold mb-4 hover:bg-indigo-700 transition-colors"
+              >
+                {article.category_name}
+              </Link>
+            )}
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 flex-1">
+                {article.title}
+              </h1>
+              <FavoriteButton 
+                articleId={article.id} 
+                initialIsFavorited={article.is_favorited}
+                size="lg"
+              />
+            </div>
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl">
+              {article.summary}
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
             {/* Main Content */}
             <div className="lg:col-span-2">
-              {/* Article Meta */}
-              <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-                <div className="flex flex-wrap gap-6 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={18} className="text-indigo-600" />
-                    <span>{formatDate(article.created_at)}</span>
-                  </div>
-                  
-                  {article.author && (
-                    <div className="flex items-center gap-2">
-                      <User size={18} className="text-indigo-600" />
-                      <span>{article.author}</span>
-                    </div>
-                  )}
-                  
-                  {(article.views && article.views > 0) && (
-                    <div className="flex items-center gap-2">
-                      <Eye size={18} className="text-indigo-600" />
-                      <span>{article.views} views</span>
-                    </div>
-                  )}
-                  
-                  <ArticleRating 
-                    initialRating={article.average_rating}
-                    initialCount={article.rating_count}
-                  />
-                </div>
-              </div>
 
               {/* Top Article Ad */}
               <div className="mb-8 flex justify-center">
@@ -163,11 +203,10 @@ export default async function ArticleDetailPage({
               </div>
 
               {/* Article Content */}
-              <div className="bg-white rounded-xl shadow-md p-8 mb-8 prose prose-lg max-w-none">
-                <div 
-                  id="articleContent"
-                  dangerouslySetInnerHTML={{ __html: articleContentHtml }}
-                  className="text-gray-800 leading-relaxed"
+              <div className="bg-white rounded-xl shadow-md p-8 mb-8">
+                <ArticleContentWithImages 
+                  content={articleContentHtml}
+                  images={articleImages}
                 />
               </div>
 
@@ -175,6 +214,45 @@ export default async function ArticleDetailPage({
               <div className="mb-8 flex justify-center">
                 <AdBanner format="rectangle" />
               </div>
+
+              {/* Video Screenshots Gallery */}
+              {(article.image || article.image_2 || article.image_3) && (
+                <div className="bg-white rounded-xl shadow-md p-8 mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6">Vehicle Gallery</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {article.thumbnail_url && (
+                      <div className="relative aspect-video rounded-lg overflow-hidden">
+                        <Image
+                          src={article.thumbnail_url.startsWith('http') ? article.thumbnail_url.replace('http://backend:8001', 'http://localhost:8001') : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.thumbnail_url}`}
+                          alt={`${article.title} - View 1`}
+                          fill
+                          className="object-cover hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    )}
+                    {article.image_2_url && (
+                      <div className="relative aspect-video rounded-lg overflow-hidden">
+                        <Image
+                          src={article.image_2_url.startsWith('http') ? article.image_2_url.replace('http://backend:8001', 'http://localhost:8001') : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.image_2_url}`}
+                          alt={`${article.title} - View 2`}
+                          fill
+                          className="object-cover hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    )}
+                    {article.image_3_url && (
+                      <div className="relative aspect-video rounded-lg overflow-hidden">
+                        <Image
+                          src={article.image_3_url.startsWith('http') ? article.image_3_url.replace('http://backend:8001', 'http://localhost:8001') : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.image_3_url}`}
+                          alt={`${article.title} - View 3`}
+                          fill
+                          className="object-cover hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* YouTube Video */}
               {hasYoutubeVideo && (
@@ -313,7 +391,7 @@ export default async function ArticleDetailPage({
                             src={
                               related.image
                                 ? (related.image.startsWith('http://') || related.image.startsWith('https://') 
-                                    ? related.image 
+                                    ? related.image.replace('http://backend:8001', 'http://localhost:8001')
                                     : `http://127.0.0.1:8001${related.image}`)
                                 : 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400'
                             }

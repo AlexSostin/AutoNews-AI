@@ -13,6 +13,7 @@ from modules.transcriber import transcribe_from_youtube
 from modules.analyzer import analyze_transcript
 from modules.article_generator import generate_article
 from modules.publisher import publish_article
+from modules.screenshot_maker import extract_screenshots_simple
 
 def extract_title(html_content):
     match = re.search(r'<h2>(.*?)</h2>', html_content)
@@ -142,19 +143,25 @@ def generate_article_from_youtube(youtube_url):
         # 4. Извлекаем заголовок
         title = extract_title(article_html)
         
-        # 5. Скачиваем превью
-        print("🖼️  Скачивание изображений...")
-        thumbnail_path = None
+        # 5. Извлекаем 3 скриншота из видео
+        print("📸 Извлечение скриншотов из видео...")
+        screenshot_paths = []
         try:
-            audio_path, thumbnail_path = download_audio_and_thumbnail(youtube_url)
-            print(f"✓ Превью сохранено: {thumbnail_path}")
+            # Директория для сохранения скриншотов
+            screenshots_dir = os.path.join(current_dir, 'output', 'screenshots')
+            os.makedirs(screenshots_dir, exist_ok=True)
+            
+            # Извлекаем 3 скриншота из разных моментов видео
+            screenshot_paths = extract_screenshots_simple(youtube_url, screenshots_dir, num_screenshots=3)
+            
+            if screenshot_paths:
+                print(f"✓ Извлечено {len(screenshot_paths)} скриншотов")
+            else:
+                print(f"⚠️  Не удалось извлечь скриншоты")
+                
         except Exception as e:
-            print(f"⚠️  Не удалось скачать превью: {e}")
-            # Используем YouTube thumbnail как fallback
-            video_id = youtube_url.split('v=')[-1].split('&')[0]
-            thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-            # Добавляем изображение в начало статьи
-            article_html = f'<img src="{thumbnail_url}" alt="Video thumbnail" style="width:100%; max-width:800px; margin:20px 0; border-radius:8px;" />\n\n' + article_html
+            print(f"⚠️  Ошибка при извлечении скриншотов: {e}")
+            screenshot_paths = []
         
         # 6. Создаем краткое описание из анализа
         summary_lines = [line for line in analysis.split('\n') if line.startswith('Summary:')]
@@ -169,7 +176,7 @@ def generate_article_from_youtube(youtube_url):
             else:
                 summary = f"Comprehensive review of the {specs['make']} {specs['model']}"
         
-        # 7. Публикуем статью с ПОЛНЫМИ метаданными (УЛУЧШЕНО!)
+        # 7. Публикуем статью с ПОЛНЫМИ метаданными и скриншотами
         print("📤 Публикация статьи...")
         article = publish_article(
             title=title,
@@ -177,7 +184,7 @@ def generate_article_from_youtube(youtube_url):
             summary=summary,
             category_name=category_name,  # Правильная категория
             youtube_url=youtube_url,
-            image_path=thumbnail_path,
+            image_paths=screenshot_paths,  # 3 скриншота из видео
             tag_names=tag_names,  # Автоматические теги
             specs=specs  # Характеристики авто
         )

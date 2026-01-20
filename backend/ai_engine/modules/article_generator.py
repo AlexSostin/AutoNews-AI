@@ -41,6 +41,19 @@ Required Structure:
 - <h2>Design & Interior</h2> - Describe styling, materials, space
 - <h2>Technology & Features</h2> - Highlight tech innovations
 - <h2>Driving Experience</h2> - Handling, comfort, real-world performance
+- <h2>US Market Availability & Pricing</h2> - IMPORTANT: Include:
+  * Will this car be sold in the United States? (Yes/No with timeline)
+  * Expected US pricing (MSRP in USD, mention trims if applicable)
+  * Import taxes and fees if applicable (federal, state, customs duties)
+  * Any federal or state EV tax credits/incentives if electric/hybrid
+  * Comparison to competitor pricing in US market
+  * Registration and ownership costs considerations
+- <h2>Global Market & Regional Availability</h2> - CRITICAL: Include:
+  * List which major regions will get this car: North America, Europe, Asia, Middle East, Australia, South America
+  * Mention specific countries or markets where it will be sold
+  * Timeline for each region (e.g., "Europe Q2 2026, Asia Q3 2026")
+  * Any regional exclusives or variations (different trims, specs by region)
+  * Pricing differences between major markets
 - <h2>Pros & Cons</h2> with <ul> lists (be specific!)
 - Conclusion paragraph with recommendation and target buyer
 

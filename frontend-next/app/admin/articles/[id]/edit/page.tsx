@@ -47,6 +47,12 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
     tags: [] as number[],
     published: false,
     youtube_url: '',
+    image: null as File | null,
+    image_2: null as File | null,
+    image_3: null as File | null,
+    current_image: '',
+    current_image_2: '',
+    current_image_3: '',
   });
 
   useEffect(() => {
@@ -65,6 +71,14 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       ]);
 
       const article = articleRes.data;
+      
+      // Helper to build full image URL
+      const buildImageUrl = (path: string) => {
+        if (!path) return '';
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        return `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8001'}${path}`;
+      };
+      
       setFormData({
         title: article.title || '',
         slug: article.slug || '',
@@ -74,6 +88,12 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         tags: Array.isArray(article.tags) ? article.tags.map((tag: any) => tag.id) : [],
         published: article.is_published ?? false,
         youtube_url: article.youtube_url || '',
+        image: null,
+        image_2: null,
+        image_3: null,
+        current_image: buildImageUrl(article.thumbnail_url || article.image || ''),
+        current_image_2: buildImageUrl(article.image_2_url || article.image_2 || ''),
+        current_image_3: buildImageUrl(article.image_3_url || article.image_3 || ''),
       });
 
       // Handle both array and paginated response
@@ -93,17 +113,50 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
     setSaving(true);
     try {
-      const payload = {
-        title: formData.title,
-        summary: formData.summary,
-        content: formData.content,
-        category_id: parseInt(formData.category),
-        tag_ids: formData.tags,
-        is_published: formData.published,
-        youtube_url: formData.youtube_url,
-      };
+      // Use FormData if images are being uploaded
+      if (formData.image || formData.image_2 || formData.image_3) {
+        const formDataToSend = new FormData();
+        formDataToSend.append('title', formData.title);
+        formDataToSend.append('summary', formData.summary);
+        formDataToSend.append('content', formData.content);
+        formDataToSend.append('category_id', formData.category);
+        formDataToSend.append('tag_ids', JSON.stringify(formData.tags));
+        formDataToSend.append('is_published', formData.published.toString());
+        
+        if (formData.youtube_url) {
+          formDataToSend.append('youtube_url', formData.youtube_url);
+        }
+        
+        if (formData.image) {
+          formDataToSend.append('image', formData.image);
+        }
+        if (formData.image_2) {
+          formDataToSend.append('image_2', formData.image_2);
+        }
+        if (formData.image_3) {
+          formDataToSend.append('image_3', formData.image_3);
+        }
 
-      await api.put(`/articles/${articleId}/`, payload);
+        await api.put(`/articles/${articleId}/`, formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        // No images - use JSON
+        const payload = {
+          title: formData.title,
+          summary: formData.summary,
+          content: formData.content,
+          category_id: parseInt(formData.category),
+          tag_ids: formData.tags,
+          is_published: formData.published,
+          youtube_url: formData.youtube_url,
+        };
+
+        await api.put(`/articles/${articleId}/`, payload);
+      }
+      
       alert('Article updated successfully!');
       router.push('/admin/articles');
     } catch (error: any) {
@@ -207,6 +260,86 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-mono text-sm"
               required
             />
+          </div>
+
+          {/* Images Section */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Images</h3>
+            <p className="text-sm text-gray-600 mb-4">Replace images or keep existing ones from AI generation</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Image 1 */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Image 1 (Main)</label>
+                {formData.current_image && (
+                  <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200">
+                    <img 
+                      src={formData.current_image} 
+                      alt="Current Image 1" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded">Current</div>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                />
+                {formData.image && (
+                  <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image.name}</p>
+                )}
+              </div>
+
+              {/* Image 2 */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Image 2</label>
+                {formData.current_image_2 && (
+                  <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200">
+                    <img 
+                      src={formData.current_image_2} 
+                      alt="Current Image 2" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded">Current</div>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFormData({ ...formData, image_2: e.target.files?.[0] || null })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                />
+                {formData.image_2 && (
+                  <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image_2.name}</p>
+                )}
+              </div>
+
+              {/* Image 3 */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Image 3</label>
+                {formData.current_image_3 && (
+                  <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200">
+                    <img 
+                      src={formData.current_image_3} 
+                      alt="Current Image 3" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded">Current</div>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFormData({ ...formData, image_3: e.target.files?.[0] || null })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                />
+                {formData.image_3 && (
+                  <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image_3.name}</p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Category */}

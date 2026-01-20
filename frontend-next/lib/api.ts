@@ -1,14 +1,14 @@
 import axios from 'axios';
 
+// Export API URL for direct fetch calls
+export const API_URL = typeof window === 'undefined'
+  ? process.env.NEXT_PUBLIC_API_URL_SERVER || 'http://backend:8001/api/v1'
+  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+
 // Use backend service name for server-side requests (inside Docker)
 // Use localhost for client-side requests (from browser)
 const getBaseURL = () => {
-  // Server-side (inside Docker container)
-  if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL_SERVER || 'http://backend:8001/api/v1';
-  }
-  // Client-side (browser)
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+  return API_URL;
 };
 
 const api = axios.create({
@@ -46,6 +46,10 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
+        if (typeof window === 'undefined') {
+          return Promise.reject(error);
+        }
+
         const refreshToken = document.cookie
           .split('; ')
           .find(row => row.startsWith('refresh_token='))
@@ -53,7 +57,7 @@ api.interceptors.response.use(
 
         if (refreshToken) {
           const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL}/auth/token/refresh/`,
+            `${getBaseURL()}/token/refresh/`,
             { refresh: refreshToken }
           );
 
@@ -71,6 +75,7 @@ api.interceptors.response.use(
         if (typeof window !== 'undefined') {
           document.cookie = 'access_token=; path=/; max-age=0';
           document.cookie = 'refresh_token=; path=/; max-age=0';
+          localStorage.removeItem('user');
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);

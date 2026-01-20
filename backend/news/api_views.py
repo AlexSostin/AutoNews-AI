@@ -1,21 +1,36 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, BasePermission, AllowAny
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings
+from django_ratelimit.decorators import ratelimit
+from django.contrib.auth.models import User
+from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings, Favorite
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
     CategorySerializer, TagSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
-    SiteSettingsSerializer
+    SiteSettingsSerializer, FavoriteSerializer
 )
 import os
 import sys
 import re
+
+
+class IsStaffOrReadOnly(BasePermission):
+    """
+    Custom permission to only allow staff users to edit objects.
+    Read-only for everyone else.
+    """
+    def has_permission(self, request, view):
+        # Read permissions are allowed to any request
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return True
+        # Write permissions only for staff
+        return request.user and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
 
 
 def is_valid_youtube_url(url):
@@ -47,7 +62,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsStaffOrReadOnly]
+    lookup_field = 'slug'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'slug']
     ordering_fields = ['name', 'created_at']
@@ -63,13 +79,22 @@ class TagViewSet(viewsets.ModelViewSet):
 
 
 class ArticleViewSet(viewsets.ModelViewSet):
-    queryset = Article.objects.select_related('category', 'specs').prefetch_related('tags', 'gallery')
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    queryset = Article.objects.filter(is_deleted=False).select_related('category', 'specs').prefetch_related('tags', 'gallery')
+    permission_classes = [IsStaffOrReadOnly]
     lookup_field = 'slug'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'content', 'excerpt']
     ordering_fields = ['created_at', 'views', 'title']
     ordering = ['-created_at']
+    
+    def get_permissions(self):
+        """
+        Allow anyone to rate articles and check their rating,
+        but require staff for other write operations
+        """
+        if self.action in ['rate', 'get_user_rating', 'increment_views']:
+            return [AllowAny()]
+        return super().get_permissions()
     
     def get_object(self):
         """Support lookup by both slug and ID"""
@@ -129,6 +154,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         return super().retrieve(request, *args, **kwargs)
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def generate_from_youtube(self, request):
         """Generate article from YouTube URL"""
         youtube_url = request.data.get('youtube_url')
@@ -188,6 +214,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             )
     
     @action(detail=True, methods=['post'])
+    @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
     def rate(self, request, slug=None):
         """Rate an article"""
         article = self.get_object()
@@ -215,18 +242,25 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get user IP for preventing duplicate votes
+        # Get user IP and user agent for better fingerprinting (harder to bypass with VPN)
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
             ip_address = x_forwarded_for.split(',')[0]
         else:
             ip_address = request.META.get('REMOTE_ADDR', 'unknown')
         
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # Create fingerprint (IP + User Agent hash for better uniqueness)
+        import hashlib
+        fingerprint = hashlib.md5(f"{ip_address}_{user_agent[:100]}".encode()).hexdigest()
+        
         print(f"DEBUG: IP address: {ip_address}")
+        print(f"DEBUG: Fingerprint: {fingerprint}")
         print(f"DEBUG: Article: {article.id} - {article.title}")
         
-        # Check if user already rated
-        existing_rating = Rating.objects.filter(article=article, ip_address=ip_address).first()
+        # Check if user already rated (by fingerprint)
+        existing_rating = Rating.objects.filter(article=article, ip_address=fingerprint).first()
         print(f"DEBUG: Existing rating: {existing_rating}")
         
         if existing_rating:
@@ -237,12 +271,12 @@ class ArticleViewSet(viewsets.ModelViewSet):
             print(f"DEBUG: Rating updated successfully")
         else:
             # Create new rating
-            print(f"DEBUG: Creating rating with article={article.id}, rating={rating_int}, ip_address={ip_address}")
+            print(f"DEBUG: Creating rating with article={article.id}, rating={rating_int}, ip_address={fingerprint}")
             try:
                 rating_obj = Rating.objects.create(
                     article=article,
                     rating=rating_int,
-                    ip_address=ip_address
+                    ip_address=fingerprint
                 )
                 print(f"DEBUG: Rating created successfully: {rating_obj.id}")
             except Exception as e:
@@ -262,6 +296,38 @@ class ArticleViewSet(viewsets.ModelViewSet):
             'rating_count': article.rating_count()
         })
     
+    @action(detail=True, methods=['get'], url_path='my-rating')
+    def get_user_rating(self, request, slug=None):
+        """Get current user's rating for this article"""
+        article = self.get_object()
+        
+        # Get user IP and user agent for fingerprinting
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = request.META.get('REMOTE_ADDR', 'unknown')
+        
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # Create fingerprint
+        import hashlib
+        fingerprint = hashlib.md5(f"{ip_address}_{user_agent[:100]}".encode()).hexdigest()
+        
+        # Get user's rating
+        user_rating = Rating.objects.filter(article=article, ip_address=fingerprint).first()
+        
+        if user_rating:
+            return Response({
+                'user_rating': user_rating.rating,
+                'has_rated': True
+            })
+        else:
+            return Response({
+                'user_rating': 0,
+                'has_rated': False
+            })
+    
     @action(detail=True, methods=['post'])
     def increment_views(self, request, slug=None):
         """Increment article views"""
@@ -274,11 +340,21 @@ class ArticleViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.select_related('article')
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'content']
     ordering_fields = ['created_at']
     ordering = ['-created_at']
+    
+    def get_permissions(self):
+        """
+        Allow anyone to create comments (guests can comment),
+        but require staff for approve/delete actions
+        """
+        if self.action in ['create', 'list', 'retrieve']:
+            return [AllowAny()]
+        elif self.action == 'approve':
+            return [IsAuthenticated()]
+        return [IsStaffOrReadOnly()]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -367,7 +443,7 @@ class ArticleImageViewSet(viewsets.ModelViewSet):
 class SiteSettingsViewSet(viewsets.ModelViewSet):
     queryset = SiteSettings.objects.all()
     serializer_class = SiteSettingsSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsStaffOrReadOnly]
     
     def list(self, request):
         """Return the single settings instance"""
@@ -380,3 +456,186 @@ class SiteSettingsViewSet(viewsets.ModelViewSet):
         settings = SiteSettings.load()
         serializer = self.get_serializer(settings)
         return Response(serializer.data)
+
+
+class UserViewSet(viewsets.ViewSet):
+    """
+    ViewSet for user operations
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Get current user information"""
+        user = request.user
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
+            'date_joined': user.date_joined.isoformat(),
+        })
+    
+    @action(detail=False, methods=['post'], permission_classes=[])
+    def register(self, request):
+        """Register a new user"""
+        username = request.data.get('username')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        # Validation
+        if not username or not email or not password:
+            return Response(
+                {'detail': 'Username, email and password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(password) < 8:
+            return Response(
+                {'detail': 'Password must be at least 8 characters'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if user exists
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {'username': ['User with this username already exists']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'email': ['User with this email already exists']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create user
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+            
+            return Response({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'message': 'User registered successfully'
+            }, status=status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class FavoriteViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing user favorites
+    """
+    serializer_class = FavoriteSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return favorites for current user"""
+        return Favorite.objects.filter(user=self.request.user).select_related('article', 'article__category')
+    
+    def create(self, request, *args, **kwargs):
+        """Add article to favorites"""
+        article_id = request.data.get('article')
+        
+        if not article_id:
+            return Response(
+                {'detail': 'Article ID is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if article exists
+        try:
+            article = Article.objects.get(id=article_id)
+        except Article.DoesNotExist:
+            return Response(
+                {'detail': 'Article not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if already favorited
+        if Favorite.objects.filter(user=request.user, article=article).exists():
+            return Response(
+                {'detail': 'Article already in favorites'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create favorite
+        favorite = Favorite.objects.create(user=request.user, article=article)
+        serializer = self.get_serializer(favorite)
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def destroy(self, request, *args, **kwargs):
+        """Remove article from favorites"""
+        favorite = self.get_object()
+        favorite.delete()
+        return Response({'detail': 'Removed from favorites'}, status=status.HTTP_204_NO_CONTENT)
+    
+    @action(detail=False, methods=['post'])
+    def toggle(self, request):
+        """Toggle favorite status for an article"""
+        article_id = request.data.get('article')
+        
+        if not article_id:
+            return Response(
+                {'detail': 'Article ID is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if article exists
+        try:
+            article = Article.objects.get(id=article_id)
+        except Article.DoesNotExist:
+            return Response(
+                {'detail': 'Article not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Toggle favorite
+        favorite, created = Favorite.objects.get_or_create(user=request.user, article=article)
+        
+        if not created:
+            # Already exists - remove it
+            favorite.delete()
+            return Response({
+                'detail': 'Removed from favorites',
+                'is_favorited': False
+            })
+        else:
+            # Created new favorite
+            serializer = self.get_serializer(favorite)
+            return Response({
+                'detail': 'Added to favorites',
+                'is_favorited': True,
+                'favorite': serializer.data
+            }, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'])
+    def check(self, request):
+        """Check if article is favorited"""
+        article_id = request.query_params.get('article')
+        
+        if not article_id:
+            return Response(
+                {'detail': 'Article ID is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        is_favorited = Favorite.objects.filter(
+            user=request.user,
+            article_id=article_id
+        ).exists()
+        
+        return Response({'is_favorited': is_favorited})

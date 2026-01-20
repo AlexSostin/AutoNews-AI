@@ -55,14 +55,16 @@ export default function Footer() {
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+    
     // Load settings
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/settings/`)
+    fetch(`${apiUrl}/settings/`)
       .then(res => res.json())
       .then(data => setSettings(data))
       .catch(err => console.error('Failed to load settings:', err));
 
     // Load categories
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/categories/`)
+    fetch(`${apiUrl}/categories/`)
       .then(res => res.json())
       .then(data => {
         const cats = Array.isArray(data) ? data : data.results || [];

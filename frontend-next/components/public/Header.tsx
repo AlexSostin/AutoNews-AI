@@ -1,20 +1,51 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Settings, LogOut, BookMarked } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import SearchBar from './SearchBar';
+import { isAuthenticated, getUserFromStorage, logout, isAdmin } from '@/lib/auth';
+import type { User as UserType } from '@/types';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [user, setUser] = useState<UserType | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  
   const categoriesRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useEffect(() => {
+    // Check authentication
+    const updateAuthState = () => {
+      setIsLoggedIn(isAuthenticated());
+      setUser(getUserFromStorage());
+      setIsAdminUser(isAdmin());
+    };
+    
+    updateAuthState();
+    
+    // Listen for storage changes (login/logout events)
+    const handleStorageChange = () => {
+      updateAuthState();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Custom event for same-tab login/logout
+    const handleAuthChange = () => {
+      updateAuthState();
+    };
+    
+    window.addEventListener('authChange', handleAuthChange);
+    
     // Load categories
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/categories/`)
       .then(res => res.json())
@@ -23,15 +54,21 @@ export default function Header() {
         setCategories(cats.slice(0, 10)); // Show top 10
       })
       .catch(err => console.error('Failed to load categories:', err));
+      
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChange', handleAuthChange);
+    };
   }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Don't close if clicking inside desktop categories dropdown
       if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
         setIsCategoriesOpen(false);
       }
-      // Don't close mobile menu categories if clicking inside mobile menu
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
       if (mobileMenuRef.current && mobileMenuRef.current.contains(event.target as Node)) {
         return;
       }
@@ -40,6 +77,10 @@ export default function Header() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white shadow-lg sticky top-0 z-50">
@@ -64,7 +105,7 @@ export default function Header() {
               </button>
               
               {isCategoriesOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white text-gray-900 rounded-lg shadow-xl border border-gray-200 overflow-hidden">
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white text-gray-900 rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
                   <div className="py-2">
                     {categories.map((category) => (
                       <Link
@@ -91,7 +132,72 @@ export default function Header() {
               )}
             </div>
             
-            <Link href="/admin" className="hover:text-purple-300 transition-colors">Admin</Link>
+            {/* Admin Link - Only for staff */}
+            {isAdminUser && (
+              <Link href="/admin" className="flex items-center gap-1 hover:text-purple-300 transition-colors">
+                <Settings size={18} />
+                Admin
+              </Link>
+            )}
+            
+            {/* User Menu */}
+            {isLoggedIn ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2 hover:text-purple-300 transition-colors bg-purple-800 px-4 py-2 rounded-lg"
+                >
+                  <User size={18} />
+                  <span>{user?.username || 'Account'}</span>
+                  <ChevronDown size={16} className={`transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isUserMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white text-gray-900 rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
+                    <div className="py-2">
+                      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                        <div className="font-bold text-gray-900">{user?.username}</div>
+                        <div className="text-xs text-gray-500">{user?.email}</div>
+                      </div>
+                      
+                      <Link
+                        href="/profile"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-purple-50 transition-colors"
+                      >
+                        <User size={18} className="text-purple-600" />
+                        <span className="font-medium">My Profile</span>
+                      </Link>
+                      
+                      <Link
+                        href="/profile/favorites"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-purple-50 transition-colors"
+                      >
+                        <BookMarked size={18} className="text-purple-600" />
+                        <span className="font-medium">Favorites</span>
+                      </Link>
+                      
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-red-50 transition-colors border-t border-gray-200 text-red-600"
+                      >
+                        <LogOut size={18} />
+                        <span className="font-medium">Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link 
+                href="/login" 
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors font-medium"
+              >
+                <User size={18} />
+                Login
+              </Link>
+            )}
             
             {/* Search */}
             <SearchBar />
@@ -123,7 +229,6 @@ export default function Header() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log('Categories button clicked');
                   setIsCategoriesOpen(!isCategoriesOpen);
                 }}
                 className="flex items-center gap-1 py-2 hover:text-purple-300 transition-colors w-full text-left"
@@ -144,7 +249,6 @@ export default function Header() {
                           const slug = category.slug;
                           setIsMenuOpen(false); 
                           setIsCategoriesOpen(false);
-                          // Use router.push for instant navigation
                           router.push(`/categories/${slug}`);
                         }}
                         className="block px-4 py-2 text-white hover:bg-white/20 transition-colors cursor-pointer"
@@ -173,7 +277,61 @@ export default function Header() {
               )}
             </div>
             
-            <Link href="/admin" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Admin</Link>
+            {/* Mobile Admin Link - Only for staff */}
+            {isAdminUser && (
+              <Link href="/admin" className="flex items-center gap-2 py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>
+                <Settings size={18} />
+                Admin
+              </Link>
+            )}
+            
+            {/* Mobile User Menu */}
+            {isLoggedIn ? (
+              <div className="border-t border-white/20 pt-2 mt-2">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mb-2">
+                  <div className="font-bold">{user?.username}</div>
+                  <div className="text-xs text-purple-200">{user?.email}</div>
+                </div>
+                
+                <Link 
+                  href="/profile" 
+                  className="flex items-center gap-2 py-2 hover:text-purple-300" 
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <User size={18} />
+                  My Profile
+                </Link>
+                
+                <Link 
+                  href="/profile/favorites" 
+                  className="flex items-center gap-2 py-2 hover:text-purple-300" 
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <BookMarked size={18} />
+                  Favorites
+                </Link>
+                
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex items-center gap-2 py-2 text-red-300 hover:text-red-200 w-full"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Link 
+                href="/login" 
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors font-medium mt-2"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <User size={18} />
+                Login
+              </Link>
+            )}
             
             {/* Mobile Search */}
             <div className="mt-2">

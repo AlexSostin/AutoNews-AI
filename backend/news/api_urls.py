@@ -4,7 +4,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .api_views import (
     ArticleViewSet, CategoryViewSet, TagViewSet, 
     CommentViewSet, RatingViewSet, CarSpecificationViewSet, 
-    ArticleImageViewSet, SiteSettingsViewSet
+    ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
+    FavoriteViewSet
 )
 
 router = DefaultRouter()
@@ -16,6 +17,8 @@ router.register(r'ratings', RatingViewSet, basename='rating')
 router.register(r'car-specifications', CarSpecificationViewSet, basename='carspecification')
 router.register(r'article-images', ArticleImageViewSet, basename='articleimage')
 router.register(r'settings', SiteSettingsViewSet, basename='settings')
+router.register(r'users', UserViewSet, basename='user')
+router.register(r'favorites', FavoriteViewSet, basename='favorite')
 
 urlpatterns = [
     # JWT Auth

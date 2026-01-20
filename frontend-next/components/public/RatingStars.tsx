@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -16,7 +16,26 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
   const [hoveredStar, setHoveredStar] = useState(0);
   const [userRating, setUserRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
+
+  // Load user's rating on mount
+  useEffect(() => {
+    const loadUserRating = async () => {
+      try {
+        const response = await api.get(`/articles/${articleSlug}/my-rating/`);
+        if (response.data.has_rated) {
+          setUserRating(response.data.user_rating);
+        }
+      } catch (error) {
+        console.error('Failed to load user rating:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUserRating();
+  }, [articleSlug]);
 
   const handleRate = async (stars: number) => {
     setIsSubmitting(true);
@@ -46,11 +65,29 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6 mb-8">
       <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
         ⭐ Rate this Article
       </h3>
+      
+      {userRating > 0 && (
+        <div className="text-center mb-2">
+          <p className="text-sm text-indigo-600 font-medium">
+            Your rating: {userRating} ★
+          </p>
+        </div>
+      )}
       
       <div className="flex justify-center items-center gap-4 mb-4">
         <div className="flex gap-1">
@@ -66,7 +103,7 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
               <Star
                 size={40}
                 className={`${
-                  star <= (hoveredStar || userRating || Math.round(rating))
+                  star <= (hoveredStar || userRating)
                     ? 'fill-amber-400 text-amber-400'
                     : 'text-gray-300'
                 } transition-colors`}

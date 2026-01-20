@@ -15,6 +15,10 @@ export interface Article {
   content: string;
   image: string | null;
   thumbnail_url: string | null;
+  image_2: string | null;
+  image_2_url: string | null;
+  image_3: string | null;
+  image_3_url: string | null;
   youtube_url: string | null;
   category: number;
   category_name: string;
@@ -28,6 +32,7 @@ export interface Article {
   created_at: string;
   updated_at: string;
   is_published: boolean;
+  is_favorited: boolean;
   seo_title: string;
   seo_description: string;
   specs: CarSpecification | null;
@@ -105,6 +110,17 @@ export interface LoginCredentials {
 export interface AuthTokens {
   access: string;
   refresh: string;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  is_staff: boolean;
+  is_superuser: boolean;
+  date_joined: string;
 }
 
 // Form types

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MessageCircle, User, Mail, Send } from 'lucide-react';
 import api from '@/lib/api';
+import { getUserFromStorage, isAuthenticated } from '@/lib/auth';
 
 interface Comment {
   id: number;
@@ -27,9 +28,28 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     author_email: '',
     content: ''
   });
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
 
   useEffect(() => {
     fetchComments();
+    
+    // Check if user is authenticated and pre-fill form
+    const authCheck = isAuthenticated();
+    console.log('Comment Section - Auth check:', authCheck);
+    
+    if (authCheck) {
+      const user = getUserFromStorage();
+      console.log('Comment Section - User data:', user);
+      
+      if (user) {
+        setIsUserAuthenticated(true);
+        setFormData(prev => ({
+          ...prev,
+          author_name: user.username,
+          author_email: user.email || ''
+        }));
+      }
+    }
   }, [articleId]);
 
   const fetchComments = async () => {
@@ -51,15 +71,22 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     try {
       await api.post('/comments/', {
         article: articleId,
-        ...formData
+        name: formData.author_name,
+        email: formData.author_email,
+        content: formData.content
       });
 
       setMessage('✓ Comment submitted! It will appear after moderation.');
-      setFormData({ author_name: '', author_email: '', content: '' });
+      setFormData({ 
+        author_name: isUserAuthenticated ? formData.author_name : '', 
+        author_email: isUserAuthenticated ? formData.author_email : '', 
+        content: '' 
+      });
       setTimeout(() => setMessage(''), 5000);
     } catch (error: any) {
       console.error('Failed to submit comment:', error);
-      setMessage('✗ Failed to submit comment. Please try again.');
+      const errorMsg = error.response?.data?.detail || error.response?.data?.error || 'Failed to submit comment. Please try again.';
+      setMessage(`✗ ${errorMsg}`);
       setTimeout(() => setMessage(''), 5000);
     } finally {
       setSubmitting(false);
@@ -96,37 +123,48 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
         </h4>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+          {!isUserAuthenticated && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <User size={16} className="inline mr-1" />
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.author_name}
+                  onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white text-gray-900 placeholder-gray-700"
+                  placeholder="Your name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Mail size={16} className="inline mr-1" />
+                  Email * (won&apos;t be published)
+                </label>
+                <input
+                  type="email"
+                  value={formData.author_email}
+                  onChange={(e) => setFormData({ ...formData, author_email: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white text-gray-900 placeholder-gray-700"
+                  placeholder="your@email.com"
+                />
+              </div>
+            </div>
+          )}
+
+          {isUserAuthenticated && (
+            <div className="bg-indigo-100 border border-indigo-300 rounded-lg p-3 mb-2">
+              <p className="text-sm text-indigo-800 font-medium">
                 <User size={16} className="inline mr-1" />
-                Name *
-              </label>
-              <input
-                type="text"
-                value={formData.author_name}
-                onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
-                required
-                className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                placeholder="Your name"
-              />
+                Commenting as: <strong>{formData.author_name}</strong>
+              </p>
             </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                <Mail size={16} className="inline mr-1" />
-                Email * (won't be published)
-              </label>
-              <input
-                type="email"
-                value={formData.author_email}
-                onChange={(e) => setFormData({ ...formData, author_email: e.target.value })}
-                required
-                className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                placeholder="your@email.com"
-              />
-            </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -137,7 +175,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               required
               rows={4}
-              className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none"
+              className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none bg-white text-gray-900 placeholder-gray-700"
               placeholder="Share your thoughts..."
             />
           </div>

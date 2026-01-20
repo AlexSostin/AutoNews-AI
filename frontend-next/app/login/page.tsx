@@ -5,23 +5,75 @@ import { useRouter } from 'next/navigation';
 import { login } from '@/lib/auth';
 import { LogIn } from 'lucide-react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check for registration success message
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('registered') === 'true') {
+        setSuccess('Account created successfully! Please login.');
+      }
+    }
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setIsLoading(true);
 
     try {
       await login(formData);
-      router.push('/admin');
+      
+      // Проверяем роль пользователя
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        
+        // Показываем красивое уведомление
+        toast.success(
+          `Welcome back, ${user.username}! 🎉`,
+          {
+            duration: 3000,
+            position: 'top-center',
+            style: {
+              background: '#10B981',
+              color: '#fff',
+              fontWeight: 'bold',
+              fontSize: '16px',
+              padding: '16px 24px',
+              borderRadius: '12px',
+            },
+            icon: '✨',
+          }
+        );
+        
+        // Небольшая задержка для показа уведомления, затем редирект
+        setTimeout(() => {
+          router.push('/');
+        }, 500);
+      } else {
+        // Если нет данных - на главную по умолчанию
+        toast.success('Login successful!');
+        setTimeout(() => {
+          router.push('/');
+        }, 500);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid credentials');
+      const errorMessage = err.response?.data?.detail || 'Invalid credentials';
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        duration: 4000,
+        position: 'top-center',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -45,6 +97,12 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+                {success}
+              </div>
+            )}
+
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                 {error}
@@ -60,7 +118,7 @@ export default function LoginPage() {
                 type="text"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
                 required
               />
             </div>
@@ -74,7 +132,7 @@ export default function LoginPage() {
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
                 required
               />
             </div>
@@ -88,8 +146,14 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <Link href="/" className="text-indigo-600 hover:underline font-medium">
+          <div className="mt-6 text-center space-y-2">
+            <p className="text-gray-600 text-sm">
+              Don't have an account?{' '}
+              <Link href="/register" className="text-indigo-600 hover:underline font-medium">
+                Register here
+              </Link>
+            </p>
+            <Link href="/" className="block text-indigo-600 hover:underline font-medium">
               ← Back to Home
             </Link>
           </div>

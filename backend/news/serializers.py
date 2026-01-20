@@ -1,5 +1,32 @@
 from rest_framework import serializers
-from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings
+from django.core.exceptions import ValidationError
+from django.conf import settings
+from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings, Favorite
+
+
+def validate_image_file(image):
+    """Validate image file size and format"""
+    if not image:
+        return
+    
+    # Check file size (10MB max)
+    max_size = getattr(settings, 'MAX_UPLOAD_SIZE_MB', 10) * 1024 * 1024
+    if image.size > max_size:
+        raise ValidationError(f'Image file too large. Maximum size is {max_size // (1024*1024)}MB.')
+    
+    # Check file extension
+    allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+    import os
+    ext = os.path.splitext(image.name)[1].lower()
+    if ext not in allowed_extensions:
+        raise ValidationError(f'Invalid image format. Allowed: {", ".join(allowed_extensions)}')
+    
+    # Check MIME type
+    allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+    if hasattr(image, 'content_type') and image.content_type not in allowed_types:
+        raise ValidationError('Invalid image type.')
+    
+    return image
 
 
 class SiteSettingsSerializer(serializers.ModelSerializer):
@@ -62,12 +89,16 @@ class ArticleListSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
+    image_2_url = serializers.SerializerMethodField()
+    image_3_url = serializers.SerializerMethodField()
+    is_favorited = serializers.SerializerMethodField()
     
     class Meta:
         model = Article
         fields = ['id', 'title', 'slug', 'summary', 'category', 'category_name',
-                  'tag_names', 'image', 'thumbnail_url', 'average_rating', 
-                  'rating_count', 'created_at', 'updated_at', 'is_published']
+                  'tag_names', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
+                  'image_3', 'image_3_url', 'average_rating', 
+                  'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited']
     
     def get_tag_names(self, obj):
         return [tag.name for tag in obj.tags.all()]
@@ -78,12 +109,26 @@ class ArticleListSerializer(serializers.ModelSerializer):
     def get_rating_count(self, obj):
         return obj.rating_count()
     
-    def get_thumbnail_url(self, obj):
+    def get_is_favorited(self, obj):
+        """Check if current user has favorited this article"""
         request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favorite.objects.filter(user=request.user, article=obj).exists()
+        return False
+    
+    def get_thumbnail_url(self, obj):
         if obj.image and hasattr(obj.image, 'url'):
-            if request:
-                return request.build_absolute_uri(obj.image.url)
             return obj.image.url
+        return None
+    
+    def get_image_2_url(self, obj):
+        if obj.image_2 and hasattr(obj.image_2, 'url'):
+            return obj.image_2.url
+        return None
+    
+    def get_image_3_url(self, obj):
+        if obj.image_3 and hasattr(obj.image_3, 'url'):
+            return obj.image_3.url
         return None
 
 
@@ -108,14 +153,30 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
+    image_2_url = serializers.SerializerMethodField()
+    image_3_url = serializers.SerializerMethodField()
+    is_favorited = serializers.SerializerMethodField()
     
     class Meta:
         model = Article
         fields = ['id', 'title', 'slug', 'content', 'summary', 'category', 'category_id',
-                  'tags', 'tag_ids', 'image', 'thumbnail_url', 'youtube_url', 'views', 
+                  'tags', 'tag_ids', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
+                  'image_3', 'image_3_url', 'youtube_url', 'views', 
                   'car_specification', 'images', 'average_rating', 'rating_count',
-                  'created_at', 'updated_at', 'is_published']
+                  'created_at', 'updated_at', 'is_published', 'is_favorited']
         read_only_fields = ['slug', 'views', 'created_at', 'updated_at']
+    
+    def validate_image(self, value):
+        """Validate main image"""
+        return validate_image_file(value)
+    
+    def validate_image_2(self, value):
+        """Validate second image"""
+        return validate_image_file(value)
+    
+    def validate_image_3(self, value):
+        """Validate third image"""
+        return validate_image_file(value)
     
     def get_average_rating(self, obj):
         return obj.average_rating()
@@ -124,22 +185,41 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         return obj.rating_count()
     
     def get_thumbnail_url(self, obj):
-        request = self.context.get('request')
         if obj.image and hasattr(obj.image, 'url'):
-            if request:
-                return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return None
+    
+    def get_image_2_url(self, obj):
+        if obj.image_2 and hasattr(obj.image_2, 'url'):
+            return obj.image_2.url
+        return None
+    
+    def get_image_3_url(self, obj):
+        if obj.image_3 and hasattr(obj.image_3, 'url'):
+            return obj.image_3.url
+        return None
+    
+    def get_is_favorited(self, obj):
+        """Check if current user has favorited this article"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favorite.objects.filter(user=request.user, article=obj).exists()
+        return False
 
 
 class CommentSerializer(serializers.ModelSerializer):
     article_title = serializers.CharField(source='article.title', read_only=True)
+    article_slug = serializers.CharField(source='article.slug', read_only=True)
+    approved = serializers.BooleanField(source='is_approved')  # Alias для frontend
+    author_name = serializers.CharField(source='name', read_only=True)
+    author_email = serializers.CharField(source='email', read_only=True)
     
     class Meta:
         model = Comment
-        fields = ['id', 'article', 'article_title', 'name', 'email', 'content', 
-                  'created_at', 'is_approved']
-        read_only_fields = ['created_at']
+        fields = ['id', 'article', 'article_title', 'article_slug', 
+                  'name', 'email', 'author_name', 'author_email',
+                  'content', 'created_at', 'is_approved', 'approved']
+        read_only_fields = ['created_at', 'article_title', 'article_slug', 'author_name', 'author_email']
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -149,3 +229,24 @@ class RatingSerializer(serializers.ModelSerializer):
         model = Rating
         fields = ['id', 'article', 'article_title', 'user_ip', 'rating', 'created_at']
         read_only_fields = ['created_at', 'user_ip']
+
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    article_title = serializers.CharField(source='article.title', read_only=True)
+    article_slug = serializers.CharField(source='article.slug', read_only=True)
+    article_image = serializers.SerializerMethodField()
+    article_summary = serializers.CharField(source='article.summary', read_only=True)
+    article_category = serializers.CharField(source='article.category.name', read_only=True)
+    
+    class Meta:
+        model = Favorite
+        fields = ['id', 'article', 'article_title', 'article_slug', 'article_image', 
+                  'article_summary', 'article_category', 'created_at']
+        read_only_fields = ['created_at']
+    
+    def get_article_image(self, obj):
+        if obj.article.thumbnail_url:
+            return obj.article.thumbnail_url
+        if obj.article.image and hasattr(obj.article.image, 'url'):
+            return obj.article.image.url
+        return None

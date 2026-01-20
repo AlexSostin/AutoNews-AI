@@ -33,9 +33,9 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
   };
 
   const getImageUrl = (img: GalleryImage) => {
-    if (img.image_url) return img.image_url;
-    if (img.image.startsWith('http')) return img.image;
-    return `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001/media'}${img.image}`;
+    if (img.image_url) return img.image_url.replace('http://backend:8001', 'http://localhost:8001');
+    if (img.image.startsWith('http')) return img.image.replace('http://backend:8001', 'http://localhost:8001');
+    return `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${img.image}`;
   };
 
   return (

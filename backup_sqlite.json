@@ -1,0 +1,198 @@
+[
+{
+  "model": "news.sitesettings",
+  "pk": 1,
+  "fields": {
+    "site_name": "AutoNews",
+    "site_description": "Your source for automotive news and reviews",
+    "contact_email": "admin@autonews.com",
+    "facebook_url": "",
+    "facebook_enabled": false,
+    "twitter_url": "",
+    "twitter_enabled": false,
+    "instagram_url": "",
+    "instagram_enabled": false,
+    "youtube_url": "",
+    "youtube_enabled": false,
+    "linkedin_url": "",
+    "linkedin_enabled": false,
+    "tiktok_url": "",
+    "tiktok_enabled": false,
+    "telegram_url": "",
+    "telegram_enabled": false,
+    "default_meta_description": "",
+    "google_analytics_id": "",
+    "google_adsense_id": "",
+    "footer_text": "© 2026 AutoNews. All rights reserved."
+  }
+},
+{
+  "model": "news.category",
+  "pk": 2,
+  "fields": {
+    "name": "News",
+    "slug": "news"
+  }
+},
+{
+  "model": "news.category",
+  "pk": 3,
+  "fields": {
+    "name": "Reviews",
+    "slug": "reviews"
+  }
+},
+{
+  "model": "news.category",
+  "pk": 4,
+  "fields": {
+    "name": "EVs",
+    "slug": "evs"
+  }
+},
+{
+  "model": "news.category",
+  "pk": 5,
+  "fields": {
+    "name": "Technology",
+    "slug": "technology"
+  }
+},
+{
+  "model": "news.category",
+  "pk": 6,
+  "fields": {
+    "name": "Industry",
+    "slug": "industry"
+  }
+},
+{
+  "model": "news.category",
+  "pk": 7,
+  "fields": {
+    "name": "Classics",
+    "slug": "classics"
+  }
+},
+{
+  "model": "news.category",
+  "pk": 8,
+  "fields": {
+    "name": "Motorsport",
+    "slug": "motorsport"
+  }
+},
+{
+  "model": "news.category",
+  "pk": 9,
+  "fields": {
+    "name": "Modifications",
+    "slug": "modifications"
+  }
+},
+{
+  "model": "news.category",
+  "pk": 10,
+  "fields": {
+    "name": "Comparisons",
+    "slug": "comparisons"
+  }
+},
+{
+  "model": "news.tag",
+  "pk": 1,
+  "fields": {
+    "name": "Tesla",
+    "slug": "tesla"
+  }
+},
+{
+  "model": "news.tag",
+  "pk": 2,
+  "fields": {
+    "name": "Concept",
+    "slug": "concept"
+  }
+},
+{
+  "model": "news.tag",
+  "pk": 3,
+  "fields": {
+    "name": "SUV",
+    "slug": "suv"
+  }
+},
+{
+  "model": "news.article",
+  "pk": 1,
+  "fields": {
+    "title": "Tesla Model Y 2026: What We Know",
+    "slug": "tesla-model-y-2026-what-we-know",
+    "summary": "The refresh of the world's best-selling car is just around the corner, featuring the new 'Juniper' design language.",
+    "content": "\n            <p>The 2026 Tesla Model Y, codenamed Juniper, represents a significant update to the electric SUV that has taken the world by storm.</p>\n            <h2>New Design</h2>\n            <p>Borrowing heavily from the Model 3 Highland refresh, the new Model Y features slimmer headlights, a removed front bumper fog light housing for better aerodynamics, and a new rear light bar.</p>\n            <h2>Interior</h2>\n            <p>Inside, the stalks are gone, replaced by steering wheel buttons. The screen is brighter, and the rear passengers now get their own 8-inch display.</p>\n            ",
+    "image": "",
+    "youtube_url": "",
+    "category": 4,
+    "seo_title": "2026 Tesla Model Y Juniper Refresh Details",
+    "seo_description": "Everything we know about the 2026 Tesla Model Y Juniper refresh.",
+    "created_at": "2026-01-17T14:56:21.110Z",
+    "updated_at": "2026-01-17T14:56:21.110Z",
+    "is_published": true,
+    "views": 0,
+    "tags": []
+  }
+},
+{
+  "model": "news.article",
+  "pk": 2,
+  "fields": {
+    "title": "Volkswagen Scout Revival",
+    "slug": "volkswagen-scout-revival",
+    "summary": "VW is bringing back the legendary Scout nameplate for a new line of rugged electric off-roaders.",
+    "content": "\n            <p>Volkswagen is reviving the Scout brand purely for electric vehicles. The new Terra pickup and Traveler SUV are set to challenge Rivian and Ford.</p>\n            ",
+    "image": "",
+    "youtube_url": "",
+    "category": 2,
+    "seo_title": "Volkswagen Scout Revival",
+    "seo_description": "VW is bringing back the legendary Scout nameplate for a new line of rugged electric off-roaders.",
+    "created_at": "2026-01-17T14:56:44.050Z",
+    "updated_at": "2026-01-17T14:56:44.050Z",
+    "is_published": true,
+    "views": 0,
+    "tags": [
+      2,
+      3
+    ]
+  }
+},
+{
+  "model": "news.article",
+  "pk": 3,
+  "fields": {
+    "title": "AI Generated Article from Video 1768664105",
+    "slug": "ai-generated-article-from-video-1768664105",
+    "summary": "This article was automatically generated from a YouTube video using AI technology. Full implementation with Groq AI will generate detailed automotive content when API keys are configured.",
+    "content": "<h2>AI Generated Article from Video 1768664105</h2>\n        <p class=\"lead\">This article was automatically generated from a YouTube video using AI technology. Full implementation with Groq AI will generate detailed automotive content when API keys are configured.</p>\n        \n        <h3>Introduction</h3>\n        <p>This article was automatically generated from the YouTube video. The AI analyzes the video content and creates a comprehensive article with images.</p>\n        \n        <img src=\"https://img.youtube.com/vi/VK9XyTF7Rno/maxresdefault.jpg\" alt=\"Video thumbnail\" style=\"width:100%; max-width:800px; margin:20px 0; border-radius:8px;\" />\n        \n        <h3>Key Highlights</h3>\n        <ul>\n            <li>Detailed analysis of the video content</li>\n            <li>Important points and takeaways</li>\n            <li>Professional automotive insights</li>\n        </ul>\n        \n        <img src=\"https://img.youtube.com/vi/VK9XyTF7Rno/hqdefault.jpg\" alt=\"Video screenshot 1\" style=\"width:100%; max-width:600px; margin:20px 0; border-radius:8px;\" />\n        \n        <h3>In-Depth Review</h3>\n        <p>Full AI generation with Groq will provide comprehensive automotive reviews, technical specifications, and expert analysis when API keys are configured.</p>\n        \n        <img src=\"https://img.youtube.com/vi/VK9XyTF7Rno/sddefault.jpg\" alt=\"Video screenshot 2\" style=\"width:100%; max-width:600px; margin:20px 0; border-radius:8px;\" />\n        \n        <h3>Conclusion</h3>\n        <p>Stay tuned for more AI-generated automotive content. This is just a preview of what's possible with the Groq AI integration.</p>",
+    "image": "",
+    "youtube_url": "https://www.youtube.com/watch?v=VK9XyTF7Rno",
+    "category": 3,
+    "seo_title": "AI Generated Article from Video 1768664105",
+    "seo_description": "This article was automatically generated from a YouTube video using AI technology. Full implementation with Groq AI will generate detailed automotive content wh",
+    "created_at": "2026-01-17T15:35:05.925Z",
+    "updated_at": "2026-01-17T15:35:18.695Z",
+    "is_published": true,
+    "views": 0,
+    "tags": []
+  }
+},
+{
+  "model": "news.rating",
+  "pk": 4,
+  "fields": {
+    "article": 3,
+    "ip_address": "127.0.0.1",
+    "rating": 1,
+    "created_at": "2026-01-17T16:01:21.440Z"
+  }
+}
+]

@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect
 from django.urls import path
 from django.utils import timezone
 from datetime import timedelta
-from .models import Article, Category, Tag, CarSpecification, SiteSettings, Comment, Rating, ArticleImage
+from .models import Article, Category, Tag, CarSpecification, SiteSettings, Comment, Rating, ArticleImage, Favorite
 import sys
 import os
 
@@ -55,15 +55,22 @@ class ArticleImageInline(admin.TabularInline):
 
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
-    list_display = ('title', 'category', 'is_published', 'created_at', 'view_count')
-    list_filter = ('is_published', 'category', 'created_at', 'updated_at')
+    list_display = ('title', 'category', 'is_published', 'is_deleted', 'created_at', 'view_count')
+    list_filter = ('is_published', 'is_deleted', 'category', 'created_at', 'updated_at')
     search_fields = ('title', 'content', 'summary', 'seo_title', 'seo_description')
     prepopulated_fields = {'slug': ('title',)}
     inlines = [CarSpecificationInline, ArticleImageInline]
     date_hierarchy = 'created_at'
     list_editable = ('is_published',)
-    actions = ['publish_articles', 'unpublish_articles']
+    actions = ['publish_articles', 'unpublish_articles', 'soft_delete_articles', 'restore_articles']
     readonly_fields = ('created_at', 'updated_at')
+    
+    def get_queryset(self, request):
+        """Show only non-deleted articles by default"""
+        qs = super().get_queryset(request)
+        if not request.GET.get('is_deleted__exact'):
+            return qs.filter(is_deleted=False)
+        return qs
     
     class Media:
         css = {
@@ -77,7 +84,15 @@ class ArticleAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('title', 'slug', 'category', 'tags', 'image')
+            'fields': ('title', 'slug', 'category', 'tags')
+        }),
+        ('Images (Screenshots from Video)', {
+            'fields': ('image', 'image_2', 'image_3'),
+            'description': 'Upload manually or auto-extracted from YouTube video during generation'
+        }),
+        ('Source', {
+            'fields': ('youtube_url',),
+            'description': 'YouTube URL used for AI generation (if applicable)'
         }),
         ('Content', {
             'fields': ('summary', 'content'),
@@ -87,8 +102,8 @@ class ArticleAdmin(admin.ModelAdmin):
             'fields': ('seo_title', 'seo_description'),
             'classes': ('collapse',)
         }),
-        ('Publishing', {
-            'fields': ('is_published', 'created_at', 'updated_at')
+        ('Publishing & Stats', {
+            'fields': ('is_published', 'views', 'created_at', 'updated_at')
         })
     )
     
@@ -123,6 +138,28 @@ class ArticleAdmin(admin.ModelAdmin):
         updated = queryset.update(is_published=False)
         self.message_user(request, f'{updated} article(s) unpublished successfully.')
     unpublish_articles.short_description = "Unpublish selected articles"
+    
+    def soft_delete_articles(self, request, queryset):
+        """Mark articles as deleted instead of removing from database"""
+        updated = queryset.update(is_deleted=True, is_published=False)
+        self.message_user(request, f'{updated} article(s) marked as deleted. You can now recreate them.')
+    soft_delete_articles.short_description = "Delete selected articles (soft delete)"
+    
+    def restore_articles(self, request, queryset):
+        """Restore soft-deleted articles"""
+        updated = queryset.update(is_deleted=False)
+        self.message_user(request, f'{updated} article(s) restored.')
+    restore_articles.short_description = "Restore deleted articles"
+    
+    def delete_model(self, request, obj):
+        """Override delete to use soft delete"""
+        obj.is_deleted = True
+        obj.is_published = False
+        obj.save()
+    
+    def delete_queryset(self, request, queryset):
+        """Override bulk delete to use soft delete"""
+        queryset.update(is_deleted=True, is_published=False)
     
     def get_urls(self):
         urls = super().get_urls()
@@ -363,25 +400,53 @@ class SiteSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'article', 'created_at', 'is_approved', 'content_preview')
+    list_display = ('name', 'article_link', 'created_at', 'approval_status', 'content_preview')
     list_filter = ('is_approved', 'created_at')
     search_fields = ('name', 'email', 'content', 'article__title')
     actions = ['approve_comments', 'reject_comments']
-    list_editable = ('is_approved',)
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    list_select_related = ('article',)  # Оптимизация - загружаем статью вместе с комментарием
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'email', 'content', 'is_approved', 'created_at')
+        }),
+        ('Article', {
+            'fields': ('article',)
+        }),
+    )
     
     def content_preview(self, obj):
         return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
     content_preview.short_description = 'Comment'
     
+    def approval_status(self, obj):
+        """Цветной статус одобрения"""
+        from django.utils.html import format_html
+        if obj.is_approved:
+            return format_html('<span style="color: green; font-weight: bold;">✓ Approved</span>')
+        else:
+            return format_html('<span style="color: orange; font-weight: bold;">⏳ Pending</span>')
+    approval_status.short_description = 'Status'
+    
+    def article_link(self, obj):
+        """Ссылка на статью на сайте"""
+        from django.utils.html import format_html
+        # Next.js использует URL без trailing slash
+        url = f"http://localhost:3000/articles/{obj.article.slug}"
+        return format_html('<a href="{}" target="_blank">{}</a>', url, obj.article.title)
+    article_link.short_description = 'Article'
+    
     def approve_comments(self, request, queryset):
         updated = queryset.update(is_approved=True)
         self.message_user(request, f'{updated} comment(s) approved.')
-    approve_comments.short_description = 'Approve selected comments'
+    approve_comments.short_description = '✓ Approve selected comments'
     
     def reject_comments(self, request, queryset):
         updated = queryset.update(is_approved=False)
         self.message_user(request, f'{updated} comment(s) rejected.')
-    reject_comments.short_description = 'Reject selected comments'
+    reject_comments.short_description = '✗ Reject selected comments'
 
 @admin.register(Rating)
 class RatingAdmin(admin.ModelAdmin):
@@ -400,3 +465,16 @@ class RatingAdmin(admin.ModelAdmin):
             'fields': ('article', 'rating', 'ip_address', 'created_at')
         }),
     )
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    list_display = ('user', 'article', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('user__username', 'article__title')
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    
+    def has_add_permission(self, request):
+        # Favorites are created only from frontend
+        return False

@@ -34,6 +34,9 @@ export default function NewArticlePage() {
     tags: [] as number[],
     published: false,
     youtube_url: '',
+    image: null as File | null,
+    image_2: null as File | null,
+    image_3: null as File | null,
   });
 
   useEffect(() => {
@@ -100,17 +103,36 @@ export default function NewArticlePage() {
     setLoading(true);
 
     try {
-      const payload = {
-        title: formData.title,
-        summary: formData.summary,
-        content: formData.content,
-        category_id: parseInt(formData.category),
-        tag_ids: formData.tags,
-        is_published: formData.published,
-        youtube_url: formData.youtube_url,
-      };
+      // Use FormData to handle file uploads
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('summary', formData.summary);
+      formDataToSend.append('content', formData.content);
+      formDataToSend.append('category_id', formData.category);
+      formDataToSend.append('tag_ids', JSON.stringify(formData.tags));
+      formDataToSend.append('is_published', formData.published.toString());
+      
+      if (formData.youtube_url) {
+        formDataToSend.append('youtube_url', formData.youtube_url);
+      }
+      
+      // Add images if selected
+      if (formData.image) {
+        formDataToSend.append('image', formData.image);
+      }
+      if (formData.image_2) {
+        formDataToSend.append('image_2', formData.image_2);
+      }
+      if (formData.image_3) {
+        formDataToSend.append('image_3', formData.image_3);
+      }
 
-      const response = await api.post('/articles/', payload);
+      const response = await api.post('/articles/', formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
       alert('Article created successfully!');
       router.push('/admin/articles');
     } catch (error: any) {
@@ -221,6 +243,75 @@ export default function NewArticlePage() {
             <textarea
               value={formData.summary}
               onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
+              required
+            />
+          </div>
+
+          {/* Content */}
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-2">Content (HTML) *</label>
+            <textarea
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              rows={12}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-mono text-sm"
+              required
+            />
+          </div>
+
+          {/* Images Section */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Images (Optional)</h3>
+            <p className="text-sm text-gray-600 mb-4">Upload up to 3 images or they will be auto-extracted from YouTube during AI generation</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Image 1 */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Image 1 (Main)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                />
+                {formData.image && (
+                  <p className="text-xs text-green-600 mt-1">✓ {formData.image.name}</p>
+                )}
+              </div>
+
+              {/* Image 2 */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Image 2</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFormData({ ...formData, image_2: e.target.files?.[0] || null })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                />
+                {formData.image_2 && (
+                  <p className="text-xs text-green-600 mt-1">✓ {formData.image_2.name}</p>
+                )}
+              </div>
+
+              {/* Image 3 */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Image 3</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFormData({ ...formData, image_3: e.target.files?.[0] || null })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                />
+                {formData.image_3 && (
+                  <p className="text-xs text-green-600 mt-1">✓ {formData.image_3.name}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
               rows={3}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
               required

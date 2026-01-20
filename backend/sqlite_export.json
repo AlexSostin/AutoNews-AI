@@ -1,0 +1,675 @@
+{
+  "categories": [
+    {
+      "id": 1,
+      "name": "News",
+      "slug": "news"
+    },
+    {
+      "id": 2,
+      "name": "Reviews",
+      "slug": "reviews"
+    },
+    {
+      "id": 3,
+      "name": "EVs",
+      "slug": "evs"
+    },
+    {
+      "id": 4,
+      "name": "Technology",
+      "slug": "technology"
+    },
+    {
+      "id": 5,
+      "name": "Industry",
+      "slug": "industry"
+    },
+    {
+      "id": 6,
+      "name": "Classics",
+      "slug": "classics"
+    },
+    {
+      "id": 7,
+      "name": "Motorsport",
+      "slug": "motorsport"
+    },
+    {
+      "id": 8,
+      "name": "Modifications",
+      "slug": "modifications"
+    },
+    {
+      "id": 9,
+      "name": "Comparisons",
+      "slug": "comparisons"
+    }
+  ],
+  "tags": [
+    {
+      "id": 1,
+      "name": "Tesla",
+      "slug": "tesla"
+    },
+    {
+      "id": 2,
+      "name": "Concept",
+      "slug": "concept"
+    },
+    {
+      "id": 3,
+      "name": "SUV",
+      "slug": "suv"
+    },
+    {
+      "id": 4,
+      "name": "BMW",
+      "slug": "bmw"
+    },
+    {
+      "id": 5,
+      "name": "Mercedes-Benz",
+      "slug": "mercedes-benz"
+    },
+    {
+      "id": 6,
+      "name": "Audi",
+      "slug": "audi"
+    },
+    {
+      "id": 7,
+      "name": "Porsche",
+      "slug": "porsche"
+    },
+    {
+      "id": 8,
+      "name": "Toyota",
+      "slug": "toyota"
+    },
+    {
+      "id": 9,
+      "name": "Honda",
+      "slug": "honda"
+    },
+    {
+      "id": 10,
+      "name": "Ford",
+      "slug": "ford"
+    },
+    {
+      "id": 11,
+      "name": "Chevrolet",
+      "slug": "chevrolet"
+    },
+    {
+      "id": 12,
+      "name": "Volkswagen",
+      "slug": "volkswagen"
+    },
+    {
+      "id": 13,
+      "name": "Nissan",
+      "slug": "nissan"
+    },
+    {
+      "id": 14,
+      "name": "Hyundai",
+      "slug": "hyundai"
+    },
+    {
+      "id": 15,
+      "name": "Kia",
+      "slug": "kia"
+    },
+    {
+      "id": 16,
+      "name": "Mazda",
+      "slug": "mazda"
+    },
+    {
+      "id": 17,
+      "name": "Volvo",
+      "slug": "volvo"
+    },
+    {
+      "id": 18,
+      "name": "Jaguar",
+      "slug": "jaguar"
+    },
+    {
+      "id": 19,
+      "name": "Land Rover",
+      "slug": "land-rover"
+    },
+    {
+      "id": 20,
+      "name": "Lexus",
+      "slug": "lexus"
+    },
+    {
+      "id": 21,
+      "name": "Genesis",
+      "slug": "genesis"
+    },
+    {
+      "id": 22,
+      "name": "Rivian",
+      "slug": "rivian"
+    },
+    {
+      "id": 23,
+      "name": "Lucid",
+      "slug": "lucid"
+    },
+    {
+      "id": 24,
+      "name": "Sedan",
+      "slug": "sedan"
+    },
+    {
+      "id": 25,
+      "name": "Truck",
+      "slug": "truck"
+    },
+    {
+      "id": 26,
+      "name": "Coupe",
+      "slug": "coupe"
+    },
+    {
+      "id": 27,
+      "name": "Convertible",
+      "slug": "convertible"
+    },
+    {
+      "id": 28,
+      "name": "Hatchback",
+      "slug": "hatchback"
+    },
+    {
+      "id": 29,
+      "name": "Wagon",
+      "slug": "wagon"
+    },
+    {
+      "id": 30,
+      "name": "Minivan",
+      "slug": "minivan"
+    },
+    {
+      "id": 31,
+      "name": "Crossover",
+      "slug": "crossover"
+    },
+    {
+      "id": 32,
+      "name": "Sports Car",
+      "slug": "sports-car"
+    },
+    {
+      "id": 33,
+      "name": "Supercar",
+      "slug": "supercar"
+    },
+    {
+      "id": 34,
+      "name": "Hypercar",
+      "slug": "hypercar"
+    },
+    {
+      "id": 35,
+      "name": "Electric",
+      "slug": "electric"
+    },
+    {
+      "id": 36,
+      "name": "Hybrid",
+      "slug": "hybrid"
+    },
+    {
+      "id": 37,
+      "name": "Plug-in Hybrid",
+      "slug": "plug-in-hybrid"
+    },
+    {
+      "id": 38,
+      "name": "Gasoline",
+      "slug": "gasoline"
+    },
+    {
+      "id": 39,
+      "name": "Diesel",
+      "slug": "diesel"
+    },
+    {
+      "id": 40,
+      "name": "Hydrogen",
+      "slug": "hydrogen"
+    },
+    {
+      "id": 41,
+      "name": "Battery",
+      "slug": "battery"
+    },
+    {
+      "id": 42,
+      "name": "EV",
+      "slug": "ev"
+    },
+    {
+      "id": 43,
+      "name": "ICE",
+      "slug": "ice"
+    },
+    {
+      "id": 44,
+      "name": "AWD",
+      "slug": "awd"
+    },
+    {
+      "id": 45,
+      "name": "4WD",
+      "slug": "4wd"
+    },
+    {
+      "id": 46,
+      "name": "FWD",
+      "slug": "fwd"
+    },
+    {
+      "id": 47,
+      "name": "RWD",
+      "slug": "rwd"
+    },
+    {
+      "id": 48,
+      "name": "Autonomous",
+      "slug": "autonomous"
+    },
+    {
+      "id": 49,
+      "name": "Self-Driving",
+      "slug": "self-driving"
+    },
+    {
+      "id": 50,
+      "name": "Autopilot",
+      "slug": "autopilot"
+    },
+    {
+      "id": 51,
+      "name": "ADAS",
+      "slug": "adas"
+    },
+    {
+      "id": 52,
+      "name": "Safety",
+      "slug": "safety"
+    },
+    {
+      "id": 53,
+      "name": "AI",
+      "slug": "ai"
+    },
+    {
+      "id": 54,
+      "name": "Connected Car",
+      "slug": "connected-car"
+    },
+    {
+      "id": 55,
+      "name": "Infotainment",
+      "slug": "infotainment"
+    },
+    {
+      "id": 56,
+      "name": "CarPlay",
+      "slug": "carplay"
+    },
+    {
+      "id": 57,
+      "name": "Android Auto",
+      "slug": "android-auto"
+    },
+    {
+      "id": 58,
+      "name": "Performance",
+      "slug": "performance"
+    },
+    {
+      "id": 59,
+      "name": "Luxury",
+      "slug": "luxury"
+    },
+    {
+      "id": 60,
+      "name": "Off-Road",
+      "slug": "off-road"
+    },
+    {
+      "id": 61,
+      "name": "Towing",
+      "slug": "towing"
+    },
+    {
+      "id": 62,
+      "name": "Fuel Economy",
+      "slug": "fuel-economy"
+    },
+    {
+      "id": 63,
+      "name": "Fast Charging",
+      "slug": "fast-charging"
+    },
+    {
+      "id": 64,
+      "name": "Range",
+      "slug": "range"
+    },
+    {
+      "id": 65,
+      "name": "Interior",
+      "slug": "interior"
+    },
+    {
+      "id": 66,
+      "name": "Design",
+      "slug": "design"
+    },
+    {
+      "id": 67,
+      "name": "Aerodynamics",
+      "slug": "aerodynamics"
+    },
+    {
+      "id": 68,
+      "name": "Review",
+      "slug": "review"
+    },
+    {
+      "id": 69,
+      "name": "First Drive",
+      "slug": "first-drive"
+    },
+    {
+      "id": 70,
+      "name": "Test Drive",
+      "slug": "test-drive"
+    },
+    {
+      "id": 71,
+      "name": "Comparison",
+      "slug": "comparison"
+    },
+    {
+      "id": 72,
+      "name": "Launch",
+      "slug": "launch"
+    },
+    {
+      "id": 73,
+      "name": "Production",
+      "slug": "production"
+    },
+    {
+      "id": 74,
+      "name": "Recall",
+      "slug": "recall"
+    },
+    {
+      "id": 75,
+      "name": "Update",
+      "slug": "update"
+    },
+    {
+      "id": 76,
+      "name": "News",
+      "slug": "news"
+    },
+    {
+      "id": 77,
+      "name": "Rumor",
+      "slug": "rumor"
+    },
+    {
+      "id": 78,
+      "name": "2024",
+      "slug": "2024"
+    },
+    {
+      "id": 79,
+      "name": "2025",
+      "slug": "2025"
+    },
+    {
+      "id": 80,
+      "name": "2026",
+      "slug": "2026"
+    },
+    {
+      "id": 81,
+      "name": "2027",
+      "slug": "2027"
+    },
+    {
+      "id": 82,
+      "name": "2028",
+      "slug": "2028"
+    },
+    {
+      "id": 83,
+      "name": "Charging",
+      "slug": "charging"
+    },
+    {
+      "id": 84,
+      "name": "Infrastructure",
+      "slug": "infrastructure"
+    },
+    {
+      "id": 85,
+      "name": "Policy",
+      "slug": "policy"
+    },
+    {
+      "id": 86,
+      "name": "Regulation",
+      "slug": "regulation"
+    },
+    {
+      "id": 87,
+      "name": "Sales",
+      "slug": "sales"
+    },
+    {
+      "id": 88,
+      "name": "Market",
+      "slug": "market"
+    },
+    {
+      "id": 89,
+      "name": "Industry",
+      "slug": "industry"
+    },
+    {
+      "id": 90,
+      "name": "Technology",
+      "slug": "technology"
+    },
+    {
+      "id": 91,
+      "name": "Innovation",
+      "slug": "innovation"
+    },
+    {
+      "id": 92,
+      "name": "Sustainability",
+      "slug": "sustainability"
+    },
+    {
+      "id": 93,
+      "name": "Environment",
+      "slug": "environment"
+    },
+    {
+      "id": 94,
+      "name": "Carbon Neutral",
+      "slug": "carbon-neutral"
+    },
+    {
+      "id": 95,
+      "name": "Zero Emission",
+      "slug": "zero-emission"
+    },
+    {
+      "id": 96,
+      "name": "Pickup",
+      "slug": "pickup"
+    },
+    {
+      "id": 97,
+      "name": "Van",
+      "slug": "van"
+    },
+    {
+      "id": 98,
+      "name": "Roadster",
+      "slug": "roadster"
+    },
+    {
+      "id": 99,
+      "name": "PHEV",
+      "slug": "phev"
+    },
+    {
+      "id": 100,
+      "name": "Family",
+      "slug": "family"
+    },
+    {
+      "id": 101,
+      "name": "Budget",
+      "slug": "budget"
+    },
+    {
+      "id": 102,
+      "name": "Premium",
+      "slug": "premium"
+    },
+    {
+      "id": 103,
+      "name": "Compact",
+      "slug": "compact"
+    },
+    {
+      "id": 104,
+      "name": "Full-Size",
+      "slug": "full-size"
+    },
+    {
+      "id": 105,
+      "name": "Mid-Size",
+      "slug": "mid-size"
+    }
+  ],
+  "articles": [
+    {
+      "id": 6,
+      "title": "Auto-Generated Article",
+      "slug": "auto-generated-article-2",
+      "summary": "AI-generated auto\u0435\u043a\u0440\u0435\u043a\u0440\u043a\u0435\u0440motive content",
+      "content": "5\u043d\u043d\u043a\u0435\u0440\u043a\u0435",
+      "image": "articles/3dqPhxBCF1c_THOvd8v.webp",
+      "seo_title": "Auto-Generated Article",
+      "seo_description": "AI-generated automotive content",
+      "created_at": "2026-01-16 15:09:58.112944",
+      "updated_at": "2026-01-16 15:12:43.443154",
+      "is_published": 1,
+      "category_id": 3,
+      "youtube_url": "",
+      "views": 0
+    },
+    {
+      "id": 12,
+      "title": "First Look: 2026 XPENG G6 EV - A Promising Electric Vehicle with Impressive Range",
+      "slug": "first-look-2026-xpeng-g6-ev-a-promising-electric-vehicle-with-impressive-range",
+      "summary": "The 2026 XPENG G6 EV is the latest addition to the electric vehicle market, boasting an impressive range of 625km on a single charge. With a starting price of $24,200, this car is set to make waves in the industry. In this review, we'll take a closer look at the G6 EV's key features, design, and tec",
+      "content": "<h2>First Look: 2026 XPENG G6 EV - A Promising Electric Vehicle with Impressive Range</h2>\r\n\r\n<p>The 2026 XPENG G6 EV is the latest addition to the electric vehicle market, boasting an impressive range of 625km on a single charge. With a starting price of $24,200, this car is set to make waves in the industry. In this review, we'll take a closer look at the G6 EV's key features, design, and technology to see if it lives up to the hype. From its sleek exterior to its updated interior, we'll explore what makes this car a compelling option for those looking to switch to electric.</p>\r\n\r\n<h2>Performance & Specs</h2>\r\n\r\n<p>While specific performance details such as engine power and 0-60mph times are not available, the G6 EV's range is certainly a standout feature. With 625km of range, drivers can enjoy long road trips without worrying about running out of charge. The starting price of $24,200 makes it an attractive option for those looking for an affordable electric vehicle.</p>\r\n\r\n<h2>Design & Interior</h2>\r\n\r\n<p>The 2026 XPENG G6 EV features a sleek and modern design, with rear design upgrades that give it a fresh look. The interior has also been revamped, with new features that enhance the overall driving experience. One of the notable features of the G6 EV is its spacious cargo area, making it perfect for road trips or daily errands. The updated interior tech also adds to the car's appeal, providing a comfortable and convenient driving experience.</p>\r\n\r\n<h2>Technology</h2>\r\n\r\n<p>While specific technology features such as the infotainment system and safety features are not mentioned, the G6 EV's updated interior tech suggests that it is well-equipped to meet the needs of modern drivers. With the latest advancements in electric vehicle technology, the G6 EV is likely to feature a range of innovative features that enhance the driving experience.</p>\r\n\r\n<h2>Pros & Cons</h2>\r\n\r\n<p>Based on the available information, here are some pros and cons of the 2026 XPENG G6 EV:</p>\r\n\r\n<ul>\r\n  <li>Impressive 625km range</li>\r\n  <li>Affordable starting price of $24,200</li>\r\n  <li>Updated interior features and spacious cargo area</li>\r\n</ul>\r\n\r\n<p>As for cons, some may note that:</p>\r\n\r\n<ul>\r\n  <li>Lack of specific performance details</li>\r\n  <li>Limited information on safety features and technologies</li>\r\n</ul>\r\n\r\n<p>However, it's worth noting that this review is based on an introductory walk-around, and a more detailed review may reveal additional pros and cons.</p>\r\n\r\n<h2>Conclusion</h2>\r\n\r\n<p>The 2026 XPENG G6 EV is a promising electric vehicle that boasts an impressive range and affordable price. While some details are still unclear, the updated interior features, spacious cargo area, and sleek design make it an attractive option for those looking to switch to electric. As more information becomes available, we'll be sure to provide a more detailed review of this exciting new car.</p>",
+      "image": "articles/PCGgQoNDnFg_vSG4svj.webp",
+      "seo_title": "First Look: 2026 XPENG G6 EV - A Promising Electric Vehicle with Impressive Range",
+      "seo_description": "The 2026 XPENG G6 EV is the latest addition to the electric vehicle market, boasting an impressive range of 625km on a single charge. With a starting price of $",
+      "created_at": "2026-01-16 18:42:47.470947",
+      "updated_at": "2026-01-16 18:46:25.472902",
+      "is_published": 1,
+      "category_id": 2,
+      "youtube_url": "",
+      "views": 0
+    },
+    {
+      "id": 13,
+      "title": "First Drive: 2026 Salon 6 - A Budget-Friendly Cruiser with Surprising Range",
+      "slug": "first-drive-2026-salon-6-a-budget-friendly-cruiser-with-surprising-range",
+      "summary": "The 2026 Salon 6 is an intriguing addition to the automotive market, offering a unique blend of affordability, range, and features that are sure to pique the interest of budget-conscious buyers. With a starting price of $19,500 and a maximum range of up to 1,670 km, this car seems to be punching abo",
+      "content": "<h2>First Drive: 2026 Salon 6 - A Budget-Friendly Cruiser with Surprising Range</h2>\r\n\r\n<p>The 2026 Salon 6 is an intriguing addition to the automotive market, offering a unique blend of affordability, range, and features that are sure to pique the interest of budget-conscious buyers. With a starting price of $19,500 and a maximum range of up to 1,670 km, this car seems to be punching above its weight class. But does it have what it takes to compete with more established players in the market? Let's take a closer look at the Salon 6's performance, design, technology, and overall value proposition.</p>\r\n\r\n<h2>Performance & Specs</h2>\r\n\r\n<p>Under the hood, the Salon 6 packs a 1.5 L engine, which is paired with a battery pack that comes in two sizes: 18 kWh and 26 kWh. While the exact performance figures are not available, the car's range is certainly impressive, making it an attractive option for those who need a reliable and efficient vehicle for daily driving. With a top price of $22,000, the Salon 6 is an accessible choice for first-time buyers or those on a tight budget.</p>\r\n\r\n<h2>Design & Interior</h2>\r\n\r\n<p>While the transcript doesn't provide much information about the Salon 6's design and interior, it's likely that the car will feature a functional and practical cabin with a focus on comfort and convenience. The availability of different versions suggests that buyers may have some flexibility in terms of trim levels and features, which could be a major selling point for those who want a customized driving experience.</p>\r\n\r\n<h2>Technology</h2>\r\n\r\n<p>The Salon 6 boasts a range of technologies, including a DMI version and a battery pack that supports its impressive range. The car's export policy and global market presence also suggest that it may be designed with international buyers in mind, which could be a major advantage in today's increasingly connected automotive market. However, more information is needed to fully understand the car's technological capabilities and how they enhance the driving experience.</p>\r\n\r\n<h2>Pros & Cons</h2>\r\n\r\n<p>Here are some of the key pros and cons of the 2026 Salon 6:</p>\r\n\r\n<p>Pros:</p>\r\n<ul>\r\n  <li>Available in different versions to suit various budgets and preferences</li>\r\n  <li>Impressive range of up to 1,670 km, making it suitable for long road trips</li>\r\n  <li>Affordable starting price of $19,500, making it an attractive option for first-time buyers</li>\r\n</ul>\r\n\r\n<p>Cons:</p>\r\n<ul>\r\n  <li>Limited information about advanced safety features, which may be a concern for some buyers</li>\r\n  <li>Performance and handling capabilities are not well-documented, which may make it difficult to assess the car's overall driving dynamics</li>\r\n</ul>\r\n\r\n<p>In conclusion, the 2026 Salon 6 is a fascinating newcomer to the automotive scene, offering a unique blend of range, affordability, and features that are sure to appeal to budget-conscious buyers. While more information is needed to fully understand the car's capabilities and limitations, the Salon 6 is certainly worth considering for those who prioritize practicality, efficiency, and value. As the market continues to evolve and more details become available, it will be interesting to see how the Salon 6 stacks up against its competitors and whether it can establish itself as a major player in the industry.</p>",
+      "image": "articles/K_PaCAuRuIQ.webp",
+      "seo_title": "First Drive: 2026 Salon 6 - A Budget-Friendly Cruiser with Surprising Range",
+      "seo_description": "The 2026 Salon 6 is an intriguing addition to the automotive market, offering a unique blend of affordability, range, and features that are sure to pique the in",
+      "created_at": "2026-01-16 19:39:29.430134",
+      "updated_at": "2026-01-16 19:40:27.346913",
+      "is_published": 1,
+      "category_id": 2,
+      "youtube_url": "",
+      "views": 0
+    },
+    {
+      "id": 14,
+      "title": "Unveiling the 2026 PY Salon 6: A Peek into the Future of Electric Vehicles",
+      "slug": "unveiling-the-2026-py-salon-6-a-peek-into-the-future-of-electric-vehicles",
+      "summary": "The automotive world is abuzz with the introduction of the 2026 PY Salon 6, a vehicle that promises to revolutionize the electric car market with its advanced battery technology and impressive range. As we delve into the features and specifications of this model, it becomes clear that the Salon 6 is",
+      "content": "<h2>Unveiling the 2026 PY Salon 6: A Peek into the Future of Electric Vehicles</h2>\r\n\r\n<p>The automotive world is abuzz with the introduction of the 2026 PY Salon 6, a vehicle that promises to revolutionize the electric car market with its advanced battery technology and impressive range. As we delve into the features and specifications of this model, it becomes clear that the Salon 6 is geared towards those seeking a blend of affordability, efficiency, and performance. With a starting price of $19,500 and a maximum range of approximately 1,670 km, this vehicle is poised to capture the attention of eco-conscious drivers and thrill-seekers alike.</p>\r\n\r\n<h2>Performance & Specs</h2>\r\n\r\n<p>The 2026 PY Salon 6 is equipped with a 1.5 L engine and offers options for 18 kWh or 26 kWh battery packs, catering to diverse driving needs and preferences. While detailed performance metrics are not readily available, the vehicle's focus on range and efficiency suggests a smooth, reliable driving experience. The Salon 6's ability to achieve a maximum range of 1,670 km is a notable highlight, making it an attractive option for those who prioritize convenience and minimal downtime for charging.</p>\r\n\r\n<h2>Design & Interior</h2>\r\n\r\n<p>Although in-depth information about the Salon 6's design and interior is limited, the presence of three different versions implies a degree of customization and flexibility. Potential buyers can look forward to exploring various trim levels, each possibly boasting unique features, materials, and aesthetics. As the automotive industry continues to evolve, the importance of a well-crafted, comfortable interior cannot be overstated, and it will be interesting to see how the Salon 6 measures up in this regard.</p>\r\n\r\n<h2>Technology</h2>\r\n\r\n<p>The 2026 PY Salon 6's advanced battery cell technology is a significant talking point, with an emphasis on optimizing range and efficiency. This commitment to innovation is a promising sign for the vehicle's overall performance and environmental footprint. Furthermore, the mention of an export policy suggests that the Salon 6 may be available to a broader, international audience, potentially expanding its reach and impact.</p>\r\n\r\n<h2>Pros & Cons</h2>\r\n\r\n<p>When evaluating the 2026 PY Salon 6, several key points come to the forefront. The pros of this vehicle include:</p>\r\n<ul>\r\n<li>Advanced battery technology, contributing to its impressive range and efficiency</li>\r\n<li>A potentially affordable starting price of $19,500, making electric vehicles more accessible to a wider audience</li>\r\n<li>A maximum range of approximately 1,670 km, suitable for extended road trips and daily commutes alike</li>\r\n</ul>\r\n<p>However, some drawbacks and areas for improvement are also worth considering:</p>\r\n<ul>\r\n<li>Limited information available regarding the vehicle's performance, interior, safety features, and driving experience</li>\r\n<li>Potential limitations in terms of customization options and trim levels</li>\r\n<li>Uncertainty surrounding the vehicle's export policy and international availability</li>\r\n</ul>\r\n\r\n<p>In conclusion, the 2026 PY Salon 6 represents an exciting development in the electric vehicle market, boasting advanced battery technology, a competitive price point, and an impressive range. While some aspects of the vehicle remain shrouded in mystery, its potential to make a lasting impact on the automotive landscape is undeniable. As more information becomes available, enthusiasts and potential buyers will be eager to learn more about the Salon 6's performance, design, and features, and to experience the thrill of driving this innovative vehicle firsthand.</p>",
+      "image": "articles/K_PaCAuRuIQ_VspsP0E.webp",
+      "seo_title": "Unveiling the 2026 PY Salon 6: A Peek into the Future of Electric Vehicles",
+      "seo_description": "The automotive world is abuzz with the introduction of the 2026 PY Salon 6, a vehicle that promises to revolutionize the electric car market with its advanced b",
+      "created_at": "2026-01-16 19:43:35.485269",
+      "updated_at": "2026-01-16 19:43:59.849157",
+      "is_published": 1,
+      "category_id": 2,
+      "youtube_url": "",
+      "views": 0
+    },
+    {
+      "id": 15,
+      "title": "Navigating the 2026 Jer 7X: A Guide for Prospective Buyers",
+      "slug": "navigating-the-2026-jer-7x-a-guide-for-prospective-buyers",
+      "summary": "The 2026 Jer 7X has garnered attention for its unique position in the market, especially among buyers looking to import vehicles from China. While specific details about the car's engine, power output, and acceleration are not readily available, the process of acquiring this vehicle has become a poi",
+      "content": "<h2>Navigating the 2026 Jer 7X: A Guide for Prospective Buyers</h2>\r\n\r\n<p>The 2026 Jer 7X has garnered attention for its unique position in the market, especially among buyers looking to import vehicles from China. While specific details about the car's engine, power output, and acceleration are not readily available, the process of acquiring this vehicle has become a point of interest due to recent changes in export policies. This review aims to provide an overview of what potential buyers can expect when considering the Jer 7X, focusing on the buying experience, implications of new policies, and the support available for those navigating this process.</p>\r\n\r\n<h2>Performance & Specs</h2>\r\n\r\n<p>Unfortunately, detailed specifications of the 2026 Jer 7X, including its engine type, horsepower, and 0-60 mph acceleration time, are not specified in the available data. This lack of information makes it challenging to evaluate the vehicle's performance capabilities directly. However, for buyers interested in the Jer 7X, it's essential to consult with dealers or the manufacturer for the most accurate and up-to-date specifications.</p>\r\n\r\n<h2>Design & Interior</h2>\r\n\r\n<p>Similar to the performance specs, the design and interior features of the Jer 7X are not outlined in the provided information. Typically, a car's design and interior play a significant role in its appeal, including aspects such as comfort, technology integration, and aesthetic appeal. Potential buyers should look for official releases or reviews that delve into these aspects to get a comprehensive understanding of what the Jer 7X offers.</p>\r\n\r\n<h2>Technology</h2>\r\n\r\n<p>The technological features of the 2026 Jer 7X are also not detailed in the analysis. Modern vehicles often boast advanced technology, including infotainment systems, safety features, and connectivity options. For those interested in the Jer 7X, researching the vehicle's technological capabilities will be crucial in determining its value and competitiveness in the market.</p>\r\n\r\n<h2>Pros & Cons</h2>\r\n\r\n<p>Potential buyers of the 2026 Jer 7X should consider the following points:</p>\r\n\r\n<ul>\r\n<li><strong>Pros:</strong>\r\n  <ul>\r\n    <li>Availability of professional services to assist in the acquisition process, indicating a supportive buying experience.</li>\r\n    <li>A \"very professional team\" can facilitate the purchase, suggesting a positive ownership experience.</li>\r\n  </ul>\r\n</li>\r\n<li><strong>Cons:</strong>\r\n  <ul>\r\n    <li>The new car export policy may result in a wait time of 180 days for new vehicles, which could be a deterrent for some buyers.</li>\r\n    <li>Buying a used car is presented as an alternative with a shorter wait time, which might not appeal to those specifically seeking a new vehicle.</li>\r\n  </ul>\r\n</li>\r\n</ul>\r\n\r\n<p>In conclusion, the 2026 Jer 7X presents a unique scenario for potential buyers, especially those considering importing the vehicle from China. While the vehicle's specifications and features are not detailed, the buying experience and the implications of recent export policy changes are crucial factors to consider. Buyers should weigh the pros and cons, particularly the wait times and the availability of support services, to make an informed decision. As more information becomes available, a clearer picture of the Jer 7X's value proposition will emerge, helping buyers navigate their purchasing decision with confidence.</p>",
+      "image": "articles/RTursguwkNg.webp",
+      "seo_title": "Navigating the 2026 Jer 7X: A Guide for Prospective Buyers",
+      "seo_description": "The 2026 Jer 7X has garnered attention for its unique position in the market, especially among buyers looking to import vehicles from China. While specific deta",
+      "created_at": "2026-01-16 19:49:18.792453",
+      "updated_at": "2026-01-17 09:57:59.305466",
+      "is_published": 1,
+      "category_id": 3,
+      "youtube_url": "",
+      "views": 0
+    },
+    {
+      "id": 16,
+      "title": "AI Generated Article from Video",
+      "slug": "ai-generated-article-from-video",
+      "summary": "\u0432\u0430\u043f\u0438\u0432\u0430\u0438",
+      "content": "<h2>AI Generated Article from Video</h2><p>This article was automatically generated from the YouTube video: https://www.youtube.com/watch?v=Tj3bQvsUeLs</p><p>Full AI generation with Groq will be implemented when API keys are configured.</p>",
+      "image": "",
+      "seo_title": "AI Generated Article from Video",
+      "seo_description": "\u0432\u0430\u043f\u0438\u0432\u0430\u0438",
+      "created_at": "2026-01-17 11:34:27.668980",
+      "updated_at": "2026-01-17 11:36:05.929768",
+      "is_published": 1,
+      "category_id": 2,
+      "youtube_url": "https://www.youtube.com/watch?v=Tj3bQvsUeLs",
+      "views": 0
+    }
+  ],
+  "car_specs": []
+}

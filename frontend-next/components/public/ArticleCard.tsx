@@ -1,25 +1,29 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Article } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { Calendar, Star } from 'lucide-react';
+import FavoriteButton from './FavoriteButton';
 
 interface ArticleCardProps {
   article: Article;
 }
 
 export default function ArticleCard({ article }: ArticleCardProps) {
-  // Handle image URL - check if already full URL or relative path
+  // Use first screenshot from video as background
   let imageUrl = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&h=400&fit=crop';
   
+  // Priority: image (screenshot 1) > thumbnail_url
   const thumbnailUrl = article.thumbnail_url || article.image;
   if (thumbnailUrl) {
-    // If already a full URL, use as-is
+    // If already a full URL, use as-is (but replace backend with localhost for browser)
     if (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://')) {
-      imageUrl = thumbnailUrl;
+      imageUrl = thumbnailUrl.replace('http://backend:8001', 'http://localhost:8001');
     } else {
       // If relative path, prepend Django URL
-      imageUrl = `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001/media'}${thumbnailUrl}`;
+      imageUrl = `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${thumbnailUrl}`;
     }
   }
 
@@ -39,6 +43,13 @@ export default function ArticleCard({ article }: ArticleCardProps) {
               {article.category_name}
             </span>
           )}
+          <div className="absolute top-3 right-3" onClick={(e) => e.preventDefault()}>
+            <FavoriteButton 
+              articleId={article.id} 
+              initialIsFavorited={article.is_favorited}
+              size="sm"
+            />
+          </div>
         </div>
         
         <div className="p-5">

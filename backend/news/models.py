@@ -81,10 +81,12 @@ class Tag(models.Model):
 
 class Article(models.Model):
     title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, blank=True, max_length=250)
+    slug = models.SlugField(blank=True, max_length=250, db_index=True)
     summary = models.TextField(blank=True, help_text="Short description for list view")
     content = models.TextField()
-    image = models.ImageField(upload_to='articles/', blank=True, null=True)
+    image = models.ImageField(upload_to='articles/', blank=True, null=True, help_text="Main featured image (screenshot 1)")
+    image_2 = models.ImageField(upload_to='articles/', blank=True, null=True, help_text="Screenshot 2 from video")
+    image_3 = models.ImageField(upload_to='articles/', blank=True, null=True, help_text="Screenshot 3 from video")
     youtube_url = models.URLField(blank=True, help_text="YouTube video URL for AI generation")
     
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='articles')
@@ -98,6 +100,7 @@ class Article(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False, db_index=True)
+    is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete - allows recreating articles with same slug")
     views = models.PositiveIntegerField(default=0, help_text="Number of times this article has been viewed", db_index=True)
     
     class Meta:
@@ -107,14 +110,22 @@ class Article(models.Model):
             models.Index(fields=['category', '-created_at'], name='article_category_created_idx'),
             models.Index(fields=['-views'], name='article_views_idx'),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['slug'],
+                condition=models.Q(is_deleted=False),
+                name='unique_slug_when_not_deleted'
+            )
+        ]
     
     def save(self, *args, **kwargs):
-        # Optimize image before saving
-        if self.image and hasattr(self.image, 'file'):
-            try:
-                self.image = optimize_image(self.image, max_width=1920, max_height=1080, quality=85)
-            except Exception as e:
-                print(f"Image optimization failed: {e}")
+        # Optimize images before saving (skip if already optimized)
+        # Disabled for now as it causes issues with AI-generated screenshots
+        # if self.image and hasattr(self.image, 'file') and not self.image.name.endswith('_optimized.webp'):
+        #     try:
+        #         self.image = optimize_image(self.image, max_width=1920, max_height=1080, quality=85)
+        #     except Exception as e:
+        #         print(f"Image optimization failed: {e}")
         
         if not self.slug:
             self.slug = slugify(self.title)
@@ -170,7 +181,7 @@ class Comment(models.Model):
 
 class Rating(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='ratings')
-    ip_address = models.GenericIPAddressField(help_text="User IP for preventing multiple votes")
+    ip_address = models.CharField(max_length=255, help_text="User fingerprint (IP+UserAgent hash) for preventing multiple votes")
     rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)], help_text="Rating 1-5 stars")
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -202,3 +213,17 @@ class ArticleImage(models.Model):
     
     def __str__(self):
         return f"Image for {self.article.title}"
+
+
+class Favorite(models.Model):
+    """User favorites/bookmarks"""
+    user = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='favorites')
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('user', 'article')  # One favorite per user per article
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username} → {self.article.title}"

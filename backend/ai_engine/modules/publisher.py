@@ -3,7 +3,14 @@ import sys
 import django
 
 # Setup Django Environment only if not already configured
-if not django.apps.apps.ready:
+try:
+    from django.apps import apps
+    if not apps.ready:
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        sys.path.append(BASE_DIR)
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
+        django.setup()
+except:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sys.path.append(BASE_DIR)
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
@@ -14,9 +21,13 @@ from django.core.files import File
 from django.utils.text import slugify
 import re
 
-def publish_article(title, content, category_name="Reviews", image_path=None, youtube_url=None, summary=None, tag_names=None, specs=None):
+def publish_article(title, content, category_name="Reviews", image_path=None, image_paths=None, youtube_url=None, summary=None, tag_names=None, specs=None):
     """
     Publishes the article to the Django database with full metadata.
+    
+    Args:
+        image_path: Single image path (backwards compatibility)
+        image_paths: List of up to 3 image paths [screenshot1, screenshot2, screenshot3]
     """
     print(f"📤 Publishing article: {title}")
     
@@ -53,11 +64,28 @@ def publish_article(title, content, category_name="Reviews", image_path=None, yo
         seo_description=seo_description
     )
     
-    # Add image if available
-    if image_path and os.path.exists(image_path):
+    # Add images (support for 3 screenshots from video)
+    if image_paths and isinstance(image_paths, list):
+        # Multiple screenshots from video
+        for i, img_path in enumerate(image_paths[:3]):  # Max 3 images
+            if img_path and os.path.exists(img_path):
+                filename = os.path.basename(img_path)
+                with open(img_path, 'rb') as f:
+                    file_content = File(f, name=filename)
+                    if i == 0:
+                        article.image.save(filename, file_content, save=False)
+                    elif i == 1:
+                        article.image_2.save(filename, file_content, save=False)
+                    elif i == 2:
+                        article.image_3.save(filename, file_content, save=False)
+                print(f"  ✓ Screenshot {i+1} attached: {filename}")
+    elif image_path and os.path.exists(image_path):
+        # Single image (backwards compatibility)
+        filename = os.path.basename(image_path)
         with open(image_path, 'rb') as f:
-            article.image.save(os.path.basename(image_path), File(f), save=False)
-            print(f"  ✓ Image attached: {os.path.basename(image_path)}")
+            file_content = File(f, name=filename)
+            article.image.save(filename, file_content, save=False)
+            print(f"  ✓ Image attached: {filename}")
     
     article.save()
     print(f"  ✓ Article saved with slug: {article.slug}")
