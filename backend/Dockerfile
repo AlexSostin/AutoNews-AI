@@ -23,11 +23,12 @@ COPY . /app/
 # Create media directories
 RUN mkdir -p /app/media/articles /app/static /app/staticfiles
 
-# Collect static files will be done in docker-compose command
-# Migrations will be done in docker-compose command
+# Copy and set permissions for entrypoint script
+COPY entrypoint.sh /app/
+RUN chmod +x /app/entrypoint.sh
 
 # Expose port
 EXPOSE 8001
 
-# Run server with Daphne ASGI
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8001 auto_news_site.asgi:application"]
+# Run entrypoint script
+CMD ["/app/entrypoint.sh"]
