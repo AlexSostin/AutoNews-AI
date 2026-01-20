@@ -21,7 +21,6 @@ FROM node:20-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # Copy only necessary files from standalone build
@@ -32,4 +31,4 @@ COPY --from=builder /app/.next/static ./.next/static
 EXPOSE 3000
 
 # Start Next.js in production mode using standalone server
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "PORT=${PORT:-3000} node server.js"]
