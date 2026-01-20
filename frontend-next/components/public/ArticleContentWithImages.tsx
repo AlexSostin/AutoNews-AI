@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 
 interface ArticleContentWithImagesProps {
   content: string;
@@ -9,7 +9,7 @@ interface ArticleContentWithImagesProps {
 }
 
 export default function ArticleContentWithImages({ content, images }: ArticleContentWithImagesProps) {
-  const [contentParts, setContentParts] = useState<JSX.Element[]>([]);
+  const [contentParts, setContentParts] = useState<ReactElement[]>([]);
 
   useEffect(() => {
     console.log('📸 Images available:', images);
