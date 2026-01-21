@@ -16,6 +16,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Restore auth cookies from localStorage before page load */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var accessToken = localStorage.getItem('access_token');
+                  var refreshToken = localStorage.getItem('refresh_token');
+                  var isSecure = location.protocol === 'https:';
+                  var secureFlag = isSecure ? '; Secure' : '';
+                  var maxAge = 7 * 24 * 60 * 60;
+                  
+                  if (accessToken && !document.cookie.includes('access_token=')) {
+                    document.cookie = 'access_token=' + accessToken + '; path=/; max-age=' + maxAge + '; SameSite=Lax' + secureFlag;
+                  }
+                  if (refreshToken && !document.cookie.includes('refresh_token=')) {
+                    document.cookie = 'refresh_token=' + refreshToken + '; path=/; max-age=' + maxAge + '; SameSite=Lax' + secureFlag;
+                  }
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="antialiased min-h-screen flex flex-col bg-gray-50">
         <Toaster 
           position="top-center"

@@ -2,6 +2,13 @@ import api from './api';
 import { AuthTokens, LoginCredentials, User } from '@/types';
 import { setUserContext, clearUserContext } from './errorTracking';
 
+// Helper to set cookies with proper security flags
+const setCookie = (name: string, value: string, maxAgeSeconds: number = 7 * 24 * 60 * 60) => {
+  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const secureFlag = isSecure ? '; Secure' : '';
+  document.cookie = `${name}=${value}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax${secureFlag}`;
+};
+
 export const login = async (credentials: LoginCredentials): Promise<AuthTokens> => {
   const response = await api.post('/token/', credentials);
   const { access, refresh } = response.data;
@@ -9,8 +16,8 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
   // Store tokens in cookies (needed for middleware)
   // Access token cookie lives 7 days (cookie presence allows middleware to pass)
   // The actual token validation happens on the backend
-  document.cookie = `access_token=${access}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-  document.cookie = `refresh_token=${refresh}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+  setCookie('access_token', access);
+  setCookie('refresh_token', refresh);
   
   // Also store in localStorage for client-side access
   localStorage.setItem('access_token', access);
@@ -73,10 +80,10 @@ export const isAuthenticated = (): boolean => {
   const tokenFromStorage = localStorage.getItem('access_token');
   if (tokenFromStorage) {
     // Restore the cookie for middleware
-    document.cookie = `access_token=${tokenFromStorage}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+    setCookie('access_token', tokenFromStorage);
     const refreshFromStorage = localStorage.getItem('refresh_token');
     if (refreshFromStorage) {
-      document.cookie = `refresh_token=${refreshFromStorage}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+      setCookie('refresh_token', refreshFromStorage);
     }
     return true;
   }
@@ -98,7 +105,7 @@ export const getAccessToken = (): string | null => {
   const tokenFromStorage = localStorage.getItem('access_token');
   if (tokenFromStorage) {
     // Restore the cookie for middleware
-    document.cookie = `access_token=${tokenFromStorage}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+    setCookie('access_token', tokenFromStorage);
   }
   return tokenFromStorage;
 };

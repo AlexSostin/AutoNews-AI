@@ -7,6 +7,11 @@ export async function middleware(request: NextRequest) {
   const isLoginRoute = request.nextUrl.pathname === '/login';
   const isProfileRoute = request.nextUrl.pathname.startsWith('/profile');
 
+  // Debug logging
+  console.log('[Middleware] Path:', request.nextUrl.pathname);
+  console.log('[Middleware] Has token:', !!token);
+  console.log('[Middleware] All cookies:', request.cookies.getAll().map(c => c.name));
+
   // Helper to get API URL
   const getApiUrl = (request: NextRequest) => {
     const host = request.headers.get('host') || '';

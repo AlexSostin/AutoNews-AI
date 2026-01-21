@@ -91,7 +91,9 @@ api.interceptors.response.use(
           const { access } = response.data;
           
           // Update access token in cookie (7 days to match login)
-          document.cookie = `access_token=${access}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+          const isSecure = window.location.protocol === 'https:';
+          const secureFlag = isSecure ? '; Secure' : '';
+          document.cookie = `access_token=${access}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax${secureFlag}`;
           
           // Also update localStorage
           localStorage.setItem('access_token', access);
