@@ -440,7 +440,7 @@ REST_FRAMEWORK = {
 # JWT Settings
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),  # Reduced from 5 hours for security
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # 1 day - balanced security/UX
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,  # Rotate refresh tokens on use
     'BLACKLIST_AFTER_ROTATION': True,

@@ -5,137 +5,103 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('access_token')?.value;
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
   const isLoginRoute = request.nextUrl.pathname === '/login';
+  const isProfileRoute = request.nextUrl.pathname.startsWith('/profile');
 
-  console.log('[Middleware]', {
-    path: request.nextUrl.pathname,
-    hasToken: !!token,
-    isAdminRoute,
-    isLoginRoute
-  });
+  // Helper to get API URL
+  const getApiUrl = (request: NextRequest) => {
+    const host = request.headers.get('host') || '';
+    return host.includes('localhost') || host.includes('127.0.0.1')
+      ? 'http://localhost:8001/api/v1'
+      : 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+  };
 
-  // Если админский роут и нет токена - редирект на login
-  if (isAdminRoute && !token) {
-    console.log('[Middleware] No token for admin route, redirecting to /login');
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // Если админский роут и есть токен - проверить is_staff
-  if (isAdminRoute && token) {
+  // Helper to verify token and get user
+  const verifyToken = async (token: string): Promise<{ valid: boolean; user?: any; status?: number }> => {
     try {
-      // Always use production URL on non-localhost hosts
-      const host = request.headers.get('host') || '';
-      const apiUrl = host.includes('localhost') || host.includes('127.0.0.1')
-        ? 'http://localhost:8001/api/v1'
-        : 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-      console.log('[Middleware] Checking user auth at:', apiUrl);
-      
+      const apiUrl = getApiUrl(request);
       const response = await fetch(`${apiUrl}/users/me/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        // Добавляем timeout
+        headers: { 'Authorization': `Bearer ${token}` },
         signal: AbortSignal.timeout(5000),
       });
-
-      console.log('[Middleware] Auth check response:', response.status);
-
+      
       if (response.ok) {
         const user = await response.json();
-        console.log('[Middleware] User:', { 
-          username: user.username, 
-          is_staff: user.is_staff, 
-          is_superuser: user.is_superuser 
-        });
-        
-        // Если НЕ админ - редирект на главную
-        if (!user.is_staff && !user.is_superuser) {
-          console.log('[Middleware] User is not admin, redirecting to /');
-          return NextResponse.redirect(new URL('/', request.url));
-        }
-        
-        console.log('[Middleware] User is admin, allowing access');
-      } else {
-        // Токен невалидный - редирект на login
-        console.log('[Middleware] Invalid token, redirecting to /login');
-        return NextResponse.redirect(new URL('/login', request.url));
+        return { valid: true, user };
       }
+      
+      return { valid: false, status: response.status };
     } catch (error) {
-      console.error('[Middleware] Auth check failed:', error);
-      // При ошибке проверки токена - безопасный редирект на login
-      const response = NextResponse.redirect(new URL('/login', request.url));
+      console.error('[Middleware] Token verification error:', error);
+      // Network error - don't invalidate, let page handle it
+      return { valid: true, user: null };
+    }
+  };
+
+  // Admin routes - require staff/superuser
+  if (isAdminRoute) {
+    if (!token) {
+      console.log('[Middleware] No token for admin route');
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    const { valid, user, status } = await verifyToken(token);
+    
+    if (!valid) {
+      console.log('[Middleware] Admin token invalid, status:', status);
+      // Only clear cookies on explicit 401/403
+      if (status === 401 || status === 403) {
+        const response = NextResponse.redirect(new URL('/login', request.url));
+        response.cookies.delete('access_token');
+        response.cookies.delete('refresh_token');
+        return response;
+      }
+      // Other errors - redirect but don't clear (might be temporary)
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    
+    // User exists but not admin
+    if (user && !user.is_staff && !user.is_superuser) {
+      console.log('[Middleware] User is not admin');
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    
+    // Valid admin or network error (let page handle)
+    return NextResponse.next();
+  }
+
+  // Login page - redirect if already logged in
+  if (isLoginRoute && token) {
+    const { valid, user } = await verifyToken(token);
+    
+    if (valid && user) {
+      // Redirect based on role
+      if (user.is_staff || user.is_superuser) {
+        return NextResponse.redirect(new URL('/admin', request.url));
+      }
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    // Invalid token or error - let them login
+  }
+
+  // Profile routes - require authentication
+  if (isProfileRoute) {
+    if (!token) {
+      console.log('[Middleware] No token for profile route');
+      const redirectUrl = new URL('/login', request.url);
+      redirectUrl.searchParams.set('redirect', request.nextUrl.pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const { valid, status } = await verifyToken(token);
+    
+    if (!valid && (status === 401 || status === 403)) {
+      console.log('[Middleware] Profile token invalid');
+      const response = NextResponse.redirect(new URL('/login?redirect=/profile', request.url));
       response.cookies.delete('access_token');
       response.cookies.delete('refresh_token');
       return response;
     }
-  }
-
-  // Если есть токен и пытается зайти на login - проверить роль и редирект
-  if (isLoginRoute && token) {
-    try {
-      // Always use production URL on non-localhost hosts
-      const host = request.headers.get('host') || '';
-      const apiUrl = host.includes('localhost') || host.includes('127.0.0.1')
-        ? 'http://localhost:8001/api/v1'
-        : 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-      
-      const response = await fetch(`${apiUrl}/users/me/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const user = await response.json();
-        
-        // Админы идут в админку, обычные пользователи на главную
-        if (user.is_staff || user.is_superuser) {
-          return NextResponse.redirect(new URL('/admin', request.url));
-        } else {
-          return NextResponse.redirect(new URL('/', request.url));
-        }
-      }
-    } catch (error) {
-      // Ошибка - пускаем на login
-      console.error('Middleware auth check failed:', error);
-    }
-  }
-
-  // Защита profile роутов - требуется авторизация
-  const isProfileRoute = request.nextUrl.pathname.startsWith('/profile');
-  if (isProfileRoute && !token) {
-    console.log('[Middleware] No token for profile route, redirecting to /login');
-    const redirectUrl = new URL('/login', request.url);
-    redirectUrl.searchParams.set('redirect', request.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Если есть токен на профиле - проверим что он ещё валиден
-  if (isProfileRoute && token) {
-    try {
-      const host = request.headers.get('host') || '';
-      const apiUrl = host.includes('localhost') || host.includes('127.0.0.1')
-        ? 'http://localhost:8001/api/v1'
-        : 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-      
-      const response = await fetch(`${apiUrl}/users/me/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        signal: AbortSignal.timeout(5000),
-      });
-
-      if (!response.ok) {
-        // Токен истёк или невалиден - очистить и редирект
-        console.log('[Middleware] Profile token invalid, clearing and redirecting');
-        const redirectResponse = NextResponse.redirect(new URL('/login?redirect=/profile', request.url));
-        redirectResponse.cookies.delete('access_token');
-        redirectResponse.cookies.delete('refresh_token');
-        return redirectResponse;
-      }
-    } catch (error) {
-      console.error('[Middleware] Profile auth check failed:', error);
-      // При ошибке сети - пропускаем (пусть клиент решит)
-    }
+    // Valid or network error - let page handle
   }
 
   return NextResponse.next();

@@ -90,8 +90,11 @@ api.interceptors.response.use(
 
           const { access } = response.data;
           
-          // Update access token in cookie
-          document.cookie = `access_token=${access}; path=/; max-age=3600; SameSite=Strict`;
+          // Update access token in cookie (7 days to match login)
+          document.cookie = `access_token=${access}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+          
+          // Also update localStorage
+          localStorage.setItem('access_token', access);
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access}`;
