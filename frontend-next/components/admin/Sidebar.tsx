@@ -11,7 +11,8 @@ import {
   LogOut,
   Home,
   Settings,
-  X
+  X,
+  FileStack
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
@@ -21,6 +22,7 @@ const menuItems = [
   { href: '/admin/categories', icon: Folder, label: 'Categories' },
   { href: '/admin/tags', icon: Tag, label: 'Tags' },
   { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },
+  { href: '/admin/pages', icon: FileStack, label: 'Pages' },
   { href: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 

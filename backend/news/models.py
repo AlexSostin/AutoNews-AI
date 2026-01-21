@@ -32,6 +32,34 @@ class SiteSettings(models.Model):
     # Footer
     footer_text = models.TextField(default="© 2026 AutoNews. All rights reserved.")
     
+    # Contact Information
+    contact_phone = models.CharField(max_length=50, blank=True, help_text="Phone number to display")
+    contact_phone_enabled = models.BooleanField(default=False, help_text="Show phone in contacts")
+    contact_address = models.TextField(blank=True, help_text="Office address")
+    contact_address_enabled = models.BooleanField(default=False, help_text="Show address in contacts")
+    support_email = models.EmailField(blank=True, help_text="Support email address")
+    business_email = models.EmailField(blank=True, help_text="Business inquiries email")
+    
+    # Pages - About
+    about_page_title = models.CharField(max_length=200, default="About AutoNews")
+    about_page_content = models.TextField(blank=True, help_text="HTML content for About page")
+    about_page_enabled = models.BooleanField(default=True, help_text="Show About page in footer")
+    
+    # Pages - Privacy Policy
+    privacy_page_title = models.CharField(max_length=200, default="Privacy Policy")
+    privacy_page_content = models.TextField(blank=True, help_text="HTML content for Privacy Policy")
+    privacy_page_enabled = models.BooleanField(default=True, help_text="Show Privacy Policy in footer")
+    
+    # Pages - Terms of Service
+    terms_page_title = models.CharField(max_length=200, default="Terms of Service")
+    terms_page_content = models.TextField(blank=True, help_text="HTML content for Terms of Service")
+    terms_page_enabled = models.BooleanField(default=True, help_text="Show Terms in footer")
+    
+    # Pages - Contact
+    contact_page_title = models.CharField(max_length=200, default="Contact Us")
+    contact_page_subtitle = models.CharField(max_length=500, blank=True, default="Have a question, suggestion, or just want to say hello? We'd love to hear from you!")
+    contact_page_enabled = models.BooleanField(default=True, help_text="Show Contact page in footer")
+    
     class Meta:
         verbose_name = "Site Settings"
         verbose_name_plural = "Site Settings"

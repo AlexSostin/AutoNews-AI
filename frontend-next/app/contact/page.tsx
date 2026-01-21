@@ -1,11 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '@/components/public/Header';
 import Footer from '@/components/public/Footer';
-import { Mail, MapPin, Phone, Send } from 'lucide-react';
+import { Mail, MapPin, Phone, Send, Loader2 } from 'lucide-react';
+import { getApiUrl } from '@/lib/api';
+
+interface SiteSettings {
+  contact_email: string;
+  contact_phone: string;
+  contact_phone_enabled: boolean;
+  contact_address: string;
+  contact_address_enabled: boolean;
+  support_email: string;
+  business_email: string;
+  contact_page_title: string;
+  contact_page_subtitle: string;
+  contact_page_enabled: boolean;
+}
 
 export default function ContactPage() {
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -13,6 +29,25 @@ export default function ContactPage() {
     message: '',
   });
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/v1/settings/`);
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +68,25 @@ export default function ContactPage() {
     });
   };
 
+  // Check if we have any contact info to show
+  const hasEmail = settings?.contact_email;
+  const hasPhone = settings?.contact_phone && settings?.contact_phone_enabled;
+  const hasAddress = settings?.contact_address && settings?.contact_address_enabled;
+  const hasSupportEmail = settings?.support_email;
+  const hasBusinessEmail = settings?.business_email;
+
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="animate-spin text-purple-600" size={48} />
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
   return (
     <>
       <Header />
@@ -41,9 +95,11 @@ export default function ContactPage() {
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-20">
           <div className="container mx-auto px-4 text-center">
-            <h1 className="text-4xl md:text-5xl font-black mb-4">Contact Us</h1>
+            <h1 className="text-4xl md:text-5xl font-black mb-4">
+              {settings?.contact_page_title || 'Contact Us'}
+            </h1>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Have a question, suggestion, or just want to say hello? We'd love to hear from you!
+              {settings?.contact_page_subtitle || "Have a question, suggestion, or just want to say hello? We'd love to hear from you!"}
             </p>
           </div>
         </div>
@@ -52,53 +108,95 @@ export default function ContactPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Contact Information */}
             <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="bg-purple-100 p-3 rounded-lg">
-                    <Mail className="text-purple-600" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 mb-1">Email Us</h3>
-                    <p className="text-gray-600 text-sm">contact@autonews.com</p>
-                    <p className="text-gray-600 text-sm">support@autonews.com</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="bg-indigo-100 p-3 rounded-lg">
-                    <Phone className="text-indigo-600" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 mb-1">Call Us</h3>
-                    <p className="text-gray-600 text-sm">+1 (555) 123-4567</p>
-                    <p className="text-gray-500 text-xs mt-1">Mon-Fri, 9AM-6PM EST</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="bg-blue-100 p-3 rounded-lg">
-                    <MapPin className="text-blue-600" size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 mb-1">Visit Us</h3>
-                    <p className="text-gray-600 text-sm">123 Auto Street</p>
-                    <p className="text-gray-600 text-sm">Detroit, MI 48201</p>
-                    <p className="text-gray-600 text-sm">United States</p>
+              {/* Email - always shown if available */}
+              {hasEmail && (
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="bg-purple-100 p-3 rounded-lg">
+                      <Mail className="text-purple-600" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 mb-1">Email Us</h3>
+                      <a 
+                        href={`mailto:${settings.contact_email}`}
+                        className="text-purple-600 hover:text-purple-800 text-sm block"
+                      >
+                        {settings.contact_email}
+                      </a>
+                      {hasSupportEmail && (
+                        <a 
+                          href={`mailto:${settings.support_email}`}
+                          className="text-gray-600 hover:text-gray-800 text-sm block mt-1"
+                        >
+                          {settings.support_email}
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl shadow-md p-6 text-white">
-                <h3 className="font-bold mb-2">Business Inquiries</h3>
-                <p className="text-sm text-purple-100 mb-3">
-                  For advertising, partnerships, or press inquiries, please contact:
-                </p>
-                <p className="text-sm font-medium">business@autonews.com</p>
-              </div>
+              {/* Phone - only shown if enabled */}
+              {hasPhone && (
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="bg-indigo-100 p-3 rounded-lg">
+                      <Phone className="text-indigo-600" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 mb-1">Call Us</h3>
+                      <a 
+                        href={`tel:${settings.contact_phone.replace(/\s/g, '')}`}
+                        className="text-gray-600 hover:text-gray-800 text-sm"
+                      >
+                        {settings.contact_phone}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Address - only shown if enabled */}
+              {hasAddress && (
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="bg-blue-100 p-3 rounded-lg">
+                      <MapPin className="text-blue-600" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 mb-1">Visit Us</h3>
+                      {settings.contact_address.split('\n').map((line, idx) => (
+                        <p key={idx} className="text-gray-600 text-sm">{line}</p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Business Email */}
+              {hasBusinessEmail && (
+                <div className="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl shadow-md p-6 text-white">
+                  <h3 className="font-bold mb-2">Business Inquiries</h3>
+                  <p className="text-sm text-purple-100 mb-3">
+                    For advertising, partnerships, or press inquiries, please contact:
+                  </p>
+                  <a 
+                    href={`mailto:${settings.business_email}`}
+                    className="text-sm font-medium hover:underline"
+                  >
+                    {settings.business_email}
+                  </a>
+                </div>
+              )}
+
+              {/* No contact info message */}
+              {!hasEmail && !hasPhone && !hasAddress && (
+                <div className="bg-gray-100 rounded-xl p-6 text-center">
+                  <p className="text-gray-600">
+                    Please use the contact form to get in touch with us.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Contact Form */}
