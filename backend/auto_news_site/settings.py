@@ -454,8 +454,11 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in DEBUG mode
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ORIGINS', 
-    'http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173'
+    'http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,https://autonews-ai-production.up.railway.app'
 ).split(',')
+
+# Also allow media files to be accessed cross-origin
+CORS_URLS_REGEX = r'^.*$'  # Apply CORS to all URLs including /media/
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_METHODS = [

@@ -109,3 +109,36 @@ def rate_article(request, slug):
         })
     
     return JsonResponse({'error': 'Invalid method'}, status=405)
+
+
+def serve_media_with_cors(request, path):
+    """Serve media files with CORS headers for cross-origin access"""
+    from django.conf import settings
+    from django.http import FileResponse, Http404
+    import os
+    
+    file_path = os.path.join(settings.MEDIA_ROOT, path)
+    
+    if not os.path.exists(file_path):
+        raise Http404("Media file not found")
+    
+    response = FileResponse(open(file_path, 'rb'))
+    
+    # Add CORS headers
+    response['Access-Control-Allow-Origin'] = '*'
+    response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    response['Access-Control-Allow-Headers'] = 'Content-Type'
+    
+    # Set content type based on file extension
+    ext = os.path.splitext(path)[1].lower()
+    content_types = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }
+    if ext in content_types:
+        response['Content-Type'] = content_types[ext]
+    
+    return response
