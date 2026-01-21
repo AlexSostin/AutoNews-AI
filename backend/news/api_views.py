@@ -212,7 +212,15 @@ class ArticleViewSet(viewsets.ModelViewSet):
         try:
             # Import AI engine
             import traceback
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
+            # Add both backend and ai_engine paths for proper imports
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
+            
+            if backend_dir not in sys.path:
+                sys.path.insert(0, backend_dir)
+            if ai_engine_dir not in sys.path:
+                sys.path.insert(0, ai_engine_dir)
             
             try:
                 from ai_engine.main import generate_article_from_youtube

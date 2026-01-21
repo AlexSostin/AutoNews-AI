@@ -63,11 +63,9 @@ logs/
 *SECRET*
 *api_key*
 *API_KEY*
-config.py
 !config.example.py
 
-# API Keys (keep config example but ignore actual keys)
-ai_engine/config.py
+# Note: ai_engine/config.py is safe to commit - it only reads from env variables
 
 # Security - never commit these
 *.pem
