@@ -9,7 +9,10 @@ python manage.py migrate --noinput
 echo "📦 Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "👤 Creating superuser if not exists..."
+echo "� Populating database with sample data..."
+python manage.py populate_db || echo "⚠️ populate_db already ran or failed"
+
+echo "�👤 Creating superuser if not exists..."
 python manage.py shell << EOF
 from django.contrib.auth import get_user_model
 import os
