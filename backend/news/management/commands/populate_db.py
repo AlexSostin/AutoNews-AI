@@ -251,7 +251,7 @@ The 911 GT3 is the gold standard for track-capable sports cars, offering an anal
                 'site_name': 'AutoNews',
                 'site_description': 'The best automotive news and reviews',
                 'contact_email': 'info@autonews.ai',
-                'contact_phone': '+1-234-567-8900',
+                # No contact_phone field in SiteSettings model
                 'footer_text': '© 2026 AutoNews. All rights reserved.',
             }
         )
