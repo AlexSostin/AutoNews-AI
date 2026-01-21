@@ -339,6 +339,18 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.views += 1
         article.save(update_fields=['views'])
         return Response({'views': article.views})
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def reset_all_views(self, request):
+        """Reset all article views to 0 (admin only)"""
+        if not request.user.is_staff:
+            return Response({'detail': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        count = Article.objects.all().update(views=0)
+        return Response({
+            'detail': f'Reset views to 0 for {count} articles',
+            'articles_updated': count
+        })
 
 
 class CommentViewSet(viewsets.ModelViewSet):
