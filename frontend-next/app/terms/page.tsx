@@ -183,9 +183,37 @@ export default function TermsPage() {
             {/* Governing Law */}
             <section className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4">Governing Law</h2>
+              <p className="text-gray-700 mb-4">
+                These Terms shall be governed by and construed in accordance with the applicable laws of 
+                your jurisdiction. Any disputes arising from these Terms or your use of the website will 
+                be resolved in accordance with the laws applicable to your place of residence, to the 
+                extent required by local consumer protection laws.
+              </p>
               <p className="text-gray-700">
-                These Terms shall be governed by and construed in accordance with the laws of the United States 
-                and the State of Michigan, without regard to its conflict of law provisions.
+                For users outside your local jurisdiction, you agree that any disputes will be resolved 
+                through good-faith negotiation or, if necessary, through binding arbitration in accordance 
+                with internationally recognized arbitration rules.
+              </p>
+            </section>
+
+            {/* Age Requirements */}
+            <section className="mb-10">
+              <h2 className="text-2xl font-black text-gray-900 mb-4">Age Requirements</h2>
+              <p className="text-gray-700">
+                You must be at least 16 years of age to use this website. By using AutoNews, you represent 
+                and warrant that you meet this age requirement. If you are under 16, please do not use our 
+                website or submit any personal information.
+              </p>
+            </section>
+
+            {/* International Users */}
+            <section className="mb-10">
+              <h2 className="text-2xl font-black text-gray-900 mb-4">International Users</h2>
+              <p className="text-gray-700">
+                AutoNews is accessible worldwide. If you access the website from outside of our primary 
+                operating region, you do so at your own initiative and are responsible for compliance with 
+                local laws. Nothing in these Terms excludes or limits any consumer rights that cannot be 
+                excluded or limited under the laws of your country of residence.
               </p>
             </section>
 
@@ -193,12 +221,11 @@ export default function TermsPage() {
             <section className="bg-purple-50 rounded-xl p-6">
               <h2 className="text-2xl font-black text-gray-900 mb-4">Contact Us</h2>
               <p className="text-gray-700 mb-4">
-                If you have any questions about these Terms of Service, please contact us:
+                If you have any questions about these Terms of Service, please contact us through our{' '}
+                <a href="/contact" className="text-purple-600 hover:text-purple-800 font-medium underline">
+                  Contact Page
+                </a>.
               </p>
-              <div className="text-gray-700">
-                <p className="font-medium">Email: legal@autonews.com</p>
-                <p className="font-medium">Address: 123 Auto Street, Detroit, MI 48201, United States</p>
-              </div>
             </section>
           </div>
         </div>

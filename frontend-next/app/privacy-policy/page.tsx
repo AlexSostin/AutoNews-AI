@@ -170,6 +170,45 @@ export default function PrivacyPolicyPage() {
               </ul>
             </section>
 
+            {/* International Users & GDPR */}
+            <section className="mb-10">
+              <h2 className="text-2xl font-black text-gray-900 mb-4">International Users & GDPR</h2>
+              <p className="text-gray-700 mb-4">
+                If you are located in the European Economic Area (EEA), United Kingdom, or other regions with 
+                data protection laws, you have additional rights under the General Data Protection Regulation (GDPR) 
+                and similar legislation:
+              </p>
+              <ul className="list-disc list-inside text-gray-700 space-y-2 ml-4">
+                <li><strong>Right to Access:</strong> Request a copy of your personal data</li>
+                <li><strong>Right to Rectification:</strong> Request correction of inaccurate data</li>
+                <li><strong>Right to Erasure:</strong> Request deletion of your data ("right to be forgotten")</li>
+                <li><strong>Right to Restrict Processing:</strong> Limit how we use your data</li>
+                <li><strong>Right to Data Portability:</strong> Receive your data in a portable format</li>
+                <li><strong>Right to Object:</strong> Object to processing based on legitimate interests</li>
+              </ul>
+              <p className="text-gray-700 mt-4">
+                For users in California (USA), you may have additional rights under the California Consumer 
+                Privacy Act (CCPA) and California Privacy Rights Act (CPRA), including the right to know what 
+                personal information is collected and the right to opt-out of the sale of personal information. 
+                We do not sell personal information.
+              </p>
+              <p className="text-gray-700 mt-4">
+                For users in Canada, your privacy rights are protected under the Personal Information Protection 
+                and Electronic Documents Act (PIPEDA) and provincial privacy laws.
+              </p>
+            </section>
+
+            {/* Children's Privacy */}
+            <section className="mb-10">
+              <h2 className="text-2xl font-black text-gray-900 mb-4">Children's Privacy</h2>
+              <p className="text-gray-700">
+                Our website is not intended for children under the age of 16. We do not knowingly collect 
+                personal information from children under 16. If you are a parent or guardian and believe your 
+                child has provided us with personal information, please contact us immediately, and we will 
+                take steps to delete such information from our systems.
+              </p>
+            </section>
+
             {/* Newsletter */}
             <section className="mb-10">
               <div className="flex items-center gap-3 mb-4">
@@ -189,12 +228,15 @@ export default function PrivacyPolicyPage() {
             <section className="bg-purple-50 rounded-xl p-6">
               <h2 className="text-2xl font-black text-gray-900 mb-4">Contact Us</h2>
               <p className="text-gray-700 mb-4">
-                If you have questions or comments about this Privacy Policy, please contact us at:
+                If you have questions or comments about this Privacy Policy, or wish to exercise your 
+                data protection rights, please contact us through our{' '}
+                <a href="/contact" className="text-purple-600 hover:text-purple-800 font-medium underline">
+                  Contact Page
+                </a>.
               </p>
-              <div className="text-gray-700">
-                <p className="font-medium">Email: privacy@autonews.com</p>
-                <p className="font-medium">Address: 123 Auto Street, Detroit, MI 48201, United States</p>
-              </div>
+              <p className="text-gray-700 text-sm">
+                We will respond to your request within 30 days, or sooner if required by applicable law.
+              </p>
             </section>
           </div>
         </div>
