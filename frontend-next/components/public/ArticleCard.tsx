@@ -6,6 +6,7 @@ import { Article } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { Calendar, Star } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
+import { fixImageUrl } from '@/lib/config';
 
 interface ArticleCardProps {
   article: Article;
@@ -13,19 +14,11 @@ interface ArticleCardProps {
 
 export default function ArticleCard({ article }: ArticleCardProps) {
   // Use first screenshot from video as background
-  let imageUrl = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&h=400&fit=crop';
+  const defaultImage = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&h=400&fit=crop';
   
   // Priority: image (screenshot 1) > thumbnail_url
   const thumbnailUrl = article.thumbnail_url || article.image;
-  if (thumbnailUrl) {
-    // If already a full URL, use as-is (but replace backend with localhost for browser)
-    if (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://')) {
-      imageUrl = thumbnailUrl.replace('http://backend:8001', 'http://localhost:8001');
-    } else {
-      // If relative path, prepend Django URL
-      imageUrl = `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${thumbnailUrl}`;
-    }
-  }
+  const imageUrl = thumbnailUrl ? fixImageUrl(thumbnailUrl) : defaultImage;
 
   return (
     <Link href={`/articles/${article.slug}`} className="group">

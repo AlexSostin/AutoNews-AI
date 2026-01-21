@@ -20,12 +20,24 @@ import ViewStats from '@/components/public/ViewStats';
 import { Article } from '@/types';
 import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
 
+// Production API URL
+const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+const LOCAL_API_URL = 'http://localhost:8001/api/v1';
+
 const getApiUrl = () => {
-  // Server-side (inside Docker) uses backend service name
-  // Client-side uses localhost
-  return typeof window === 'undefined'
-    ? (process.env.NEXT_PUBLIC_API_URL_SERVER || 'http://backend:8001/api/v1')
-    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1');
+  // Server-side: use production URL on Railway
+  if (typeof window === 'undefined') {
+    if (process.env.RAILWAY_ENVIRONMENT === 'production') {
+      return PRODUCTION_API_URL;
+    }
+    return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
+  }
+  // Client-side: detect by hostname
+  const host = window.location.hostname;
+  if (host !== 'localhost' && host !== '127.0.0.1') {
+    return PRODUCTION_API_URL;
+  }
+  return LOCAL_API_URL;
 };
 
 async function getArticle(slug: string): Promise<Article | null> {
@@ -74,13 +86,24 @@ export default async function ArticleDetailPage({
     ? await getRelatedArticles(article.category_slug, article.slug)
     : [];
 
-  const imageUrl = article.image
-    ? (article.image.startsWith('http://') || article.image.startsWith('https://') 
-        ? article.image.replace('http://backend:8001', 'http://localhost:8001')
-        : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.image}`)
-    : 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200';
+  // Constants for URLs
+  const PROD_MEDIA = 'https://heroic-healing-production-2365.up.railway.app';
+  const LOCAL_MEDIA = 'http://localhost:8001';
+  const isProduction = process.env.RAILWAY_ENVIRONMENT === 'production';
+  
+  // Helper to fix image URLs
+  const fixUrl = (url: string | null | undefined): string => {
+    if (!url) return 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200';
+    const mediaUrl = isProduction ? PROD_MEDIA : LOCAL_MEDIA;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
+    }
+    return `${mediaUrl}${url}`;
+  };
 
-  const fullUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/articles/${article.slug}`;
+  const imageUrl = fixUrl(article.image);
+
+  const fullUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://autonews-ai-production.up.railway.app'}/articles/${article.slug}`;
   
   // Prepare article content HTML with images between paragraphs
   const articleContentHtml = article.content;
@@ -92,12 +115,7 @@ export default async function ArticleDetailPage({
     article.thumbnail_url || article.image,
     article.image_2_url || article.image_2,
     article.image_3_url || article.image_3
-  ].filter((url): url is string => Boolean(url)).map(url => {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url.replace('http://backend:8001', 'http://localhost:8001');
-    }
-    return `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${url}`;
-  });
+  ].filter((url): url is string => Boolean(url)).map(url => fixUrl(url));
 
   return (
     <>
@@ -223,7 +241,7 @@ export default async function ArticleDetailPage({
                     {article.thumbnail_url && (
                       <div className="relative aspect-video rounded-lg overflow-hidden">
                         <Image
-                          src={article.thumbnail_url.startsWith('http') ? article.thumbnail_url.replace('http://backend:8001', 'http://localhost:8001') : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.thumbnail_url}`}
+                          src={fixUrl(article.thumbnail_url)}
                           alt={`${article.title} - View 1`}
                           fill
                           className="object-cover hover:scale-105 transition-transform duration-300"
@@ -233,7 +251,7 @@ export default async function ArticleDetailPage({
                     {article.image_2_url && (
                       <div className="relative aspect-video rounded-lg overflow-hidden">
                         <Image
-                          src={article.image_2_url.startsWith('http') ? article.image_2_url.replace('http://backend:8001', 'http://localhost:8001') : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.image_2_url}`}
+                          src={fixUrl(article.image_2_url)}
                           alt={`${article.title} - View 2`}
                           fill
                           className="object-cover hover:scale-105 transition-transform duration-300"
@@ -243,7 +261,7 @@ export default async function ArticleDetailPage({
                     {article.image_3_url && (
                       <div className="relative aspect-video rounded-lg overflow-hidden">
                         <Image
-                          src={article.image_3_url.startsWith('http') ? article.image_3_url.replace('http://backend:8001', 'http://localhost:8001') : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.image_3_url}`}
+                          src={fixUrl(article.image_3_url)}
                           alt={`${article.title} - View 3`}
                           fill
                           className="object-cover hover:scale-105 transition-transform duration-300"
@@ -388,13 +406,7 @@ export default async function ArticleDetailPage({
                       >
                         <div className="relative h-32 mb-3 rounded-lg overflow-hidden">
                           <Image
-                            src={
-                              related.image
-                                ? (related.image.startsWith('http://') || related.image.startsWith('https://') 
-                                    ? related.image.replace('http://backend:8001', 'http://localhost:8001')
-                                    : `http://127.0.0.1:8001${related.image}`)
-                                : 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400'
-                            }
+                            src={fixUrl(related.image)}
                             alt={related.title}
                             fill
                             className="object-cover group-hover:scale-110 transition-transform duration-300"

@@ -136,10 +136,20 @@ export default function FavoritesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {favorites.map((favorite) => {
+                const getMediaUrl = () => {
+                  if (typeof window !== 'undefined') {
+                    const host = window.location.hostname;
+                    if (host !== 'localhost' && host !== '127.0.0.1') {
+                      return 'https://heroic-healing-production-2365.up.railway.app';
+                    }
+                  }
+                  return 'http://localhost:8001';
+                };
+                const mediaUrl = getMediaUrl();
                 const imageUrl = favorite.article_image 
                   ? (favorite.article_image.startsWith('http') 
-                      ? favorite.article_image.replace('http://backend:8001', 'http://localhost:8001')
-                      : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${favorite.article_image}`)
+                      ? favorite.article_image.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl)
+                      : `${mediaUrl}${favorite.article_image}`)
                   : 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&h=400&fit=crop';
 
                 return (

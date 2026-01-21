@@ -22,8 +22,10 @@ export async function middleware(request: NextRequest) {
   // Если админский роут и есть токен - проверить is_staff
   if (isAdminRoute && token) {
     try {
-      // В Docker используем внутренний URL backend
-      const apiUrl = 'http://backend:8001/api/v1';
+      // Production URL for Railway
+      const apiUrl = process.env.RAILWAY_ENVIRONMENT === 'production'
+        ? 'https://heroic-healing-production-2365.up.railway.app/api/v1'
+        : 'http://localhost:8001/api/v1';
       console.log('[Middleware] Checking user auth at:', apiUrl);
       
       const response = await fetch(`${apiUrl}/users/me/`, {

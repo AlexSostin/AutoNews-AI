@@ -7,10 +7,24 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Article, Category } from '@/types';
 import { Metadata } from 'next';
 
+// Production API URL
+const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+const LOCAL_API_URL = 'http://localhost:8001/api/v1';
+
 const getApiUrl = () => {
-  return typeof window === 'undefined' 
-    ? (process.env.NEXT_PUBLIC_API_URL_SERVER || 'http://backend:8001/api/v1')
-    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1');
+  if (typeof window === 'undefined') {
+    // Server-side: use production on Railway
+    if (process.env.RAILWAY_ENVIRONMENT === 'production') {
+      return PRODUCTION_API_URL;
+    }
+    return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
+  }
+  // Client-side
+  const host = window.location.hostname;
+  if (host !== 'localhost' && host !== '127.0.0.1') {
+    return PRODUCTION_API_URL;
+  }
+  return LOCAL_API_URL;
 };
 
 async function getCategory(slug: string) {
