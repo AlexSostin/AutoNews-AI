@@ -169,7 +169,7 @@ for article_data in sample_articles:
             'category': article_data['category'],
             # Article model has no 'author' field
             'is_published': True,
-            'views': random.randint(100, 5000),
+            'views': 0,  # Real views only
         }
     )
     

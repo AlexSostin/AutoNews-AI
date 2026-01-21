@@ -232,7 +232,7 @@ The 911 GT3 is the gold standard for track-capable sports cars, offering an anal
                     'category': article_data['category'],
                     # No 'author' field in Article model
                     'is_published': True,
-                    'views': random.randint(100, 5000),
+                    'views': 0,  # Real views only
                 }
             )
             
