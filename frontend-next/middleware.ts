@@ -58,8 +58,11 @@ export async function middleware(request: NextRequest) {
       }
     } catch (error) {
       console.error('[Middleware] Auth check failed:', error);
-      // При ошибке НЕ редиректим, пускаем дальше - проверку сделает страница
-      // return NextResponse.redirect(new URL('/login', request.url));
+      // При ошибке проверки токена - безопасный редирект на login
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('access_token');
+      response.cookies.delete('refresh_token');
+      return response;
     }
   }
 

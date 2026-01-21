@@ -18,6 +18,9 @@ from .serializers import (
 import os
 import sys
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class IsStaffOrReadOnly(BasePermission):
@@ -220,8 +223,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article = self.get_object()
         rating_value = request.data.get('rating')
         
-        print(f"DEBUG: Received rating_value: {rating_value}, type: {type(rating_value)}")
-        print(f"DEBUG: Request data: {request.data}")
+        logger.debug(f"Received rating_value: {rating_value}, type: {type(rating_value)}")
         
         if not rating_value:
             return Response(
@@ -255,34 +257,27 @@ class ArticleViewSet(viewsets.ModelViewSet):
         import hashlib
         fingerprint = hashlib.md5(f"{ip_address}_{user_agent[:100]}".encode()).hexdigest()
         
-        print(f"DEBUG: IP address: {ip_address}")
-        print(f"DEBUG: Fingerprint: {fingerprint}")
-        print(f"DEBUG: Article: {article.id} - {article.title}")
+        logger.debug(f"Rating attempt - Article: {article.id}, Fingerprint hash: {fingerprint[:8]}...")
         
         # Check if user already rated (by fingerprint)
         existing_rating = Rating.objects.filter(article=article, ip_address=fingerprint).first()
-        print(f"DEBUG: Existing rating: {existing_rating}")
         
         if existing_rating:
             # Update existing rating
-            print(f"DEBUG: Updating existing rating from {existing_rating.rating} to {rating_int}")
+            logger.info(f"Updated rating for article {article.id}")
             existing_rating.rating = rating_int
             existing_rating.save()
-            print(f"DEBUG: Rating updated successfully")
         else:
             # Create new rating
-            print(f"DEBUG: Creating rating with article={article.id}, rating={rating_int}, ip_address={fingerprint}")
+            logger.info(f"Created new rating for article {article.id}")
             try:
                 rating_obj = Rating.objects.create(
                     article=article,
                     rating=rating_int,
                     ip_address=fingerprint
                 )
-                print(f"DEBUG: Rating created successfully: {rating_obj.id}")
             except Exception as e:
-                print(f"DEBUG: Error creating rating: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"Failed to create rating: {str(e)}")
                 return Response(
                     {'error': f'Failed to create rating: {str(e)}'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -480,8 +475,9 @@ class UserViewSet(viewsets.ViewSet):
         })
     
     @action(detail=False, methods=['post'], permission_classes=[])
+    @method_decorator(ratelimit(key='ip', rate='3/h', method='POST', block=True))
     def register(self, request):
-        """Register a new user"""
+        """Register a new user with rate limiting to prevent spam"""
         username = request.data.get('username')
         email = request.data.get('email')
         password = request.data.get('password')
