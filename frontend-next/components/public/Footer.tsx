@@ -55,7 +55,17 @@ export default function Footer() {
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+    // Production API URL - hardcoded to avoid build-time issues
+    const getApiUrl = () => {
+      if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1') {
+          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+        }
+      }
+      return 'http://localhost:8001/api/v1';
+    };
+    const apiUrl = getApiUrl();
     
     // Load settings
     fetch(`${apiUrl}/settings/`)

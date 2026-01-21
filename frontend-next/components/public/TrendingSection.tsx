@@ -19,7 +19,16 @@ export default function TrendingSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+    const getApiUrl = () => {
+      if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1') {
+          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+        }
+      }
+      return 'http://localhost:8001/api/v1';
+    };
+    const apiUrl = getApiUrl();
     
     fetch(`${apiUrl}/articles/?is_published=true&ordering=-views&page_size=5`)
       .then(res => res.json())
@@ -75,7 +84,15 @@ export default function TrendingSection() {
               {article.image && (
                 <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden">
                   <Image
-                    src={article.image.startsWith('http') ? article.image.replace('http://backend:8001', 'http://localhost:8001') : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'http://localhost:8001'}${article.image}`}
+                    src={(() => {
+                      const mediaUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+                        ? 'https://heroic-healing-production-2365.up.railway.app'
+                        : 'http://localhost:8001';
+                      if (article.image.startsWith('http')) {
+                        return article.image.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
+                      }
+                      return `${mediaUrl}${article.image}`;
+                    })()}
                     alt={article.title}
                     fill
                     className="object-cover group-hover:scale-110 transition-transform"

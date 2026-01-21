@@ -9,9 +9,21 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-// Get API URL - use backend service name for server-side
+// Production API URL - hardcoded for server-side rendering
+const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+const LOCAL_API_URL = 'http://localhost:8001/api/v1';
+
+// Get API URL - use production URL on Railway, localhost for local dev
 const getApiUrl = () => {
-  return process.env.NEXT_PUBLIC_API_URL_SERVER || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+  // Check if running on Railway (production)
+  if (process.env.RAILWAY_ENVIRONMENT === 'production') {
+    return PRODUCTION_API_URL;
+  }
+  // Check env vars
+  if (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost')) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  return LOCAL_API_URL;
 };
 
 async function getArticles() {

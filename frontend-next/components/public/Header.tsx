@@ -47,7 +47,16 @@ export default function Header() {
     window.addEventListener('authChange', handleAuthChange);
     
     // Load categories
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/categories/`)
+    const getApiUrl = () => {
+      if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1') {
+          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+        }
+      }
+      return 'http://localhost:8001/api/v1';
+    };
+    fetch(`${getApiUrl()}/categories/`)
       .then(res => res.json())
       .then(data => {
         const cats = Array.isArray(data) ? data : data.results || [];

@@ -95,7 +95,18 @@ export const getCurrentUser = async (token?: string): Promise<User | null> => {
     const accessToken = token || getAccessToken();
     if (!accessToken) return null;
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/users/me/`, {
+    // Runtime API URL detection
+    const getApiUrl = () => {
+      if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1') {
+          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+        }
+      }
+      return 'http://localhost:8001/api/v1';
+    };
+
+    const response = await fetch(`${getApiUrl()}/users/me/`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
