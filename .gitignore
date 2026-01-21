@@ -13,7 +13,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/  # Commented out - Next.js uses lib/ for source code
 lib64/
 parts/
 sdist/
