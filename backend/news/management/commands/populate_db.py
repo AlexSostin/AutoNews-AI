@@ -14,22 +14,22 @@ class Command(BaseCommand):
         # 1. Create Categories
         self.stdout.write("\n📁 Creating categories...")
         categories_data = [
-            ('News', 'news', 'Latest automotive industry news'),
-            ('Reviews', 'reviews', 'Detailed car reviews'),
-            ('EVs', 'evs', 'Electric vehicles news and reviews'),
-            ('Technology', 'technology', 'Automotive technology innovations'),
-            ('Industry', 'industry', 'Auto industry news and trends'),
-            ('Classics', 'classics', 'Classic cars and vintage automobiles'),
-            ('Motorsport', 'motorsport', 'Racing and motorsports coverage'),
-            ('Modifications', 'modifications', 'Car tuning and modifications'),
-            ('Comparisons', 'comparisons', 'Car comparisons and reviews'),
+            ('News', 'news'),
+            ('Reviews', 'reviews'),
+            ('EVs', 'evs'),
+            ('Technology', 'technology'),
+            ('Industry', 'industry'),
+            ('Classics', 'classics'),
+            ('Motorsport', 'motorsport'),
+            ('Modifications', 'modifications'),
+            ('Comparisons', 'comparisons'),
         ]
 
         categories = []
-        for name, slug, desc in categories_data:
+        for name, slug in categories_data:
             cat, created = Category.objects.get_or_create(
                 slug=slug,
-                defaults={'name': name, 'description': desc}
+                defaults={'name': name}
             )
             categories.append(cat)
             self.stdout.write(f"{'✅ Created' if created else '✓ Exists'}: {name}")
