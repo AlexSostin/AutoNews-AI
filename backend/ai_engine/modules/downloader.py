@@ -2,23 +2,35 @@ import os
 import yt_dlp
 import sys
 
-# Import config from ai_engine
+# Import config - try multiple paths, fallback to defaults
 try:
     from ai_engine.config import TRANSCRIPTS_DIR
 except ImportError:
-    from config import TRANSCRIPTS_DIR
+    try:
+        from config import TRANSCRIPTS_DIR
+    except ImportError:
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        TRANSCRIPTS_DIR = os.path.join(BASE_DIR, 'ai_engine', 'output', 'transcripts')
 
 # Import utils
 try:
     from ai_engine.modules.utils import retry_on_failure, extract_video_id
 except ImportError:
-    from modules.utils import retry_on_failure, extract_video_id
+    try:
+        from modules.utils import retry_on_failure, extract_video_id
+    except ImportError:
+        # Minimal fallback
+        def retry_on_failure(*args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+        def extract_video_id(url):
+            import re
+            match = re.search(r'(?:v=|/)([0-9A-Za-z_-]{11})(?:[&?]|$)', url)
+            return match.group(1) if match else None
 
-
-# FFmpeg path for Windows
-FFMPEG_PATH = r"C:\Users\kille\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin"
-
-from modules.utils import retry_on_failure, extract_video_id
+# FFmpeg path (empty on production Linux)
+FFMPEG_PATH = os.getenv('FFMPEG_PATH', '')
 
 
 @retry_on_failure(max_retries=3, delay=10, exceptions=(Exception,))

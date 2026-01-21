@@ -8,12 +8,30 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from modules.downloader import download_audio_and_thumbnail
-from modules.transcriber import transcribe_from_youtube
-from modules.analyzer import analyze_transcript
-from modules.article_generator import generate_article
-from modules.publisher import publish_article
-from modules.screenshot_maker import extract_screenshots_simple
+# Import config first to ensure it's available
+try:
+    from ai_engine.config import GROQ_API_KEY
+except ImportError:
+    try:
+        from config import GROQ_API_KEY
+    except ImportError:
+        GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+
+# Import modules
+try:
+    from ai_engine.modules.downloader import download_audio_and_thumbnail
+    from ai_engine.modules.transcriber import transcribe_from_youtube
+    from ai_engine.modules.analyzer import analyze_transcript
+    from ai_engine.modules.article_generator import generate_article
+    from ai_engine.modules.publisher import publish_article
+    from ai_engine.modules.screenshot_maker import extract_screenshots_simple
+except ImportError:
+    from modules.downloader import download_audio_and_thumbnail
+    from modules.transcriber import transcribe_from_youtube
+    from modules.analyzer import analyze_transcript
+    from modules.article_generator import generate_article
+    from modules.publisher import publish_article
+    from modules.screenshot_maker import extract_screenshots_simple
 
 def extract_title(html_content):
     match = re.search(r'<h2>(.*?)</h2>', html_content)

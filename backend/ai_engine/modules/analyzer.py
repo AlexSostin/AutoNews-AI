@@ -1,11 +1,16 @@
 from groq import Groq
 import sys
+import os
 
-# Import config from ai_engine
+# Import config - try multiple paths, fallback to env
 try:
     from ai_engine.config import GROQ_API_KEY, GROQ_MODEL
 except ImportError:
-    from config import GROQ_API_KEY, GROQ_MODEL
+    try:
+        from config import GROQ_API_KEY, GROQ_MODEL
+    except ImportError:
+        GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+        GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
 
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
