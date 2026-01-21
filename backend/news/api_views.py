@@ -236,7 +236,28 @@ class ArticleViewSet(viewsets.ModelViewSet):
             result = generate_article_from_youtube(youtube_url)
             
             if result.get('success'):
-                article = Article.objects.get(id=result['article_id'])
+                article_id = result['article_id']
+                print(f"[generate_from_youtube] Article created with ID: {article_id}")
+                
+                # Fetch the article (even if soft-deleted, to debug)
+                try:
+                    article = Article.objects.get(id=article_id)
+                    print(f"[generate_from_youtube] Article found: {article.title}, is_published={article.is_published}, is_deleted={article.is_deleted}")
+                    
+                    # Force publish and un-delete in case something went wrong
+                    if not article.is_published or article.is_deleted:
+                        article.is_published = True
+                        article.is_deleted = False
+                        article.save()
+                        print(f"[generate_from_youtube] Article status updated to published")
+                    
+                except Article.DoesNotExist:
+                    print(f"[generate_from_youtube] Article with ID {article_id} not found!")
+                    return Response(
+                        {'error': f'Article was created but cannot be found (ID: {article_id})'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                
                 serializer = self.get_serializer(article)
                 return Response({
                     'success': True,

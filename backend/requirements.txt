@@ -49,5 +49,9 @@ sentry-sdk==2.22.0
 # Static files serving
 whitenoise==6.8.2
 
+# Cloud storage for media files (Railway has ephemeral filesystem)
+cloudinary==1.41.0
+django-cloudinary-storage==0.3.0
+
 # Admin theme
 django-jazzmin==3.0.0

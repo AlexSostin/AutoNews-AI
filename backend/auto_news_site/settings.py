@@ -317,8 +317,30 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # WhiteNoise configuration for serving static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Media files configuration
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Cloudinary configuration for production (Railway has ephemeral filesystem)
+CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
+if CLOUDINARY_URL and not DEBUG:
+    # Use Cloudinary for media storage in production
+    INSTALLED_APPS.append('cloudinary_storage')
+    INSTALLED_APPS.append('cloudinary')
+    
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    
+    # Parse CLOUDINARY_URL into components
+    import re
+    match = re.match(r'cloudinary://(\w+):(\w+)@(\w+)', CLOUDINARY_URL)
+    if match:
+        CLOUDINARY_STORAGE = {
+            'CLOUD_NAME': match.group(3),
+            'API_KEY': match.group(1),
+            'API_SECRET': match.group(2),
+        }
+    
+    print("✓ Cloudinary storage configured for media files")
 
 # Jazzmin Settings
 JAZZMIN_SETTINGS = {
