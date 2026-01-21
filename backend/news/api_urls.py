@@ -9,6 +9,7 @@ from .api_views import (
     ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
     FavoriteViewSet
 )
+from .health import health_check, health_check_detailed, readiness_check
 
 
 # Rate-limited token views for security
@@ -38,6 +39,11 @@ router.register(r'users', UserViewSet, basename='user')
 router.register(r'favorites', FavoriteViewSet, basename='favorite')
 
 urlpatterns = [
+    # Health check endpoints (for load balancers and monitoring)
+    path('health/', health_check, name='health_check'),
+    path('health/detailed/', health_check_detailed, name='health_check_detailed'),
+    path('health/ready/', readiness_check, name='readiness_check'),
+    
     # JWT Auth with rate limiting
     path('token/', RateLimitedTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', RateLimitedTokenRefreshView.as_view(), name='token_refresh'),

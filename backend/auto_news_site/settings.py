@@ -95,14 +95,23 @@ WSGI_APPLICATION = 'auto_news_site.wsgi.application'
 ASGI_APPLICATION = 'auto_news_site.asgi.application'
 
 # Channels (WebSocket) configuration
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"  # For development
-        # For production use Redis:
-        # "BACKEND": "channels_redis.core.RedisChannelLayer",
-        # "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
-    },
-}
+# Use Redis if available (production), fallback to InMemory (development)
+REDIS_URL = os.getenv("REDIS_URL")
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        },
+    }
 
 # Redis Cache Configuration
 # Try to use Redis if available, fallback to dummy cache if not

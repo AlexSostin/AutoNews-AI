@@ -13,6 +13,22 @@ const nextConfig: NextConfig = {
         pathname: '/media/**',
       },
       {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8001',
+        pathname: '/media/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.up.railway.app',
+        pathname: '/media/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'heroic-healing-production-2365.up.railway.app',
+        pathname: '/media/**',
+      },
+      {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
