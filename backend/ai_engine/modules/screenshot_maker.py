@@ -1,6 +1,17 @@
 import os
 import yt_dlp
 import sys
+import hashlib
+import subprocess
+from io import BytesIO
+
+def get_image_hash(image_path):
+    """Get simple hash of image file to detect duplicates"""
+    try:
+        with open(image_path, 'rb') as f:
+            return hashlib.md5(f.read()).hexdigest()
+    except:
+        return None
 
 def extract_screenshots(youtube_url, output_dir, num_screenshots=3):
     """
@@ -130,79 +141,172 @@ def extract_screenshots(youtube_url, output_dir, num_screenshots=3):
 
 def extract_screenshots_simple(youtube_url, output_dir, num_screenshots=3):
     """
-    Simplified version using yt-dlp's built-in thumbnail extraction.
-    Returns list of screenshot file paths.
+    Extract real frames from YouTube video at different timestamps.
+    Falls back to thumbnails if ffmpeg extraction fails.
+    Returns list of unique screenshot file paths.
     """
-    print(f"📸 Extracting thumbnails from video...")
+    print(f"📸 Extracting {num_screenshots} screenshots from video...")
     
     os.makedirs(output_dir, exist_ok=True)
+    screenshots = []
+    seen_hashes = set()
     
     try:
+        # Get video info
         ydl_opts = {
             'skip_download': True,
-            'writethumbnail': True,
-            'outtmpl': os.path.join(output_dir, '%(id)s_thumb.%(ext)s'),
             'quiet': True,
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(youtube_url, download=False)
-            
-            # Get all available thumbnails
-            thumbnails = info.get('thumbnails', [])
-            
-            if not thumbnails:
-                print("❌ No thumbnails available")
-                return []
-            
-            # Filter for high quality thumbnails only (width >= 1280)
-            high_quality = [t for t in thumbnails if t.get('width', 0) >= 1280]
-            
-            # If no high quality, use best available
-            if not high_quality:
-                high_quality = sorted(thumbnails, key=lambda x: x.get('width', 0) * x.get('height', 0), reverse=True)[:num_screenshots]
-            
-            # Download top quality thumbnails
-            screenshots = []
             video_id = info.get('id', 'video')
+            duration = info.get('duration', 0)
             
-            # Get only high quality thumbnails
-            for i in range(min(num_screenshots, len(high_quality))):
-                thumb = high_quality[i]
-                thumb_url = thumb.get('url')
+            # Try to extract real frames using ffmpeg first
+            if duration > 30:
+                print(f"  Video duration: {duration}s, extracting real frames...")
                 
-                if thumb_url:
-                    import requests
-                    response = requests.get(thumb_url, timeout=10)
+                # Get best video format URL
+                formats = info.get('formats', [])
+                video_url = None
+                
+                # Find good quality video stream
+                for fmt in sorted(formats, key=lambda x: x.get('height', 0), reverse=True):
+                    if (fmt.get('vcodec') != 'none' and 
+                        fmt.get('acodec') == 'none' and  # Video only for faster download
+                        720 <= fmt.get('height', 0) <= 1080):
+                        video_url = fmt.get('url')
+                        print(f"  Using format: {fmt.get('height')}p")
+                        break
+                
+                # Fallback to any video format
+                if not video_url:
+                    for fmt in formats:
+                        if fmt.get('vcodec') != 'none' and fmt.get('height', 0) >= 480:
+                            video_url = fmt.get('url')
+                            break
+                
+                if video_url:
+                    # Calculate timestamps: skip intro (15%) and outro (15%)
+                    start_time = int(duration * 0.15)
+                    end_time = int(duration * 0.85)
                     
-                    if response.status_code == 200:
-                        output_filename = f"{video_id}_screenshot_{i+1}.jpg"
+                    # Extract more frames than needed to pick unique ones
+                    num_to_extract = num_screenshots * 2
+                    interval = (end_time - start_time) // num_to_extract
+                    
+                    timestamps = [start_time + (i * interval) for i in range(num_to_extract)]
+                    print(f"  Timestamps to try: {timestamps[:6]}...")
+                    
+                    for i, timestamp in enumerate(timestamps):
+                        if len(screenshots) >= num_screenshots:
+                            break
+                            
+                        output_filename = f"{video_id}_frame_{timestamp}s.jpg"
                         output_path = os.path.join(output_dir, output_filename)
                         
-                        with open(output_path, 'wb') as f:
-                            f.write(response.content)
-                        
-                        screenshots.append(output_path)
-                        print(f"  ✓ Screenshot {i+1} saved: {output_filename} ({thumb.get('width')}x{thumb.get('height')})")
+                        try:
+                            # Extract frame using ffmpeg
+                            cmd = [
+                                'ffmpeg',
+                                '-ss', str(timestamp),
+                                '-i', video_url,
+                                '-vframes', '1',
+                                '-q:v', '2',  # High quality JPEG
+                                '-y',
+                                output_path
+                            ]
+                            
+                            result = subprocess.run(
+                                cmd, 
+                                capture_output=True, 
+                                timeout=15,
+                                stderr=subprocess.DEVNULL
+                            )
+                            
+                            if result.returncode == 0 and os.path.exists(output_path):
+                                # Check for duplicates
+                                img_hash = get_image_hash(output_path)
+                                
+                                if img_hash and img_hash not in seen_hashes:
+                                    seen_hashes.add(img_hash)
+                                    
+                                    # Rename to sequential
+                                    final_filename = f"{video_id}_screenshot_{len(screenshots)+1}.jpg"
+                                    final_path = os.path.join(output_dir, final_filename)
+                                    os.rename(output_path, final_path)
+                                    
+                                    screenshots.append(final_path)
+                                    print(f"  ✓ Frame at {timestamp}s saved: {final_filename}")
+                                else:
+                                    # Duplicate, remove
+                                    os.remove(output_path)
+                                    print(f"  ⚠ Frame at {timestamp}s is duplicate, skipping")
+                        except subprocess.TimeoutExpired:
+                            print(f"  ⚠ Timeout extracting frame at {timestamp}s")
+                        except Exception as e:
+                            print(f"  ⚠ Error at {timestamp}s: {str(e)[:50]}")
+                            continue
             
-            # If we need more screenshots but don't have enough high quality ones, use the same one
-            while len(screenshots) < num_screenshots and screenshots:
-                duplicate_path = screenshots[0]
-                base, ext = os.path.splitext(duplicate_path)
-                new_path = f"{os.path.dirname(base)}/{video_id}_screenshot_{len(screenshots)+1}{ext}"
+            # Fallback: use thumbnails if we don't have enough frames
+            if len(screenshots) < num_screenshots:
+                print(f"  Need {num_screenshots - len(screenshots)} more images, trying thumbnails...")
                 
-                import shutil
-                shutil.copy(duplicate_path, new_path)
-                screenshots.append(new_path)
-                print(f"  ✓ Screenshot {len(screenshots)} saved (duplicate): {os.path.basename(new_path)}")
+                thumbnails = info.get('thumbnails', [])
+                
+                # Sort by quality (prefer maxres, then hq)
+                thumb_priority = ['maxresdefault', 'sddefault', 'hqdefault', 'mqdefault']
+                sorted_thumbs = sorted(
+                    thumbnails,
+                    key=lambda t: (
+                        -next((i for i, p in enumerate(thumb_priority) if p in t.get('url', '')), 99),
+                        -t.get('width', 0) * t.get('height', 0)
+                    )
+                )
+                
+                import requests
+                
+                for thumb in sorted_thumbs:
+                    if len(screenshots) >= num_screenshots:
+                        break
+                        
+                    thumb_url = thumb.get('url')
+                    if not thumb_url:
+                        continue
+                    
+                    try:
+                        response = requests.get(thumb_url, timeout=10)
+                        
+                        if response.status_code == 200:
+                            # Check for duplicates
+                            img_hash = hashlib.md5(response.content).hexdigest()
+                            
+                            if img_hash not in seen_hashes:
+                                seen_hashes.add(img_hash)
+                                
+                                output_filename = f"{video_id}_screenshot_{len(screenshots)+1}.jpg"
+                                output_path = os.path.join(output_dir, output_filename)
+                                
+                                with open(output_path, 'wb') as f:
+                                    f.write(response.content)
+                                
+                                screenshots.append(output_path)
+                                size = f"{thumb.get('width', '?')}x{thumb.get('height', '?')}"
+                                print(f"  ✓ Thumbnail saved: {output_filename} ({size})")
+                    except Exception as e:
+                        print(f"  ⚠ Thumbnail error: {e}")
+                        continue
             
             if screenshots:
-                print(f"✓ Successfully extracted {len(screenshots)} screenshots")
-                return screenshots
+                print(f"✓ Successfully extracted {len(screenshots)} unique screenshots")
             else:
                 print("⚠️ No screenshots extracted")
-                return []
+            
+            return screenshots
     
     except Exception as e:
         print(f"❌ Screenshot extraction failed: {e}")
+        import traceback
+        traceback.print_exc()
         return []
