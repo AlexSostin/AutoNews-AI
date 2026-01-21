@@ -1,44 +1,42 @@
 import axios from 'axios';
 
-// Runtime API URL detection
-// For client-side: use window location to determine the API URL
-// This ensures the correct URL is used even after deployment
-const getApiUrl = () => {
+// Production API URL - hardcoded to avoid build-time issues
+const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+const LOCAL_API_URL = 'http://localhost:8001/api/v1';
+
+// Runtime API URL detection - called on each request
+const getApiUrl = (): string => {
+  // Server-side rendering
   if (typeof window === 'undefined') {
-    // Server-side: use environment variable or internal URL
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+    return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
   }
   
-  // Client-side: check environment variable first, then derive from current domain
-  if (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL !== 'http://localhost:8001/api/v1') {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  
-  // Fallback: derive API URL from current hostname
+  // Client-side: detect based on hostname
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8001/api/v1';
+    return LOCAL_API_URL;
   }
   
-  // Production: use Railway backend URL
-  // Frontend: autonews-ai-production.up.railway.app
-  // Backend: heroic-healing-production-2365.up.railway.app
-  return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+  // Production - return hardcoded URL
+  return PRODUCTION_API_URL;
 };
 
-// Export API URL for direct fetch calls
-export const API_URL = getApiUrl();
+// Export for direct use
+export const API_URL = PRODUCTION_API_URL; // Default to production
 
+// Create axios instance with interceptor that sets baseURL dynamically
 const api = axios.create({
-  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor - add JWT token
+// Request interceptor - set baseURL and add JWT token
 api.interceptors.request.use(
   (config) => {
+    // Set baseURL dynamically on each request
+    config.baseURL = getApiUrl();
+    
     if (typeof window !== 'undefined') {
       const token = document.cookie
         .split('; ')

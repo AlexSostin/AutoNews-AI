@@ -4,7 +4,17 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import Link from 'next/link';
-import { API_CONFIG } from '@/lib/config';
+
+// Hardcoded production API URL to avoid build-time variable issues
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+    }
+  }
+  return 'http://localhost:8001/api/v1';
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -35,7 +45,10 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_CONFIG.API_URL}/users/register/`, {
+      const apiUrl = getApiUrl();
+      console.log('Registering at:', apiUrl); // Debug log
+      
+      const response = await fetch(`${apiUrl}/users/register/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,7 +68,8 @@ export default function RegisterPage() {
       // Success - redirect to login
       router.push('/login?registered=true');
     } catch (err: any) {
-      setError(err.message);
+      console.error('Registration error:', err); // Debug log
+      setError(err.message || 'Failed to connect to server');
     } finally {
       setIsLoading(false);
     }
