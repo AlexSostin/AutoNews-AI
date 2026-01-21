@@ -35,7 +35,11 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Set baseURL dynamically on each request
-    config.baseURL = getApiUrl();
+    const baseURL = getApiUrl();
+    config.baseURL = baseURL;
+    
+    // Log for debugging (will show in browser console)
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${baseURL}${config.url}`);
     
     if (typeof window !== 'undefined') {
       const token = document.cookie
@@ -49,13 +53,20 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('[API Request Error]', error);
+    return Promise.reject(error);
+  }
 );
 
 // Response interceptor - handle 401 and refresh token
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`[API Response] ${response.status} ${response.config.url}`);
+    return response;
+  },
   async (error) => {
+    console.error(`[API Error] ${error.response?.status || 'Network Error'} ${error.config?.url}`, error.message);
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
