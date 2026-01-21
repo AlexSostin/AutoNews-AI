@@ -130,14 +130,10 @@ export default function SearchBar() {
       {/* Search Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all text-gray-600 hover:text-gray-900 group"
+        className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-xl transition-all text-gray-600 hover:text-gray-900"
         aria-label="Search"
       >
-        <Search size={18} />
-        <span className="hidden md:inline text-sm">Search</span>
-        <kbd className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 bg-white rounded text-xs text-gray-400 border border-gray-200 group-hover:border-gray-300">
-          <span className="text-xs">⌘</span>K
-        </kbd>
+        <Search size={20} />
       </button>
 
       {/* Search Modal */}
@@ -283,23 +279,9 @@ export default function SearchBar() {
 
               {/* Footer */}
               <div className="border-t border-gray-700 px-4 py-3 bg-gray-900/50">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1">
-                      <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↑</kbd>
-                      <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↓</kbd>
-                      <span className="ml-1">Navigate</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↵</kbd>
-                      <span className="ml-1">Open</span>
-                    </span>
-                  </div>
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">Esc</kbd>
-                    <span className="ml-1">Close</span>
-                  </span>
-                </div>
+                <p className="text-xs text-gray-500 text-center">
+                  Tap outside or X to close
+                </p>
               </div>
             </div>
           </div>
