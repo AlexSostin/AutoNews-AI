@@ -325,20 +325,25 @@ MEDIA_ROOT = BASE_DIR / 'media'
 CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
 if CLOUDINARY_URL and not DEBUG:
     # Use Cloudinary for media storage in production
-    INSTALLED_APPS.append('cloudinary_storage')
-    INSTALLED_APPS.append('cloudinary')
+    # Insert at beginning of INSTALLED_APPS to ensure proper initialization
+    INSTALLED_APPS.insert(0, 'cloudinary_storage')
+    INSTALLED_APPS.insert(1, 'cloudinary')
     
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     
     # Parse CLOUDINARY_URL into components
+    # Format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME
     import re
-    match = re.match(r'cloudinary://(\w+):(\w+)@(\w+)', CLOUDINARY_URL)
+    match = re.match(r'cloudinary://([^:]+):([^@]+)@(.+)', CLOUDINARY_URL)
     if match:
         CLOUDINARY_STORAGE = {
             'CLOUD_NAME': match.group(3),
             'API_KEY': match.group(1),
             'API_SECRET': match.group(2),
         }
+        print(f"✓ Cloudinary configured: cloud={match.group(3)}")
+    else:
+        print(f"⚠️ Could not parse CLOUDINARY_URL: {CLOUDINARY_URL[:30]}...")
     
     print("✓ Cloudinary storage configured for media files")
 

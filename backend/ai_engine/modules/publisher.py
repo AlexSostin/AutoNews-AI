@@ -66,19 +66,29 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     
     # Add images (support for 3 screenshots from video)
     if image_paths and isinstance(image_paths, list):
+        print(f"  📸 Processing {len(image_paths)} image paths: {image_paths}")
         # Multiple screenshots from video
         for i, img_path in enumerate(image_paths[:3]):  # Max 3 images
-            if img_path and os.path.exists(img_path):
-                filename = os.path.basename(img_path)
-                with open(img_path, 'rb') as f:
-                    file_content = File(f, name=filename)
-                    if i == 0:
-                        article.image.save(filename, file_content, save=False)
-                    elif i == 1:
-                        article.image_2.save(filename, file_content, save=False)
-                    elif i == 2:
-                        article.image_3.save(filename, file_content, save=False)
-                print(f"  ✓ Screenshot {i+1} attached: {filename}")
+            if img_path:
+                print(f"  📸 Checking image {i+1}: {img_path}")
+                print(f"      exists: {os.path.exists(img_path)}")
+                if os.path.exists(img_path):
+                    file_size = os.path.getsize(img_path)
+                    print(f"      size: {file_size} bytes")
+                    filename = os.path.basename(img_path)
+                    with open(img_path, 'rb') as f:
+                        file_content = File(f, name=filename)
+                        if i == 0:
+                            article.image.save(filename, file_content, save=False)
+                        elif i == 1:
+                            article.image_2.save(filename, file_content, save=False)
+                        elif i == 2:
+                            article.image_3.save(filename, file_content, save=False)
+                    print(f"  ✓ Screenshot {i+1} saved to storage: {filename}")
+                else:
+                    print(f"  ⚠️ Image file not found: {img_path}")
+            else:
+                print(f"  ⚠️ Image path {i+1} is None")
     elif image_path and os.path.exists(image_path):
         # Single image (backwards compatibility)
         filename = os.path.basename(image_path)
