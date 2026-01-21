@@ -241,28 +241,31 @@ function ArticlesContent() {
                   </Link>
                 </div>
               ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12">
-                    {articles.slice(0, 6).map((article: any) => (
-                      <ArticleCard key={article.id} article={article} />
-                    ))}
-                  </div>
-
-                  {/* Mid-section Ad */}
-                  {articles.length > 6 && (
-                    <div className="flex justify-center my-12">
-                      <AdBanner format="leaderboard" />
-                    </div>
-                  )}
-
-                  {articles.length > 6 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12">
-                      {articles.slice(6).map((article: any) => (
-                        <ArticleCard key={article.id} article={article} />
-                      ))}
-                    </div>
-                  )}
-                </>
+                <div className="space-y-8">
+                  {/* Group articles into rows of 3, with ads between rows */}
+                  {Array.from({ length: Math.ceil(articles.length / 3) }, (_, rowIndex) => {
+                    const rowArticles = articles.slice(rowIndex * 3, rowIndex * 3 + 3);
+                    const showAd = (rowIndex + 1) % 2 === 0 && rowIndex < Math.ceil(articles.length / 3) - 1;
+                    
+                    return (
+                      <div key={rowIndex}>
+                        {/* Row of articles */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                          {rowArticles.map((article: any) => (
+                            <ArticleCard key={article.id} article={article} />
+                          ))}
+                        </div>
+                        
+                        {/* Ad after every 2nd row (6 articles) */}
+                        {showAd && (
+                          <div className="flex justify-center py-8 my-4">
+                            <AdBanner format="leaderboard" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
 
               {/* Pagination */}
