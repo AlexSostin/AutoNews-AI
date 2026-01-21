@@ -104,12 +104,43 @@ export async function middleware(request: NextRequest) {
   const isProfileRoute = request.nextUrl.pathname.startsWith('/profile');
   if (isProfileRoute && !token) {
     console.log('[Middleware] No token for profile route, redirecting to /login');
-    return NextResponse.redirect(new URL('/login?redirect=/profile', request.url));
+    const redirectUrl = new URL('/login', request.url);
+    redirectUrl.searchParams.set('redirect', request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Если есть токен на профиле - проверим что он ещё валиден
+  if (isProfileRoute && token) {
+    try {
+      const host = request.headers.get('host') || '';
+      const apiUrl = host.includes('localhost') || host.includes('127.0.0.1')
+        ? 'http://localhost:8001/api/v1'
+        : 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+      
+      const response = await fetch(`${apiUrl}/users/me/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        // Токен истёк или невалиден - очистить и редирект
+        console.log('[Middleware] Profile token invalid, clearing and redirecting');
+        const redirectResponse = NextResponse.redirect(new URL('/login?redirect=/profile', request.url));
+        redirectResponse.cookies.delete('access_token');
+        redirectResponse.cookies.delete('refresh_token');
+        return redirectResponse;
+      }
+    } catch (error) {
+      console.error('[Middleware] Profile auth check failed:', error);
+      // При ошибке сети - пропускаем (пусть клиент решит)
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/login', '/profile/:path*'],
+  matcher: ['/admin/:path*', '/login', '/profile', '/profile/:path*'],
 };
