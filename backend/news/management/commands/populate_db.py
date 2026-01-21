@@ -222,29 +222,15 @@ The 911 GT3 is the gold standard for track-capable sports cars, offering an anal
             }
         ]
 
-        # Get or create author (superuser)
-        author = User.objects.filter(is_superuser=True).first()
-        if not author:
-            self.stdout.write("⚠️ No superuser found, using first user or creating one...")
-            author = User.objects.first()
-            if not author:
-                author = User.objects.create_user(
-                    username='admin',
-                    email='admin@autonews.ai',
-                    password='changeme123',
-                    is_staff=True,
-                    is_superuser=True
-                )
-
         for article_data in sample_articles:
             article, created = Article.objects.get_or_create(
                 title=article_data['title'],
                 defaults={
                     'slug': slugify(article_data['title'][:50]),
-                    'excerpt': article_data['excerpt'],
+                    'summary': article_data['excerpt'],  # Use 'summary' instead of 'excerpt'
                     'content': article_data['content'],
                     'category': article_data['category'],
-                    'author': author,
+                    # No 'author' field in Article model
                     'is_published': True,
                     'views': random.randint(100, 5000),
                 }
