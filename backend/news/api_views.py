@@ -206,8 +206,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def generate_from_youtube(self, request):
-        """Generate article from YouTube URL"""
+        """Generate article from YouTube URL with WebSocket progress"""
+        import uuid
+        
         youtube_url = request.data.get('youtube_url')
+        task_id = request.data.get('task_id') or str(uuid.uuid4())[:8]
         
         if not youtube_url:
             return Response(
@@ -245,8 +248,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            # Generate article
-            result = generate_article_from_youtube(youtube_url)
+            # Generate article with task_id for WebSocket progress
+            result = generate_article_from_youtube(youtube_url, task_id=task_id)
             
             if result.get('success'):
                 article_id = result['article_id']

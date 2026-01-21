@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Youtube, Sparkles, Save } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import GenerationProgress from '@/components/admin/GenerationProgress';
 
 interface Category {
   id: number;
@@ -24,6 +25,7 @@ export default function NewArticlePage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [taskId, setTaskId] = useState<string>('');
   
   const [formData, setFormData] = useState({
     title: '',
@@ -78,23 +80,38 @@ export default function NewArticlePage() {
       return;
     }
 
+    // Generate unique task ID for WebSocket tracking
+    const newTaskId = `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    setTaskId(newTaskId);
     setGenerating(true);
+    
     try {
       const response = await api.post('/articles/generate_from_youtube/', {
-        youtube_url: formData.youtube_url
+        youtube_url: formData.youtube_url,
+        task_id: newTaskId
       });
 
       if (response.data.success) {
-        alert('Article generated successfully!');
+        // Progress component will handle completion, just redirect
         router.push(`/admin/articles/${response.data.article.id}/edit`);
       } else {
         alert('Failed to generate article: ' + response.data.error);
+        setGenerating(false);
+        setTaskId('');
       }
     } catch (error: any) {
       console.error('Generation error:', error);
       alert('Failed to generate article: ' + (error.response?.data?.error || error.message));
-    } finally {
       setGenerating(false);
+      setTaskId('');
+    }
+  };
+
+  const handleGenerationComplete = (success: boolean, articleId?: number) => {
+    setGenerating(false);
+    setTaskId('');
+    if (success && articleId) {
+      router.push(`/admin/articles/${articleId}/edit`);
     }
   };
 
@@ -206,6 +223,17 @@ export default function NewArticlePage() {
                 )}
               </button>
             </div>
+            
+            {/* Progress Component */}
+            {generating && taskId && (
+              <div className="mt-4">
+                <GenerationProgress
+                  taskId={taskId}
+                  isGenerating={generating}
+                  onComplete={handleGenerationComplete}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

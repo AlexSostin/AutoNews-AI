@@ -93,7 +93,7 @@ def check_duplicate(youtube_url):
     return None
 
 
-def generate_article_from_youtube(youtube_url):
+def generate_article_from_youtube(youtube_url, task_id=None):
     """
     Generate article from YouTube URL and return article data.
     Used by Django API.
@@ -104,14 +104,41 @@ def generate_article_from_youtube(youtube_url):
     - Автоматическими тегами
     - Сохранением характеристик авто
     - SEO оптимизацией
+    - WebSocket прогрессом
     """
+    
+    def send_progress(step, progress, message):
+        """Send progress update via WebSocket"""
+        if not task_id:
+            print(f"[{progress}%] {message}")
+            return
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"generation_{task_id}",
+                    {
+                        "type": "send_progress",
+                        "step": step,
+                        "progress": progress,
+                        "message": message
+                    }
+                )
+        except Exception as e:
+            print(f"WebSocket progress error: {e}")
+    
     try:
+        send_progress(1, 5, "🚀 Начинаем генерацию...")
         print(f"🚀 Генерация статьи из: {youtube_url}")
         
         # 0. Проверка дубликатов
+        send_progress(1, 10, "🔍 Проверка дубликатов...")
         print("🔍 Проверка дубликатов...")
         existing = check_duplicate(youtube_url)
         if existing:
+            send_progress(1, 100, "⚠️ Статья уже существует")
             return {
                 'success': False,
                 'error': f'Статья уже существует: {existing.title}',
@@ -120,24 +147,31 @@ def generate_article_from_youtube(youtube_url):
             }
         
         # 1. Получаем транскрипт
+        send_progress(2, 20, "📝 Получение субтитров с YouTube...")
         print("📝 Получение транскрипта...")
         transcript = transcribe_from_youtube(youtube_url)
         
         if not transcript or len(transcript) < 50:
+            send_progress(2, 100, "❌ Не удалось получить транскрипт")
             raise Exception("Не удалось получить транскрипт или он слишком короткий")
         
+        send_progress(2, 30, f"✓ Транскрипт получен ({len(transcript)} символов)")
         print(f"✓ Транскрипт получен ({len(transcript)} символов)")
         
         # 2. Анализируем транскрипт
+        send_progress(3, 40, "🔍 Анализ транскрипта с AI...")
         print("🔍 Анализ транскрипта...")
         analysis = analyze_transcript(transcript)
         
         if not analysis:
+            send_progress(3, 100, "❌ Не удалось проанализировать")
             raise Exception("Не удалось проанализировать транскрипт")
         
+        send_progress(3, 50, "✓ Анализ завершен")
         print("✓ Анализ завершен")
         
         # 2.5. Определяем категорию и теги (НОВОЕ!)
+        send_progress(4, 55, "🏷️ Категоризация и теги...")
         print("🏷️  Категоризация и теги...")
         from modules.analyzer import categorize_article, extract_specs_dict
         
@@ -147,21 +181,26 @@ def generate_article_from_youtube(youtube_url):
         
         # 2.6. Извлекаем характеристики для БД (НОВОЕ!)
         specs = extract_specs_dict(analysis)
+        send_progress(4, 60, f"✓ {specs['make']} {specs['model']}")
         print(f"✓ Характеристики: {specs['make']} {specs['model']} {specs['year'] or ''}")
         
         # 3. Генерируем статью
+        send_progress(5, 65, "✍️ Генерация статьи с Groq AI...")
         print("✍️  Генерация статьи с Groq AI...")
         article_html = generate_article(analysis)
         
         if not article_html or len(article_html) < 100:
+            send_progress(5, 100, "❌ Ошибка генерации статьи")
             raise Exception("Статья не сгенерирована или слишком короткая")
         
+        send_progress(5, 75, "✓ Статья сгенерирована")
         print(f"✓ Статья сгенерирована ({len(article_html)} символов)")
         
         # 4. Извлекаем заголовок
         title = extract_title(article_html)
         
         # 5. Извлекаем 3 скриншота из видео
+        send_progress(6, 80, "📸 Извлечение скриншотов...")
         print("📸 Извлечение скриншотов из видео...")
         screenshot_paths = []
         try:
@@ -173,8 +212,10 @@ def generate_article_from_youtube(youtube_url):
             screenshot_paths = extract_screenshots_simple(youtube_url, screenshots_dir, num_screenshots=3)
             
             if screenshot_paths:
+                send_progress(6, 85, f"✓ Извлечено {len(screenshot_paths)} скриншотов")
                 print(f"✓ Извлечено {len(screenshot_paths)} скриншотов")
             else:
+                send_progress(6, 85, "⚠️ Скриншоты не найдены")
                 print(f"⚠️  Не удалось извлечь скриншоты")
                 
         except Exception as e:
@@ -182,6 +223,7 @@ def generate_article_from_youtube(youtube_url):
             screenshot_paths = []
         
         # 6. Создаем краткое описание из анализа
+        send_progress(7, 90, "📝 Создание описания...")
         summary_lines = [line for line in analysis.split('\n') if line.startswith('Summary:')]
         if summary_lines:
             summary = summary_lines[0].replace('Summary:', '').strip()[:300]
@@ -195,6 +237,7 @@ def generate_article_from_youtube(youtube_url):
                 summary = f"Comprehensive review of the {specs['make']} {specs['model']}"
         
         # 7. Публикуем статью с ПОЛНЫМИ метаданными и скриншотами
+        send_progress(8, 95, "📤 Сохранение в базу данных...")
         print("📤 Публикация статьи...")
         article = publish_article(
             title=title,
@@ -207,6 +250,7 @@ def generate_article_from_youtube(youtube_url):
             specs=specs  # Характеристики авто
         )
         
+        send_progress(9, 100, f"✅ Статья создана: {article.title[:50]}...")
         print(f"✅ Статья успешно создана! ID: {article.id}, Slug: {article.slug}")
         
         return {
