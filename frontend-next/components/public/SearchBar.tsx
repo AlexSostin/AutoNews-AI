@@ -150,7 +150,7 @@ export default function SearchBar() {
           />
 
           {/* Modal */}
-          <div className="flex min-h-full items-start justify-center p-4 pt-[10vh] sm:pt-[15vh]">
+          <div className="flex min-h-full items-start justify-center p-2 sm:p-4 pt-[10vh] sm:pt-[15vh]">
             <div 
               ref={modalRef}
               className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-2xl transition-all border border-purple-500/20"
@@ -160,12 +160,12 @@ export default function SearchBar() {
               <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 p-1">
                 <div className="bg-gray-900/80 rounded-xl">
                   {/* Search Input */}
-                  <div className="flex items-center gap-4 p-4">
+                  <div className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4">
                     <div className="flex-shrink-0">
                       {loading ? (
-                        <Loader2 size={22} className="animate-spin text-purple-400" />
+                        <Loader2 size={20} className="animate-spin text-purple-400" />
                       ) : (
-                        <Search size={22} className="text-purple-400" />
+                        <Search size={20} className="text-purple-400" />
                       )}
                     </div>
                     <input
@@ -175,12 +175,12 @@ export default function SearchBar() {
                       onChange={(e) => setQuery(e.target.value)}
                       onKeyDown={handleKeyDown}
                       placeholder="Search articles..."
-                      className="flex-1 bg-transparent outline-none text-lg text-white placeholder-gray-500"
+                      className="flex-1 min-w-0 bg-transparent outline-none text-base sm:text-lg text-white placeholder-gray-500"
                       autoComplete="off"
                     />
                     <button
                       onClick={handleClose}
-                      className="flex-shrink-0 p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                      className="flex-shrink-0 p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
                     >
                       <X size={20} />
                     </button>
