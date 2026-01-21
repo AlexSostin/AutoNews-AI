@@ -63,9 +63,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # CORS - MUST be first!
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files
-    'corsheaders.middleware.CorsMiddleware',  # CORS - must be before CommonMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -478,11 +478,18 @@ SIMPLE_JWT = {
 }
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in DEBUG mode
-CORS_ALLOWED_ORIGINS = os.getenv(
-    'CORS_ORIGINS', 
-    'http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,https://autonews-ai-production.up.railway.app'
-).split(',')
+# Allow all origins temporarily to debug CORS issues
+CORS_ALLOW_ALL_ORIGINS = True  # TODO: restrict in production
+
+# Explicit allowed origins as backup
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://autonews-ai-production.up.railway.app',
+    'https://heroic-healing-production-2365.up.railway.app',
+]
 
 # Also allow media files to be accessed cross-origin
 CORS_URLS_REGEX = r'^.*$'  # Apply CORS to all URLs including /media/
