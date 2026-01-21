@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import BackToTop from "@/components/public/BackToTop";
+import CookieConsent from "@/components/public/CookieConsent";
 import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
@@ -41,6 +42,7 @@ export default function RootLayout({
         />
         {children}
         <BackToTop />
+        <CookieConsent />
       </body>
     </html>
   );

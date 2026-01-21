@@ -271,7 +271,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
     article_slug = serializers.CharField(source='article.slug', read_only=True)
     article_image = serializers.SerializerMethodField()
     article_summary = serializers.CharField(source='article.summary', read_only=True)
-    article_category = serializers.CharField(source='article.category.name', read_only=True)
+    article_category = serializers.SerializerMethodField()
     
     class Meta:
         model = Favorite
@@ -280,8 +280,11 @@ class FavoriteSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
     
     def get_article_image(self, obj):
-        if obj.article.thumbnail_url:
-            return obj.article.thumbnail_url
         if obj.article.image and hasattr(obj.article.image, 'url'):
             return obj.article.image.url
+        return None
+    
+    def get_article_category(self, obj):
+        if obj.article.category:
+            return obj.article.category.name
         return None
