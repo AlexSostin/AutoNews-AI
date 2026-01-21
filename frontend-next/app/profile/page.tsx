@@ -13,6 +13,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const [favoritesCount, setFavoritesCount] = useState(0);
+  const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
 
   const loadFavoritesCount = async () => {
@@ -29,18 +30,30 @@ export default function ProfilePage() {
 
   useEffect(() => {
     // Check authentication
-    if (!isAuthenticated()) {
-      router.push('/login?redirect=/profile');
-      return;
-    }
+    const checkAuth = async () => {
+      if (!isAuthenticated()) {
+        router.push('/login?redirect=/profile');
+        return;
+      }
 
-    const userData = getUserFromStorage();
-    setUser(userData);
-    loadFavoritesCount();
-    setLoading(false);
+      const userData = getUserFromStorage();
+      if (userData) {
+        setUser(userData);
+        await loadFavoritesCount();
+      } else {
+        // No user data - redirect to login
+        router.push('/login?redirect=/profile');
+        return;
+      }
+      
+      setAuthChecked(true);
+      setLoading(false);
+    };
+    
+    checkAuth();
   }, [router]);
 
-  if (loading) {
+  if (loading || !authChecked) {
     return (
       <>
         <Header />
@@ -56,7 +69,19 @@ export default function ProfilePage() {
   }
 
   if (!user) {
-    return null;
+    // Should not happen as we redirect in useEffect, but just in case show loading
+    return (
+      <>
+        <Header />
+        <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p className="mt-4 text-gray-600">Redirecting...</p>
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
   }
 
   const formatDate = (dateString: string) => {
