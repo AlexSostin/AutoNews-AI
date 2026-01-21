@@ -1,18 +1,36 @@
 import axios from 'axios';
 
-// Export API URL for direct fetch calls
-export const API_URL = typeof window === 'undefined'
-  ? process.env.NEXT_PUBLIC_API_URL_SERVER || 'http://backend:8001/api/v1'
-  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
-
-// Use backend service name for server-side requests (inside Docker)
-// Use localhost for client-side requests (from browser)
-const getBaseURL = () => {
-  return API_URL;
+// Runtime API URL detection
+// For client-side: use window location to determine the API URL
+// This ensures the correct URL is used even after deployment
+const getApiUrl = () => {
+  if (typeof window === 'undefined') {
+    // Server-side: use environment variable or internal URL
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+  }
+  
+  // Client-side: check environment variable first, then derive from current domain
+  if (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL !== 'http://localhost:8001/api/v1') {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  // Fallback: derive API URL from current hostname
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:8001/api/v1';
+  }
+  
+  // Production: use Railway backend URL
+  // Frontend: autonews-ai-production.up.railway.app
+  // Backend: heroic-healing-production-2365.up.railway.app
+  return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 };
 
+// Export API URL for direct fetch calls
+export const API_URL = getApiUrl();
+
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
