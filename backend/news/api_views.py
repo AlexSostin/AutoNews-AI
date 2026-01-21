@@ -86,7 +86,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
     permission_classes = [IsStaffOrReadOnly]
     lookup_field = 'slug'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['title', 'content', 'excerpt']
+    search_fields = ['title', 'content', 'summary']
     ordering_fields = ['created_at', 'views', 'title']
     ordering = ['-created_at']
     

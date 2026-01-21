@@ -26,7 +26,7 @@ categories = []
 for name, slug, desc in categories_data:
     cat, created = Category.objects.get_or_create(
         slug=slug,
-        defaults={'name': name, 'description': desc}
+        defaults={'name': name}  # Category model has no 'description' field
     )
     categories.append(cat)
     print(f"{'✅ Created' if created else '✓ Exists'}: {name}")
@@ -54,7 +54,7 @@ print("\n📰 Creating sample articles...")
 sample_articles = [
     {
         'title': 'Tesla Model 3 - революция в мире электромобилей',
-        'excerpt': 'Детальный обзор самого популярного электромобиля',
+        'summary': 'Детальный обзор самого популярного электромобиля',
         'content': '''# Tesla Model 3: Полный обзор
 
 Tesla Model 3 стала самым продаваемым электромобилем в мире. В этом обзоре мы расскажем почему.
@@ -78,7 +78,7 @@ Tesla Model 3 стала самым продаваемым электромоб�
     },
     {
         'title': 'BMW M5 Competition 2026 - король седанов',
-        'excerpt': 'Новая генерация спортивного седана от BMW',
+        'summary': 'Новая генерация спортивного седана от BMW',
         'content': '''# BMW M5 Competition 2026
 
 ## Двигатель
@@ -96,7 +96,7 @@ Tesla Model 3 стала самым продаваемым электромоб�
     },
     {
         'title': 'Toyota Land Cruiser 300 - легенда внедорожников',
-        'excerpt': 'Новое поколение легендарного внедорожника',
+        'summary': 'Новое поколение легендарного внедорожника',
         'content': '''# Toyota Land Cruiser 300
 
 ## Надежность
@@ -114,7 +114,7 @@ Toyota Land Cruiser известен своей легендарной наде�
     },
     {
         'title': 'Mercedes S-Class W223 - эталон роскоши',
-        'excerpt': 'Самый технологичный седан в мире',
+        'summary': 'Самый технологичный седан в мире',
         'content': '''# Mercedes-Benz S-Class W223
 
 ## Технологии
@@ -132,7 +132,7 @@ Toyota Land Cruiser известен своей легендарной наде�
     },
     {
         'title': 'Porsche 911 GT3 - чистокровный спорткар',
-        'excerpt': 'Легендарный спорткар для трека и дороги',
+        'summary': 'Легендарный спорткар для трека и дороги',
         'content': '''# Porsche 911 GT3
 
 ## Двигатель
@@ -150,11 +150,10 @@ Toyota Land Cruiser известен своей легендарной наде�
     }
 ]
 
-# Get or create author (superuser)
-author = User.objects.filter(is_superuser=True).first()
-if not author:
+# Ensure superuser exists (for admin access)
+if not User.objects.filter(is_superuser=True).exists():
     print("⚠️ No superuser found, creating default admin...")
-    author = User.objects.create_superuser(
+    User.objects.create_superuser(
         username='admin',
         email='admin@autonews.ai',
         password='admin123'
@@ -165,10 +164,10 @@ for article_data in sample_articles:
         title=article_data['title'],
         defaults={
             'slug': slugify(article_data['title'][:50]),
-            'excerpt': article_data['excerpt'],
+            'summary': article_data['summary'],  # Use 'summary' field (not 'excerpt')
             'content': article_data['content'],
             'category': article_data['category'],
-            'author': author,
+            # Article model has no 'author' field
             'is_published': True,
             'views': random.randint(100, 5000),
         }
@@ -188,7 +187,7 @@ settings, created = SiteSettings.objects.get_or_create(
         'site_name': 'AutoNews',
         'site_description': 'Лучшие новости и обзоры автомобилей',
         'contact_email': 'info@autonews.ai',
-        'contact_phone': '+1-234-567-8900',
+        # SiteSettings model has no 'contact_phone' field
         'footer_text': '© 2026 AutoNews. Все права защищены.',
     }
 )

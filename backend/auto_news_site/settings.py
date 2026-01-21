@@ -146,16 +146,27 @@ except (redis.ConnectionError, redis.RedisError, Exception):
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'autonews'),
-        'USER': os.getenv('POSTGRES_USER', 'autonews_user'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),  # MUST be set in environment
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),  # Use 'postgres' in Docker, '127.0.0.1' locally
-        'PORT': os.getenv('DB_PORT', '5433'),  # Use '5432' in Docker, '5433' locally
+# Priority: DATABASE_URL (Railway) > individual env vars > defaults
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    # Parse DATABASE_URL (Railway provides this)
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
-}
+else:
+    # Fallback to individual environment variables (local development)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'autonews'),
+            'USER': os.getenv('POSTGRES_USER', 'autonews_user'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+            'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+            'PORT': os.getenv('DB_PORT', '5433'),
+        }
+    }
 
 # SQLite configuration (для отката если нужно):
 # DATABASES = {
