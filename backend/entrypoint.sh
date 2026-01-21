@@ -12,6 +12,12 @@ python manage.py collectstatic --noinput
 echo "Populating tags..."
 python manage.py populate_tags || echo "Tags population skipped"
 
+# One-time reset of views (remove after first deploy)
+if [ "$RESET_VIEWS_ONCE" = "true" ]; then
+    echo "Resetting view counts for real analytics..."
+    python manage.py reset_views || echo "Views reset skipped"
+fi
+
 echo "Creating superuser if not exists..."
 python manage.py shell << EOF
 from django.contrib.auth import get_user_model
