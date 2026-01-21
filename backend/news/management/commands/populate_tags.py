@@ -2,6 +2,7 @@
 Management command to populate database with automotive tags
 """
 from django.core.management.base import BaseCommand
+from django.utils.text import slugify
 from news.models import Tag
 
 
@@ -72,11 +73,16 @@ class Command(BaseCommand):
         existing_count = 0
 
         for tag_name in tags:
-            tag, created = Tag.objects.get_or_create(name=tag_name)
+            slug = slugify(tag_name)
+            # Use slug for lookup to avoid duplicates with different casing
+            tag, created = Tag.objects.get_or_create(
+                slug=slug,
+                defaults={'name': tag_name}
+            )
             if created:
                 created_count += 1
-
-        existing_count = len(tags) - created_count
+            else:
+                existing_count += 1
         
         self.stdout.write(
             self.style.SUCCESS(
