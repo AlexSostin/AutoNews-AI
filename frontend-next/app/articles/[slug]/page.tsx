@@ -17,6 +17,7 @@ import FavoriteButton from '@/components/public/FavoriteButton';
 import ReadingProgressBar from '@/components/public/ReadingProgressBar';
 import ReadingTime from '@/components/public/ReadingTime';
 import ViewStats from '@/components/public/ViewStats';
+import ViewTracker from '@/components/public/ViewTracker';
 import { Article } from '@/types';
 import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
 
@@ -120,6 +121,9 @@ export default async function ArticleDetailPage({
   return (
     <>
       <Header />
+      
+      {/* Track page view */}
+      <ViewTracker articleSlug={article.slug} />
       
       {/* Reading Progress Bar */}
       <ReadingProgressBar />

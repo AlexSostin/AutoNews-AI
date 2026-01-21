@@ -97,7 +97,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         model = Article
         fields = ['id', 'title', 'slug', 'summary', 'category', 'category_name',
                   'tag_names', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
-                  'image_3', 'image_3_url', 'average_rating', 
+                  'image_3', 'image_3_url', 'average_rating', 'views',
                   'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited']
     
     def get_tag_names(self, obj):
