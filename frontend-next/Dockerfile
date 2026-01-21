@@ -2,12 +2,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Force cache bust - v2
-ARG CACHEBUST=2
+# Force cache bust - increment to force rebuild
+ARG CACHEBUST=5
+
+# Delete node_modules to force fresh install
+RUN rm -rf node_modules .next
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci
+
+# Force fresh npm install (no cache)
+RUN npm cache clean --force && npm ci
 
 # Copy source files
 COPY . .
@@ -15,8 +20,8 @@ COPY . .
 # Set memory limit for build
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Build Next.js application
-RUN npm run build
+# Build Next.js application with no cache
+RUN rm -rf .next && npm run build
 
 # Production stage
 FROM node:20-alpine
