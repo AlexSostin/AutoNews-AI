@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import { API_CONFIG } from '@/lib/config';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/users/register/`, {
+      const response = await fetch(`${API_CONFIG.API_URL}/users/register/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
