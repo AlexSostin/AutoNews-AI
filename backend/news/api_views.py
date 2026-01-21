@@ -165,6 +165,31 @@ class ArticleViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
     
+    def update(self, request, *args, **kwargs):
+        """Handle article update with special handling for FormData (multipart)"""
+        import json
+        
+        # If this is multipart/form-data, we need to process tag_ids specially
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Make request.data mutable if needed
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            
+            # Parse tag_ids from JSON string to list
+            tag_ids = data.get('tag_ids')
+            if tag_ids and isinstance(tag_ids, str):
+                try:
+                    parsed_tags = json.loads(tag_ids)
+                    # Replace the string with actual list in request data
+                    if hasattr(request.data, '_mutable'):
+                        request.data._mutable = True
+                    request.data.setlist('tag_ids', [str(t) for t in parsed_tags])
+                    if hasattr(request.data, '_mutable'):
+                        request.data._mutable = False
+                except json.JSONDecodeError:
+                    pass
+        
+        return super().update(request, *args, **kwargs)
+
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def generate_from_youtube(self, request):
