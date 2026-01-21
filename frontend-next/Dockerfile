@@ -2,6 +2,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Force cache bust - v2
+ARG CACHEBUST=2
+
 # Copy package files
 COPY package*.json ./
 RUN npm ci
