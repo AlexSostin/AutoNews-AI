@@ -58,7 +58,20 @@ export default function TrendingSection() {
     );
   }
 
-  if (articles.length === 0) return null;
+  if (articles.length === 0) {
+    return (
+      <div className="bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl p-6 shadow-xl sticky top-24">
+        <div className="flex items-center gap-2 mb-6">
+          <TrendingUp className="text-white" size={24} />
+          <h2 className="text-2xl font-bold text-white">🔥 Trending Now</h2>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-white/80 text-lg">Пока нет статей</p>
+          <p className="text-white/60 text-sm mt-2">Скоро здесь появятся популярные материалы</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl p-6 shadow-xl sticky top-24">

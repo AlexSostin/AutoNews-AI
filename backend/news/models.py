@@ -8,6 +8,13 @@ class SiteSettings(models.Model):
     site_description = models.TextField(default="Your source for automotive news and reviews")
     contact_email = models.EmailField(default="admin@autonews.com")
     
+    # Maintenance Mode
+    maintenance_mode = models.BooleanField(default=False, help_text="Enable maintenance mode - only admins can access the site")
+    maintenance_message = models.TextField(
+        default="We're currently making improvements to bring you a better experience. Please check back soon!",
+        help_text="Message shown to visitors during maintenance"
+    )
+    
     # Social Media
     facebook_url = models.URLField(blank=True)
     facebook_enabled = models.BooleanField(default=False, help_text="Show Facebook link")

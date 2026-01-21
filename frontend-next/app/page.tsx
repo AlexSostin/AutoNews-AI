@@ -5,7 +5,9 @@ import AdBanner from '@/components/public/AdBanner';
 import StickyBottomAd from '@/components/public/StickyBottomAd';
 import TrendingSection from '@/components/public/TrendingSection';
 import EmptyState from '@/components/public/EmptyState';
+import MaintenancePage from '@/components/public/MaintenancePage';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +27,36 @@ const getApiUrl = () => {
   }
   return LOCAL_API_URL;
 };
+
+async function getSettings() {
+  try {
+    const res = await fetch(`${getApiUrl()}/settings/`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function checkIsAdmin() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
+    if (!token) return false;
+    
+    const res = await fetch(`${getApiUrl()}/users/me/`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (!res.ok) return false;
+    const user = await res.json();
+    return user.is_staff || user.is_superuser;
+  } catch {
+    return false;
+  }
+}
 
 async function getArticles() {
   try {
@@ -72,6 +104,14 @@ async function getCategories() {
 }
 
 export default async function Home() {
+  // Check maintenance mode first
+  const settings = await getSettings();
+  const isAdmin = await checkIsAdmin();
+  
+  if (settings?.maintenance_mode && !isAdmin) {
+    return <MaintenancePage message={settings.maintenance_message} />;
+  }
+
   const articlesData = await getArticles();
   const categories = await getCategories();
   const articles = articlesData.results || [];

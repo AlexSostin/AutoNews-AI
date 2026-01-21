@@ -37,48 +37,11 @@ export default function GenerationProgress({
   onError 
 }: GenerationProgressProps) {
   const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);
   const [message, setMessage] = useState('Подготовка к генерации...');
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const fakeProgressRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Fake progress animation while waiting for real updates
-  useEffect(() => {
-    if (!isGenerating) return;
-    
-    // Start fake progress
-    let fakeProgress = 0;
-    const fakeSteps = [
-      { progress: 5, step: 1, message: '🚀 Начинаем генерацию...' },
-      { progress: 15, step: 2, message: '📝 Получение субтитров...' },
-      { progress: 30, step: 3, message: '🔍 Анализ контента...' },
-      { progress: 45, step: 4, message: '🏷️ Категоризация...' },
-      { progress: 60, step: 5, message: '✍️ Генерация статьи...' },
-      { progress: 75, step: 6, message: '📸 Обработка изображений...' },
-      { progress: 85, step: 7, message: '📝 Создание описания...' },
-      { progress: 92, step: 8, message: '📤 Сохранение...' },
-    ];
-    
-    let stepIndex = 0;
-    
-    fakeProgressRef.current = setInterval(() => {
-      if (stepIndex < fakeSteps.length && !isConnected) {
-        const step = fakeSteps[stepIndex];
-        setProgress(step.progress);
-        setCurrentStep(step.step);
-        setMessage(step.message);
-        stepIndex++;
-      }
-    }, 3000); // Update every 3 seconds
-    
-    return () => {
-      if (fakeProgressRef.current) {
-        clearInterval(fakeProgressRef.current);
-      }
-    };
-  }, [isGenerating, isConnected]);
 
   useEffect(() => {
     if (!isGenerating || !taskId) return;
