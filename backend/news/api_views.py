@@ -157,12 +157,25 @@ class ArticleViewSet(viewsets.ModelViewSet):
             
         return queryset
     
-    @method_decorator(cache_page(60 * 5))  # Cache for 5 minutes
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        # Don't cache for authenticated users (admins need to see fresh data)
+        if request.user.is_authenticated:
+            return super().list(request, *args, **kwargs)
+        # Cache for anonymous users only
+        return self._cached_list(request, *args, **kwargs)
     
     @method_decorator(cache_page(60 * 5))  # Cache for 5 minutes
+    def _cached_list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
     def retrieve(self, request, *args, **kwargs):
+        # Don't cache for authenticated users
+        if request.user.is_authenticated:
+            return super().retrieve(request, *args, **kwargs)
+        return self._cached_retrieve(request, *args, **kwargs)
+    
+    @method_decorator(cache_page(60 * 5))  # Cache for 5 minutes
+    def _cached_retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
     
     def update(self, request, *args, **kwargs):
@@ -238,6 +251,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
             if result.get('success'):
                 article_id = result['article_id']
                 print(f"[generate_from_youtube] Article created with ID: {article_id}")
+                
+                # Clear cache so new article appears immediately
+                from django.core.cache import cache
+                cache.clear()
+                print(f"[generate_from_youtube] Cache cleared")
                 
                 # Fetch the article (even if soft-deleted, to debug)
                 try:

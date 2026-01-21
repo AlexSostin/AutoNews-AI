@@ -156,7 +156,14 @@ class Article(models.Model):
         #         print(f"Image optimization failed: {e}")
         
         if not self.slug:
-            self.slug = slugify(self.title)
+            base_slug = slugify(self.title)
+            slug = base_slug
+            counter = 1
+            # Ensure unique slug among non-deleted articles
+            while Article.objects.filter(slug=slug, is_deleted=False).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
         if not self.seo_title:
             self.seo_title = self.title
         if not self.seo_description:
