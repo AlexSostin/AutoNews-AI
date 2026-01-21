@@ -9,8 +9,8 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Note: populate_db removed - database is already seeded
-# Run manually if needed: python manage.py populate_db
+echo "Populating tags..."
+python manage.py populate_tags || echo "Tags population skipped"
 
 echo "Creating superuser if not exists..."
 python manage.py shell << EOF
