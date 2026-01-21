@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Search, X, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { Search, X, Loader2, ArrowRight, Sparkles } from 'lucide-react';
 
 interface SearchResult {
   id: number;
@@ -11,6 +11,8 @@ interface SearchResult {
   slug: string;
   summary: string;
   category_name: string;
+  image?: string;
+  thumbnail_url?: string;
 }
 
 export default function SearchBar() {
@@ -18,18 +20,65 @@ export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
+  const modalRef = useRef<HTMLDivElement>(null);
 
+  const getApiUrl = () => {
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host !== 'localhost' && host !== '127.0.0.1') {
+        return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+      }
+    }
+    return 'http://localhost:8001/api/v1';
+  };
+
+  const getMediaUrl = () => {
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host !== 'localhost' && host !== '127.0.0.1') {
+        return 'https://heroic-healing-production-2365.up.railway.app';
+      }
+    }
+    return 'http://localhost:8001';
+  };
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    setQuery('');
+    setResults([]);
+    setSelectedIndex(-1);
+  }, []);
+
+  // Focus input when modal opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
 
+  // Handle keyboard shortcut (Cmd/Ctrl + K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsOpen(true);
+      }
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
+
+  // Search with debounce
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setSelectedIndex(-1);
       return;
     }
 
@@ -37,10 +86,11 @@ export default function SearchBar() {
       setLoading(true);
       try {
         const res = await fetch(
-          `${typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://heroic-healing-production-2365.up.railway.app/api/v1' : 'http://localhost:8001/api/v1'}/articles/?search=${encodeURIComponent(query)}&is_published=true`
+          `${getApiUrl()}/articles/?search=${encodeURIComponent(query)}&is_published=true&page_size=6`
         );
         const data = await res.json();
-        setResults(data.results?.slice(0, 5) || []);
+        setResults(data.results || []);
+        setSelectedIndex(-1);
       } catch (error) {
         console.error('Search failed:', error);
       } finally {
@@ -51,10 +101,28 @@ export default function SearchBar() {
     return () => clearTimeout(delayDebounce);
   }, [query]);
 
-  const handleClose = () => {
-    setIsOpen(false);
-    setQuery('');
-    setResults([]);
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => Math.min(prev + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => Math.max(prev - 1, -1));
+    } else if (e.key === 'Enter' && selectedIndex >= 0 && results[selectedIndex]) {
+      handleClose();
+      window.location.href = `/articles/${results[selectedIndex].slug}`;
+    }
+  };
+
+  const getImageUrl = (article: SearchResult) => {
+    const mediaUrl = getMediaUrl();
+    const imgSrc = article.thumbnail_url || article.image;
+    if (!imgSrc) return null;
+    if (imgSrc.startsWith('http')) {
+      return imgSrc.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
+    }
+    return `${mediaUrl}${imgSrc}`;
   };
 
   return (
@@ -62,76 +130,177 @@ export default function SearchBar() {
       {/* Search Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all text-gray-600 hover:text-gray-900 group"
         aria-label="Search"
       >
-        <Search size={20} />
+        <Search size={18} />
+        <span className="hidden md:inline text-sm">Search</span>
+        <kbd className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 bg-white rounded text-xs text-gray-400 border border-gray-200 group-hover:border-gray-300">
+          <span className="text-xs">⌘</span>K
+        </kbd>
       </button>
 
       {/* Search Modal */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-20">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[70vh] flex flex-col">
-            {/* Search Input */}
-            <div className="p-4 border-b flex items-center gap-3">
-              <Search size={20} className="text-gray-400" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search articles..."
-                className="flex-1 outline-none text-lg"
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') handleClose();
-                }}
-              />
-              {loading && <Loader2 size={20} className="animate-spin text-indigo-600" />}
-              <button
-                onClick={handleClose}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        <div 
+          className="fixed inset-0 z-[100] overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={handleClose}
+          />
 
-            {/* Results */}
-            <div className="overflow-y-auto flex-1 p-4">
-              {query && !loading && results.length === 0 && (
-                <p className="text-center text-gray-500 py-8">No results found</p>
-              )}
-              
-              {results.length > 0 && (
-                <div className="space-y-3">
-                  {results.map((article) => (
-                    <Link
-                      key={article.id}
-                      href={`/articles/${article.slug}`}
+          {/* Modal */}
+          <div className="flex min-h-full items-start justify-center p-4 pt-[10vh] sm:pt-[15vh]">
+            <div 
+              ref={modalRef}
+              className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-2xl transition-all border border-purple-500/20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header with gradient */}
+              <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 p-1">
+                <div className="bg-gray-900/80 rounded-xl">
+                  {/* Search Input */}
+                  <div className="flex items-center gap-4 p-4">
+                    <div className="flex-shrink-0">
+                      {loading ? (
+                        <Loader2 size={22} className="animate-spin text-purple-400" />
+                      ) : (
+                        <Search size={22} className="text-purple-400" />
+                      )}
+                    </div>
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Search articles..."
+                      className="flex-1 bg-transparent outline-none text-lg text-white placeholder-gray-500"
+                      autoComplete="off"
+                    />
+                    <button
                       onClick={handleClose}
-                      className="block p-4 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100"
+                      className="flex-shrink-0 p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
-                            {article.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                            {article.summary}
-                          </p>
-                          <span className="text-xs text-indigo-600 font-medium">
-                            {article.category_name}
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
+                      <X size={20} />
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Footer */}
-            <div className="p-3 border-t bg-gray-50 text-xs text-gray-500 text-center">
-              Press <kbd className="px-2 py-1 bg-white border rounded">Esc</kbd> to close
+              {/* Results */}
+              <div className="max-h-[60vh] overflow-y-auto">
+                {/* Empty state */}
+                {!query && (
+                  <div className="p-8 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-500/20 rounded-full mb-4">
+                      <Sparkles size={32} className="text-purple-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Search AutoNews</h3>
+                    <p className="text-gray-400 text-sm">
+                      Find articles about cars, EVs, reviews and more
+                    </p>
+                  </div>
+                )}
+
+                {/* No results */}
+                {query && !loading && results.length === 0 && (
+                  <div className="p-8 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-700 rounded-full mb-4">
+                      <Search size={32} className="text-gray-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">No results found</h3>
+                    <p className="text-gray-400 text-sm">
+                      Try different keywords or check spelling
+                    </p>
+                  </div>
+                )}
+
+                {/* Results list */}
+                {results.length > 0 && (
+                  <div className="p-2">
+                    {results.map((article, index) => {
+                      const imageUrl = getImageUrl(article);
+                      return (
+                        <Link
+                          key={article.id}
+                          href={`/articles/${article.slug}`}
+                          onClick={handleClose}
+                          className={`flex items-center gap-4 p-3 rounded-xl transition-all group ${
+                            selectedIndex === index
+                              ? 'bg-purple-600/30 border border-purple-500/50'
+                              : 'hover:bg-white/5 border border-transparent'
+                          }`}
+                        >
+                          {/* Thumbnail */}
+                          <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-700">
+                            {imageUrl ? (
+                              <Image
+                                src={imageUrl}
+                                alt={article.title}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Search size={20} className="text-gray-500" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`font-semibold line-clamp-1 transition-colors ${
+                              selectedIndex === index ? 'text-white' : 'text-gray-200 group-hover:text-white'
+                            }`}>
+                              {article.title}
+                            </h4>
+                            <p className="text-sm text-gray-400 line-clamp-1 mt-0.5">
+                              {article.summary}
+                            </p>
+                            <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">
+                              {article.category_name}
+                            </span>
+                          </div>
+
+                          {/* Arrow */}
+                          <ArrowRight size={18} className={`flex-shrink-0 transition-all ${
+                            selectedIndex === index 
+                              ? 'text-purple-400 translate-x-0 opacity-100' 
+                              : 'text-gray-600 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
+                          }`} />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-gray-700 px-4 py-3 bg-gray-900/50">
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1">
+                      <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↑</kbd>
+                      <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↓</kbd>
+                      <span className="ml-1">Navigate</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↵</kbd>
+                      <span className="ml-1">Open</span>
+                    </span>
+                  </div>
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">Esc</kbd>
+                    <span className="ml-1">Close</span>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
