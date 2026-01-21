@@ -214,7 +214,7 @@ export default function Footer() {
               <li><Link href="/contact" className="text-gray-300 hover:text-purple-400 transition-colors">Contact Us</Link></li>
               <li><Link href="/privacy-policy" className="text-gray-300 hover:text-purple-400 transition-colors">Privacy Policy</Link></li>
               <li><Link href="/terms" className="text-gray-300 hover:text-purple-400 transition-colors">Terms of Service</Link></li>
-              <li><a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/feed/rss/`} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-purple-400 transition-colors">RSS Feed</a></li>
+              <li><a href={`${typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://heroic-healing-production-2365.up.railway.app' : 'http://localhost:8001'}/feed/rss/`} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-purple-400 transition-colors">RSS Feed</a></li>
             </ul>
           </div>
         </div>

@@ -5,10 +5,10 @@ const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.ap
 const LOCAL_API_URL = 'http://localhost:8001/api/v1';
 
 // Runtime API URL detection - called on each request
-const getApiUrl = (): string => {
+export const getApiUrl = (): string => {
   // Server-side rendering
   if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
+    return PRODUCTION_API_URL;
   }
   
   // Client-side: detect based on hostname
@@ -21,8 +21,8 @@ const getApiUrl = (): string => {
   return PRODUCTION_API_URL;
 };
 
-// Export for direct use
-export const API_URL = PRODUCTION_API_URL; // Default to production
+// Export getter function for runtime detection
+export const API_URL = getApiUrl();
 
 // Create axios instance with interceptor that sets baseURL dynamically
 const api = axios.create({

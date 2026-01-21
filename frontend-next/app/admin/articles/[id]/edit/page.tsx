@@ -72,11 +72,21 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
       const article = articleRes.data;
       
-      // Helper to build full image URL
+      // Helper to build full image URL (runtime detection)
+      const getMediaUrl = () => {
+        if (typeof window !== 'undefined') {
+          const host = window.location.hostname;
+          if (host !== 'localhost' && host !== '127.0.0.1') {
+            return 'https://heroic-healing-production-2365.up.railway.app';
+          }
+        }
+        return 'http://localhost:8001';
+      };
+      
       const buildImageUrl = (path: string) => {
         if (!path) return '';
         if (path.startsWith('http://') || path.startsWith('https://')) return path;
-        return `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8001'}${path}`;
+        return `${getMediaUrl()}${path}`;
       };
       
       setFormData({

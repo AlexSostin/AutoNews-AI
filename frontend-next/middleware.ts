@@ -22,10 +22,11 @@ export async function middleware(request: NextRequest) {
   // Если админский роут и есть токен - проверить is_staff
   if (isAdminRoute && token) {
     try {
-      // Production URL for Railway
-      const apiUrl = process.env.RAILWAY_ENVIRONMENT === 'production'
-        ? 'https://heroic-healing-production-2365.up.railway.app/api/v1'
-        : 'http://localhost:8001/api/v1';
+      // Always use production URL on non-localhost hosts
+      const host = request.headers.get('host') || '';
+      const apiUrl = host.includes('localhost') || host.includes('127.0.0.1')
+        ? 'http://localhost:8001/api/v1'
+        : 'https://heroic-healing-production-2365.up.railway.app/api/v1';
       console.log('[Middleware] Checking user auth at:', apiUrl);
       
       const response = await fetch(`${apiUrl}/users/me/`, {
@@ -71,10 +72,11 @@ export async function middleware(request: NextRequest) {
   // Если есть токен и пытается зайти на login - проверить роль и редирект
   if (isLoginRoute && token) {
     try {
-      // Use production URL on Railway
-      const apiUrl = process.env.RAILWAY_ENVIRONMENT === 'production' 
-        ? 'https://heroic-healing-production-2365.up.railway.app/api/v1'
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1');
+      // Always use production URL on non-localhost hosts
+      const host = request.headers.get('host') || '';
+      const apiUrl = host.includes('localhost') || host.includes('127.0.0.1')
+        ? 'http://localhost:8001/api/v1'
+        : 'https://heroic-healing-production-2365.up.railway.app/api/v1';
       
       const response = await fetch(`${apiUrl}/users/me/`, {
         headers: {

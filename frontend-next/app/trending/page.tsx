@@ -8,6 +8,16 @@ import Pagination from '@/components/public/Pagination';
 import { ArticleGridSkeleton } from '@/components/public/Skeletons';
 import { TrendingUp } from 'lucide-react';
 
+// Runtime API URL detection for client components
+const getApiUrl = () => {
+  if (typeof window === 'undefined') return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:8001/api/v1';
+  }
+  return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+};
+
 export default function TrendingPage() {
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +36,7 @@ export default function TrendingPage() {
           page_size: pageSize.toString(),
         });
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/articles/?${params}`);
+        const res = await fetch(`${getApiUrl()}/articles/?${params}`);
         const data = await res.json();
         
         setArticles(data.results || []);

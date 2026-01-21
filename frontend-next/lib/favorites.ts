@@ -1,4 +1,4 @@
-import { API_URL } from './api';
+import { getApiUrl } from './api';
 
 export interface Favorite {
   id: number;
@@ -14,7 +14,7 @@ export interface Favorite {
 export const favoriteAPI = {
   // Get all user favorites
   async getFavorites(token: string): Promise<Favorite[]> {
-    const response = await fetch(`${API_URL}/favorites/`, {
+    const response = await fetch(`${getApiUrl()}/favorites/`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -33,7 +33,7 @@ export const favoriteAPI = {
     is_favorited: boolean;
     favorite?: Favorite;
   }> {
-    const response = await fetch(`${API_URL}/favorites/toggle/`, {
+    const response = await fetch(`${getApiUrl()}/favorites/toggle/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -49,7 +49,7 @@ export const favoriteAPI = {
 
   // Check if article is favorited
   async checkFavorite(articleId: number, token: string): Promise<{ is_favorited: boolean }> {
-    const response = await fetch(`${API_URL}/favorites/check/?article=${articleId}`, {
+    const response = await fetch(`${getApiUrl()}/favorites/check/?article=${articleId}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -62,7 +62,7 @@ export const favoriteAPI = {
 
   // Add to favorites
   async addFavorite(articleId: number, token: string): Promise<Favorite> {
-    const response = await fetch(`${API_URL}/favorites/`, {
+    const response = await fetch(`${getApiUrl()}/favorites/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -79,7 +79,7 @@ export const favoriteAPI = {
 
   // Remove from favorites
   async removeFavorite(favoriteId: number, token: string): Promise<void> {
-    const response = await fetch(`${API_URL}/favorites/${favoriteId}/`, {
+    const response = await fetch(`${getApiUrl()}/favorites/${favoriteId}/`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

@@ -16,7 +16,15 @@ import AdBanner from '@/components/public/AdBanner';
 import StickyBottomAd from '@/components/public/StickyBottomAd';
 import { Article, Category, Tag } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+// Runtime API URL detection for client components
+const getApiUrl = () => {
+  if (typeof window === 'undefined') return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:8001/api/v1';
+  }
+  return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +60,7 @@ function ArticlesContent() {
         if (tag) params.append('tag', tag);
         if (search) params.append('search', search);
 
-        const articlesRes = await fetch(`${API_URL}/articles/?${params.toString()}`);
+        const articlesRes = await fetch(`${getApiUrl()}/articles/?${params.toString()}`);
         if (articlesRes.ok && isMounted) {
           const articlesData = await articlesRes.json();
           setArticles(articlesData.results || []);
@@ -78,9 +86,10 @@ function ArticlesContent() {
     
     async function loadFilters() {
       try {
+        const apiUrl = getApiUrl();
         const [categoriesRes, tagsRes] = await Promise.all([
-          fetch(`${API_URL}/categories/`),
-          fetch(`${API_URL}/tags/`)
+          fetch(`${apiUrl}/categories/`),
+          fetch(`${apiUrl}/tags/`)
         ]);
         
         if (categoriesRes.ok && isMounted) {
