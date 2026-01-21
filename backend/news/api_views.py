@@ -26,14 +26,23 @@ logger = logging.getLogger(__name__)
 class IsStaffOrReadOnly(BasePermission):
     """
     Custom permission to only allow staff users to edit objects.
-    Read-only for everyone else.
+    Read-only for everyone else. Logs unauthorized access attempts.
     """
     def has_permission(self, request, view):
         # Read permissions are allowed to any request
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
             return True
         # Write permissions only for staff
-        return request.user and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
+        is_allowed = request.user and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
+        
+        # Log unauthorized write attempts
+        if not is_allowed and request.user and request.user.is_authenticated:
+            logger.warning(
+                f"Unauthorized write attempt: user={request.user.username}, "
+                f"method={request.method}, path={request.path}"
+            )
+        
+        return is_allowed
 
 
 def is_valid_youtube_url(url):
@@ -475,34 +484,62 @@ class UserViewSet(viewsets.ViewSet):
         })
     
     @action(detail=False, methods=['post'], permission_classes=[])
-    @method_decorator(ratelimit(key='ip', rate='3/h', method='POST', block=True))
+    @method_decorator(ratelimit(key='ip', rate='5/h', method='POST', block=True))
     def register(self, request):
         """Register a new user with rate limiting to prevent spam"""
-        username = request.data.get('username')
-        email = request.data.get('email')
-        password = request.data.get('password')
+        import re
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
         
-        # Validation
+        username = request.data.get('username', '').strip()
+        email = request.data.get('email', '').strip().lower()
+        password = request.data.get('password', '')
+        
+        # Input sanitization
         if not username or not email or not password:
             return Response(
                 {'detail': 'Username, email and password are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if len(password) < 8:
+        # Username validation
+        if len(username) < 3 or len(username) > 30:
             return Response(
-                {'detail': 'Password must be at least 8 characters'},
+                {'detail': 'Username must be between 3 and 30 characters'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Check if user exists
-        if User.objects.filter(username=username).exists():
+        if not re.match(r'^[a-zA-Z0-9_]+$', username):
+            return Response(
+                {'detail': 'Username can only contain letters, numbers and underscores'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Email validation
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, email):
+            return Response(
+                {'detail': 'Invalid email format'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Password validation using Django validators
+        try:
+            validate_password(password)
+        except DjangoValidationError as e:
+            return Response(
+                {'detail': ' '.join(e.messages)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if user exists (case-insensitive)
+        if User.objects.filter(username__iexact=username).exists():
             return Response(
                 {'username': ['User with this username already exists']},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if User.objects.filter(email=email).exists():
+        if User.objects.filter(email__iexact=email).exists():
             return Response(
                 {'email': ['User with this email already exists']},
                 status=status.HTTP_400_BAD_REQUEST
@@ -516,6 +553,8 @@ class UserViewSet(viewsets.ViewSet):
                 password=password
             )
             
+            logger.info(f"New user registered: {username} ({email})")
+            
             return Response({
                 'id': user.id,
                 'username': user.username,
@@ -524,8 +563,9 @@ class UserViewSet(viewsets.ViewSet):
             }, status=status.HTTP_201_CREATED)
         
         except Exception as e:
+            logger.error(f"Registration failed: {str(e)}")
             return Response(
-                {'detail': str(e)},
+                {'detail': 'Registration failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

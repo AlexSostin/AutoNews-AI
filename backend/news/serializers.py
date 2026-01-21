@@ -212,14 +212,49 @@ class CommentSerializer(serializers.ModelSerializer):
     article_slug = serializers.CharField(source='article.slug', read_only=True)
     approved = serializers.BooleanField(source='is_approved')  # Alias для frontend
     author_name = serializers.CharField(source='name', read_only=True)
-    author_email = serializers.CharField(source='email', read_only=True)
+    # Email hidden from public API for privacy - only available to staff
     
     class Meta:
         model = Comment
         fields = ['id', 'article', 'article_title', 'article_slug', 
-                  'name', 'email', 'author_name', 'author_email',
+                  'name', 'email', 'author_name',
                   'content', 'created_at', 'is_approved', 'approved']
-        read_only_fields = ['created_at', 'article_title', 'article_slug', 'author_name', 'author_email']
+        read_only_fields = ['created_at', 'article_title', 'article_slug', 'author_name']
+        extra_kwargs = {
+            'email': {'write_only': True}  # Email is write-only (hidden in responses)
+        }
+    
+    def validate_name(self, value):
+        """Sanitize name to prevent XSS"""
+        import html
+        import re
+        if not value or len(value.strip()) < 2:
+            raise serializers.ValidationError("Name must be at least 2 characters")
+        if len(value) > 100:
+            raise serializers.ValidationError("Name must be less than 100 characters")
+        # Remove HTML tags and escape special characters
+        cleaned = re.sub(r'<[^>]+>', '', value)
+        return html.escape(cleaned.strip())
+    
+    def validate_email(self, value):
+        """Validate email format"""
+        import re
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, value):
+            raise serializers.ValidationError("Invalid email format")
+        return value.lower().strip()
+    
+    def validate_content(self, value):
+        """Sanitize content to prevent XSS"""
+        import html
+        import re
+        if not value or len(value.strip()) < 5:
+            raise serializers.ValidationError("Comment must be at least 5 characters")
+        if len(value) > 2000:
+            raise serializers.ValidationError("Comment must be less than 2000 characters")
+        # Remove HTML tags and escape special characters
+        cleaned = re.sub(r'<[^>]+>', '', value)
+        return html.escape(cleaned.strip())
 
 
 class RatingSerializer(serializers.ModelSerializer):

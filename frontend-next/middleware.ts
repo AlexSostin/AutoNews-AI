@@ -100,6 +100,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Защита profile роутов - требуется авторизация
+  const isProfileRoute = request.nextUrl.pathname.startsWith('/profile');
+  if (isProfileRoute && !token) {
+    console.log('[Middleware] No token for profile route, redirecting to /login');
+    return NextResponse.redirect(new URL('/login?redirect=/profile', request.url));
+  }
+
   return NextResponse.next();
 }
 
