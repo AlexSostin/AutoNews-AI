@@ -196,7 +196,7 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-const response = await fetch(`${apiUrl}/youtube-channels/${id}/scan_now/`, {
+      const response = await fetch(`${apiUrl}/youtube-channels/scan_all/`, {
         method: 'POST',
         headers: { 'Authorization': `Token ${token}` }
       });
