@@ -509,7 +509,7 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-500"
                   placeholder="e.g., Doug DeMuro"
                   required
                 />
@@ -523,7 +523,7 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
                   type="url"
                   value={formData.channel_url}
                   onChange={(e) => setFormData({ ...formData, channel_url: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-500"
                   placeholder="https://www.youtube.com/@ChannelName"
                   required
                 />
@@ -536,7 +536,7 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
                 <select
                   value={formData.default_category}
                   onChange={(e) => setFormData({ ...formData, default_category: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-900 bg-white"
                 >
                   <option value="">Select category...</option>
                   {categories.map((cat) => (
