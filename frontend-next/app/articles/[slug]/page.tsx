@@ -247,9 +247,57 @@ export default async function ArticleDetailPage({
 
               {/* Video Screenshots Gallery */}
               {(article.image || article.image_2 || article.image_3) && (
-                <div className="bg-white rounded-xl shadow-md p-8 mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-6">Vehicle Gallery</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl shadow-md p-4 sm:p-8 mb-8">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Vehicle Gallery</h3>
+                  
+                  {/* Mobile: Horizontal scroll slider */}
+                  <div className="md:hidden">
+                    <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4">
+                      {article.thumbnail_url && (
+                        <div className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center">
+                          <Image
+                            src={fixUrl(article.thumbnail_url)}
+                            alt={`${article.title} - View 1`}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                            1 / {[article.thumbnail_url, article.image_2_url, article.image_3_url].filter(Boolean).length}
+                          </div>
+                        </div>
+                      )}
+                      {article.image_2_url && (
+                        <div className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center">
+                          <Image
+                            src={fixUrl(article.image_2_url)}
+                            alt={`${article.title} - View 2`}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                            2 / {[article.thumbnail_url, article.image_2_url, article.image_3_url].filter(Boolean).length}
+                          </div>
+                        </div>
+                      )}
+                      {article.image_3_url && (
+                        <div className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center">
+                          <Image
+                            src={fixUrl(article.image_3_url)}
+                            alt={`${article.title} - View 3`}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                            3 / {[article.thumbnail_url, article.image_2_url, article.image_3_url].filter(Boolean).length}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-center text-gray-500 text-sm mt-2">← Swipe to see more →</p>
+                  </div>
+
+                  {/* Desktop: Grid layout */}
+                  <div className="hidden md:grid md:grid-cols-3 gap-4">
                     {article.thumbnail_url && (
                       <div className="relative aspect-video rounded-lg overflow-hidden">
                         <Image
