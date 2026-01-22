@@ -37,7 +37,7 @@ export default function ContactPage() {
   const fetchSettings = async () => {
     try {
       const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/v1/settings/`);
+      const response = await fetch(`${apiUrl}/settings/`);
       if (response.ok) {
         const data = await response.json();
         setSettings(data);
