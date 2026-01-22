@@ -14,7 +14,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
           {/* Mobile Menu Button */}
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-700"
           >
             <Menu size={24} />
           </button>

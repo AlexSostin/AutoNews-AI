@@ -220,7 +220,7 @@ export default function Header() {
             
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden"
+              className="md:hidden text-gray-900"
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>

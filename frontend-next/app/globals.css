@@ -25,6 +25,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Better placeholder color for inputs */
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+  opacity: 1;
+}
+
 /* Hide scrollbar for horizontal sliders */
 .scrollbar-hide {
   -ms-overflow-style: none;
