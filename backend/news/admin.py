@@ -281,11 +281,17 @@ class ArticleAdmin(admin.ModelAdmin):
                         is_published=False  # Save as draft
                     )
                     
+                    # Log storage backend being used
+                    from django.conf import settings
+                    storage_backend = getattr(settings, 'DEFAULT_FILE_STORAGE', 'default local')
+                    print(f"📦 Storage backend: {storage_backend}")
+                    
                     # Add thumbnail if available
                     if thumbnail_path and os.path.exists(thumbnail_path):
                         from django.core.files import File
                         with open(thumbnail_path, 'rb') as f:
                             article.image.save(os.path.basename(thumbnail_path), File(f), save=True)
+                        print(f"✓ Thumbnail saved. URL: {article.image.url if article.image else 'None'}")
                     
                     # Extract 3 screenshots for article images and gallery
                     send_progress(5, 85, "📸 Extracting video screenshots with FFmpeg...")

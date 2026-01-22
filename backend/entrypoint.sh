@@ -3,6 +3,19 @@
 # Exit on error
 set -e
 
+echo "========================================="
+echo "🚗 Fresh Motors Backend Starting..."
+echo "========================================="
+
+# Check Cloudinary configuration
+if [ -n "$CLOUDINARY_URL" ]; then
+    echo "✓ CLOUDINARY_URL is set - media files will persist!"
+else
+    echo "⚠️ WARNING: CLOUDINARY_URL not set!"
+    echo "   Media files will be LOST on every redeploy!"
+    echo "   Set CLOUDINARY_URL in Railway variables."
+fi
+
 echo "Running migrations..."
 python manage.py migrate --noinput
 
@@ -35,5 +48,7 @@ else:
     print(f"Superuser '{username}' already exists.")
 EOF
 
-echo "Starting Daphne server..."
+echo "========================================="
+echo "✓ Starting Daphne server on port 8001..."
+echo "========================================="
 exec daphne -b 0.0.0.0 -p 8001 auto_news_site.asgi:application

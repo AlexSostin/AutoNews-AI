@@ -329,13 +329,26 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Cloudinary configuration for production (Railway has ephemeral filesystem)
 CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
-if CLOUDINARY_URL and not DEBUG:
-    # Use Cloudinary for media storage in production
+if CLOUDINARY_URL:
+    # Use Cloudinary for media storage (required for Railway - ephemeral filesystem!)
     # Insert at beginning of INSTALLED_APPS to ensure proper initialization
-    INSTALLED_APPS.insert(0, 'cloudinary_storage')
-    INSTALLED_APPS.insert(1, 'cloudinary')
+    if 'cloudinary_storage' not in INSTALLED_APPS:
+        INSTALLED_APPS.insert(0, 'cloudinary_storage')
+    if 'cloudinary' not in INSTALLED_APPS:
+        INSTALLED_APPS.insert(1, 'cloudinary')
     
+    # For Django 4.2+ use STORAGES, for older versions use DEFAULT_FILE_STORAGE
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    
+    # Also set STORAGES for Django 4.2+
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
     
     # Parse CLOUDINARY_URL into components
     # Format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME
@@ -352,6 +365,8 @@ if CLOUDINARY_URL and not DEBUG:
         print(f"⚠️ Could not parse CLOUDINARY_URL: {CLOUDINARY_URL[:30]}...")
     
     print("✓ Cloudinary storage configured for media files")
+else:
+    print("⚠️ CLOUDINARY_URL not set - media files will use local storage (will be lost on redeploy!)")
 
 # Jazzmin Settings
 JAZZMIN_SETTINGS = {
