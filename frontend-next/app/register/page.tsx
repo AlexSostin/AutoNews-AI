@@ -67,9 +67,10 @@ export default function RegisterPage() {
 
       // Success - redirect to login
       router.push('/login?registered=true');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Registration error:', err); // Debug log
-      setError(err.message || 'Failed to connect to server');
+      const error = err as Error;
+      setError(error.message || 'Failed to connect to server');
     } finally {
       setIsLoading(false);
     }

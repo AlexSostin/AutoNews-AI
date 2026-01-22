@@ -66,8 +66,6 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
   const convertedPrice = rates 
     ? priceUsd * (rates[selectedCurrency as keyof CurrencyRates] as number || 1)
     : priceUsd;
-
-  const currentCurrency = currencies.find(c => c.code === selectedCurrency);
   
   const formatPrice = (price: number, currencyCode: string) => {
     return new Intl.NumberFormat('en-US', {

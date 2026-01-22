@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Eye, EyeOff, Info, Phone, MapPin, Mail, FileText } from 'lucide-react';
+import { Save, Info, Phone, MapPin, Mail, FileText } from 'lucide-react';
 import api from '@/lib/api';
 
 interface PageSettings {
@@ -91,9 +91,10 @@ export default function PagesPage() {
       await api.put('/settings/1/', formData);
       setSuccessMessage('Settings saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save settings:', error);
-      alert('Failed to save settings: ' + (error.response?.data?.detail || error.message));
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      alert('Failed to save settings: ' + (err.response?.data?.detail || err.message));
     } finally {
       setSaving(false);
     }
@@ -145,7 +146,7 @@ export default function PagesPage() {
             <p className="text-yellow-700 text-sm mt-1">
               Make sure to update all contact information with your real data. 
               Displaying fake contact information can damage trust and may cause legal issues.
-              If you don't have a phone or address, disable those fields using the toggle.
+              If you don&apos;t have a phone or address, disable those fields using the toggle.
             </p>
           </div>
         </div>

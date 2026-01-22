@@ -219,7 +219,7 @@ export default function ProfilePage() {
                     <Star className="w-6 h-6 text-amber-600 mt-1" />
                     <div>
                       <h4 className="font-bold text-gray-900 mb-1">Rating History</h4>
-                      <p className="text-sm text-gray-600">See all the articles you've rated and update your ratings. Coming soon!</p>
+                      <p className="text-sm text-gray-600">See all the articles you&apos;ve rated and update your ratings. Coming soon!</p>
                     </div>
                   </div>
                 </div>

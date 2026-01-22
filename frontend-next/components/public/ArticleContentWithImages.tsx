@@ -25,7 +25,7 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
     // Combine split parts back into complete HTML elements
     let currentElement = '';
     
-    htmlParts.forEach((part, index) => {
+    htmlParts.forEach((part) => {
       currentElement += part;
       
       // If we hit a closing tag, we have a complete element
