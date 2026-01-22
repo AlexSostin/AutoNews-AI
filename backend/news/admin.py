@@ -287,16 +287,32 @@ class ArticleAdmin(admin.ModelAdmin):
                         with open(thumbnail_path, 'rb') as f:
                             article.image.save(os.path.basename(thumbnail_path), File(f), save=True)
                     
-                    # Extract 3 screenshots for gallery
-                    send_progress(5, 85, "📸 Extracting video screenshots...")
+                    # Extract 3 screenshots for article images and gallery
+                    send_progress(5, 85, "📸 Extracting video screenshots with FFmpeg...")
                     try:
                         from ai_engine.modules.downloader import extract_video_screenshots
                         from django.core.files import File
                         
                         screenshot_paths = extract_video_screenshots(youtube_url, count=3)
                         
+                        # Save screenshots to article's image fields
                         for i, screenshot_path in enumerate(screenshot_paths):
                             if os.path.exists(screenshot_path):
+                                with open(screenshot_path, 'rb') as f:
+                                    file_obj = File(f, name=os.path.basename(screenshot_path))
+                                    
+                                    # Save to article image fields (image_2, image_3)
+                                    if i == 0 and not article.image:
+                                        article.image.save(os.path.basename(screenshot_path), file_obj, save=False)
+                                        print(f"✓ Screenshot {i+1} saved to article.image")
+                                    elif i == 1:
+                                        article.image_2.save(os.path.basename(screenshot_path), file_obj, save=False)
+                                        print(f"✓ Screenshot {i+1} saved to article.image_2")
+                                    elif i == 2:
+                                        article.image_3.save(os.path.basename(screenshot_path), file_obj, save=False)
+                                        print(f"✓ Screenshot {i+1} saved to article.image_3")
+                                
+                                # Also add to gallery
                                 with open(screenshot_path, 'rb') as f:
                                     ArticleImage.objects.create(
                                         article=article,
@@ -305,8 +321,14 @@ class ArticleAdmin(admin.ModelAdmin):
                                         order=i
                                     )
                                 print(f"✓ Gallery image {i+1} added")
+                        
+                        # Save article with all images
+                        article.save()
+                        
                     except Exception as gallery_error:
                         print(f"⚠ Could not create gallery: {gallery_error}")
+                        import traceback
+                        traceback.print_exc()
                     
                     # Extract and create Car Specifications from analysis
                     from news.models import CarSpecification
