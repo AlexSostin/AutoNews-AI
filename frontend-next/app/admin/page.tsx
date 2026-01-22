@@ -1,22 +1,95 @@
 'use client';
 
-import { FileText, Folder, Tag, MessageSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText, Folder, Tag, MessageSquare, Eye, Mail, Loader2, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
+import { getApiUrl } from '@/lib/api';
+
+interface Stats {
+  articles: number;
+  categories: number;
+  tags: number;
+  comments: number;
+  views: number;
+  subscribers: number;
+}
 
 export default function AdminDashboard() {
-  const stats = [
-    { title: 'Total Articles', value: '0', icon: FileText, href: '/admin/articles', color: 'bg-blue-500' },
-    { title: 'Categories', value: '0', icon: Folder, href: '/admin/categories', color: 'bg-green-500' },
-    { title: 'Tags', value: '0', icon: Tag, href: '/admin/tags', color: 'bg-purple-500' },
-    { title: 'Comments', value: '0', icon: MessageSquare, href: '/admin/comments', color: 'bg-orange-500' },
+  const [stats, setStats] = useState<Stats>({
+    articles: 0,
+    categories: 0,
+    tags: 0,
+    comments: 0,
+    views: 0,
+    subscribers: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const apiUrl = getApiUrl();
+      const token = localStorage.getItem('auth_token');
+      const headers: HeadersInit = token ? { 'Authorization': `Token ${token}` } : {};
+
+      const [articlesRes, categoriesRes, tagsRes, commentsRes, subscribersRes] = await Promise.all([
+        fetch(`${apiUrl}/api/v1/articles/`),
+        fetch(`${apiUrl}/api/v1/categories/`),
+        fetch(`${apiUrl}/api/v1/tags/`),
+        fetch(`${apiUrl}/api/v1/comments/`, { headers }),
+        fetch(`${apiUrl}/api/v1/subscribers/`, { headers }).catch(() => null)
+      ]);
+
+      const articlesData = await articlesRes.json();
+      const categoriesData = await categoriesRes.json();
+      const tagsData = await tagsRes.json();
+      const commentsData = commentsRes.ok ? await commentsRes.json() : { results: [] };
+      const subscribersData = subscribersRes?.ok ? await subscribersRes.json() : { results: [] };
+
+      const articles = Array.isArray(articlesData) ? articlesData : articlesData.results || [];
+      const totalViews = articles.reduce((sum: number, a: { views_count?: number }) => sum + (a.views_count || 0), 0);
+
+      setStats({
+        articles: articlesData.count || articles.length,
+        categories: categoriesData.count || (Array.isArray(categoriesData) ? categoriesData : categoriesData.results || []).length,
+        tags: tagsData.count || (Array.isArray(tagsData) ? tagsData : tagsData.results || []).length,
+        comments: commentsData.count || (Array.isArray(commentsData) ? commentsData : commentsData.results || []).length,
+        views: totalViews,
+        subscribers: subscribersData.count || (Array.isArray(subscribersData) ? subscribersData : subscribersData.results || []).length
+      });
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statCards = [
+    { title: 'Total Articles', value: stats.articles.toString(), icon: FileText, href: '/admin/articles', color: 'bg-blue-500' },
+    { title: 'Total Views', value: stats.views.toLocaleString(), icon: Eye, href: '/admin/analytics', color: 'bg-purple-500' },
+    { title: 'Categories', value: stats.categories.toString(), icon: Folder, href: '/admin/categories', color: 'bg-green-500' },
+    { title: 'Comments', value: stats.comments.toString(), icon: MessageSquare, href: '/admin/comments', color: 'bg-orange-500' },
+    { title: 'Subscribers', value: stats.subscribers.toString(), icon: Mail, href: '/admin/subscribers', color: 'bg-pink-500' },
+    { title: 'Tags', value: stats.tags.toString(), icon: Tag, href: '/admin/tags', color: 'bg-indigo-500' },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-purple-600" size={48} />
+      </div>
+    );
+  }
 
   return (
     <div>
       <h1 className="text-2xl sm:text-3xl font-black text-gray-950 mb-4 sm:mb-8">Dashboard</h1>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-8">
-        {stats.map((stat) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-8">
+        {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
             <Link
@@ -40,42 +113,30 @@ export default function AdminDashboard() {
 
       <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <h2 className="text-lg sm:text-xl font-black text-gray-950 mb-3 sm:mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Link
-            href="/admin/articles"
+            href="/admin/articles/new"
             className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-3 sm:p-4 rounded-lg text-center text-sm sm:text-base font-bold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md"
           >
             Create New Article
           </Link>
           <Link
-            href="/admin/categories"
+            href="/admin/analytics"
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 sm:p-4 rounded-lg text-center text-sm sm:text-base font-bold hover:from-purple-600 hover:to-pink-600 transition-all shadow-md"
+          >
+            View Analytics
+          </Link>
+          <Link
+            href="/admin/subscribers"
             className="bg-gradient-to-r from-green-500 to-teal-500 text-white p-3 sm:p-4 rounded-lg text-center text-sm sm:text-base font-bold hover:from-green-600 hover:to-teal-600 transition-all shadow-md"
           >
-            Manage Categories
+            Send Newsletter
           </Link>
           <Link
             href="/admin/comments"
             className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-3 sm:p-4 rounded-lg text-center text-sm sm:text-base font-bold hover:from-orange-600 hover:to-red-600 transition-all shadow-md"
           >
             Moderate Comments
-          </Link>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6 mt-4 sm:mt-6">
-        <h2 className="text-lg sm:text-xl font-black text-gray-950 mb-3 sm:mb-4">Welcome to Fresh Motors Admin!</h2>
-        <p className="text-sm sm:text-base text-gray-800 mb-3 sm:mb-4 font-medium">
-          This is your admin dashboard. From here you can manage all aspects of your automotive news site.
-        </p>
-        <ul className="list-disc list-inside text-sm sm:text-base text-gray-800 space-y-1 sm:space-y-2 font-medium">
-          <li>Create and publish articles with rich content</li>
-          <li>Organize content with categories and tags</li>
-          <li>Moderate user comments</li>
-          <li>View analytics and statistics</li>
-        </ul>
-        <div className="mt-4 sm:mt-6">
-          <Link href="/" className="text-sm sm:text-base text-indigo-600 hover:underline font-bold">
-            → View Public Site
           </Link>
         </div>
       </div>

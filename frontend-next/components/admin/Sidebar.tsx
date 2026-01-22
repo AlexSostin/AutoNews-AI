@@ -12,18 +12,26 @@ import {
   Home,
   Settings,
   X,
-  FileStack
+  FileStack,
+  BarChart3,
+  UserCog,
+  Mail,
+  Youtube
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
 const menuItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/admin/articles', icon: FileText, label: 'Articles' },
   { href: '/admin/categories', icon: Folder, label: 'Categories' },
   { href: '/admin/tags', icon: Tag, label: 'Tags' },
   { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },
+  { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
+  { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },
   { href: '/admin/pages', icon: FileStack, label: 'Pages' },
-  { href: '/admin/settings', icon: Settings, label: 'Settings' },
+  { href: '/admin/settings', icon: Settings, label: 'Site Settings' },
+  { href: '/admin/account', icon: UserCog, label: 'Account Settings' },
 ];
 
 interface SidebarProps {

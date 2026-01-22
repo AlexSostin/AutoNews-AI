@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Facebook, Instagram, Youtube, Linkedin } from 'lucide-react';
+import { Save, Facebook, Instagram, Youtube, Linkedin, Wrench, AlertTriangle } from 'lucide-react';
 import api from '@/lib/api';
 
 // Custom SVG Icons
@@ -49,6 +49,8 @@ export default function SettingsPage() {
     site_description: '',
     contact_email: '',
     footer_text: '',
+    maintenance_mode: false,
+    maintenance_message: '',
     facebook_url: '',
     facebook_enabled: false,
     twitter_url: '',
@@ -113,6 +115,63 @@ export default function SettingsPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Maintenance Mode - Top Priority */}
+        <div className={`rounded-lg shadow-md p-6 border-2 ${formData.maintenance_mode ? 'bg-orange-50 border-orange-400' : 'bg-white border-transparent'}`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`p-3 rounded-lg ${formData.maintenance_mode ? 'bg-orange-500' : 'bg-gray-400'} text-white`}>
+              <Wrench size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Maintenance Mode</h2>
+              <p className="text-sm text-gray-500">Закрыть сайт на время обновления</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Toggle Switch */}
+            <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+              <div className="flex items-center gap-3">
+                {formData.maintenance_mode && <AlertTriangle className="text-orange-500" size={20} />}
+                <div>
+                  <p className="font-bold text-gray-900">
+                    {formData.maintenance_mode ? '🚧 Режим обслуживания ВКЛЮЧЕН' : 'Режим обслуживания выключен'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {formData.maintenance_mode 
+                      ? 'Посетители видят страницу "На ремонте". Вы как админ - видите сайт.' 
+                      : 'Сайт доступен всем посетителям'}
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.maintenance_mode}
+                  onChange={(e) => setFormData({ ...formData, maintenance_mode: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
+              </label>
+            </div>
+
+            {/* Message */}
+            {formData.maintenance_mode && (
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">
+                  Сообщение для посетителей
+                </label>
+                <textarea
+                  value={formData.maintenance_message}
+                  onChange={(e) => setFormData({ ...formData, maintenance_message: e.target.value })}
+                  rows={3}
+                  placeholder="Мы работаем над улучшением сайта. Пожалуйста, загляните позже!"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-gray-900"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* General Settings */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">General Settings</h2>

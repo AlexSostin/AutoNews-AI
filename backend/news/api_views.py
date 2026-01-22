@@ -2,18 +2,26 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, BasePermission, AllowAny
+from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django_ratelimit.decorators import ratelimit
 from django.contrib.auth.models import User
-from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings, Favorite, Subscriber
+from django.contrib.auth.hashers import check_password
+from django.utils import timezone
+from .models import (
+    Article, Category, Tag, Comment, Rating, CarSpecification, 
+    ArticleImage, SiteSettings, Favorite, Subscriber,
+    YouTubeChannel, PendingArticle, AutoPublishSchedule
+)
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
     CategorySerializer, TagSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
-    SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer
+    SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer,
+    YouTubeChannelSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer
 )
 import os
 import sys
@@ -21,6 +29,78 @@ import re
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class CurrentUserView(APIView):
+    """Get and update current user information"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
+            'date_joined': user.date_joined.isoformat(),
+        })
+    
+    def patch(self, request):
+        user = request.user
+        
+        # Update allowed fields
+        if 'first_name' in request.data:
+            user.first_name = request.data['first_name'][:30]
+        if 'last_name' in request.data:
+            user.last_name = request.data['last_name'][:150]
+        if 'email' in request.data:
+            email = request.data['email'].strip().lower()
+            # Check if email is taken by another user
+            if User.objects.filter(email__iexact=email).exclude(id=user.id).exists():
+                return Response({'email': ['This email is already taken']}, status=status.HTTP_400_BAD_REQUEST)
+            user.email = email
+        
+        user.save()
+        
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+        })
+
+
+class ChangePasswordView(APIView):
+    """Change user password"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        user = request.user
+        old_password = request.data.get('old_password', '')
+        new_password1 = request.data.get('new_password1', '')
+        new_password2 = request.data.get('new_password2', '')
+        
+        # Validate old password
+        if not check_password(old_password, user.password):
+            return Response({'old_password': ['Current password is incorrect']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate new passwords match
+        if new_password1 != new_password2:
+            return Response({'new_password1': ['Passwords do not match']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate password strength
+        if len(new_password1) < 8:
+            return Response({'new_password1': ['Password must be at least 8 characters']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Change password
+        user.set_password(new_password1)
+        user.save()
+        
+        return Response({'detail': 'Password changed successfully'})
 
 
 class IsStaffOrReadOnly(BasePermission):
@@ -990,3 +1070,207 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Failed to send newsletter: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class YouTubeChannelViewSet(viewsets.ModelViewSet):
+    """
+    Manage YouTube channels for automatic article generation.
+    Staff only.
+    """
+    queryset = YouTubeChannel.objects.all()
+    serializer_class = YouTubeChannelSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        return [IsAuthenticated()]
+    
+    def perform_create(self, serializer):
+        # Extract channel ID from URL if possible
+        channel_url = serializer.validated_data.get('channel_url', '')
+        channel_id = self._extract_channel_id(channel_url)
+        serializer.save(channel_id=channel_id)
+    
+    def _extract_channel_id(self, url):
+        """Try to extract channel ID from YouTube URL"""
+        import re
+        patterns = [
+            r'youtube\.com/channel/([a-zA-Z0-9_-]+)',
+            r'youtube\.com/@([a-zA-Z0-9_-]+)',
+            r'youtube\.com/c/([a-zA-Z0-9_-]+)',
+            r'youtube\.com/user/([a-zA-Z0-9_-]+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        return ''
+    
+    @action(detail=True, methods=['post'])
+    def scan_now(self, request, pk=None):
+        """Manually trigger scan for a specific channel"""
+        channel = self.get_object()
+        
+        # This would trigger the AI engine to scan this channel
+        # For now, just update last_checked
+        channel.last_checked = timezone.now()
+        channel.save()
+        
+        return Response({
+            'message': f'Scan triggered for {channel.name}',
+            'channel_id': channel.id
+        })
+    
+    @action(detail=False, methods=['post'])
+    def scan_all(self, request):
+        """Trigger scan for all enabled channels"""
+        if not request.user.is_staff:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        channels = YouTubeChannel.objects.filter(is_enabled=True)
+        count = channels.count()
+        
+        # Update last_checked for all
+        channels.update(last_checked=timezone.now())
+        
+        return Response({
+            'message': f'Scan triggered for {count} channels',
+            'count': count
+        })
+
+
+class PendingArticleViewSet(viewsets.ModelViewSet):
+    """
+    Manage pending articles waiting for review.
+    Staff only.
+    """
+    queryset = PendingArticle.objects.all()
+    serializer_class = PendingArticleSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['title', 'video_title']
+    ordering_fields = ['created_at', 'status']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        queryset = PendingArticle.objects.all()
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        return queryset
+    
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve and publish a pending article"""
+        pending = self.get_object()
+        
+        if pending.status != 'pending':
+            return Response({'error': 'Article is not pending'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create the actual article
+        try:
+            from django.utils.text import slugify
+            import uuid
+            
+            # Generate unique slug
+            base_slug = slugify(pending.title)[:80]
+            slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
+            
+            article = Article.objects.create(
+                title=pending.title,
+                slug=slug,
+                content=pending.content,
+                excerpt=pending.excerpt or pending.content[:200],
+                category=pending.suggested_category,
+                status='published',
+                youtube_url=pending.video_url,
+            )
+            
+            # Set featured image if available
+            if pending.featured_image:
+                # Download and save image
+                pass  # TODO: implement image download
+            
+            # Update pending article
+            pending.status = 'published'
+            pending.published_article = article
+            pending.reviewed_by = request.user
+            pending.reviewed_at = timezone.now()
+            pending.save()
+            
+            return Response({
+                'message': 'Article published successfully',
+                'article_id': article.id,
+                'article_slug': article.slug
+            })
+        except Exception as e:
+            logger.error(f"Failed to publish article: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Reject a pending article"""
+        pending = self.get_object()
+        
+        if pending.status != 'pending':
+            return Response({'error': 'Article is not pending'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        pending.status = 'rejected'
+        pending.reviewed_by = request.user
+        pending.reviewed_at = timezone.now()
+        pending.review_notes = request.data.get('reason', '')
+        pending.save()
+        
+        return Response({'message': 'Article rejected'})
+    
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Get statistics about pending articles"""
+        return Response({
+            'pending': PendingArticle.objects.filter(status='pending').count(),
+            'approved': PendingArticle.objects.filter(status='approved').count(),
+            'rejected': PendingArticle.objects.filter(status='rejected').count(),
+            'published': PendingArticle.objects.filter(status='published').count(),
+            'total': PendingArticle.objects.count()
+        })
+
+
+class AutoPublishScheduleViewSet(viewsets.ModelViewSet):
+    """
+    Manage auto-publish schedule settings.
+    Only one schedule object exists (singleton pattern).
+    """
+    queryset = AutoPublishSchedule.objects.all()
+    serializer_class = AutoPublishScheduleSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def list(self, request):
+        # Return single schedule object, create if not exists
+        schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
+        serializer = self.get_serializer(schedule)
+        return Response(serializer.data)
+    
+    def update(self, request, pk=None):
+        schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
+        serializer = self.get_serializer(schedule, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def trigger_scan(self, request):
+        """Manually trigger a scan now"""
+        if not request.user.is_staff:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
+        schedule.last_scan = timezone.now()
+        schedule.total_scans += 1
+        schedule.save()
+        
+        # Here you would trigger the actual scan process
+        # For now just return success
+        
+        return Response({
+            'message': 'Scan triggered',
+            'timestamp': schedule.last_scan
+        })

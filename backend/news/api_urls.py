@@ -7,7 +7,8 @@ from .api_views import (
     ArticleViewSet, CategoryViewSet, TagViewSet, 
     CommentViewSet, RatingViewSet, CarSpecificationViewSet, 
     ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
-    FavoriteViewSet, SubscriberViewSet
+    FavoriteViewSet, SubscriberViewSet,
+    YouTubeChannelViewSet, PendingArticleViewSet, AutoPublishScheduleViewSet
 )
 from .health import health_check, health_check_detailed, readiness_check
 
@@ -38,7 +39,10 @@ router.register(r'settings', SiteSettingsViewSet, basename='settings')
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'favorites', FavoriteViewSet, basename='favorite')
 router.register(r'subscribers', SubscriberViewSet, basename='subscriber')
-from .api_views import CurrencyRatesView
+router.register(r'youtube-channels', YouTubeChannelViewSet, basename='youtube-channel')
+router.register(r'pending-articles', PendingArticleViewSet, basename='pending-article')
+router.register(r'auto-publish-schedule', AutoPublishScheduleViewSet, basename='auto-publish-schedule')
+from .api_views import CurrencyRatesView, CurrentUserView, ChangePasswordView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -49,6 +53,10 @@ urlpatterns = [
     # JWT Auth with rate limiting
     path('token/', RateLimitedTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', RateLimitedTokenRefreshView.as_view(), name='token_refresh'),
+    
+    # User auth endpoints
+    path('auth/user/', CurrentUserView.as_view(), name='current_user'),
+    path('auth/password/change/', ChangePasswordView.as_view(), name='change_password'),
     
     # Currency rates
     path('currency-rates/', CurrencyRatesView.as_view(), name='currency_rates'),

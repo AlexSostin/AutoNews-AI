@@ -1,7 +1,11 @@
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from django.conf import settings
-from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings, Favorite, Subscriber
+from .models import (
+    Article, Category, Tag, Comment, Rating, CarSpecification, 
+    ArticleImage, SiteSettings, Favorite, Subscriber,
+    YouTubeChannel, PendingArticle, AutoPublishSchedule
+)
 
 
 def validate_image_file(image):
@@ -295,3 +299,66 @@ class SubscriberSerializer(serializers.ModelSerializer):
         model = Subscriber
         fields = ['id', 'email', 'is_active', 'created_at']
         read_only_fields = ['is_active', 'created_at']
+
+
+class YouTubeChannelSerializer(serializers.ModelSerializer):
+    pending_count = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = YouTubeChannel
+        fields = [
+            'id', 'name', 'channel_url', 'channel_id',
+            'is_enabled', 'auto_publish', 'default_category', 'category_name',
+            'last_checked', 'last_video_id', 'videos_processed',
+            'pending_count', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['channel_id', 'last_checked', 'last_video_id', 'videos_processed', 'created_at', 'updated_at']
+    
+    def get_pending_count(self, obj):
+        return obj.pending_articles.filter(status='pending').count()
+    
+    def get_category_name(self, obj):
+        return obj.default_category.name if obj.default_category else None
+
+
+class PendingArticleSerializer(serializers.ModelSerializer):
+    channel_name = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    reviewed_by_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PendingArticle
+        fields = [
+            'id', 'youtube_channel', 'channel_name',
+            'video_url', 'video_id', 'video_title',
+            'title', 'content', 'excerpt',
+            'suggested_category', 'category_name',
+            'images', 'featured_image',
+            'status', 'published_article',
+            'reviewed_by', 'reviewed_by_name', 'reviewed_at', 'review_notes',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['reviewed_by', 'reviewed_at', 'published_article', 'created_at', 'updated_at']
+    
+    def get_channel_name(self, obj):
+        return obj.youtube_channel.name if obj.youtube_channel else None
+    
+    def get_category_name(self, obj):
+        return obj.suggested_category.name if obj.suggested_category else None
+    
+    def get_reviewed_by_name(self, obj):
+        return obj.reviewed_by.username if obj.reviewed_by else None
+
+
+class AutoPublishScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutoPublishSchedule
+        fields = [
+            'id', 'is_enabled', 'frequency',
+            'scan_time_1', 'scan_time_2', 'scan_time_3', 'scan_time_4',
+            'last_scan', 'last_scan_result',
+            'total_scans', 'total_articles_generated',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['last_scan', 'last_scan_result', 'total_scans', 'total_articles_generated', 'created_at', 'updated_at']

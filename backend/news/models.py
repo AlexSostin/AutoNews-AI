@@ -286,3 +286,128 @@ class Subscriber(models.Model):
     
     def __str__(self):
         return self.email
+
+
+class YouTubeChannel(models.Model):
+    """YouTube channels to monitor for new videos"""
+    name = models.CharField(max_length=200, help_text="Channel name for display")
+    channel_url = models.URLField(help_text="YouTube channel URL (e.g., https://www.youtube.com/@ChannelName)")
+    channel_id = models.CharField(max_length=100, blank=True, help_text="YouTube channel ID (auto-extracted)")
+    
+    # Settings
+    is_enabled = models.BooleanField(default=True, help_text="Enable monitoring for this channel")
+    auto_publish = models.BooleanField(default=False, help_text="Automatically publish articles (skip review)")
+    default_category = models.ForeignKey(
+        'Category', on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Default category for articles from this channel"
+    )
+    
+    # Tracking
+    last_checked = models.DateTimeField(null=True, blank=True)
+    last_video_id = models.CharField(max_length=50, blank=True, help_text="Last processed video ID")
+    videos_processed = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = "YouTube Channel"
+        verbose_name_plural = "YouTube Channels"
+    
+    def __str__(self):
+        return self.name
+
+
+class PendingArticle(models.Model):
+    """Articles waiting for review before publishing"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('published', 'Published'),
+    ]
+    
+    # Source info
+    youtube_channel = models.ForeignKey(
+        YouTubeChannel, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pending_articles'
+    )
+    video_url = models.URLField(help_text="Source YouTube video URL")
+    video_id = models.CharField(max_length=50)
+    video_title = models.CharField(max_length=500)
+    
+    # Generated content
+    title = models.CharField(max_length=500)
+    content = models.TextField()
+    excerpt = models.TextField(blank=True)
+    suggested_category = models.ForeignKey(
+        'Category', on_delete=models.SET_NULL, null=True, blank=True
+    )
+    
+    # Images (stored as JSON array of URLs)
+    images = models.JSONField(default=list, blank=True)
+    featured_image = models.URLField(blank=True)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # If published, link to the article
+    published_article = models.ForeignKey(
+        'Article', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='source_pending'
+    )
+    
+    # Review
+    reviewed_by = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Pending Article"
+        verbose_name_plural = "Pending Articles"
+    
+    def __str__(self):
+        return f"[{self.status}] {self.title[:50]}"
+
+
+class AutoPublishSchedule(models.Model):
+    """Settings for automatic YouTube scanning schedule"""
+    FREQUENCY_CHOICES = [
+        ('once', 'Once a day'),
+        ('twice', 'Twice a day'),
+        ('four', 'Four times a day'),
+        ('manual', 'Manual only'),
+    ]
+    
+    is_enabled = models.BooleanField(default=False, help_text="Enable automatic scanning")
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='twice')
+    
+    # Specific times (24h format)
+    scan_time_1 = models.TimeField(default='09:00', help_text="First scan time")
+    scan_time_2 = models.TimeField(default='18:00', help_text="Second scan time")
+    scan_time_3 = models.TimeField(null=True, blank=True, help_text="Third scan time")
+    scan_time_4 = models.TimeField(null=True, blank=True, help_text="Fourth scan time")
+    
+    # Stats
+    last_scan = models.DateTimeField(null=True, blank=True)
+    last_scan_result = models.TextField(blank=True)
+    total_scans = models.IntegerField(default=0)
+    total_articles_generated = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Auto-Publish Schedule"
+        verbose_name_plural = "Auto-Publish Schedule"
+    
+    def __str__(self):
+        return f"Schedule: {self.frequency} - {'Enabled' if self.is_enabled else 'Disabled'}"
+
