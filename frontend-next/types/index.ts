@@ -20,6 +20,7 @@ export interface Article {
   image_3: string | null;
   image_3_url: string | null;
   youtube_url: string | null;
+  price_usd: number | null;
   category: number;
   category_name: string;
   category_slug: string;

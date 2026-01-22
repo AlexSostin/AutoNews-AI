@@ -762,3 +762,62 @@ class FavoriteViewSet(viewsets.ModelViewSet):
         ).exists()
         
         return Response({'is_favorited': is_favorited})
+
+
+from rest_framework.views import APIView
+import requests as http_requests
+
+class CurrencyRatesView(APIView):
+    """
+    Get current exchange rates for USD to EUR and CNY.
+    Cached for 1 hour to avoid excessive API calls.
+    """
+    permission_classes = [AllowAny]
+    
+    @method_decorator(cache_page(60 * 60))  # Cache for 1 hour
+    def get(self, request):
+        cache_key = 'currency_rates_usd'
+        rates = cache.get(cache_key)
+        
+        if not rates:
+            try:
+                # Using free exchangerate-api.com
+                response = http_requests.get(
+                    'https://open.er-api.com/v6/latest/USD',
+                    timeout=10
+                )
+                data = response.json()
+                
+                if data.get('result') == 'success':
+                    all_rates = data.get('rates', {})
+                    rates = {
+                        'USD': 1.0,
+                        'EUR': all_rates.get('EUR', 0.92),
+                        'CNY': all_rates.get('CNY', 7.25),
+                        'GBP': all_rates.get('GBP', 0.79),
+                        'JPY': all_rates.get('JPY', 148.5),
+                        'updated_at': data.get('time_last_update_utc', '')
+                    }
+                    cache.set(cache_key, rates, 60 * 60)  # Cache for 1 hour
+                else:
+                    # Fallback rates
+                    rates = {
+                        'USD': 1.0,
+                        'EUR': 0.92,
+                        'CNY': 7.25,
+                        'GBP': 0.79,
+                        'JPY': 148.5,
+                        'updated_at': 'fallback'
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to fetch currency rates: {e}")
+                rates = {
+                    'USD': 1.0,
+                    'EUR': 0.92,
+                    'CNY': 7.25,
+                    'GBP': 0.79,
+                    'JPY': 148.5,
+                    'updated_at': 'fallback'
+                }
+        
+        return Response(rates)

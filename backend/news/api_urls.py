@@ -37,6 +37,7 @@ router.register(r'article-images', ArticleImageViewSet, basename='articleimage')
 router.register(r'settings', SiteSettingsViewSet, basename='settings')
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'favorites', FavoriteViewSet, basename='favorite')
+from .api_views import CurrencyRatesView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -47,6 +48,9 @@ urlpatterns = [
     # JWT Auth with rate limiting
     path('token/', RateLimitedTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', RateLimitedTokenRefreshView.as_view(), name='token_refresh'),
+    
+    # Currency rates
+    path('currency-rates/', CurrencyRatesView.as_view(), name='currency_rates'),
     
     # API endpoints
     path('', include(router.urls)),

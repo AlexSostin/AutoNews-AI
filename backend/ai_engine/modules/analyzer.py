@@ -196,3 +196,54 @@ def extract_specs_dict(analysis):
             specs['price'] = line.split(':', 1)[1].strip()
     
     return specs
+
+
+def extract_price_usd(analysis):
+    """
+    Extracts price from analysis and converts to USD number.
+    Handles formats: $45,000, €50,000, ¥320,000, 45000 USD, etc.
+    """
+    import re
+    
+    price_str = None
+    
+    # Find Price line in analysis
+    for line in analysis.split('\n'):
+        if line.strip().startswith('Price:'):
+            price_str = line.split(':', 1)[1].strip()
+            break
+    
+    if not price_str or price_str.lower() == 'not specified':
+        return None
+    
+    # Extract number from price string
+    # Remove commas and spaces
+    clean_price = price_str.replace(',', '').replace(' ', '')
+    
+    # Find the number
+    match = re.search(r'[\$€¥£]?(\d+(?:\.\d{2})?)', clean_price)
+    if not match:
+        return None
+    
+    amount = float(match.group(1))
+    
+    # Detect currency and convert to USD
+    if '€' in price_str or 'EUR' in price_str.upper():
+        # EUR to USD (approximate)
+        amount = amount * 1.09
+    elif '¥' in price_str or 'CNY' in price_str.upper() or 'RMB' in price_str.upper():
+        # CNY to USD
+        amount = amount / 7.25
+    elif '¥' in price_str and amount > 1000000:
+        # Likely JPY (Japanese Yen) - very high numbers
+        amount = amount / 148.5
+    elif '£' in price_str or 'GBP' in price_str.upper():
+        # GBP to USD
+        amount = amount * 1.27
+    # USD is default ($ or no symbol)
+    
+    # Sanity check: car prices should be reasonable
+    if amount < 1000 or amount > 10000000:
+        return None
+    
+    return round(amount, 2)

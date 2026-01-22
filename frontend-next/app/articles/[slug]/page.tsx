@@ -18,6 +18,7 @@ import ReadingProgressBar from '@/components/public/ReadingProgressBar';
 import ReadingTime from '@/components/public/ReadingTime';
 import ViewStats from '@/components/public/ViewStats';
 import ViewTracker from '@/components/public/ViewTracker';
+import PriceConverter from '@/components/public/PriceConverter';
 import { Article } from '@/types';
 import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
 
@@ -213,6 +214,13 @@ export default async function ArticleDetailPage({
             <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl">
               {article.summary}
             </p>
+            
+            {/* Price Display with Currency Converter */}
+            {article.price_usd && (
+              <div className="mt-4">
+                <PriceConverter priceUsd={article.price_usd} />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">

@@ -124,6 +124,9 @@ class Article(models.Model):
     image_3 = models.ImageField(upload_to='articles/', blank=True, null=True, help_text="Screenshot 3 from video")
     youtube_url = models.URLField(blank=True, help_text="YouTube video URL for AI generation")
     
+    # Price field (in USD, converted to other currencies on frontend)
+    price_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Price in USD (AI extracts from video)")
+    
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='articles')
     tags = models.ManyToManyField(Tag, blank=True)
     

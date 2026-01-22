@@ -251,6 +251,16 @@ class ArticleAdmin(admin.ModelAdmin):
                     summary_match = re.search(r'<p>(.*?)</p>', article_html)
                     summary = summary_match.group(1) if summary_match else "AI-generated automotive content"
                     
+                    # Extract price from analysis
+                    price_usd = None
+                    try:
+                        from ai_engine.modules.analyzer import extract_price_usd
+                        price_usd = extract_price_usd(analysis)
+                        if price_usd:
+                            print(f"✓ Extracted price: ${price_usd:,.2f}")
+                    except Exception as price_err:
+                        print(f"⚠ Could not extract price: {price_err}")
+                    
                     # Generate unique slug
                     base_slug = slugify(title)
                     slug = base_slug
@@ -267,6 +277,7 @@ class ArticleAdmin(admin.ModelAdmin):
                         summary=summary[:300],  # Limit summary length
                         content=article_html,
                         category=category if category else Category.objects.get_or_create(name=cat_name, defaults={'slug': 'reviews'})[0],
+                        price_usd=price_usd,  # Add extracted price
                         is_published=False  # Save as draft
                     )
                     
