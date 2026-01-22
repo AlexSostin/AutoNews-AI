@@ -96,12 +96,40 @@ export default function Footer() {
 
     setSubscribeStatus('loading');
     
-    // Simulate API call (you can implement real newsletter API later)
-    setTimeout(() => {
-      setSubscribeStatus('success');
-      setEmail('');
-      setTimeout(() => setSubscribeStatus('idle'), 3000);
-    }, 1000);
+    try {
+      const getApiUrl = () => {
+        if (typeof window !== 'undefined') {
+          const host = window.location.hostname;
+          if (host !== 'localhost' && host !== '127.0.0.1') {
+            return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+          }
+        }
+        return 'http://localhost:8001/api/v1';
+      };
+      
+      const response = await fetch(`${getApiUrl()}/subscribers/subscribe/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      
+      if (response.ok) {
+        setSubscribeStatus('success');
+        setEmail('');
+      } else {
+        const data = await response.json();
+        if (data.error?.includes('already subscribed')) {
+          setSubscribeStatus('success'); // Already subscribed is still success
+        } else {
+          setSubscribeStatus('error');
+        }
+      }
+    } catch (error) {
+      console.error('Subscribe error:', error);
+      setSubscribeStatus('error');
+    }
+    
+    setTimeout(() => setSubscribeStatus('idle'), 3000);
   };
 
   const socialLinks = [
@@ -157,6 +185,13 @@ export default function Footer() {
             <p className="text-gray-300 text-sm mb-4">
               Your source for the latest automotive news, reviews, and insights.
             </p>
+            <a 
+              href="mailto:info@freshmotors.net" 
+              className="text-gray-300 hover:text-purple-400 transition-colors text-sm flex items-center gap-2 mb-4"
+            >
+              <Mail size={16} />
+              info@freshmotors.net
+            </a>
             {activeSocials.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {activeSocials.map((social) => {

@@ -69,7 +69,8 @@ export default function ContactPage() {
   };
 
   // Check if we have any contact info to show
-  const hasEmail = settings?.contact_email;
+  const contactEmail = settings?.contact_email || 'info@freshmotors.net';
+  const hasEmail = true; // Always show email
   const hasPhone = settings?.contact_phone && settings?.contact_phone_enabled;
   const hasAddress = settings?.contact_address && settings?.contact_address_enabled;
   const hasSupportEmail = settings?.support_email;
@@ -108,7 +109,7 @@ export default function ContactPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Contact Information */}
             <div className="lg:col-span-1 space-y-6">
-              {/* Email - always shown if available */}
+              {/* Email - always shown */}
               {hasEmail && (
                 <div className="bg-white rounded-xl shadow-md p-6">
                   <div className="flex items-start gap-4 mb-4">
@@ -118,10 +119,10 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-bold text-gray-900 mb-1">Email Us</h3>
                       <a 
-                        href={`mailto:${settings.contact_email}`}
+                        href={`mailto:${contactEmail}`}
                         className="text-purple-600 hover:text-purple-800 text-sm block"
                       >
-                        {settings.contact_email}
+                        {contactEmail}
                       </a>
                       {hasSupportEmail && (
                         <a 
