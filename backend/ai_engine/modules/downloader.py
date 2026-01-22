@@ -116,21 +116,20 @@ def download_thumbnail_only(youtube_url):
 def extract_video_screenshots(youtube_url, count=3):
     """
     Extracts multiple screenshots from a YouTube video at different timestamps.
+    Downloads short video segments and extracts frames from them.
     Returns list of screenshot file paths.
-    Works on both Windows (with FFMPEG_PATH) and Linux (ffmpeg in PATH).
     """
     import subprocess
     import shutil
+    import tempfile
     
     print(f"📸 Extracting {count} screenshots from {youtube_url}...")
     
     # Find ffmpeg executable
     ffmpeg_exe = None
     if FFMPEG_PATH and os.path.exists(os.path.join(FFMPEG_PATH, 'ffmpeg.exe')):
-        # Windows with explicit path
         ffmpeg_exe = os.path.join(FFMPEG_PATH, 'ffmpeg.exe')
     elif shutil.which('ffmpeg'):
-        # Linux/Mac or Windows with ffmpeg in PATH
         ffmpeg_exe = 'ffmpeg'
     else:
         print("⚠ FFmpeg not found, falling back to YouTube thumbnails")
@@ -138,113 +137,95 @@ def extract_video_screenshots(youtube_url, count=3):
     
     print(f"✓ Using FFmpeg: {ffmpeg_exe}")
     
-    ydl_opts = {
-        'format': 'best[height<=720]',  # Lower quality for faster extraction
-        'quiet': True,
-    }
-    
     screenshots = []
+    video_id = extract_video_id(youtube_url)
     
     try:
-        # Get video info and direct URL
+        # Get video duration first
+        ydl_opts = {'skip_download': True, 'quiet': True}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(youtube_url, download=False)
-            video_id = info_dict.get("id", None)
-            duration = info_dict.get("duration", 300)  # Default 5 min if unknown
-            
-            # Get direct video URL from formats - prefer mp4
-            formats = info_dict.get('formats', [])
-            video_url = None
-            
-            # First try to find mp4 format
-            for fmt in sorted(formats, key=lambda x: x.get('height', 0), reverse=True):
-                if fmt.get('vcodec') != 'none' and fmt.get('url'):
-                    if fmt.get('ext') == 'mp4' or 'mp4' in fmt.get('url', ''):
-                        video_url = fmt['url']
-                        print(f"✓ Found video format: {fmt.get('format_note', 'unknown')} ({fmt.get('height', '?')}p)")
-                        break
-            
-            # Fallback to any video format
-            if not video_url:
-                for fmt in formats:
-                    if fmt.get('vcodec') != 'none' and fmt.get('url'):
-                        video_url = fmt['url']
-                        break
-            
-            if not video_url:
-                print("⚠ Could not get direct video URL, using thumbnails")
-                return get_youtube_thumbnails(youtube_url, count)
+            info = ydl.extract_info(youtube_url, download=False)
+            duration = info.get('duration', 300)
+            video_id = info.get('id', video_id)
         
-        # Calculate timestamps (avoid first/last 15%)
-        start_offset = duration * 0.15
-        end_offset = duration * 0.85
-        usable_duration = end_offset - start_offset
+        print(f"✓ Video duration: {duration} seconds")
         
-        timestamps = []
-        for i in range(count):
-            # Distribute evenly
-            position = start_offset + (usable_duration * (i + 1) / (count + 1))
-            timestamps.append(int(position))
+        # Calculate 3 different timestamps (25%, 50%, 75% of video)
+        timestamps = [
+            int(duration * 0.25),
+            int(duration * 0.50),
+            int(duration * 0.75)
+        ]
         
-        print(f"📍 Timestamps: {timestamps} seconds (video duration: {duration}s)")
+        print(f"📍 Target timestamps: {timestamps} seconds")
         
-        # Extract screenshots using ffmpeg
-        for i, timestamp in enumerate(timestamps):
-            output_path = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_screenshot_{i+1}.jpg")
-            
-            # Build ffmpeg command (cross-platform)
-            cmd = [
-                ffmpeg_exe,
-                '-ss', str(timestamp),  # Seek to timestamp (before -i for fast seek)
-                '-i', video_url,  # Input URL
-                '-vframes', '1',  # Extract 1 frame
-                '-vf', 'scale=1280:-1',  # Scale to 1280px width
-                '-q:v', '2',  # High quality JPEG
-                '-y',  # Overwrite
-                output_path
-            ]
-            
+        # Download short segments and extract frames
+        for i, timestamp in enumerate(timestamps[:count]):
             try:
-                print(f"  Extracting screenshot {i+1}/{count} at {timestamp}s...")
-                result = subprocess.run(
-                    cmd, 
-                    capture_output=True, 
-                    text=True, 
-                    timeout=60,  # Increased timeout
-                    check=False
-                )
+                # Create temp file for video segment
+                temp_video = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_segment_{i}.mp4")
+                output_image = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_frame_{i+1}.jpg")
                 
-                if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                    screenshots.append(output_path)
-                    print(f"  ✓ Screenshot {i+1} saved ({os.path.getsize(output_path) // 1024}KB)")
+                # Download 2-second segment at timestamp using yt-dlp
+                print(f"  Downloading segment {i+1}/{count} at {timestamp}s...")
+                
+                ydl_opts_download = {
+                    'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
+                    'outtmpl': temp_video,
+                    'quiet': True,
+                    'no_warnings': True,
+                    # Download only specific section
+                    'download_ranges': lambda info, ydl: [{'start_time': timestamp, 'end_time': timestamp + 2}],
+                    'force_keyframes_at_cuts': True,
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
+                    ydl.download([youtube_url])
+                
+                # Check if video was downloaded
+                if os.path.exists(temp_video) and os.path.getsize(temp_video) > 1000:
+                    # Extract first frame from segment
+                    cmd = [
+                        ffmpeg_exe,
+                        '-i', temp_video,
+                        '-vframes', '1',
+                        '-vf', 'scale=1280:-1',
+                        '-q:v', '2',
+                        '-y',
+                        output_image
+                    ]
+                    
+                    subprocess.run(cmd, capture_output=True, timeout=30)
+                    
+                    if os.path.exists(output_image) and os.path.getsize(output_image) > 1000:
+                        screenshots.append(output_image)
+                        print(f"  ✓ Frame {i+1} extracted ({os.path.getsize(output_image) // 1024}KB)")
+                    
+                    # Clean up temp video
+                    try:
+                        os.remove(temp_video)
+                    except:
+                        pass
                 else:
-                    print(f"  ⚠ Screenshot {i+1} failed or too small")
-                    if result.stderr:
-                        # Show only relevant error info
-                        error_lines = [l for l in result.stderr.split('\n') if 'error' in l.lower()]
-                        if error_lines:
-                            print(f"    Error: {error_lines[0][:100]}")
-                        
-            except subprocess.TimeoutExpired:
-                print(f"  ⚠ Screenshot {i+1} timed out")
+                    print(f"  ⚠ Segment {i+1} download failed")
+                    
             except Exception as e:
-                print(f"  ⚠ Screenshot {i+1} error: {e}")
+                print(f"  ⚠ Error extracting frame {i+1}: {e}")
+                continue
         
+        # If we got screenshots, return them
+        if screenshots:
+            print(f"✓ Extracted {len(screenshots)} unique frames")
+            return screenshots
+            
     except Exception as e:
-        print(f"⚠ Error extracting screenshots: {e}")
+        print(f"⚠ Error in video extraction: {e}")
         import traceback
         traceback.print_exc()
-        # Fallback to thumbnails
-        return get_youtube_thumbnails(youtube_url, count)
     
-    # If we got fewer screenshots than requested, supplement with thumbnails
-    if len(screenshots) < count:
-        print(f"⚠ Only got {len(screenshots)}/{count} screenshots, adding thumbnails...")
-        thumbnails = get_youtube_thumbnails(youtube_url, count - len(screenshots))
-        screenshots.extend(thumbnails)
-    
-    print(f"✓ Total screenshots: {len(screenshots)}")
-    return screenshots
+    # Fallback to thumbnails if extraction failed
+    print("⚠ Falling back to YouTube thumbnails")
+    return get_youtube_thumbnails(youtube_url, count)
 
 
 def get_youtube_thumbnails(youtube_url, count=3):
