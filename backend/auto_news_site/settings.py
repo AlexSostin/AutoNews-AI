@@ -329,6 +329,20 @@ LOGS_DIR = BASE_DIR / 'logs'
 if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
 
+# Email Configuration (Gmail SMTP)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # your-email@gmail.com
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # App Password from Google
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Fresh Motors <noreply@freshmotors.net>')
+SERVER_EMAIL = EMAIL_HOST_USER
+
+# Fallback to console email in development
+if DEBUG and not EMAIL_HOST_USER:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 

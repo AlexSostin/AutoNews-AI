@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from django.conf import settings
-from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings, Favorite
+from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings, Favorite, Subscriber
 
 
 def validate_image_file(image):
@@ -288,3 +288,10 @@ class FavoriteSerializer(serializers.ModelSerializer):
         if obj.article.category:
             return obj.article.category.name
         return None
+
+
+class SubscriberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subscriber
+        fields = ['id', 'email', 'is_active', 'created_at']
+        read_only_fields = ['is_active', 'created_at']

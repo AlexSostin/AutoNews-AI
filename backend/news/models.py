@@ -272,3 +272,17 @@ class Favorite(models.Model):
     
     def __str__(self):
         return f"{self.user.username} → {self.article.title}"
+
+
+class Subscriber(models.Model):
+    """Email newsletter subscribers"""
+    email = models.EmailField(unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    unsubscribed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.email

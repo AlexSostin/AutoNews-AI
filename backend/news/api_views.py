@@ -8,12 +8,12 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django_ratelimit.decorators import ratelimit
 from django.contrib.auth.models import User
-from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings, Favorite
+from .models import Article, Category, Tag, Comment, Rating, CarSpecification, ArticleImage, SiteSettings, Favorite, Subscriber
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
     CategorySerializer, TagSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
-    SiteSettingsSerializer, FavoriteSerializer
+    SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer
 )
 import os
 import sys
@@ -882,3 +882,111 @@ class CurrencyRatesView(APIView):
                 }
         
         return Response(rates)
+
+
+class SubscriberViewSet(viewsets.ModelViewSet):
+    """
+    Newsletter subscription management.
+    - Anyone can subscribe (rate limited)
+    - Staff can view/manage subscribers
+    """
+    queryset = Subscriber.objects.filter(is_active=True)
+    serializer_class = SubscriberSerializer
+    permission_classes = [AllowAny]
+    
+    def get_permissions(self):
+        if self.action in ['list', 'destroy', 'send_newsletter']:
+            return [IsAuthenticated()]
+        return [AllowAny()]
+    
+    @method_decorator(ratelimit(key='ip', rate='5/h', method='POST', block=True))
+    def create(self, request, *args, **kwargs):
+        """Subscribe to newsletter"""
+        email = request.data.get('email', '').lower().strip()
+        
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if already subscribed
+        subscriber, created = Subscriber.objects.get_or_create(
+            email=email,
+            defaults={'is_active': True}
+        )
+        
+        if not created and subscriber.is_active:
+            return Response({'message': 'Already subscribed!'}, status=status.HTTP_200_OK)
+        
+        # Reactivate if previously unsubscribed
+        if not subscriber.is_active:
+            subscriber.is_active = True
+            subscriber.unsubscribed_at = None
+            subscriber.save()
+        
+        # Send welcome email
+        try:
+            from django.core.mail import send_mail
+            send_mail(
+                subject='Welcome to Fresh Motors! 🚗',
+                message='Thank you for subscribing to Fresh Motors newsletter!\n\nYou will receive the latest automotive news and reviews.',
+                from_email=None,  # Uses DEFAULT_FROM_EMAIL
+                recipient_list=[email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send welcome email: {e}")
+        
+        return Response({
+            'message': 'Successfully subscribed!',
+            'email': email
+        }, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['post'])
+    def unsubscribe(self, request):
+        """Unsubscribe from newsletter"""
+        from django.utils import timezone
+        
+        email = request.data.get('email', '').lower().strip()
+        
+        try:
+            subscriber = Subscriber.objects.get(email=email)
+            subscriber.is_active = False
+            subscriber.unsubscribed_at = timezone.now()
+            subscriber.save()
+            return Response({'message': 'Successfully unsubscribed'})
+        except Subscriber.DoesNotExist:
+            return Response({'error': 'Email not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def send_newsletter(self, request):
+        """Send newsletter to all active subscribers (admin only)"""
+        if not request.user.is_staff:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        subject = request.data.get('subject')
+        message = request.data.get('message')
+        
+        if not subject or not message:
+            return Response({'error': 'Subject and message required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        subscribers = Subscriber.objects.filter(is_active=True).values_list('email', flat=True)
+        
+        if not subscribers:
+            return Response({'error': 'No active subscribers'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from django.core.mail import send_mass_mail
+            
+            messages = [
+                (subject, message, None, [email])
+                for email in subscribers
+            ]
+            
+            sent = send_mass_mail(messages, fail_silently=False)
+            
+            return Response({
+                'message': f'Newsletter sent to {sent} subscribers',
+                'count': sent
+            })
+        except Exception as e:
+            logger.error(f"Failed to send newsletter: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

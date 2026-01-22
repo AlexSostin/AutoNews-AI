@@ -7,7 +7,7 @@ from .api_views import (
     ArticleViewSet, CategoryViewSet, TagViewSet, 
     CommentViewSet, RatingViewSet, CarSpecificationViewSet, 
     ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
-    FavoriteViewSet
+    FavoriteViewSet, SubscriberViewSet
 )
 from .health import health_check, health_check_detailed, readiness_check
 
@@ -37,6 +37,7 @@ router.register(r'article-images', ArticleImageViewSet, basename='articleimage')
 router.register(r'settings', SiteSettingsViewSet, basename='settings')
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'favorites', FavoriteViewSet, basename='favorite')
+router.register(r'subscribers', SubscriberViewSet, basename='subscriber')
 from .api_views import CurrencyRatesView
 
 urlpatterns = [
