@@ -286,43 +286,11 @@ class ArticleAdmin(admin.ModelAdmin):
                     storage_backend = getattr(settings, 'DEFAULT_FILE_STORAGE', 'default local')
                     print(f"📦 Storage backend: {storage_backend}")
                     
-                    # Helper function to upload to Cloudinary directly
-                    def upload_to_cloudinary(file_path, folder='articles'):
-                        """Upload file to Cloudinary and return the URL"""
-                        cloudinary_url = os.getenv('CLOUDINARY_URL')
-                        if not cloudinary_url or not os.path.exists(file_path):
-                            return None
-                        
-                        try:
-                            import cloudinary
-                            import cloudinary.uploader
-                            
-                            # Configure Cloudinary from URL
-                            cloudinary.config(cloudinary_url=cloudinary_url)
-                            
-                            # Upload file
-                            result = cloudinary.uploader.upload(
-                                file_path,
-                                folder=f"media/{folder}",
-                                resource_type="image"
-                            )
-                            print(f"✓ Uploaded to Cloudinary: {result.get('secure_url', 'unknown')}")
-                            return result.get('secure_url')
-                        except Exception as e:
-                            print(f"⚠ Cloudinary upload failed: {e}")
-                            return None
-                    
                     # Add thumbnail if available
                     if thumbnail_path and os.path.exists(thumbnail_path):
-                        cloudinary_url_img = upload_to_cloudinary(thumbnail_path)
-                        if cloudinary_url_img:
-                            # Store the Cloudinary URL directly
-                            article.image = cloudinary_url_img.replace('https://res.cloudinary.com/', '').split('/upload/')[-1]
-                        else:
-                            # Fallback to Django storage
-                            from django.core.files import File
-                            with open(thumbnail_path, 'rb') as f:
-                                article.image.save(os.path.basename(thumbnail_path), File(f), save=True)
+                        from django.core.files import File
+                        with open(thumbnail_path, 'rb') as f:
+                            article.image.save(os.path.basename(thumbnail_path), File(f), save=True)
                         print(f"✓ Thumbnail saved. URL: {article.image.url if article.image else 'None'}")
                     
                     # Extract 3 screenshots for article images and gallery
@@ -336,26 +304,19 @@ class ArticleAdmin(admin.ModelAdmin):
                         # Save screenshots to article's image fields
                         for i, screenshot_path in enumerate(screenshot_paths):
                             if os.path.exists(screenshot_path):
-                                # Upload to Cloudinary first
-                                cloudinary_img_url = upload_to_cloudinary(screenshot_path)
-                                
-                                # Use Django's File for storage backend
-                                with open(screenshot_path, 'rb') as f:
-                                    file_obj = File(f, name=os.path.basename(screenshot_path))
-                                    
-                                    # Save to article image fields with save=True to trigger Cloudinary
-                                    if i == 0:
-                                        if not article.image:
-                                            article.image.save(os.path.basename(screenshot_path), file_obj, save=True)
-                                        print(f"✓ Screenshot {i+1} saved to article.image")
-                                    elif i == 1:
-                                        with open(screenshot_path, 'rb') as f2:
-                                            article.image_2.save(os.path.basename(screenshot_path), File(f2), save=True)
-                                        print(f"✓ Screenshot {i+1} saved to article.image_2")
-                                    elif i == 2:
-                                        with open(screenshot_path, 'rb') as f3:
-                                            article.image_3.save(os.path.basename(screenshot_path), File(f3), save=True)
-                                        print(f"✓ Screenshot {i+1} saved to article.image_3")
+                                # Save to article image fields with save=True to trigger storage backend
+                                if i == 0 and not article.image:
+                                    with open(screenshot_path, 'rb') as f:
+                                        article.image.save(os.path.basename(screenshot_path), File(f), save=True)
+                                    print(f"✓ Screenshot {i+1} saved to article.image")
+                                elif i == 1:
+                                    with open(screenshot_path, 'rb') as f:
+                                        article.image_2.save(os.path.basename(screenshot_path), File(f), save=True)
+                                    print(f"✓ Screenshot {i+1} saved to article.image_2")
+                                elif i == 2:
+                                    with open(screenshot_path, 'rb') as f:
+                                        article.image_3.save(os.path.basename(screenshot_path), File(f), save=True)
+                                    print(f"✓ Screenshot {i+1} saved to article.image_3")
                                 
                                 # Also add to gallery
                                 with open(screenshot_path, 'rb') as f:
@@ -367,8 +328,7 @@ class ArticleAdmin(admin.ModelAdmin):
                                     )
                                 print(f"✓ Gallery image {i+1} added")
                         
-                        # Final save already happened with save=True above
-                        print(f"✓ All images saved to Cloudinary")
+                        print(f"✓ All images saved")
                         
                     except Exception as gallery_error:
                         print(f"⚠ Could not create gallery: {gallery_error}")
