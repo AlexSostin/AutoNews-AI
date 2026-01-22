@@ -17,6 +17,10 @@ const LOCAL_API_URL = 'http://localhost:8001/api/v1';
 
 // Get API URL - use production URL on Railway, localhost for local dev
 const getApiUrl = () => {
+  // Custom domain API
+  if (process.env.CUSTOM_DOMAIN_API) {
+    return process.env.CUSTOM_DOMAIN_API;
+  }
   // Check if running on Railway (production)
   if (process.env.RAILWAY_ENVIRONMENT === 'production') {
     return PRODUCTION_API_URL;

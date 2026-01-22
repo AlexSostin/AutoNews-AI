@@ -41,7 +41,13 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-immediately')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# Allowed hosts - includes custom domain
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [
+    'freshmotors.net',
+    'www.freshmotors.net',
+    'api.freshmotors.net',
+    '.freshmotors.net',  # Wildcard for all subdomains
+]
 
 
 # Application definition
@@ -489,6 +495,11 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
     'https://autonews-ai-production.up.railway.app',
     'https://heroic-healing-production-2365.up.railway.app',
+    # Custom domain
+    'https://freshmotors.net',
+    'https://www.freshmotors.net',
+    'http://freshmotors.net',
+    'http://www.freshmotors.net',
 ]
 
 # Also allow media files to be accessed cross-origin

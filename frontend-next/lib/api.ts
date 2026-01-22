@@ -2,6 +2,7 @@ import axios from 'axios';
 
 // Production API URL - hardcoded to avoid build-time issues
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+const CUSTOM_DOMAIN_API_URL = 'https://api.freshmotors.net/api/v1';
 const LOCAL_API_URL = 'http://localhost:8001/api/v1';
 
 // Runtime API URL detection - called on each request
@@ -17,7 +18,12 @@ export const getApiUrl = (): string => {
     return LOCAL_API_URL;
   }
   
-  // Production - return hardcoded URL
+  // Custom domain - use api subdomain
+  if (hostname.includes('freshmotors.net')) {
+    return CUSTOM_DOMAIN_API_URL;
+  }
+  
+  // Railway production fallback
   return PRODUCTION_API_URL;
 };
 
