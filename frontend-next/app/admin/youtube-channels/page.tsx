@@ -81,9 +81,9 @@ export default function YouTubeChannelsPage() {
       const headers = { 'Authorization': `Token ${token}` };
 
       const [channelsRes, categoriesRes, scheduleRes] = await Promise.all([
-        fetch(`${apiUrl}/api/v1/youtube-channels/`, { headers }),
-        fetch(`${apiUrl}/api/v1/categories/`),
-        fetch(`${apiUrl}/api/v1/auto-publish-schedule/`, { headers })
+        fetch(`${apiUrl}/youtube-channels/`, { headers }),
+        fetch(`${apiUrl}/categories/`),
+        fetch(`${apiUrl}/auto-publish-schedule/`, { headers })
       ]);
 
       if (channelsRes.ok) {
@@ -117,8 +117,8 @@ export default function YouTubeChannelsPage() {
       const token = localStorage.getItem('auth_token');
       
       const url = editingChannel 
-        ? `${apiUrl}/api/v1/youtube-channels/${editingChannel.id}/`
-        : `${apiUrl}/api/v1/youtube-channels/`;
+        ? `${apiUrl}/youtube-channels/${editingChannel.id}/`
+        : `${apiUrl}/youtube-channels/`;
       
       const response = await fetch(url, {
         method: editingChannel ? 'PUT' : 'POST',
@@ -156,7 +156,7 @@ export default function YouTubeChannelsPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      await fetch(`${apiUrl}/api/v1/youtube-channels/${id}/`, {
+const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Token ${token}` }
       });
@@ -173,7 +173,7 @@ export default function YouTubeChannelsPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      await fetch(`${apiUrl}/api/v1/youtube-channels/${channel.id}/`, {
+      await fetch(`${apiUrl}/youtube-channels/${channel.id}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ export default function YouTubeChannelsPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/youtube-channels/scan_all/`, {
+const response = await fetch(`${apiUrl}/youtube-channels/${id}/scan_now/`, {
         method: 'POST',
         headers: { 'Authorization': `Token ${token}` }
       });
@@ -220,7 +220,7 @@ export default function YouTubeChannelsPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      await fetch(`${apiUrl}/api/v1/auto-publish-schedule/1/`, {
+      await fetch(`${apiUrl}/auto-publish-schedule/1/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

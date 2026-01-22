@@ -42,7 +42,7 @@ export default function SubscribersPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/subscribers/`, {
+      const response = await fetch(`${apiUrl}/subscribers/`, {
         headers: { 'Authorization': `Token ${token}` }
       });
 
@@ -65,7 +65,7 @@ export default function SubscribersPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      await fetch(`${apiUrl}/api/v1/subscribers/${id}/`, {
+      await fetch(`${apiUrl}/subscribers/${id}/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Token ${token}` }
       });
@@ -86,7 +86,7 @@ export default function SubscribersPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/subscribers/send_newsletter/`, {
+      const response = await fetch(`${apiUrl}/subscribers/send_newsletter/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

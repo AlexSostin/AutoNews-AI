@@ -62,8 +62,8 @@ export default function PendingArticlesPage() {
       const headers = { 'Authorization': `Token ${token}` };
 
       const [articlesRes, statsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/v1/pending-articles/?status=${filter === 'pending' ? 'pending' : ''}`, { headers }),
-        fetch(`${apiUrl}/api/v1/pending-articles/stats/`, { headers })
+        fetch(`${apiUrl}/pending-articles/?status=${filter === 'pending' ? 'pending' : ''}`, { headers }),
+        fetch(`${apiUrl}/pending-articles/stats/`, { headers })
       ]);
 
       if (articlesRes.ok) {
@@ -87,7 +87,7 @@ export default function PendingArticlesPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/pending-articles/${id}/approve/`, {
+      const response = await fetch(`${apiUrl}/pending-articles/${id}/approve/`, {
         method: 'POST',
         headers: { 'Authorization': `Token ${token}` }
       });
@@ -116,7 +116,7 @@ export default function PendingArticlesPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/pending-articles/${id}/reject/`, {
+      const response = await fetch(`${apiUrl}/pending-articles/${id}/reject/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

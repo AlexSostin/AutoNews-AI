@@ -60,7 +60,7 @@ export default function AccountSettingsPage() {
         return;
       }
 
-      const response = await fetch(`${apiUrl}/api/v1/auth/user/`, {
+      const response = await fetch(`${apiUrl}/auth/user/`, {
         headers: { 'Authorization': `Token ${token}` }
       });
 
@@ -89,7 +89,7 @@ export default function AccountSettingsPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/auth/user/`, {
+      const response = await fetch(`${apiUrl}/auth/user/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ export default function AccountSettingsPage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/auth/password/change/`, {
+      const response = await fetch(`${apiUrl}/auth/password/change/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

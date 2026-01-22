@@ -59,12 +59,12 @@ export default function AnalyticsPage() {
         commentsRes,
         subscribersRes
       ] = await Promise.all([
-        fetch(`${apiUrl}/api/v1/articles/`),
-        fetch(`${apiUrl}/api/v1/articles/trending/`),
-        fetch(`${apiUrl}/api/v1/articles/popular/`),
-        fetch(`${apiUrl}/api/v1/categories/`),
-        fetch(`${apiUrl}/api/v1/comments/`, { headers }),
-        fetch(`${apiUrl}/api/v1/subscribers/`, { headers }).catch(() => null)
+        fetch(`${apiUrl}/articles/`),
+        fetch(`${apiUrl}/articles/trending/`),
+        fetch(`${apiUrl}/articles/popular/`),
+        fetch(`${apiUrl}/categories/`),
+        fetch(`${apiUrl}/comments/`, { headers }),
+        fetch(`${apiUrl}/subscribers/`, { headers }).catch(() => null)
       ]);
 
       const articlesData = await articlesRes.json();

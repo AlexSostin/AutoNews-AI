@@ -36,11 +36,11 @@ export default function AdminDashboard() {
       const headers: HeadersInit = token ? { 'Authorization': `Token ${token}` } : {};
 
       const [articlesRes, categoriesRes, tagsRes, commentsRes, subscribersRes] = await Promise.all([
-        fetch(`${apiUrl}/api/v1/articles/`),
-        fetch(`${apiUrl}/api/v1/categories/`),
-        fetch(`${apiUrl}/api/v1/tags/`),
-        fetch(`${apiUrl}/api/v1/comments/`, { headers }),
-        fetch(`${apiUrl}/api/v1/subscribers/`, { headers }).catch(() => null)
+        fetch(`${apiUrl}/articles/`),
+        fetch(`${apiUrl}/categories/`),
+        fetch(`${apiUrl}/tags/`),
+        fetch(`${apiUrl}/comments/`, { headers }),
+        fetch(`${apiUrl}/subscribers/`, { headers }).catch(() => null)
       ]);
 
       const articlesData = await articlesRes.json();

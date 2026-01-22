@@ -42,7 +42,7 @@ export default function SchedulePage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/auto-publish-schedule/`, {
+      const response = await fetch(`${apiUrl}/auto-publish-schedule/`, {
         headers: { 'Authorization': `Token ${token}` }
       });
 
@@ -55,7 +55,7 @@ export default function SchedulePage() {
           setSchedule(data[0]);
         } else {
           // Create default schedule
-          const createResponse = await fetch(`${apiUrl}/api/v1/auto-publish-schedule/`, {
+          const createResponse = await fetch(`${apiUrl}/auto-publish-schedule/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -90,7 +90,7 @@ export default function SchedulePage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/auto-publish-schedule/${schedule.id}/`, {
+      const response = await fetch(`${apiUrl}/auto-publish-schedule/${schedule.id}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ export default function SchedulePage() {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/auto-publish-schedule/${schedule.id}/trigger_scan/`, {
+      const response = await fetch(`${apiUrl}/auto-publish-schedule/${schedule.id}/trigger_scan/`, {
         method: 'POST',
         headers: { 'Authorization': `Token ${token}` }
       });
