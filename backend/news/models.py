@@ -4,9 +4,9 @@ from .image_utils import optimize_image
 
 class SiteSettings(models.Model):
     """Global site settings managed from admin panel"""
-    site_name = models.CharField(max_length=100, default="AutoNews")
+    site_name = models.CharField(max_length=100, default="Fresh Motors")
     site_description = models.TextField(default="Your source for automotive news and reviews")
-    contact_email = models.EmailField(default="admin@autonews.com")
+    contact_email = models.EmailField(default="admin@freshmotors.net")
     
     # Maintenance Mode
     maintenance_mode = models.BooleanField(default=False, help_text="Enable maintenance mode - only admins can access the site")
@@ -37,7 +37,7 @@ class SiteSettings(models.Model):
     google_adsense_id = models.CharField(max_length=50, blank=True, help_text="ca-pub-XXXXXX")
     
     # Footer
-    footer_text = models.TextField(default="© 2026 AutoNews. All rights reserved.")
+    footer_text = models.TextField(default="© 2026 Fresh Motors. All rights reserved.")
     
     # Contact Information
     contact_phone = models.CharField(max_length=50, blank=True, help_text="Phone number to display")

@@ -56,7 +56,7 @@ export default function MaintenancePage({ message }: MaintenancePageProps) {
 
         {/* Footer */}
         <p className="mt-12 text-white/50 text-sm">
-          © 2026 AutoNews. Скоро вернёмся!
+          © 2026 Fresh Motors. Скоро вернёмся!
         </p>
       </div>
     </div>

@@ -43,7 +43,7 @@ const defaultSettings: PageSettings = {
   contact_address_enabled: false,
   support_email: '',
   business_email: '',
-  about_page_title: 'About AutoNews',
+  about_page_title: 'About Fresh Motors',
   about_page_content: '',
   about_page_enabled: true,
   privacy_page_title: 'Privacy Policy',

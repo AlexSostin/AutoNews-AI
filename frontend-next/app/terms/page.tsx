@@ -3,8 +3,8 @@ import Footer from '@/components/public/Footer';
 import { FileText, AlertCircle, Scale, UserCheck } from 'lucide-react';
 
 export const metadata = {
-  title: 'Terms of Service - AutoNews',
-  description: 'Read the terms and conditions for using AutoNews website and services.',
+  title: 'Terms of Service - Fresh Motors',
+  description: 'Read the terms and conditions for using Fresh Motors website and services.',
 };
 
 export default function TermsPage() {
@@ -29,8 +29,8 @@ export default function TermsPage() {
             {/* Introduction */}
             <section className="mb-10">
               <p className="text-gray-700 mb-4">
-                Welcome to AutoNews. These Terms of Service ("Terms") govern your access to and use of our 
-                website, services, and content. By accessing or using AutoNews, you agree to be bound by 
+                Welcome to Fresh Motors. These Terms of Service ("Terms") govern your access to and use of our 
+                website, services, and content. By accessing or using Fresh Motors, you agree to be bound by 
                 these Terms. If you do not agree to these Terms, please do not use our website.
               </p>
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
@@ -87,7 +87,7 @@ export default function TermsPage() {
               <h3 className="text-lg font-bold text-gray-900 mb-2">Our Content</h3>
               <p className="text-gray-700 mb-4">
                 All content on this website, including but not limited to text, images, graphics, logos, 
-                videos, and software, is the property of AutoNews or its content suppliers and is protected 
+                videos, and software, is the property of Fresh Motors or its content suppliers and is protected 
                 by copyright, trademark, and other intellectual property laws.
               </p>
 
@@ -122,9 +122,9 @@ export default function TermsPage() {
               <h2 className="text-2xl font-black text-gray-900 mb-4">Third-Party Links and Services</h2>
               <p className="text-gray-700">
                 Our website may contain links to third-party websites or services that are not owned or 
-                controlled by AutoNews. We have no control over and assume no responsibility for the content, 
+                controlled by Fresh Motors. We have no control over and assume no responsibility for the content, 
                 privacy policies, or practices of any third-party websites or services. You acknowledge and 
-                agree that AutoNews shall not be liable for any damage or loss caused by your use of any 
+                agree that Fresh Motors shall not be liable for any damage or loss caused by your use of any 
                 third-party content or services.
               </p>
             </section>
@@ -140,7 +140,7 @@ export default function TermsPage() {
               <div className="bg-gray-100 rounded-lg p-4">
                 <p className="text-sm text-gray-700 font-medium uppercase mb-2">Disclaimer:</p>
                 <p className="text-sm text-gray-600">
-                  TO THE FULLEST EXTENT PERMITTED BY LAW, AUTONEWS DISCLAIMS ALL WARRANTIES, EXPRESS OR 
+                  TO THE FULLEST EXTENT PERMITTED BY LAW, FRESH MOTORS DISCLAIMS ALL WARRANTIES, EXPRESS OR 
                   IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND 
                   NON-INFRINGEMENT.
                 </p>
@@ -151,7 +151,7 @@ export default function TermsPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4">Limitation of Liability</h2>
               <p className="text-gray-700">
-                To the maximum extent permitted by law, AutoNews and its officers, directors, employees, 
+                To the maximum extent permitted by law, Fresh Motors and its officers, directors, employees, 
                 and agents shall not be liable for any indirect, incidental, special, consequential, or 
                 punitive damages, including but not limited to loss of profits, data, or other intangible 
                 losses resulting from your use or inability to use our website.
@@ -162,7 +162,7 @@ export default function TermsPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4">Indemnification</h2>
               <p className="text-gray-700">
-                You agree to indemnify, defend, and hold harmless AutoNews and its affiliates from any claims, 
+                You agree to indemnify, defend, and hold harmless Fresh Motors and its affiliates from any claims, 
                 liabilities, damages, losses, and expenses (including reasonable attorneys' fees) arising out 
                 of or in any way connected with your access to or use of our website or your violation of 
                 these Terms.
@@ -200,7 +200,7 @@ export default function TermsPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4">Age Requirements</h2>
               <p className="text-gray-700">
-                You must be at least 16 years of age to use this website. By using AutoNews, you represent 
+                You must be at least 16 years of age to use this website. By using Fresh Motors, you represent 
                 and warrant that you meet this age requirement. If you are under 16, please do not use our 
                 website or submit any personal information.
               </p>
@@ -210,7 +210,7 @@ export default function TermsPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4">International Users</h2>
               <p className="text-gray-700">
-                AutoNews is accessible worldwide. If you access the website from outside of our primary 
+                Fresh Motors is accessible worldwide. If you access the website from outside of our primary 
                 operating region, you do so at your own initiative and are responsible for compliance with 
                 local laws. Nothing in these Terms excludes or limits any consumer rights that cannot be 
                 excluded or limited under the laws of your country of residence.

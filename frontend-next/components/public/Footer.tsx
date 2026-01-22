@@ -153,7 +153,7 @@ export default function Footer() {
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
-            <h3 className="text-xl font-bold mb-4 text-purple-400">AutoNews</h3>
+            <h3 className="text-xl font-bold mb-4 text-purple-400">Fresh Motors</h3>
             <p className="text-gray-300 text-sm mb-4">
               Your source for the latest automotive news, reviews, and insights.
             </p>
@@ -233,7 +233,7 @@ export default function Footer() {
         </div>
         
         <div className="border-t border-gray-700 pt-8 text-center text-gray-400 text-sm">
-          <p>{settings?.footer_text || `© ${new Date().getFullYear()} AutoNews. All rights reserved.`}</p>
+          <p>{settings?.footer_text || `© ${new Date().getFullYear()} Fresh Motors. All rights reserved.`}</p>
         </div>
       </div>
     </footer>

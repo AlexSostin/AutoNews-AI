@@ -129,7 +129,7 @@ export default async function Home() {
         <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 text-white py-24 relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="container mx-auto px-4 text-center relative z-10">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg">Welcome to AutoNews</h1>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg">Welcome to Fresh Motors</h1>
             <p className="text-lg sm:text-xl md:text-2xl mb-10 text-white/90 max-w-2xl mx-auto">Your premier source for automotive news, reviews, and insights</p>
             <Link 
               href="/articles" 

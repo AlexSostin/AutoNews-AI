@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Header with Close Button (Mobile) */}
         <div className="p-4 sm:p-6 flex items-center justify-between">
           <h2 className="text-xl sm:text-2xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-            AutoNews Admin
+            Fresh Motors Admin
           </h2>
           <button
             onClick={onClose}

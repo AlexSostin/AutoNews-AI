@@ -5,7 +5,7 @@ import CookieConsent from "@/components/public/CookieConsent";
 import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
-  title: "AutoNews - Latest Automotive News & Reviews",
+  title: "Fresh Motors - Latest Automotive News & Reviews",
   description: "Your source for the latest automotive news, car reviews, and industry insights.",
 };
 

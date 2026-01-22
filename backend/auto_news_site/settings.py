@@ -355,15 +355,15 @@ if CLOUDINARY_URL and not DEBUG:
 
 # Jazzmin Settings
 JAZZMIN_SETTINGS = {
-    "site_title": "AutoNews Admin",
-    "site_header": "AutoNews",
-    "site_brand": "🚗 AutoNews",
+    "site_title": "Fresh Motors Admin",
+    "site_header": "Fresh Motors",
+    "site_brand": "🚗 Fresh Motors",
     "site_logo": None,
     "login_logo": None,
     "site_logo_classes": "img-circle",
     "site_icon": None,
     "welcome_sign": "✅ You are logged in as:",
-    "copyright": "AutoNews 2026",
+    "copyright": "Fresh Motors 2026",
     "search_model": ["news.Article", "news.Category"],
     "user_avatar": None,
     

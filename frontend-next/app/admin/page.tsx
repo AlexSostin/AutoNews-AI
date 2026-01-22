@@ -63,7 +63,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-4 sm:p-6 mt-4 sm:mt-6">
-        <h2 className="text-lg sm:text-xl font-black text-gray-950 mb-3 sm:mb-4">Welcome to AutoNews Admin!</h2>
+        <h2 className="text-lg sm:text-xl font-black text-gray-950 mb-3 sm:mb-4">Welcome to Fresh Motors Admin!</h2>
         <p className="text-sm sm:text-base text-gray-800 mb-3 sm:mb-4 font-medium">
           This is your admin dashboard. From here you can manage all aspects of your automotive news site.
         </p>

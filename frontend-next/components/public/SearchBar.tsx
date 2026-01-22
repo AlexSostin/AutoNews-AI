@@ -196,7 +196,7 @@ export default function SearchBar() {
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-500/20 rounded-full mb-4">
                       <Sparkles size={32} className="text-purple-400" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">Search AutoNews</h3>
+                    <h3 className="text-lg font-semibold text-white mb-2">Search Fresh Motors</h3>
                     <p className="text-gray-400 text-sm">
                       Find articles about cars, EVs, reviews and more
                     </p>

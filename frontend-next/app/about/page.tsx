@@ -3,8 +3,8 @@ import Footer from '@/components/public/Footer';
 import { Users, Target, Award, TrendingUp } from 'lucide-react';
 
 export const metadata = {
-  title: 'About Us - AutoNews',
-  description: 'Learn more about AutoNews - your trusted source for automotive news and reviews.',
+  title: 'About Us - Fresh Motors',
+  description: 'Learn more about Fresh Motors - your trusted source for automotive news and reviews.',
 };
 
 export default function AboutPage() {
@@ -16,7 +16,7 @@ export default function AboutPage() {
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-20">
           <div className="container mx-auto px-4 text-center">
-            <h1 className="text-4xl md:text-5xl font-black mb-4">About AutoNews</h1>
+            <h1 className="text-4xl md:text-5xl font-black mb-4">About Fresh Motors</h1>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Your trusted source for the latest automotive news, in-depth reviews, and expert insights.
             </p>
@@ -30,7 +30,7 @@ export default function AboutPage() {
             <div className="prose prose-lg max-w-none text-gray-700">
               <p className="mb-4">
                 Founded with a passion for automobiles and a commitment to delivering accurate, timely information, 
-                AutoNews has grown into a comprehensive platform for car enthusiasts, industry professionals, 
+                Fresh Motors has grown into a comprehensive platform for car enthusiasts, industry professionals, 
                 and everyday drivers alike.
               </p>
               <p className="mb-4">

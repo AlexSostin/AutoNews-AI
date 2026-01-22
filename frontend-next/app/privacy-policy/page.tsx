@@ -3,8 +3,8 @@ import Footer from '@/components/public/Footer';
 import { Shield, Lock, Eye, Database, Cookie, Mail } from 'lucide-react';
 
 export const metadata = {
-  title: 'Privacy Policy - AutoNews',
-  description: 'Learn about how AutoNews collects, uses, and protects your personal information.',
+  title: 'Privacy Policy - Fresh Motors',
+  description: 'Learn about how Fresh Motors collects, uses, and protects your personal information.',
 };
 
 export default function PrivacyPolicyPage() {
@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
             {/* Introduction */}
             <section className="mb-10">
               <p className="text-gray-700 mb-4">
-                At AutoNews, we take your privacy seriously. This Privacy Policy explains how we collect, 
+                At Fresh Motors, we take your privacy seriously. This Privacy Policy explains how we collect, 
                 use, disclose, and safeguard your information when you visit our website. Please read this 
                 privacy policy carefully. If you do not agree with the terms of this privacy policy, 
                 please do not access the site.

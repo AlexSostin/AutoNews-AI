@@ -84,7 +84,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <Link href="/" className="text-4xl font-bold text-white hover:scale-105 transition-transform inline-block">
-            🚗 AutoNews
+            🚗 Fresh Motors
           </Link>
           <p className="text-white/90 mt-2">Admin Login</p>
         </div>
