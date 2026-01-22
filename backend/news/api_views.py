@@ -409,11 +409,58 @@ class ArticleViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def increment_views(self, request, slug=None):
-        """Increment article views"""
+        """Increment article views using Redis atomic counter for better performance"""
         article = self.get_object()
-        article.views += 1
-        article.save(update_fields=['views'])
-        return Response({'views': article.views})
+        
+        # Try to use Redis for atomic increment (faster, no race conditions)
+        try:
+            from django_redis import get_redis_connection
+            redis_conn = get_redis_connection("default")
+            cache_key = f"article_views:{article.id}"
+            
+            # Atomic increment in Redis
+            new_count = redis_conn.incr(cache_key)
+            
+            # Sync to database every 10 views (reduces DB writes)
+            if new_count % 10 == 0:
+                Article.objects.filter(id=article.id).update(views=new_count)
+            
+            return Response({'views': new_count})
+        except Exception:
+            # Fallback to database if Redis unavailable
+            article.views += 1
+            article.save(update_fields=['views'])
+            return Response({'views': article.views})
+    
+    @action(detail=False, methods=['get'])
+    @method_decorator(cache_page(60 * 15))  # Cache trending for 15 minutes
+    def trending(self, request):
+        """Get trending articles (most viewed in last 7 days)"""
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Get articles from last 7 days, sorted by views
+        week_ago = timezone.now() - timedelta(days=7)
+        trending = Article.objects.filter(
+            is_published=True,
+            is_deleted=False,
+            created_at__gte=week_ago
+        ).order_by('-views')[:10]
+        
+        serializer = ArticleListSerializer(trending, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    @method_decorator(cache_page(60 * 60))  # Cache popular for 1 hour
+    def popular(self, request):
+        """Get most popular articles (all time)"""
+        popular = Article.objects.filter(
+            is_published=True,
+            is_deleted=False
+        ).order_by('-views')[:10]
+        
+        serializer = ArticleListSerializer(popular, many=True, context={'request': request})
+        return Response(serializer.data)
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def reset_all_views(self, request):
@@ -429,6 +476,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
 
 class CommentViewSet(viewsets.ModelViewSet):
+    """
+    Comments API with rate limiting to prevent spam.
+    - Anyone can create comments (rate limited to 10/hour per IP)
+    - Staff can approve/delete comments
+    """
     queryset = Comment.objects.select_related('article')
     serializer_class = CommentSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -459,6 +511,11 @@ class CommentViewSet(viewsets.ModelViewSet):
             
         return queryset
     
+    @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
+    def create(self, request, *args, **kwargs):
+        """Create comment with rate limiting (10 comments per hour per IP)"""
+        return super().create(request, *args, **kwargs)
+    
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def approve(self, request, pk=None):
         """Approve comment"""
@@ -470,6 +527,10 @@ class CommentViewSet(viewsets.ModelViewSet):
 
 
 class RatingViewSet(viewsets.ModelViewSet):
+    """
+    Ratings API with rate limiting.
+    - Users can rate articles (rate limited to 20/hour per IP)
+    """
     queryset = Rating.objects.select_related('article')
     serializer_class = RatingSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]

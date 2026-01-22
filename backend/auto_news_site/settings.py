@@ -147,6 +147,22 @@ except (redis.ConnectionError, redis.RedisError, Exception):
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
         }
     }
+    redis_client = None
+
+# Session Configuration - Use Redis for faster sessions
+REDIS_URL = os.getenv("REDIS_URL")
+if REDIS_URL and redis_client:
+    # Store sessions in Redis (faster than database)
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
+    print("✓ Sessions stored in Redis")
+else:
+    # Fallback to database sessions
+    SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 days
+SESSION_COOKIE_SECURE = not DEBUG  # HTTPS only in production
+SESSION_COOKIE_HTTPONLY = True
 
 
 # Database
