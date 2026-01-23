@@ -235,18 +235,10 @@ class CommentSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
-        print(f"=== COMMENT SERIALIZER INIT DEBUG ===")
-        print(f"Request: {request}")
-        print(f"Request user: {request.user if request else 'No request'}")
-        print(f"User authenticated: {request and request.user.is_authenticated}")
-
         if request and request.user.is_authenticated:
             # For authenticated users, name and email are optional (will be filled from profile)
             self.fields['name'].required = False
             self.fields['email'].required = False
-            print("Set name and email as optional for authenticated user")
-        else:
-            print("User not authenticated - name and email required")
     
     def get_article_image(self, obj):
         if obj.article and obj.article.image and hasattr(obj.article.image, 'url'):
@@ -260,94 +252,61 @@ class CommentSerializer(serializers.ModelSerializer):
     
     def validate_name(self, value):
         """Sanitize name to prevent XSS"""
-        request = self.context.get('request')
-        print(f"Validating name: '{value}', authenticated: {request and request.user.is_authenticated}")
-
         import html
         import re
+        request = self.context.get('request')
         if request and request.user.is_authenticated and not value:
             # For authenticated users, allow empty name (will be filled from profile)
-            print("Name validation passed (empty allowed for auth user)")
             return value
         if not value or len(value.strip()) < 2:
-            print(f"Name validation failed: too short or empty")
             raise serializers.ValidationError("Name must be at least 2 characters")
         if len(value) > 100:
-            print(f"Name validation failed: too long ({len(value)} chars)")
             raise serializers.ValidationError("Name must be less than 100 characters")
         # Remove HTML tags and escape special characters
         cleaned = re.sub(r'<[^>]+>', '', value)
-        result = html.escape(cleaned.strip())
-        print(f"Name validation passed: '{result}'")
-        return result
+        return html.escape(cleaned.strip())
     
     def validate_email(self, value):
         """Validate email format"""
-        request = self.context.get('request')
-        print(f"Validating email: '{value}', authenticated: {request and request.user.is_authenticated}")
-
         import re
+        request = self.context.get('request')
         if request and request.user.is_authenticated and not value:
             # For authenticated users, allow empty email (will be filled from profile)
-            print("Email validation passed (empty allowed for auth user)")
             return value
         if not value:  # For guest users, email is required
-            print("Email validation failed: required but empty for guest user")
             raise serializers.ValidationError("Email is required")
         email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(email_regex, value):
-            print(f"Email validation failed: invalid format '{value}'")
             raise serializers.ValidationError("Invalid email format")
-        result = value.lower().strip()
-        print(f"Email validation passed: '{result}'")
-        return result
+        return value.lower().strip()
     
     def validate_content(self, value):
         """Sanitize content to prevent XSS"""
-        print(f"Validating content: '{value[:50]}...' (length: {len(value) if value else 0})")
-
         import html
         import re
         if not value or len(value.strip()) < 5:
-            print("Content validation failed: too short")
             raise serializers.ValidationError("Comment must be at least 5 characters")
         if len(value) > 2000:
-            print(f"Content validation failed: too long ({len(value)} chars)")
             raise serializers.ValidationError("Comment must be less than 2000 characters")
         # Remove HTML tags and escape special characters
         cleaned = re.sub(r'<[^>]+>', '', value)
-        result = html.escape(cleaned.strip())
-        print(f"Content validation passed: '{result[:50]}...'")
-        return result
+        return html.escape(cleaned.strip())
     
     def create(self, validated_data):
         request = self.context.get('request')
-        print(f"=== COMMENT SERIALIZER CREATE DEBUG ===")
-        print(f"Request user authenticated: {request and request.user.is_authenticated}")
-        print(f"Request user: {request.user if request else 'No request'}")
-        print(f"Initial validated_data: {validated_data}")
-
         if request and request.user.is_authenticated:
-            print(f"Authenticated user processing...")
             # For authenticated users, use their profile data if fields are empty
             if not validated_data.get('name'):
                 # Ensure we have a valid name - use username or fallback to 'User'
                 username = request.user.username or request.user.first_name or 'User'
                 validated_data['name'] = username.strip() or 'User'
-                print(f"Set name from profile: {validated_data['name']}")
             if not validated_data.get('email') and request.user.email:
                 validated_data['email'] = request.user.email
-                print(f"Set email from profile: {validated_data['email']}")
             # If user has no email in profile, use a placeholder or allow empty
             elif not validated_data.get('email'):
                 safe_username = (request.user.username or 'user').replace('@', '_').replace('.', '_')
                 validated_data['email'] = f"{safe_username}_{request.user.id}@no-email.local"
-                print(f"Generated email placeholder: {validated_data['email']}")
-
-        print(f"Final validated_data: {validated_data}")
-        result = super().create(validated_data)
-        print(f"Created comment: {result}")
-        return result
+        return super().create(validated_data)
 
 
 class RatingSerializer(serializers.ModelSerializer):
