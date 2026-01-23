@@ -302,7 +302,8 @@ class CommentSerializer(serializers.ModelSerializer):
                 validated_data['email'] = request.user.email
             # If user has no email in profile, use a placeholder or allow empty
             elif not validated_data.get('email'):
-                validated_data['email'] = f"{request.user.username}@no-email.local"
+                safe_username = request.user.username.replace('@', '_').replace('.', '_')
+                validated_data['email'] = f"{safe_username}_{request.user.id}@no-email.local"
         return super().create(validated_data)
 
 
