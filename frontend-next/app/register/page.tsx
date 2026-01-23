@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import './register-password.css';
 import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import Link from 'next/link';
@@ -24,6 +26,8 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -130,35 +134,57 @@ export default function RegisterPage() {
               />
             </div>
 
-            <div>
+            <div className="relative">
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
               <input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
                 required
                 minLength={8}
+                autoComplete="new-password"
               />
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-9 transform -translate-y-1/2 text-gray-400 hover:text-indigo-600 focus:outline-none"
+                style={{ background: 'none', border: 'none', padding: 0 }}
+              >
+                {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+              </button>
               <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
             </div>
 
-            <div>
+            <div className="relative">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
                 Confirm Password
               </label>
               <input
                 id="confirmPassword"
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
                 required
                 minLength={8}
+                autoComplete="new-password"
               />
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                className="absolute right-3 top-9 transform -translate-y-1/2 text-gray-400 hover:text-indigo-600 focus:outline-none"
+                style={{ background: 'none', border: 'none', padding: 0 }}
+              >
+                {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+              </button>
             </div>
 
             <button

@@ -229,8 +229,16 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'article_title', 'article_slug', 'article_image',
                            'article_category', 'author_name']
         extra_kwargs = {
-            'email': {'write_only': True}  # Email is write-only (hidden in responses)
+            'email': {'write_only': True, 'required': False}  # Email is write-only and optional for authenticated users
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            # For authenticated users, email is optional (they have email in profile)
+            self.fields['email'].required = False
+            self.fields['name'].required = False
     
     def get_article_image(self, obj):
         if obj.article and obj.article.image and hasattr(obj.article.image, 'url'):
@@ -257,6 +265,8 @@ class CommentSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         """Validate email format"""
         import re
+        if not value:  # Allow empty email for authenticated users
+            return value
         email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(email_regex, value):
             raise serializers.ValidationError("Invalid email format")
@@ -273,6 +283,16 @@ class CommentSerializer(serializers.ModelSerializer):
         # Remove HTML tags and escape special characters
         cleaned = re.sub(r'<[^>]+>', '', value)
         return html.escape(cleaned.strip())
+    
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            # For authenticated users, use their profile data if fields are empty
+            if not validated_data.get('name'):
+                validated_data['name'] = request.user.username
+            if not validated_data.get('email') and request.user.email:
+                validated_data['email'] = request.user.email
+        return super().create(validated_data)
 
 
 class RatingSerializer(serializers.ModelSerializer):

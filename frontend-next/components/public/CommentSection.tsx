@@ -69,12 +69,26 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     setMessage('');
 
     try {
-      await api.post('/comments/', {
+      const commentData: any = {
         article: articleId,
-        name: formData.author_name,
-        email: formData.author_email,
         content: formData.content
-      });
+      };
+
+      // For authenticated users, only send name/email if they are filled
+      if (!isUserAuthenticated) {
+        commentData.name = formData.author_name;
+        commentData.email = formData.author_email;
+      } else {
+        // For authenticated users, send name/email only if different from profile or filled
+        if (formData.author_name && formData.author_name !== getUserFromStorage()?.username) {
+          commentData.name = formData.author_name;
+        }
+        if (formData.author_email && formData.author_email !== getUserFromStorage()?.email) {
+          commentData.email = formData.author_email;
+        }
+      }
+
+      await api.post('/comments/', commentData);
 
       setMessage('✓ Comment submitted! It will appear after moderation.');
       setFormData({ 

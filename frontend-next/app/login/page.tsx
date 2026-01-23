@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import '../register/register-password.css';
 import { useRouter } from 'next/navigation';
 import { login } from '@/lib/auth';
 import { LogIn } from 'lucide-react';
@@ -10,6 +12,7 @@ import toast from 'react-hot-toast';
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ username: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -123,18 +126,29 @@ export default function LoginPage() {
               />
             </div>
 
-            <div>
+            <div className="relative">
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
               <input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
                 required
+                autoComplete="current-password"
               />
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-9 transform -translate-y-1/2 text-gray-400 hover:text-indigo-600 focus:outline-none"
+                style={{ background: 'none', border: 'none', padding: 0 }}
+              >
+                {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+              </button>
             </div>
 
             <button
