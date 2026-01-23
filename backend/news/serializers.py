@@ -297,12 +297,14 @@ class CommentSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             # For authenticated users, use their profile data if fields are empty
             if not validated_data.get('name'):
-                validated_data['name'] = request.user.username
+                # Ensure we have a valid name - use username or fallback to 'User'
+                username = request.user.username or request.user.first_name or 'User'
+                validated_data['name'] = username.strip() or 'User'
             if not validated_data.get('email') and request.user.email:
                 validated_data['email'] = request.user.email
             # If user has no email in profile, use a placeholder or allow empty
             elif not validated_data.get('email'):
-                safe_username = request.user.username.replace('@', '_').replace('.', '_')
+                safe_username = (request.user.username or 'user').replace('@', '_').replace('.', '_')
                 validated_data['email'] = f"{safe_username}_{request.user.id}@no-email.local"
         return super().create(validated_data)
 
