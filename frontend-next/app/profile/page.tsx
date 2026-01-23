@@ -84,7 +84,7 @@ export default function ProfilePage() {
     try {
       const response = await fetch(`${getApiUrl()}/comments/my_comments/`, {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       if (response.ok) {
@@ -103,7 +103,7 @@ export default function ProfilePage() {
     try {
       const response = await fetch(`${getApiUrl()}/ratings/my_ratings/`, {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       if (response.ok) {
@@ -138,7 +138,7 @@ export default function ProfilePage() {
     try {
       const response = await fetch(`${getApiUrl()}/comments/my_comments/`, {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       if (response.ok) {
@@ -160,7 +160,7 @@ export default function ProfilePage() {
     try {
       const response = await fetch(`${getApiUrl()}/ratings/my_ratings/`, {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       if (response.ok) {
