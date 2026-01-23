@@ -113,15 +113,23 @@ def download_thumbnail_only(youtube_url):
     return video_id, thumbnail_path, video_title
 
 
-def extract_video_screenshots(youtube_url, count=3):
+def extract_video_screenshots(youtube_url, output_dir=None, count=3):
     """
     Extracts multiple screenshots from a YouTube video at different timestamps.
     Downloads short video segments and extracts frames from them.
     Returns list of screenshot file paths.
+    
+    Args:
+        youtube_url: YouTube video URL
+        output_dir: Directory to save screenshots (optional, defaults to TRANSCRIPTS_DIR)
+        count: Number of screenshots to extract
     """
     import subprocess
     import shutil
     import tempfile
+    
+    if output_dir is None:
+        output_dir = TRANSCRIPTS_DIR
     
     print(f"📸 Extracting {count} screenshots from {youtube_url}...")
     
@@ -133,7 +141,7 @@ def extract_video_screenshots(youtube_url, count=3):
         ffmpeg_exe = 'ffmpeg'
     else:
         print("⚠ FFmpeg not found, falling back to YouTube thumbnails")
-        return get_youtube_thumbnails(youtube_url, count)
+        return get_youtube_thumbnails(youtube_url, output_dir=output_dir, count=count)
     
     print(f"✓ Using FFmpeg: {ffmpeg_exe}")
     
@@ -163,8 +171,8 @@ def extract_video_screenshots(youtube_url, count=3):
         for i, timestamp in enumerate(timestamps[:count]):
             try:
                 # Create temp file for video segment
-                temp_video = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_segment_{i}.mp4")
-                output_image = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_frame_{i+1}.jpg")
+                temp_video = os.path.join(output_dir, f"{video_id}_segment_{i}.mp4")
+                output_image = os.path.join(output_dir, f"{video_id}_frame_{i+1}.jpg")
                 
                 # Download 2-second segment at timestamp using yt-dlp
                 print(f"  Downloading segment {i+1}/{count} at {timestamp}s...")
@@ -225,15 +233,23 @@ def extract_video_screenshots(youtube_url, count=3):
     
     # Fallback to thumbnails if extraction failed
     print("⚠ Falling back to YouTube thumbnails")
-    return get_youtube_thumbnails(youtube_url, count)
+    return get_youtube_thumbnails(youtube_url, output_dir=output_dir, count=count)
 
 
-def get_youtube_thumbnails(youtube_url, count=3):
+def get_youtube_thumbnails(youtube_url, output_dir=None, count=3):
     """
     Fallback: Get YouTube thumbnail images (different quality/positions).
     Returns list of downloaded thumbnail paths.
+    
+    Args:
+        youtube_url: YouTube video URL
+        output_dir: Directory to save thumbnails (optional, defaults to TRANSCRIPTS_DIR)
+        count: Number of thumbnails to download
     """
     import urllib.request
+    
+    if output_dir is None:
+        output_dir = TRANSCRIPTS_DIR
     
     video_id = extract_video_id(youtube_url)
     if not video_id:
@@ -256,7 +272,7 @@ def get_youtube_thumbnails(youtube_url, count=3):
         if len(downloaded) >= count:
             break
             
-        output_path = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_thumb_{i+1}.jpg")
+        output_path = os.path.join(output_dir, f"{video_id}_thumb_{i+1}.jpg")
         
         try:
             urllib.request.urlretrieve(url, output_path)

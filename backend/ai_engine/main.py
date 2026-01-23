@@ -24,14 +24,14 @@ try:
     from ai_engine.modules.analyzer import analyze_transcript
     from ai_engine.modules.article_generator import generate_article
     from ai_engine.modules.publisher import publish_article
-    from ai_engine.modules.screenshot_maker import extract_screenshots_simple
+    from ai_engine.modules.downloader import extract_video_screenshots
 except ImportError:
     from modules.downloader import download_audio_and_thumbnail
     from modules.transcriber import transcribe_from_youtube
     from modules.analyzer import analyze_transcript
     from modules.article_generator import generate_article
     from modules.publisher import publish_article
-    from modules.screenshot_maker import extract_screenshots_simple
+    from modules.downloader import extract_video_screenshots
 
 def extract_title(html_content):
     match = re.search(r'<h2>(.*?)</h2>', html_content)
@@ -209,7 +209,7 @@ def generate_article_from_youtube(youtube_url, task_id=None):
             os.makedirs(screenshots_dir, exist_ok=True)
             
             # Извлекаем 3 скриншота из разных моментов видео
-            screenshot_paths = extract_screenshots_simple(youtube_url, screenshots_dir, num_screenshots=3)
+            screenshot_paths = extract_video_screenshots(youtube_url, output_dir=screenshots_dir, count=3)
             
             if screenshot_paths:
                 send_progress(6, 85, f"✓ Извлечено {len(screenshot_paths)} скриншотов")
