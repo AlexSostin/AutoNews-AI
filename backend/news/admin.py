@@ -526,17 +526,7 @@ class FavoriteAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(SiteSettings)
-class SiteSettingsAdmin(admin.ModelAdmin):
-    """Admin for global site settings"""
-    
-    def has_add_permission(self, request):
-        # Only one instance allowed
-        return not SiteSettings.objects.exists()
-    
-    def has_delete_permission(self, request, obj=None):
-        # Prevent deletion of the settings
-        return False
+
     
     fieldsets = (
         ('Site Information', {
