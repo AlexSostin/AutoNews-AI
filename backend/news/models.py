@@ -280,6 +280,50 @@ class Favorite(models.Model):
         return f"{self.user.username} → {self.article.title}"
 
 
+class EmailPreferences(models.Model):
+    """User email notification preferences"""
+    user = models.OneToOneField(
+        'auth.User', on_delete=models.CASCADE, 
+        related_name='email_preferences'
+    )
+    
+    # Newsletter preferences
+    newsletter_enabled = models.BooleanField(
+        default=True, 
+        help_text="Receive weekly newsletter with top articles"
+    )
+    new_articles_enabled = models.BooleanField(
+        default=False, 
+        help_text="Get notified when new articles are published"
+    )
+    
+    # Interaction notifications
+    comment_replies_enabled = models.BooleanField(
+        default=True, 
+        help_text="Get notified when someone replies to your comment"
+    )
+    favorite_updates_enabled = models.BooleanField(
+        default=False, 
+        help_text="Get notified about updates to your favorite articles"
+    )
+    
+    # Marketing
+    marketing_enabled = models.BooleanField(
+        default=False, 
+        help_text="Receive promotional emails and special offers"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Email Preferences"
+        verbose_name_plural = "Email Preferences"
+    
+    def __str__(self):
+        return f"Email preferences for {self.user.username}"
+
+
 class Subscriber(models.Model):
     """Email newsletter subscribers"""
     email = models.EmailField(unique=True)

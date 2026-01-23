@@ -47,7 +47,15 @@ interface Favorite {
   created_at: string;
 }
 
-type ModalType = 'favorites' | 'comments' | 'ratings' | null;
+interface EmailPreferences {
+  newsletter_enabled: boolean;
+  new_articles_enabled: boolean;
+  comment_replies_enabled: boolean;
+  favorite_updates_enabled: boolean;
+  marketing_enabled: boolean;
+}
+
+type ModalType = 'favorites' | 'comments' | 'ratings' | 'editProfile' | 'changePassword' | 'emailPreferences' | null;
 
 export default function ProfilePage() {
   const [user, setUser] = useState<UserType | null>(null);
@@ -64,6 +72,33 @@ export default function ProfilePage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
+  
+  // Edit Profile state
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+  
+  // Change Password state
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword1, setNewPassword1] = useState('');
+  const [newPassword2, setNewPassword2] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  
+  // Email Preferences state
+  const [emailPrefs, setEmailPrefs] = useState<EmailPreferences>({
+    newsletter_enabled: true,
+    new_articles_enabled: false,
+    comment_replies_enabled: true,
+    favorite_updates_enabled: false,
+    marketing_enabled: false,
+  });
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsSuccess, setPrefsSuccess] = useState('');
 
   const loadFavoritesCount = async () => {
     const token = getToken();
@@ -184,6 +219,169 @@ export default function ProfilePage() {
       setFavoritesCount(prev => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Failed to remove favorite:', err);
+    }
+  };
+
+  // Account Settings functions
+  const openEditProfile = () => {
+    if (user) {
+      setEditFirstName(user.first_name || '');
+      setEditLastName(user.last_name || '');
+      setEditEmail(user.email || '');
+      setProfileError('');
+      setProfileSuccess('');
+    }
+    setActiveModal('editProfile');
+  };
+
+  const saveProfile = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setProfileSaving(true);
+    setProfileError('');
+    setProfileSuccess('');
+
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/user/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          first_name: editFirstName,
+          last_name: editLastName,
+          email: editEmail,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update local user state
+        setUser(prev => prev ? { ...prev, ...data } : null);
+        // Update localStorage
+        const stored = getUserFromStorage();
+        if (stored) {
+          localStorage.setItem('user', JSON.stringify({ ...stored, ...data }));
+        }
+        setProfileSuccess('Profile updated successfully!');
+        setTimeout(() => closeModal(), 1500);
+      } else {
+        const error = await response.json();
+        setProfileError(error.email?.[0] || error.detail || 'Failed to update profile');
+      }
+    } catch (err) {
+      setProfileError('Network error. Please try again.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const openChangePassword = () => {
+    setOldPassword('');
+    setNewPassword1('');
+    setNewPassword2('');
+    setPasswordError('');
+    setPasswordSuccess('');
+    setActiveModal('changePassword');
+  };
+
+  const changePassword = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setPasswordSaving(true);
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword1 !== newPassword2) {
+      setPasswordError('Passwords do not match');
+      setPasswordSaving(false);
+      return;
+    }
+
+    if (newPassword1.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      setPasswordSaving(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/password/change/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          old_password: oldPassword,
+          new_password1: newPassword1,
+          new_password2: newPassword2,
+        }),
+      });
+
+      if (response.ok) {
+        setPasswordSuccess('Password changed successfully!');
+        setTimeout(() => closeModal(), 1500);
+      } else {
+        const error = await response.json();
+        setPasswordError(error.old_password?.[0] || error.new_password1?.[0] || error.detail || 'Failed to change password');
+      }
+    } catch (err) {
+      setPasswordError('Network error. Please try again.');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const openEmailPreferences = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setActiveModal('emailPreferences');
+    setPrefsSuccess('');
+
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/email-preferences/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEmailPrefs(data);
+      }
+    } catch (err) {
+      console.error('Failed to load email preferences:', err);
+    }
+  };
+
+  const saveEmailPreferences = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setPrefsSaving(true);
+    setPrefsSuccess('');
+
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/email-preferences/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailPrefs),
+      });
+
+      if (response.ok) {
+        setPrefsSuccess('Preferences saved!');
+        setTimeout(() => setPrefsSuccess(''), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to save email preferences:', err);
+    } finally {
+      setPrefsSaving(false);
     }
   };
 
@@ -459,16 +657,28 @@ export default function ProfilePage() {
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Account Settings</h3>
                 
                 <div className="space-y-3">
-                  <button className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-left">
-                    Edit Profile (Coming Soon)
+                  <button 
+                    onClick={openEditProfile}
+                    className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-left flex items-center justify-between"
+                  >
+                    <span>Edit Profile</span>
+                    <ChevronRight className="w-5 h-5" />
                   </button>
                   
-                  <button className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-left">
-                    Change Password (Coming Soon)
+                  <button 
+                    onClick={openChangePassword}
+                    className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-left flex items-center justify-between"
+                  >
+                    <span>Change Password</span>
+                    <ChevronRight className="w-5 h-5" />
                   </button>
                   
-                  <button className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-left">
-                    Email Preferences (Coming Soon)
+                  <button 
+                    onClick={openEmailPreferences}
+                    className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-left flex items-center justify-between"
+                  >
+                    <span>Email Preferences</span>
+                    <ChevronRight className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -698,6 +908,275 @@ export default function ProfilePage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Profile Modal */}
+      {activeModal === 'editProfile' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <User className="w-6 h-6 text-indigo-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
+              </div>
+              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                    placeholder="Enter first name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                    placeholder="Enter last name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                    placeholder="Enter email"
+                  />
+                </div>
+                
+                {profileError && (
+                  <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                    {profileError}
+                  </div>
+                )}
+                {profileSuccess && (
+                  <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                    {profileSuccess}
+                  </div>
+                )}
+                
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={closeModal}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveProfile}
+                    disabled={profileSaving}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
+                  >
+                    {profileSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {activeModal === 'changePassword' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <Shield className="w-6 h-6 text-amber-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
+              </div>
+              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                  <input
+                    type="password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-gray-900"
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                  <input
+                    type="password"
+                    value={newPassword1}
+                    onChange={(e) => setNewPassword1(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-gray-900"
+                    placeholder="Enter new password (min 8 characters)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={newPassword2}
+                    onChange={(e) => setNewPassword2(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-gray-900"
+                    placeholder="Confirm new password"
+                  />
+                </div>
+                
+                {passwordError && (
+                  <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                    {passwordError}
+                  </div>
+                )}
+                {passwordSuccess && (
+                  <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                    {passwordSuccess}
+                  </div>
+                )}
+                
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={closeModal}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={changePassword}
+                    disabled={passwordSaving}
+                    className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium disabled:opacity-50"
+                  >
+                    {passwordSaving ? 'Changing...' : 'Change Password'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email Preferences Modal */}
+      {activeModal === 'emailPreferences' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Mail className="w-6 h-6 text-purple-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Email Preferences</h2>
+              </div>
+              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div>
+                    <div className="font-medium text-gray-900">Weekly Newsletter</div>
+                    <div className="text-sm text-gray-500">Receive top articles every week</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={emailPrefs.newsletter_enabled}
+                    onChange={(e) => setEmailPrefs({ ...emailPrefs, newsletter_enabled: e.target.checked })}
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div>
+                    <div className="font-medium text-gray-900">New Articles</div>
+                    <div className="text-sm text-gray-500">Get notified when new articles are published</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={emailPrefs.new_articles_enabled}
+                    onChange={(e) => setEmailPrefs({ ...emailPrefs, new_articles_enabled: e.target.checked })}
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div>
+                    <div className="font-medium text-gray-900">Comment Replies</div>
+                    <div className="text-sm text-gray-500">Get notified when someone replies to your comment</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={emailPrefs.comment_replies_enabled}
+                    onChange={(e) => setEmailPrefs({ ...emailPrefs, comment_replies_enabled: e.target.checked })}
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div>
+                    <div className="font-medium text-gray-900">Favorite Updates</div>
+                    <div className="text-sm text-gray-500">Updates to your favorite articles</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={emailPrefs.favorite_updates_enabled}
+                    onChange={(e) => setEmailPrefs({ ...emailPrefs, favorite_updates_enabled: e.target.checked })}
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div>
+                    <div className="font-medium text-gray-900">Marketing Emails</div>
+                    <div className="text-sm text-gray-500">Promotional offers and special deals</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={emailPrefs.marketing_enabled}
+                    onChange={(e) => setEmailPrefs({ ...emailPrefs, marketing_enabled: e.target.checked })}
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                </label>
+
+                {prefsSuccess && (
+                  <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                    {prefsSuccess}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={closeModal}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={saveEmailPreferences}
+                    disabled={prefsSaving}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50"
+                  >
+                    {prefsSaving ? 'Saving...' : 'Save Preferences'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

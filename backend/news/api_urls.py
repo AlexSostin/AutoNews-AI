@@ -42,7 +42,7 @@ router.register(r'subscribers', SubscriberViewSet, basename='subscriber')
 router.register(r'youtube-channels', YouTubeChannelViewSet, basename='youtube-channel')
 router.register(r'pending-articles', PendingArticleViewSet, basename='pending-article')
 router.register(r'auto-publish-schedule', AutoPublishScheduleViewSet, basename='auto-publish-schedule')
-from .api_views import CurrencyRatesView, CurrentUserView, ChangePasswordView
+from .api_views import CurrencyRatesView, CurrentUserView, ChangePasswordView, EmailPreferencesView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -57,6 +57,7 @@ urlpatterns = [
     # User auth endpoints
     path('auth/user/', CurrentUserView.as_view(), name='current_user'),
     path('auth/password/change/', ChangePasswordView.as_view(), name='change_password'),
+    path('auth/email-preferences/', EmailPreferencesView.as_view(), name='email_preferences'),
     
     # Currency rates
     path('currency-rates/', CurrencyRatesView.as_view(), name='currency_rates'),

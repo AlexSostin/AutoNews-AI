@@ -4,7 +4,7 @@ from django.conf import settings
 from .models import (
     Article, Category, Tag, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber,
-    YouTubeChannel, PendingArticle, AutoPublishSchedule
+    YouTubeChannel, PendingArticle, AutoPublishSchedule, EmailPreferences
 )
 
 
@@ -390,3 +390,14 @@ class AutoPublishScheduleSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['last_scan', 'last_scan_result', 'total_scans', 'total_articles_generated', 'created_at', 'updated_at']
+
+
+class EmailPreferencesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmailPreferences
+        fields = [
+            'newsletter_enabled', 'new_articles_enabled',
+            'comment_replies_enabled', 'favorite_updates_enabled',
+            'marketing_enabled', 'updated_at'
+        ]
+        read_only_fields = ['updated_at']

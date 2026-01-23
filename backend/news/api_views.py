@@ -103,6 +103,32 @@ class ChangePasswordView(APIView):
         return Response({'detail': 'Password changed successfully'})
 
 
+class EmailPreferencesView(APIView):
+    """Get and update user email preferences"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        from .models import EmailPreferences
+        from .serializers import EmailPreferencesSerializer
+        
+        # Get or create preferences for user
+        prefs, created = EmailPreferences.objects.get_or_create(user=request.user)
+        serializer = EmailPreferencesSerializer(prefs)
+        return Response(serializer.data)
+    
+    def patch(self, request):
+        from .models import EmailPreferences
+        from .serializers import EmailPreferencesSerializer
+        
+        prefs, created = EmailPreferences.objects.get_or_create(user=request.user)
+        serializer = EmailPreferencesSerializer(prefs, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class IsStaffOrReadOnly(BasePermission):
     """
     Custom permission to only allow staff users to edit objects.
