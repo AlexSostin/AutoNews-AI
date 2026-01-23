@@ -41,6 +41,12 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-immediately')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
+# Internationalization
+LANGUAGE_CODE = 'en-us'
+USE_I18N = True
+USE_L10N = True
+USE_TZ = True
+
 # Allowed hosts - includes custom domain
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [
     'freshmotors.net',

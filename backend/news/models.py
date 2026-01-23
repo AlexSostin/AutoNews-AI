@@ -9,9 +9,14 @@ class SiteSettings(models.Model):
     contact_email = models.EmailField(default="admin@freshmotors.net")
     
     # Maintenance Mode
-    maintenance_mode = models.BooleanField(default=False, help_text="Enable maintenance mode - only admins can access the site")
+    maintenance_mode = models.BooleanField(
+        default=False, 
+        verbose_name="Maintenance Mode",
+        help_text="Enable maintenance mode - only admins can access the site"
+    )
     maintenance_message = models.TextField(
         default="We're currently performing maintenance to improve your experience. Please check back soon!",
+        verbose_name="Maintenance Message",
         help_text="Message shown to visitors during maintenance"
     )
     

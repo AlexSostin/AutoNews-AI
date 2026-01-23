@@ -524,3 +524,67 @@ class FavoriteAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         # Favorites are created only from frontend
         return False
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    """Admin for global site settings"""
+    
+    def has_add_permission(self, request):
+        # Only one instance allowed
+        return not SiteSettings.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        # Prevent deletion of the settings
+        return False
+    
+    fieldsets = (
+        ('Site Information', {
+            'fields': ('site_name', 'site_description', 'contact_email')
+        }),
+        ('Maintenance Mode', {
+            'fields': ('maintenance_mode', 'maintenance_message'),
+            'classes': ('collapse',),
+            'description': 'When enabled, visitors see a maintenance page. Admins can still access the admin panel.'
+        }),
+        ('Social Media', {
+            'fields': (
+                ('facebook_url', 'facebook_enabled'),
+                ('twitter_url', 'twitter_enabled'), 
+                ('instagram_url', 'instagram_enabled'),
+                ('youtube_url', 'youtube_enabled'),
+                ('linkedin_url', 'linkedin_enabled'),
+                ('tiktok_url', 'tiktok_enabled'),
+                ('telegram_url', 'telegram_enabled')
+            ),
+            'classes': ('collapse',)
+        }),
+        ('SEO Settings', {
+            'fields': ('default_meta_description', 'google_analytics_id', 'google_adsense_id'),
+            'classes': ('collapse',)
+        }),
+        ('Contact Information', {
+            'fields': (
+                ('contact_phone', 'contact_phone_enabled'),
+                ('contact_address', 'contact_address_enabled'),
+                ('support_email', 'business_email')
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Content Pages', {
+            'fields': (
+                ('about_page_title', 'about_page_enabled'),
+                'about_page_content',
+                ('privacy_page_title', 'privacy_page_enabled'), 
+                'privacy_page_content',
+                ('terms_page_title', 'terms_page_enabled'),
+                'terms_page_content',
+                ('contact_page_title', 'contact_page_subtitle', 'contact_page_enabled')
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Footer', {
+            'fields': ('footer_text',),
+            'classes': ('collapse',)
+        })
+    )
