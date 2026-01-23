@@ -151,7 +151,7 @@ def generate_article_from_youtube(youtube_url, task_id=None):
         print("📝 Получение транскрипта...")
         transcript = transcribe_from_youtube(youtube_url)
         
-        if not transcript or len(transcript) < 20:
+        if not transcript or len(transcript) < 5:
             send_progress(2, 100, "❌ Не удалось получить транскрипт")
             raise Exception("Не удалось получить транскрипт или он слишком короткий")
         
