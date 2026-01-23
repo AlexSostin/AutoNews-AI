@@ -8,10 +8,9 @@ import Header from '@/components/public/Header';
 import Footer from '@/components/public/Footer';
 import { isAuthenticated, getUserFromStorage, getToken } from '@/lib/auth';
 import { favoriteAPI } from '@/lib/favorites';
+import { getApiUrl } from '@/lib/api';
 import { User, Mail, Calendar, Shield, BookMarked, MessageSquare, Star, ChevronRight, X, ExternalLink, Clock, Trash2 } from 'lucide-react';
 import type { User as UserType } from '@/types';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 interface Comment {
   id: number;
@@ -83,7 +82,7 @@ export default function ProfilePage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_URL}/comments/my_comments/`, {
+      const response = await fetch(`${getApiUrl()}/comments/my_comments/`, {
         headers: {
           'Authorization': `Token ${token}`,
         },
@@ -102,7 +101,7 @@ export default function ProfilePage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_URL}/ratings/my_ratings/`, {
+      const response = await fetch(`${getApiUrl()}/ratings/my_ratings/`, {
         headers: {
           'Authorization': `Token ${token}`,
         },
@@ -137,7 +136,7 @@ export default function ProfilePage() {
 
     setModalLoading(true);
     try {
-      const response = await fetch(`${API_URL}/comments/my_comments/`, {
+      const response = await fetch(`${getApiUrl()}/comments/my_comments/`, {
         headers: {
           'Authorization': `Token ${token}`,
         },
@@ -159,7 +158,7 @@ export default function ProfilePage() {
 
     setModalLoading(true);
     try {
-      const response = await fetch(`${API_URL}/ratings/my_ratings/`, {
+      const response = await fetch(`${getApiUrl()}/ratings/my_ratings/`, {
         headers: {
           'Authorization': `Token ${token}`,
         },
@@ -280,7 +279,7 @@ export default function ProfilePage() {
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http')) return imagePath;
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    const baseUrl = getApiUrl().replace('/api/v1', '');
     return `${baseUrl}${imagePath}`;
   };
 
