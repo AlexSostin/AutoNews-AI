@@ -504,3 +504,113 @@ input[type="file"][accept="image/*"]:focus {
 .clearablefileinput .clear_checkbox input[type="checkbox"] {
     margin-right: 5px;
 }
+
+/* ---- Admin login page enhancements ---- */
+/* A pleasant gradient background with a centered maintenance icon and
+   a frosted glass login card for improved visual appearance. */
+body.login {
+    background: linear-gradient(135deg, #0f172a 0%, #312e81 45%, #5b21b6 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 16px;
+}
+
+/* Subtle overlay for contrast */
+body.login::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.02), transparent 15%),
+                radial-gradient(circle at 80% 80%, rgba(255,255,255,0.02), transparent 20%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Frosted card that contains the login form */
+.login-container, #content, .login-form {
+    position: relative;
+    z-index: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 32px !important;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 10px 40px rgba(2,6,23,0.6);
+    backdrop-filter: blur(8px) saturate(120%);
+    color: #fff;
+}
+
+.login h1, .login-form h2, .login-container h1 {
+    color: #fff !important;
+}
+
+/* Inputs: transparent with soft borders */
+.login-form input[type="text"], .login-form input[type="password"] {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    color: #fff !important;
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+}
+
+.login-form label {
+    color: rgba(255,255,255,0.9) !important;
+}
+
+/* Submit button style */
+.login-form input[type="submit"] {
+    background: linear-gradient(90deg, #f59e0b, #ef4444) !important;
+    border: none !important;
+    color: #08121a !important;
+    font-weight: 700 !important;
+    padding: 10px 18px !important;
+    border-radius: 10px !important;
+}
+
+/* Decorative centered icon above the login card */
+.login-decor {
+    position: absolute;
+    top: calc(50% - 220px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 0;
+    pointer-events: none;
+    font-size: 72px;
+    opacity: 0.12;
+    filter: drop-shadow(0 6px 24px rgba(0,0,0,0.6));
+}
+
+/* Ensure links inside login are visible */
+.login a, .login form a {
+    color: #fff !important;
+}
+
+/* Responsive tweaks */
+@media (max-width: 640px) {
+    .login-container, #content, .login-form { padding: 20px !important; }
+    .login-decor { font-size: 56px; top: calc(50% - 200px); }
+}
+
+/* Add a decorative wrench emoji via ::before on the login container if not using external image */
+.login-container::before {
+    content: "🔧";
+    position: absolute;
+    top: -46px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 56px;
+    z-index: 2;
+    opacity: 0.95;
+    background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+    padding: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Target default Django admin login wrapper if classes differ */
+.login-form .form-row, .login-form .submit-row { margin-bottom: 12px !important; }
+
+/* End of login enhancements */
