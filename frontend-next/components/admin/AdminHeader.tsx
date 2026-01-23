@@ -25,9 +25,12 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         </div>
         
         <div className="flex items-center gap-2 sm:gap-4">
-          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors relative">
+          <button 
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
+            title="Notifications (coming soon)"
+          >
             <Bell size={18} className="sm:w-5 sm:h-5 text-gray-700" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            {/* Red dot removed - notifications not implemented yet */}
           </button>
           
           <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-full">

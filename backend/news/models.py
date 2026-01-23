@@ -209,6 +209,7 @@ class CarSpecification(models.Model):
 
 class Comment(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='comments', help_text="Authenticated user (optional)")
     name = models.CharField(max_length=100, help_text="Your name")
     email = models.EmailField(help_text="Your email (won't be published)")
     content = models.TextField(help_text="Your comment")
@@ -219,6 +220,7 @@ class Comment(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['article', 'is_approved', '-created_at']),
+            models.Index(fields=['user', '-created_at']),
         ]
     
     def __str__(self):
@@ -226,6 +228,7 @@ class Comment(models.Model):
 
 class Rating(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='ratings')
+    user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='ratings', help_text="Authenticated user (optional)")
     ip_address = models.CharField(max_length=255, help_text="User fingerprint (IP+UserAgent hash) for preventing multiple votes")
     rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)], help_text="Rating 1-5 stars")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -233,6 +236,9 @@ class Rating(models.Model):
     class Meta:
         unique_together = ('article', 'ip_address')  # One vote per IP per article
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
     
     def __str__(self):
         return f"{self.rating}★ for {self.article.title}"

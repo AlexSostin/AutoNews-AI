@@ -214,19 +214,32 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     article_title = serializers.CharField(source='article.title', read_only=True)
     article_slug = serializers.CharField(source='article.slug', read_only=True)
+    article_image = serializers.SerializerMethodField()
+    article_category = serializers.SerializerMethodField()
     approved = serializers.BooleanField(source='is_approved')  # Alias для frontend
     author_name = serializers.CharField(source='name', read_only=True)
     # Email hidden from public API for privacy - only available to staff
     
     class Meta:
         model = Comment
-        fields = ['id', 'article', 'article_title', 'article_slug', 
-                  'name', 'email', 'author_name',
+        fields = ['id', 'article', 'article_title', 'article_slug', 'article_image',
+                  'article_category', 'name', 'email', 'author_name',
                   'content', 'created_at', 'is_approved', 'approved']
-        read_only_fields = ['created_at', 'article_title', 'article_slug', 'author_name']
+        read_only_fields = ['created_at', 'article_title', 'article_slug', 'article_image',
+                           'article_category', 'author_name']
         extra_kwargs = {
             'email': {'write_only': True}  # Email is write-only (hidden in responses)
         }
+    
+    def get_article_image(self, obj):
+        if obj.article and obj.article.image and hasattr(obj.article.image, 'url'):
+            return obj.article.image.url
+        return None
+    
+    def get_article_category(self, obj):
+        if obj.article and obj.article.category:
+            return obj.article.category.name
+        return None
     
     def validate_name(self, value):
         """Sanitize name to prevent XSS"""
@@ -263,11 +276,26 @@ class CommentSerializer(serializers.ModelSerializer):
 
 class RatingSerializer(serializers.ModelSerializer):
     article_title = serializers.CharField(source='article.title', read_only=True)
+    article_slug = serializers.CharField(source='article.slug', read_only=True)
+    article_image = serializers.SerializerMethodField()
+    article_category = serializers.SerializerMethodField()
     
     class Meta:
         model = Rating
-        fields = ['id', 'article', 'article_title', 'user_ip', 'rating', 'created_at']
-        read_only_fields = ['created_at', 'user_ip']
+        fields = ['id', 'article', 'article_title', 'article_slug', 'article_image',
+                  'article_category', 'user_ip', 'rating', 'created_at']
+        read_only_fields = ['created_at', 'user_ip', 'article_title', 'article_slug', 
+                           'article_image', 'article_category']
+    
+    def get_article_image(self, obj):
+        if obj.article and obj.article.image and hasattr(obj.article.image, 'url'):
+            return obj.article.image.url
+        return None
+    
+    def get_article_category(self, obj):
+        if obj.article and obj.article.category:
+            return obj.article.category.name
+        return None
 
 
 class FavoriteSerializer(serializers.ModelSerializer):

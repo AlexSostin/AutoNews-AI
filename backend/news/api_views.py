@@ -560,8 +560,9 @@ class CommentViewSet(viewsets.ModelViewSet):
     Comments API with rate limiting to prevent spam.
     - Anyone can create comments (rate limited to 10/hour per IP)
     - Staff can approve/delete comments
+    - Authenticated users can see their own comment history
     """
-    queryset = Comment.objects.select_related('article')
+    queryset = Comment.objects.select_related('article', 'user')
     serializer_class = CommentSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'content']
@@ -575,7 +576,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         """
         if self.action in ['create', 'list', 'retrieve']:
             return [AllowAny()]
-        elif self.action == 'approve':
+        elif self.action in ['approve', 'my_comments']:
             return [IsAuthenticated()]
         return [IsStaffOrReadOnly()]
     
@@ -594,7 +595,17 @@ class CommentViewSet(viewsets.ModelViewSet):
     @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
     def create(self, request, *args, **kwargs):
         """Create comment with rate limiting (10 comments per hour per IP)"""
-        return super().create(request, *args, **kwargs)
+        # If user is authenticated, save user reference
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        if request.user.is_authenticated:
+            serializer.save(user=request.user)
+        else:
+            serializer.save()
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def approve(self, request, pk=None):
@@ -604,19 +615,44 @@ class CommentViewSet(viewsets.ModelViewSet):
         comment.save(update_fields=['is_approved'])
         serializer = self.get_serializer(comment)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my_comments(self, request):
+        """Get all comments by the current authenticated user"""
+        # Filter by user (for authenticated comments) OR by email (for guest comments)
+        user_comments = self.get_queryset().filter(user=request.user)
+        email_comments = self.get_queryset().filter(email=request.user.email, user__isnull=True)
+        
+        # Combine both querysets
+        from django.db.models import Q
+        comments = self.get_queryset().filter(
+            Q(user=request.user) | Q(email=request.user.email, user__isnull=True)
+        ).distinct()
+        
+        serializer = self.get_serializer(comments, many=True)
+        return Response({
+            'count': comments.count(),
+            'results': serializer.data
+        })
 
 
 class RatingViewSet(viewsets.ModelViewSet):
     """
     Ratings API with rate limiting.
     - Users can rate articles (rate limited to 20/hour per IP)
+    - Authenticated users can see their rating history
     """
-    queryset = Rating.objects.select_related('article')
+    queryset = Rating.objects.select_related('article', 'user')
     serializer_class = RatingSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['created_at', 'rating']
     ordering = ['-created_at']
+    
+    def get_permissions(self):
+        if self.action == 'my_ratings':
+            return [IsAuthenticated()]
+        return super().get_permissions()
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -628,7 +664,7 @@ class RatingViewSet(viewsets.ModelViewSet):
         return queryset
     
     def create(self, request, *args, **kwargs):
-        """Create rating with user IP"""
+        """Create rating with user IP and user reference if authenticated"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -639,9 +675,25 @@ class RatingViewSet(viewsets.ModelViewSet):
         else:
             user_ip = request.META.get('REMOTE_ADDR')
         
-        serializer.save(user_ip=user_ip)
+        # Save with user reference if authenticated
+        if request.user.is_authenticated:
+            serializer.save(ip_address=user_ip, user=request.user)
+        else:
+            serializer.save(ip_address=user_ip)
+        
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my_ratings(self, request):
+        """Get all ratings by the current authenticated user"""
+        ratings = self.get_queryset().filter(user=request.user)
+        
+        serializer = self.get_serializer(ratings, many=True)
+        return Response({
+            'count': ratings.count(),
+            'results': serializer.data
+        })
 
 
 class CarSpecificationViewSet(viewsets.ModelViewSet):
