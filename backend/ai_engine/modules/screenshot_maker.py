@@ -12,7 +12,7 @@ def get_image_hash_from_bytes(data):
 def extract_screenshots_simple(youtube_url, output_dir, num_screenshots=3):
     """
     Extract screenshots from YouTube video.
-    Uses YouTube thumbnails (reliable) - typically get 1 unique high-res image.
+    Uses YouTube thumbnails (reliable) - gets unique thumbnails only.
     
     Args:
         youtube_url: YouTube video URL
@@ -20,9 +20,9 @@ def extract_screenshots_simple(youtube_url, output_dir, num_screenshots=3):
         num_screenshots: Number of screenshots to extract (default 3)
     
     Returns:
-        List of screenshot file paths
+        List of screenshot file paths (may be less than requested if not enough unique thumbnails)
     """
-    print(f"📸 Extracting screenshots from YouTube video...")
+    print(f"📸 Extracting unique screenshots from YouTube video...")
     
     os.makedirs(output_dir, exist_ok=True)
     screenshots = []
@@ -47,15 +47,15 @@ def extract_screenshots_simple(youtube_url, output_dir, num_screenshots=3):
                 print("  ❌ No thumbnails available")
                 return []
             
-            # Sort thumbnails by quality
+            # Sort thumbnails by quality and uniqueness
             # Prefer: maxresdefault > sddefault > hqdefault > mqdefault > default
             def get_quality_score(thumb):
                 url = thumb.get('url', '')
                 width = thumb.get('width', 0)
                 height = thumb.get('height', 0)
                 
-                # Priority by name
-                if 'maxresdefault' in url or 'maxres' in url:
+                # Priority by name (unique thumbnails have higher priority)
+                if 'maxresdefault' in url:
                     return 1000000 + width * height
                 if 'sddefault' in url:
                     return 500000 + width * height
@@ -63,13 +63,15 @@ def extract_screenshots_simple(youtube_url, output_dir, num_screenshots=3):
                     return 200000 + width * height
                 if 'mqdefault' in url:
                     return 100000 + width * height
+                if 'default' in url:
+                    return 50000 + width * height
                 
                 # Fallback to resolution
                 return width * height
             
             sorted_thumbs = sorted(thumbnails, key=get_quality_score, reverse=True)
             
-            # Download unique thumbnails
+            # Download unique thumbnails only
             for thumb in sorted_thumbs:
                 if len(screenshots) >= num_screenshots:
                     break
@@ -101,9 +103,9 @@ def extract_screenshots_simple(youtube_url, output_dir, num_screenshots=3):
                             
                             screenshots.append(output_path)
                             size = f"{thumb.get('width', '?')}x{thumb.get('height', '?')}"
-                            print(f"  ✓ Screenshot {len(screenshots)} saved: {output_filename} ({size}, {len(response.content)//1024}KB)")
+                            print(f"  ✓ Unique screenshot {len(screenshots)} saved: {output_filename} ({size}, {len(response.content)//1024}KB)")
                         else:
-                            print(f"  ⚠ Skipping duplicate thumbnail")
+                            print(f"  ⚠ Skipping duplicate thumbnail (hash: {img_hash[:8]}...)")
                             
                 except requests.RequestException as e:
                     print(f"  ⚠ Error downloading thumbnail: {e}")
@@ -112,7 +114,7 @@ def extract_screenshots_simple(youtube_url, output_dir, num_screenshots=3):
             if screenshots:
                 print(f"✓ Got {len(screenshots)} unique screenshot(s)")
             else:
-                print("⚠️ No screenshots could be downloaded")
+                print("⚠️ No unique screenshots could be downloaded")
             
             return screenshots
     

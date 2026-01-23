@@ -62,7 +62,7 @@ class ArticleAdmin(admin.ModelAdmin):
     inlines = [CarSpecificationInline, ArticleImageInline]
     date_hierarchy = 'created_at'
     list_editable = ('is_published',)
-    actions = ['publish_articles', 'unpublish_articles', 'soft_delete_articles', 'restore_articles']
+    actions = ['publish_articles', 'unpublish_articles', 'soft_delete_articles', 'restore_articles', 'hard_delete_articles']
     readonly_fields = ('created_at', 'updated_at')
     
     def get_queryset(self, request):
@@ -150,6 +150,12 @@ class ArticleAdmin(admin.ModelAdmin):
         updated = queryset.update(is_deleted=False)
         self.message_user(request, f'{updated} article(s) restored.')
     restore_articles.short_description = "Restore deleted articles"
+    
+    def hard_delete_articles(self, request, queryset):
+        """Permanently delete articles from database"""
+        deleted = queryset.delete()
+        self.message_user(request, f'{deleted[0]} article(s) permanently deleted from database.')
+    hard_delete_articles.short_description = "🗑️ Permanently delete articles"
     
     def delete_model(self, request, obj):
         """Override delete to use soft delete"""

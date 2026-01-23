@@ -408,3 +408,37 @@ input[type="number"]:focus, textarea:focus, select:focus {
 .model-category .addlink::before { content: "📁 "; }
 .model-tag .addlink::before { content: "🏷️ "; }
 .model-sitesettings .changelink::before { content: "⚙️ "; }
+
+/* File input styling - make placeholders more visible */
+input[type="file"]::placeholder,
+input[type="file"]::-webkit-input-placeholder,
+input[type="file"]::-moz-placeholder,
+input[type="file"]:-ms-input-placeholder {
+    color: #374151 !important; /* gray-700 */
+    opacity: 1 !important;
+    font-weight: 500 !important;
+}
+
+/* Clear file input styling */
+.clearablefileinput {
+    margin: 10px 0;
+}
+
+.clearablefileinput input[type="file"] {
+    border: 2px dashed #d1d5db !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    background: #f9fafb !important;
+    transition: all 0.3s ease !important;
+}
+
+.clearablefileinput input[type="file"]:hover {
+    border-color: #667eea !important;
+    background: #f3f4f6 !important;
+}
+
+.clearablefileinput input[type="file"]:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    outline: none !important;
+}
