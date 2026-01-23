@@ -40,10 +40,10 @@ export default function SchedulePage() {
   const fetchSchedule = async () => {
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
 
       const response = await fetch(`${apiUrl}/auto-publish-schedule/`, {
-        headers: { 'Authorization': `Token ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
@@ -59,7 +59,7 @@ export default function SchedulePage() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Token ${token}`
+              'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
               is_enabled: false,
@@ -88,13 +88,13 @@ export default function SchedulePage() {
 
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
 
       const response = await fetch(`${apiUrl}/auto-publish-schedule/${schedule.id}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           is_enabled: schedule.is_enabled,
@@ -126,11 +126,11 @@ export default function SchedulePage() {
 
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
 
       const response = await fetch(`${apiUrl}/auto-publish-schedule/${schedule.id}/trigger_scan/`, {
         method: 'POST',
-        headers: { 'Authorization': `Token ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {

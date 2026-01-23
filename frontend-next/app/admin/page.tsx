@@ -32,8 +32,8 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
-      const headers: HeadersInit = token ? { 'Authorization': `Token ${token}` } : {};
+      const token = localStorage.getItem('access_token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
 
       const [articlesRes, categoriesRes, tagsRes, commentsRes, subscribersRes] = await Promise.all([
         fetch(`${apiUrl}/articles/`),

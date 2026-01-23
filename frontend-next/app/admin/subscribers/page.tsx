@@ -40,10 +40,10 @@ export default function SubscribersPage() {
   const fetchSubscribers = async () => {
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
 
       const response = await fetch(`${apiUrl}/subscribers/`, {
-        headers: { 'Authorization': `Token ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
@@ -63,11 +63,11 @@ export default function SubscribersPage() {
 
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
 
       await fetch(`${apiUrl}/subscribers/${id}/`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Token ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       setSubscribers(subscribers.filter(s => s.id !== id));
@@ -84,13 +84,13 @@ export default function SubscribersPage() {
 
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
 
       const response = await fetch(`${apiUrl}/subscribers/send_newsletter/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(newsletterForm)
       });

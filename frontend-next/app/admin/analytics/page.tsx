@@ -47,8 +47,8 @@ export default function AnalyticsPage() {
   const fetchStats = async () => {
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
-      const headers: HeadersInit = token ? { 'Authorization': `Token ${token}` } : {};
+      const token = localStorage.getItem('access_token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
 
       // Fetch all data in parallel
       const [

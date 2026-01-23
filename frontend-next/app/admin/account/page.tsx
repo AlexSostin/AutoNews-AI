@@ -53,7 +53,7 @@ export default function AccountSettingsPage() {
   const fetchProfile = async () => {
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
       
       if (!token) {
         setLoading(false);
@@ -61,7 +61,7 @@ export default function AccountSettingsPage() {
       }
 
       const response = await fetch(`${apiUrl}/auth/user/`, {
-        headers: { 'Authorization': `Token ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
@@ -87,13 +87,13 @@ export default function AccountSettingsPage() {
 
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
 
       const response = await fetch(`${apiUrl}/auth/user/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           first_name: profile.first_name,
@@ -133,13 +133,13 @@ export default function AccountSettingsPage() {
 
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token');
 
       const response = await fetch(`${apiUrl}/auth/password/change/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           old_password: passwords.current_password,
