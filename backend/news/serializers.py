@@ -227,7 +227,7 @@ class CommentSerializer(serializers.ModelSerializer):
                   'article_category', 'name', 'email', 'author_name',
                   'content', 'created_at', 'is_approved', 'approved']
         read_only_fields = ['created_at', 'article_title', 'article_slug', 'article_image',
-                           'article_category', 'author_name']
+                           'article_category', 'author_name', 'is_approved', 'approved']
         extra_kwargs = {
             'email': {'write_only': True, 'required': False}  # Email is write-only and optional for authenticated users
         }
