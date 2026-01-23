@@ -185,9 +185,13 @@ document.getElementById('generateForm').addEventListener('submit', function(e) {
     const startTime = new Date();
     startTimeEl.textContent = startTime.toLocaleTimeString('en-US', { hour12: false });
     
-    progressContainer.classList.add('active');
-    submitBtn.disabled = true;
-    submitBtn.textContent = '⏳ Processing...';
+    if (progressContainer) {
+        progressContainer.classList.add('active');
+    }
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Processing...';
+    }
     
     // Timer for elapsed time
     const timerInterval = setInterval(() => {
@@ -212,7 +216,10 @@ if (taskId && taskId !== 'None') {
     
     socket.onopen = function() {
         console.log('✓ WebSocket connected');
-        document.getElementById('progressContainer').classList.add('active');
+        const progressContainer = document.getElementById('progressContainer');
+        if (progressContainer) {
+            progressContainer.classList.add('active');
+        }
     };
     
     socket.onmessage = function(e) {
