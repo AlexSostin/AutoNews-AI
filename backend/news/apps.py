@@ -8,3 +8,4 @@ class NewsConfig(AppConfig):
     def ready(self):
         """Import signals when app is ready"""
         import news.cache_signals
+        import news.signals  # Notification signals

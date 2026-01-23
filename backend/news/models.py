@@ -461,3 +461,51 @@ class AutoPublishSchedule(models.Model):
     def __str__(self):
         return f"Schedule: {self.frequency} - {'Enabled' if self.is_enabled else 'Disabled'}"
 
+
+class AdminNotification(models.Model):
+    """Notifications for admin dashboard"""
+    NOTIFICATION_TYPES = [
+        ('comment', 'New Comment'),
+        ('subscriber', 'New Subscriber'),
+        ('article', 'New Article'),
+        ('video_pending', 'Video Pending Review'),
+        ('video_error', 'Video Processing Error'),
+        ('ai_error', 'AI Generation Error'),
+        ('system', 'System Alert'),
+        ('info', 'Information'),
+    ]
+    
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('normal', 'Normal'),
+        ('high', 'High'),
+    ]
+    
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    link = models.CharField(max_length=500, blank=True, help_text="Optional link to related item")
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='normal')
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Admin Notification"
+        verbose_name_plural = "Admin Notifications"
+    
+    def __str__(self):
+        return f"[{self.notification_type}] {self.title}"
+    
+    @classmethod
+    def create_notification(cls, notification_type, title, message, link='', priority='normal'):
+        """Helper method to create notifications"""
+        return cls.objects.create(
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            link=link,
+            priority=priority
+        )
+
+

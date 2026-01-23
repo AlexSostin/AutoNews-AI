@@ -4,7 +4,8 @@ from django.conf import settings
 from .models import (
     Article, Category, Tag, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber,
-    YouTubeChannel, PendingArticle, AutoPublishSchedule, EmailPreferences
+    YouTubeChannel, PendingArticle, AutoPublishSchedule, EmailPreferences,
+    AdminNotification
 )
 
 
@@ -401,3 +402,39 @@ class EmailPreferencesSerializer(serializers.ModelSerializer):
             'marketing_enabled', 'updated_at'
         ]
         read_only_fields = ['updated_at']
+
+
+class AdminNotificationSerializer(serializers.ModelSerializer):
+    type_display = serializers.CharField(source='get_notification_type_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    time_ago = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AdminNotification
+        fields = [
+            'id', 'notification_type', 'type_display', 'title', 'message',
+            'link', 'priority', 'priority_display', 'is_read',
+            'created_at', 'time_ago'
+        ]
+        read_only_fields = ['id', 'created_at']
+    
+    def get_time_ago(self, obj):
+        """Return human-readable time difference"""
+        from django.utils import timezone
+        now = timezone.now()
+        diff = now - obj.created_at
+        
+        seconds = diff.total_seconds()
+        if seconds < 60:
+            return 'just now'
+        elif seconds < 3600:
+            minutes = int(seconds // 60)
+            return f'{minutes}m ago'
+        elif seconds < 86400:
+            hours = int(seconds // 3600)
+            return f'{hours}h ago'
+        elif seconds < 604800:
+            days = int(seconds // 86400)
+            return f'{days}d ago'
+        else:
+            return obj.created_at.strftime('%b %d')

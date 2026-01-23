@@ -14,14 +14,15 @@ from django.utils import timezone
 from .models import (
     Article, Category, Tag, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber,
-    YouTubeChannel, PendingArticle, AutoPublishSchedule
+    YouTubeChannel, PendingArticle, AutoPublishSchedule, AdminNotification
 )
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
     CategorySerializer, TagSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
     SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer,
-    YouTubeChannelSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer
+    YouTubeChannelSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
+    AdminNotificationSerializer
 )
 import os
 import sys
@@ -1352,3 +1353,96 @@ class AutoPublishScheduleViewSet(viewsets.ModelViewSet):
             'message': 'Scan triggered',
             'timestamp': schedule.last_scan
         })
+
+
+class AdminNotificationViewSet(viewsets.ModelViewSet):
+    """
+    Admin notifications management.
+    Shows notifications for comments, subscribers, errors, etc.
+    """
+    queryset = AdminNotification.objects.all()
+    serializer_class = AdminNotificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter notifications for admin users only"""
+        if not self.request.user.is_staff:
+            return AdminNotification.objects.none()
+        return AdminNotification.objects.all().order_by('-created_at')
+    
+    def list(self, request):
+        """Get all notifications with unread count"""
+        queryset = self.get_queryset()
+        
+        # Optional filters
+        is_unread = request.query_params.get('unread', None)
+        notification_type = request.query_params.get('type', None)
+        limit = request.query_params.get('limit', None)
+        
+        if is_unread == 'true':
+            queryset = queryset.filter(is_read=False)
+        
+        if notification_type:
+            queryset = queryset.filter(notification_type=notification_type)
+        
+        # Get counts before limiting
+        unread_count = self.get_queryset().filter(is_read=False).count()
+        total_count = self.get_queryset().count()
+        
+        if limit:
+            queryset = queryset[:int(limit)]
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'notifications': serializer.data,
+            'unread_count': unread_count,
+            'total_count': total_count
+        })
+    
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """Mark a single notification as read"""
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+        return Response({'status': 'marked as read'})
+    
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        """Mark all notifications as read"""
+        count = self.get_queryset().filter(is_read=False).update(is_read=True)
+        return Response({
+            'status': 'all marked as read',
+            'count': count
+        })
+    
+    @action(detail=False, methods=['post'])
+    def clear_all(self, request):
+        """Delete all read notifications"""
+        count, _ = self.get_queryset().filter(is_read=True).delete()
+        return Response({
+            'status': 'cleared read notifications',
+            'count': count
+        })
+    
+    @action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        """Get just the unread count (for polling)"""
+        count = self.get_queryset().filter(is_read=False).count()
+        return Response({'unread_count': count})
+    
+    @action(detail=False, methods=['post'])
+    def create_test(self, request):
+        """Create a test notification (for development)"""
+        if not request.user.is_superuser:
+            return Response({'error': 'Superuser required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        notification = AdminNotification.create_notification(
+            notification_type=request.data.get('type', 'info'),
+            title=request.data.get('title', 'Test Notification'),
+            message=request.data.get('message', 'This is a test notification.'),
+            link=request.data.get('link', ''),
+            priority=request.data.get('priority', 'normal')
+        )
+        serializer = self.get_serializer(notification)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
