@@ -254,6 +254,10 @@ class CommentSerializer(serializers.ModelSerializer):
         """Sanitize name to prevent XSS"""
         import html
         import re
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and not value:
+            # For authenticated users, allow empty name (will be filled from profile)
+            return value
         if not value or len(value.strip()) < 2:
             raise serializers.ValidationError("Name must be at least 2 characters")
         if len(value) > 100:
@@ -265,8 +269,12 @@ class CommentSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         """Validate email format"""
         import re
-        if not value:  # Allow empty email for authenticated users
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and not value:
+            # For authenticated users, allow empty email (will be filled from profile)
             return value
+        if not value:  # For guest users, email is required
+            raise serializers.ValidationError("Email is required")
         email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(email_regex, value):
             raise serializers.ValidationError("Invalid email format")
@@ -292,6 +300,9 @@ class CommentSerializer(serializers.ModelSerializer):
                 validated_data['name'] = request.user.username
             if not validated_data.get('email') and request.user.email:
                 validated_data['email'] = request.user.email
+            # If user has no email in profile, use a placeholder or allow empty
+            elif not validated_data.get('email'):
+                validated_data['email'] = f"{request.user.username}@no-email.local"
         return super().create(validated_data)
 
 

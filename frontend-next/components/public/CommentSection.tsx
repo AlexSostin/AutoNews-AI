@@ -74,18 +74,15 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
         content: formData.content
       };
 
-      // For authenticated users, only send name/email if they are filled
+      // For authenticated users, always include name/email from profile if not specified
       if (!isUserAuthenticated) {
         commentData.name = formData.author_name;
         commentData.email = formData.author_email;
       } else {
-        // For authenticated users, send name/email only if different from profile or filled
-        if (formData.author_name && formData.author_name !== getUserFromStorage()?.username) {
-          commentData.name = formData.author_name;
-        }
-        if (formData.author_email && formData.author_email !== getUserFromStorage()?.email) {
-          commentData.email = formData.author_email;
-        }
+        // For authenticated users, use profile data as defaults
+        const user = getUserFromStorage();
+        commentData.name = formData.author_name || user?.username || '';
+        commentData.email = formData.author_email || user?.email || '';
       }
 
       await api.post('/comments/', commentData);
