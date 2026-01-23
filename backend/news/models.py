@@ -11,7 +11,7 @@ class SiteSettings(models.Model):
     # Maintenance Mode
     maintenance_mode = models.BooleanField(default=False, help_text="Enable maintenance mode - only admins can access the site")
     maintenance_message = models.TextField(
-        default="We're currently making improvements to bring you a better experience. Please check back soon!",
+        default="We're currently performing maintenance to improve your experience. Please check back soon!",
         help_text="Message shown to visitors during maintenance"
     )
     

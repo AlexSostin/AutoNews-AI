@@ -74,22 +74,33 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
         content: formData.content
       };
 
+      console.log('=== COMMENT SUBMISSION DEBUG ===');
+      console.log('User authenticated:', isUserAuthenticated);
+      console.log('Form data:', formData);
+
       // For authenticated users, only include name/email if they have values
       if (!isUserAuthenticated) {
         commentData.name = formData.author_name;
         commentData.email = formData.author_email;
+        console.log('Guest user - added name and email');
       } else {
         // For authenticated users, only send name/email if they are filled in the form
         // The backend will use profile data as fallback
         if (formData.author_name.trim()) {
           commentData.name = formData.author_name.trim();
+          console.log('Auth user - added custom name:', commentData.name);
         }
         if (formData.author_email.trim()) {
           commentData.email = formData.author_email.trim();
+          console.log('Auth user - added custom email:', commentData.email);
         }
       }
 
-      await api.post('/comments/', commentData);
+      console.log('Final comment data to send:', commentData);
+      console.log('Sending to API endpoint...');
+
+      const response = await api.post('/comments/', commentData);
+      console.log('API Response:', response);
 
       setMessage('✓ Comment submitted! It will appear after moderation.');
       setFormData({ 
@@ -99,8 +110,25 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
       });
       setTimeout(() => setMessage(''), 5000);
     } catch (error: any) {
-      console.error('Failed to submit comment:', error);
-      const errorMsg = error.response?.data?.detail || error.response?.data?.error || 'Failed to submit comment. Please try again.';
+      console.error('=== COMMENT SUBMISSION ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+
+      if (error.response?.data) {
+        console.error('Server validation errors:');
+        for (const [field, errors] of Object.entries(error.response.data)) {
+          console.error(`  ${field}:`, errors);
+        }
+      }
+
+      const errorMsg = error.response?.data?.detail ||
+                      error.response?.data?.error ||
+                      error.response?.data?.non_field_errors?.[0] ||
+                      'Failed to submit comment. Please try again.';
+      console.error('Final error message:', errorMsg);
+
       setMessage(`✗ ${errorMsg}`);
       setTimeout(() => setMessage(''), 5000);
     } finally {
