@@ -48,6 +48,7 @@ class CarSpecificationInline(admin.StackedInline):
 
 class ArticleImageInline(admin.TabularInline):
     model = ArticleImage
+    can_delete = True
     extra = 1
     fields = ('image', 'caption', 'order')
     verbose_name = 'Gallery Image'
@@ -76,6 +77,7 @@ class ArticleAdmin(admin.ModelAdmin):
         css = {
             'all': ('admin/css/custom_admin.css',)
         }
+        js = ('admin/js/image_delete.js',)
     
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}

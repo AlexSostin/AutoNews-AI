@@ -236,9 +236,9 @@ class CommentSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            # For authenticated users, email is optional (they have email in profile)
-            self.fields['email'].required = False
+            # For authenticated users, name and email are optional (will be filled from profile)
             self.fields['name'].required = False
+            self.fields['email'].required = False
     
     def get_article_image(self, obj):
         if obj.article and obj.article.image and hasattr(obj.article.image, 'url'):

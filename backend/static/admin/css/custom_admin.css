@@ -442,3 +442,65 @@ input[type="file"]:-ms-input-placeholder {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
     outline: none !important;
 }
+
+/* File input styling for article forms */
+input[type="file"][accept="image/*"] {
+    border: 2px dashed #d1d5db !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    background: #f9fafb !important;
+    transition: all 0.3s ease !important;
+    color: #374151 !important;
+    font-weight: 500 !important;
+}
+
+input[type="file"][accept="image/*"]:hover {
+    border-color: #667eea !important;
+    background: #f3f4f6 !important;
+}
+
+input[type="file"][accept="image/*"]:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    outline: none !important;
+}
+
+/* Delete buttons for images */
+.delete-image-btn {
+    background: #dc3545 !important;
+    color: white !important;
+    border: none !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    margin-left: 8px !important;
+    transition: background-color 0.3s ease !important;
+}
+
+.delete-image-btn:hover {
+    background: #c82333 !important;
+}
+
+.delete-image-btn:active {
+    background: #bd2130 !important;
+}
+
+/* Image preview styling */
+.image-preview {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 4px;
+    margin: 5px 0;
+    border: 1px solid #ddd;
+}
+
+/* Clear existing image checkbox styling */
+.clearablefileinput .clear_checkbox {
+    margin-left: 10px;
+    font-weight: normal;
+}
+
+.clearablefileinput .clear_checkbox input[type="checkbox"] {
+    margin-right: 5px;
+}
