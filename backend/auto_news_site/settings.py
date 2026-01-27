@@ -651,3 +651,25 @@ LOGGING = {
         },
     },
 }
+
+
+# ================================================
+# SEO CONFIGURATION  
+# ================================================
+
+DEFAULT_SEO_TITLE = "FreshMotors - AI-Powered Automotive News & Reviews"
+DEFAULT_SEO_DESCRIPTION = "Latest car reviews, automotive news, and vehicle comparisons powered by AI"
+DEFAULT_SEO_KEYWORDS = "car reviews, automotive news, vehicle specs, car comparisons, electric vehicles"
+
+# Site Settings
+SITE_NAME = "FreshMotors"
+SITE_DESCRIPTION = "AI-Powered Automotive News Platform"
+CONTACT_EMAIL = "contact@freshmotors.com"
+
+
+# ================================================
+# RATE LIMITING CONFIGURATION
+# ================================================
+
+RATELIMIT_ENABLE = not DEBUG  # Disable in development, enable in production
+RATELIMIT_USE_CACHE = 'default'

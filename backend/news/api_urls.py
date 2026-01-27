@@ -44,7 +44,15 @@ router.register(r'youtube-channels', YouTubeChannelViewSet, basename='youtube-ch
 router.register(r'pending-articles', PendingArticleViewSet, basename='pending-article')
 router.register(r'auto-publish-schedule', AutoPublishScheduleViewSet, basename='auto-publish-schedule')
 router.register(r'notifications', AdminNotificationViewSet, basename='notification')
-from .api_views import CurrencyRatesView, CurrentUserView, ChangePasswordView, EmailPreferencesView
+from .api_views import (
+    CurrencyRatesView, CurrentUserView, ChangePasswordView, EmailPreferencesView,
+    RequestEmailChangeView, VerifyEmailChangeView,
+    PasswordResetRequestView, PasswordResetConfirmView
+)
+from .search_analytics_views import (
+    SearchAPIView, AnalyticsOverviewAPIView, AnalyticsTopArticlesAPIView,
+    AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView
+)
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -61,9 +69,27 @@ urlpatterns = [
     path('auth/password/change/', ChangePasswordView.as_view(), name='change_password'),
     path('auth/email-preferences/', EmailPreferencesView.as_view(), name='email_preferences'),
     
+    # Email verification endpoints
+    path('auth/email/request-change/', RequestEmailChangeView.as_view(), name='request_email_change'),
+    path('auth/email/verify-code/', VerifyEmailChangeView.as_view(), name='verify_email_change'),
+    
+    # Password reset endpoints  
+    path('auth/password/reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('auth/password/reset-confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    
     # Currency rates
     path('currency-rates/', CurrencyRatesView.as_view(), name='currency_rates'),
+    
+    # Search endpoint
+    path('search/', SearchAPIView.as_view(), name='search'),
+    
+    # Analytics endpoints  
+    path('analytics/overview/', AnalyticsOverviewAPIView.as_view(), name='analytics_overview'),
+    path('analytics/articles/top/', AnalyticsTopArticlesAPIView.as_view(), name='analytics_top_articles'),
+    path('analytics/views/timeline/', AnalyticsViewsTimelineAPIView.as_view(), name='analytics_timeline'),
+    path('analytics/categories/', AnalyticsCategoriesAPIView.as_view(), name='analytics_categories'),
     
     # API endpoints
     path('', include(router.urls)),
 ]
+

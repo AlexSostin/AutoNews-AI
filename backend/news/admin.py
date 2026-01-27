@@ -4,7 +4,10 @@ from django.shortcuts import render, redirect
 from django.urls import path
 from django.utils import timezone
 from datetime import timedelta
-from .models import Article, Category, Tag, CarSpecification, SiteSettings, Comment, Rating, ArticleImage, Favorite
+from .models import (
+    Article, Category, Tag, CarSpecification, SiteSettings, Comment, Rating,
+    ArticleImage, Favorite, SecurityLog, EmailVerification, PasswordResetToken
+)
 import sys
 import os
 
@@ -524,6 +527,99 @@ class FavoriteAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         # Favorites are created only from frontend
         return False
+
+
+@admin.register(SecurityLog)
+class SecurityLogAdmin(admin.ModelAdmin):
+    """Admin for viewing security audit logs"""
+    list_display = ('user', 'action', 'ip_address', 'created_at', 'details_preview')
+    list_filter = ('action', 'created_at')
+    search_fields = ('user__username', 'user__email', 'ip_address', 'old_value', 'new_value')
+    readonly_fields = ('user', 'action', 'ip_address', 'user_agent', 'old_value', 'new_value', 'details', 'created_at')
+    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'
+    
+    def has_add_permission(self, request):
+        # Logs are created automatically
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        # Only superusers can delete logs
+        return request.user.is_superuser
+    
+    def details_preview(self, obj):
+        """Preview of details field"""
+        if obj.details:
+            return obj.details[:50] + '...' if len(obj.details) > 50 else obj.details
+        return '-'
+    details_preview.short_description = 'Details'
+    
+    fieldsets = (
+        ('Event Information', {
+            'fields': ('user', 'action', 'created_at')
+        }),
+        ('Request Details', {
+            'fields': ('ip_address', 'user_agent')
+        }),
+        ('Change Details', {
+            'fields': ('old_value', 'new_value', 'details')
+        }),
+    )
+
+
+@admin.register(EmailVerification)
+class EmailVerificationAdmin(admin.ModelAdmin):
+    """Admin for email verification codes"""
+    list_display = ('user', 'new_email', 'code', 'created_at', 'expires_at', 'is_used', 'status')
+    list_filter = ('is_used', 'created_at')
+    search_fields = ('user__username', 'new_email', 'code')
+    readonly_fields = ('user', 'new_email', 'code', 'created_at', 'expires_at', 'is_used')
+    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def status(self, obj):
+        """Show verification status"""
+        from django.utils.html import format_html
+        if obj.is_used:
+            return format_html('<span style="color: green;">✓ Used</span>')
+        elif obj.is_valid():
+            return format_html('<span style="color: orange;">⏳ Valid</span>')
+        else:
+            return format_html('<span style="color: red;">✗ Expired</span>')
+    status.short_description = 'Status'
+
+
+@admin.register(PasswordResetToken)
+class PasswordResetTokenAdmin(admin.ModelAdmin):
+    """Admin for password reset tokens"""
+    list_display = ('user', 'token_preview', 'created_at', 'expires_at', 'is_used', 'ip_address', 'status')
+    list_filter = ('is_used', 'created_at')
+    search_fields = ('user__username', 'user__email', 'token', 'ip_address')
+    readonly_fields = ('user', 'token', 'created_at', 'expires_at', 'is_used', 'ip_address')
+    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def token_preview(self, obj):
+        """Show first 8 chars of token"""
+        return f"{obj.token[:8]}..."
+    token_preview.short_description = 'Token'
+    
+    def status(self, obj):
+        """Show token status"""
+        from django.utils.html import format_html
+        if obj.is_used:
+            return format_html('<span style="color: green;">✓ Used</span>')
+        elif obj.is_valid():
+            return format_html('<span style="color: orange;">⏳ Valid</span>')
+        else:
+            return format_html('<span style="color: red;">✗ Expired</span>')
+    status.short_description = 'Status'
 
 
 

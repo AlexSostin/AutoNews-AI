@@ -65,14 +65,14 @@ export default function ProfilePage() {
   const [ratingsCount, setRatingsCount] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
-  
+
   // Modal state
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
-  
+
   // Edit Profile state
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
@@ -80,7 +80,7 @@ export default function ProfilePage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
-  
+
   // Change Password state
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword1, setNewPassword1] = useState('');
@@ -88,7 +88,7 @@ export default function ProfilePage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
-  
+
   // Email Preferences state
   const [emailPrefs, setEmailPrefs] = useState<EmailPreferences>({
     newsletter_enabled: true,
@@ -99,6 +99,16 @@ export default function ProfilePage() {
   });
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsSuccess, setPrefsSuccess] = useState('');
+
+  // Email Verification state (NEW)
+  const [emailVerificationModal, setEmailVerificationModal] = useState(false);
+  const [emailVerificationStep, setEmailVerificationStep] = useState<'request' | 'verify'>('request');
+  const [newEmailAddress, setNewEmailAddress] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [emailVerifError, setEmailVerifError] = useState('');
+  const [emailVerifSuccess, setEmailVerifSuccess] = useState('');
+  const [emailVerifSaving, setEmailVerifSaving] = useState(false);
+  const [codeExpiresIn, setCodeExpiresIn] = useState(0);
 
   const loadFavoritesCount = async () => {
     const token = getToken();
@@ -252,13 +262,13 @@ export default function ProfilePage() {
         body: JSON.stringify({
           first_name: editFirstName,
           last_name: editLastName,
-          email: editEmail,
+          // Email removed - now requires separate verification
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Update local user state
+        // Update user email in state and localStorage
         setUser(prev => prev ? { ...prev, ...data } : null);
         // Update localStorage
         const stored = getUserFromStorage();
@@ -269,7 +279,7 @@ export default function ProfilePage() {
         setTimeout(() => closeModal(), 1500);
       } else {
         const error = await response.json();
-        setProfileError(error.email?.[0] || error.detail || 'Failed to update profile');
+        setProfileError(error.detail || 'Failed to update profile');
       }
     } catch (err) {
       setProfileError('Network error. Please try again.');
@@ -385,6 +395,134 @@ export default function ProfilePage() {
     }
   };
 
+  // Email Verification Handlers (NEW)
+  const openEmailVerification = () => {
+    setEmailVerificationModal(true);
+    setEmailVerificationStep('request');
+    setNewEmailAddress('');
+    setVerificationCode('');
+    setEmailVerifError('');
+    setEmailVerifSuccess('');
+    setCodeExpiresIn(0);
+  };
+
+  const requestEmailChange = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setEmailVerifSaving(true);
+    setEmailVerifError('');
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmailAddress)) {
+      setEmailVerifError('Please enter a valid email address');
+      setEmailVerifSaving(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/email/request-change/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          new_email: newEmailAddress,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEmailVerificationStep('verify');
+        setCodeExpiresIn(data.expires_in || 900); // 15 minutes
+
+        // Start countdown timer
+        const interval = setInterval(() => {
+          setCodeExpiresIn(prev => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        setEmailVerifSuccess(`Verification code sent to ${newEmailAddress}! Check your email.`);
+      } else {
+        const error = await response.json();
+        setEmailVerifError(error.new_email?.[0] || error.detail || 'Failed to send verification code');
+      }
+    } catch (err) {
+      setEmailVerifError('Network error. Please try again.');
+    } finally {
+      setEmailVerifSaving(false);
+    }
+  };
+
+  const verifyEmailChange = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    setEmailVerifSaving(true);
+    setEmailVerifError('');
+
+    if (!verificationCode || verificationCode.length !== 6) {
+      setEmailVerifError('Please enter the 6-digit code');
+      setEmailVerifSaving(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getApiUrl()}/auth/email/verify-code/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: verificationCode,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Update user email in state and localStorage
+        setUser(prev => prev ? { ...prev, email: data.new_email } : null);
+        const stored = getUserFromStorage();
+        if (stored) {
+          stored.email = data.new_email;
+          localStorage.setItem('user', JSON.stringify(stored));
+        }
+
+        setEmailVerifSuccess('Email changed successfully!');
+        setTimeout(() => {
+          setEmailVerificationModal(false);
+          setEmailVerificationStep('request');
+        }, 1500);
+      } else {
+        const error = await response.json();
+        setEmailVerifError(error.code?.[0] || error.detail || 'Invalid or expired code');
+      }
+    } catch (err) {
+      setEmailVerifError('Network error. Please try again.');
+    } finally {
+      setEmailVerifSaving(false);
+    }
+  };
+
+  const closeEmailVerificationModal = () => {
+    setEmailVerificationModal(false);
+    setEmailVerificationStep('request');
+    setNewEmailAddress('');
+    setVerificationCode('');
+    setEmailVerifError('');
+    setEmailVerifSuccess('');
+    setCodeExpiresIn(0);
+  };
+
   const openModal = (type: ModalType) => {
     setActiveModal(type);
     if (type === 'favorites') loadFavorites();
@@ -417,11 +555,11 @@ export default function ProfilePage() {
         router.push('/login?redirect=/profile');
         return;
       }
-      
+
       setAuthChecked(true);
       setLoading(false);
     };
-    
+
     checkAuth();
   }, [router]);
 
@@ -498,7 +636,7 @@ export default function ProfilePage() {
   return (
     <>
       <Header />
-      
+
       <main className="flex-1 bg-gray-50">
         <div className="container mx-auto px-4 py-12">
           {/* Page Header */}
@@ -612,7 +750,7 @@ export default function ProfilePage() {
               {/* Account Features */}
               <div className="bg-white rounded-xl shadow-md p-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Account Features</h3>
-                
+
                 <div className="space-y-4">
                   <button
                     onClick={() => openModal('favorites')}
@@ -655,25 +793,33 @@ export default function ProfilePage() {
               {/* Account Actions */}
               <div className="bg-white rounded-xl shadow-md p-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Account Settings</h3>
-                
+
                 <div className="space-y-3">
-                  <button 
+                  <button
                     onClick={openEditProfile}
                     className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-left flex items-center justify-between"
                   >
                     <span>Edit Profile</span>
                     <ChevronRight className="w-5 h-5" />
                   </button>
-                  
-                  <button 
+
+                  <button
+                    onClick={openEmailVerification}
+                    className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-left flex items-center justify-between"
+                  >
+                    <span>Change Email</span>
+                    <Mail className="w-5 h-5" />
+                  </button>
+
+                  <button
                     onClick={openChangePassword}
                     className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-left flex items-center justify-between"
                   >
                     <span>Change Password</span>
                     <ChevronRight className="w-5 h-5" />
                   </button>
-                  
-                  <button 
+
+                  <button
                     onClick={openEmailPreferences}
                     className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-left flex items-center justify-between"
                   >
@@ -730,7 +876,7 @@ export default function ProfilePage() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <Link 
+                        <Link
                           href={`/articles/${fav.article_slug}`}
                           className="font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2"
                         >
@@ -804,17 +950,16 @@ export default function ProfilePage() {
                   {comments.map((comment) => (
                     <div key={comment.id} className="p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-start justify-between mb-2">
-                        <Link 
+                        <Link
                           href={`/articles/${comment.article_slug}`}
                           className="font-semibold text-gray-900 hover:text-purple-600"
                         >
                           {comment.article_title}
                         </Link>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          comment.is_approved 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${comment.is_approved
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                          }`}>
                           {comment.is_approved ? 'Approved' : 'Pending'}
                         </span>
                       </div>
@@ -875,7 +1020,7 @@ export default function ProfilePage() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <Link 
+                        <Link
                           href={`/articles/${rating.article_slug}`}
                           className="font-semibold text-gray-900 hover:text-amber-600 line-clamp-2"
                         >
@@ -960,7 +1105,7 @@ export default function ProfilePage() {
                     placeholder="Enter email"
                   />
                 </div>
-                
+
                 {profileError && (
                   <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
                     {profileError}
@@ -971,7 +1116,7 @@ export default function ProfilePage() {
                     {profileSuccess}
                   </div>
                 )}
-                
+
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={closeModal}
@@ -1040,7 +1185,7 @@ export default function ProfilePage() {
                     placeholder="Confirm new password"
                   />
                 </div>
-                
+
                 {passwordError && (
                   <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
                     {passwordError}
@@ -1051,7 +1196,7 @@ export default function ProfilePage() {
                     {passwordSuccess}
                   </div>
                 )}
-                
+
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={closeModal}
@@ -1181,7 +1326,154 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-      
+
+      {/* Email Verification Modal (NEW) */}
+      {emailVerificationModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Mail className="w-6 h-6 text-blue-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {emailVerificationStep === 'request' ? 'Change Email' : 'Verify Email'}
+                </h2>
+              </div>
+              <button onClick={closeEmailVerificationModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Step Indicator */}
+            <div className="px-6 pt-4">
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${emailVerificationStep === 'request' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'
+                  }`}>
+                  1
+                </div>
+                <div className="w-12 h-1 bg-gray-300"></div>
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${emailVerificationStep === 'verify' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-500'
+                  }`}>
+                  2
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {emailVerificationStep === 'request' ? (
+                /* Step 1: Request Email Change */
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Current Email
+                    </label>
+                    <div className="px-4 py-3 bg-gray-100 rounded-lg text-gray-600">
+                      {user?.email}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      New Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={newEmailAddress}
+                      onChange={(e) => setNewEmailAddress(e.target.value)}
+                      placeholder="Enter new email address"
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                    />
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>🔒 Secure Verification:</strong> You'll receive a 6-digit code
+                      at your new email address to confirm this change.
+                    </p>
+                  </div>
+
+                  {emailVerifError && (
+                    <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                      {emailVerifError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={requestEmailChange}
+                    disabled={emailVerifSaving || !newEmailAddress}
+                    className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {emailVerifSaving ? 'Sending Code...' : 'Send Verification Code'}
+                  </button>
+                </div>
+              ) : (
+                /* Step 2: Verify with Code */
+                <div className="space-y-4">
+                  <div className="text-center mb-4">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm mb-2">
+                      <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
+                      Code sent to {newEmailAddress}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Verification Code
+                    </label>
+                    <input
+                      type="text"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                      placeholder="Enter 6-digit code"
+                      maxLength={6}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all text-center text-2xl font-mono tracking-widest"
+                    />
+                  </div>
+
+                  {codeExpiresIn > 0 && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                      <Clock className="w-4 h-4" />
+                      <span>
+                        Code expires in {Math.floor(codeExpiresIn / 60)}:{String(codeExpiresIn % 60).padStart(2, '0')}
+                      </span>
+                    </div>
+                  )}
+
+                  {emailVerifError && (
+                    <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                      {emailVerifError}
+                    </div>
+                  )}
+
+                  {emailVerifSuccess && (
+                    <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                      {emailVerifSuccess}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setEmailVerificationStep('request')}
+                      className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={verifyEmailChange}
+                      disabled={emailVerifSaving || verificationCode.length !== 6}
+                      className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {emailVerifSaving ? 'Verifying...' : 'Verify & Change Email'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </>
   );

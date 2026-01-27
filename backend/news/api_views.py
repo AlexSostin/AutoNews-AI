@@ -13,14 +13,14 @@ from django.contrib.auth.hashers import check_password
 from django.utils import timezone
 from .models import (
     Article, Category, Tag, Comment, Rating, CarSpecification, 
-    ArticleImage, SiteSettings, Favorite, Subscriber,
+    ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, PendingArticle, AutoPublishSchedule, AdminNotification
 )
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
     CategorySerializer, TagSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
-    SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer,
+    SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer, NewsletterHistorySerializer,
     YouTubeChannelSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
     AdminNotificationSerializer
 )
@@ -52,17 +52,18 @@ class CurrentUserView(APIView):
     def patch(self, request):
         user = request.user
         
-        # Update allowed fields
+        # Update allowed fields (except email)
         if 'first_name' in request.data:
             user.first_name = request.data['first_name'][:30]
         if 'last_name' in request.data:
             user.last_name = request.data['last_name'][:150]
+        
+        # Email change requires verification (handled by separate endpoint)
         if 'email' in request.data:
-            email = request.data['email'].strip().lower()
-            # Check if email is taken by another user
-            if User.objects.filter(email__iexact=email).exclude(id=user.id).exists():
-                return Response({'email': ['This email is already taken']}, status=status.HTTP_400_BAD_REQUEST)
-            user.email = email
+            return Response(
+                {'email': ['Email change requires verification. Use /api/v1/auth/email/request-change/ endpoint']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         user.save()
         
@@ -75,11 +76,19 @@ class CurrentUserView(APIView):
         })
 
 
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
+
+
+@method_decorator(ratelimit(key='user', rate='5/h', method='POST'), name='post')
 class ChangePasswordView(APIView):
     """Change user password"""
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
+        from .validators import validate_password_strength
+        from .security_utils import log_security_event, get_client_ip, get_user_agent
+        
         user = request.user
         old_password = request.data.get('old_password', '')
         new_password1 = request.data.get('new_password1', '')
@@ -94,12 +103,23 @@ class ChangePasswordView(APIView):
             return Response({'new_password1': ['Passwords do not match']}, status=status.HTTP_400_BAD_REQUEST)
         
         # Validate password strength
-        if len(new_password1) < 8:
-            return Response({'new_password1': ['Password must be at least 8 characters']}, status=status.HTTP_400_BAD_REQUEST)
+        is_valid, error_message = validate_password_strength(new_password1)
+        if not is_valid:
+            return Response({'new_password1': [error_message]}, status=status.HTTP_400_BAD_REQUEST)
         
         # Change password
         user.set_password(new_password1)
         user.save()
+        
+        # Log security event
+        log_security_event(
+            user=user,
+            action='password_changed',
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        
+        # TODO: Send email notification
         
         return Response({'detail': 'Password changed successfully'})
 
@@ -128,6 +148,202 @@ class EmailPreferencesView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RequestEmailChangeView(APIView):
+    """Request email change - sends verification code to new email"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        from .models import EmailVerification
+        from .security_utils import get_client_ip
+        from django.utils import timezone
+        from datetime import timedelta
+        import random
+        
+        new_email = request.data.get('new_email', '').strip().lower()
+        
+        # Validate email format
+        if not new_email:
+            return Response({'new_email': ['Email is required']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if email is taken by another user
+        if User.objects.filter(email__iexact=new_email).exclude(id=request.user.id).exists():
+            return Response({'new_email': ['This email is already taken']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if same as current email
+        if new_email == request.user.email.lower():
+            return Response({'new_email': ['This is your current email']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Generate 6-digit code
+        code = str(random.randint(100000, 999999))
+        
+        # Create verification record
+        verification = EmailVerification.objects.create(
+            user=request.user,
+            new_email=new_email,
+            code=code,
+            expires_at=timezone.now() + timedelta(minutes=15)
+        )
+        
+        # TODO: Send email with code
+        # For now, return code in response (DEV ONLY!)
+        print(f"🔑 Verification code for {new_email}: {code}")
+        
+        return Response({
+            'detail': f'Verification code sent to {new_email}',
+            'code': code,  # DEV ONLY - remove in production
+            'expires_in': 900  # 15 minutes in seconds
+        })
+
+
+class VerifyEmailChangeView(APIView):
+    """Verify email change with code"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        from .models import EmailVerification
+        from .security_utils import log_security_event, get_client_ip, get_user_agent
+        
+        code = request.data.get('code', '').strip()
+        
+        if not code:
+            return Response({'code': ['Verification code is required']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Find valid verification
+        try:
+            verification = EmailVerification.objects.filter(
+                user=request.user,
+                code=code,
+                is_used=False
+            ).latest('created_at')
+        except EmailVerification.DoesNotExist:
+            return Response({'code': ['Invalid verification code']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if expired
+        if not verification.is_valid():
+            return Response({'code': ['Verification code has expired']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update email
+        old_email = request.user.email
+        request.user.email = verification.new_email
+        request.user.save()
+        
+        # Mark verification as used
+        verification.is_used = True
+        verification.save()
+        
+        # Log security event
+        log_security_event(
+            user=request.user,
+            action='email_changed',
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+            old_value=old_email,
+            new_value=verification.new_email
+        )
+        
+        # TODO: Send notification to old email
+        
+        return Response({
+            'detail': 'Email changed successfully',
+            'new_email': verification.new_email
+        })
+
+
+class PasswordResetRequestView(APIView):
+    """Request password reset - sends reset link to email"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from .models import PasswordResetToken
+        from .security_utils import get_client_ip
+        from django.utils import timezone
+        from datetime import timedelta
+        import uuid
+        
+        email = request.data.get('email', '').strip().lower()
+        
+        if not email:
+            return Response({'email': ['Email is required']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Find user by email
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            # Don't reveal if email exists or not
+            return Response({'detail': 'If email exists, password reset link has been sent'})
+        
+        # Generate unique token
+        token = str(uuid.uuid4())
+        
+        # Create reset token
+        reset = PasswordResetToken.objects.create(
+            user=user,
+            token=token,
+            expires_at=timezone.now() + timedelta(hours=1),
+            ip_address=get_client_ip(request)
+        )
+        
+        # TODO: Send email with reset link
+        reset_link = f"http://localhost:3000/reset-password?token={token}"
+        print(f"🔑 Password reset link for {email}: {reset_link}")
+        
+        return Response({
+            'detail': 'If email exists, password reset link has been sent',
+            'reset_link': reset_link  # DEV ONLY - remove in production
+        })
+
+
+class PasswordResetConfirmView(APIView):
+    """Confirm password reset with token"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from .models import PasswordResetToken
+        from .validators import validate_password_strength
+        from .security_utils import log_security_event, get_client_ip, get_user_agent
+        
+        token = request.data.get('token', '').strip()
+        new_password = request.data.get('new_password', '')
+        
+        if not token:
+            return Response({'token': ['Reset token is required']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Find token
+        try:
+            reset = PasswordResetToken.objects.get(token=token, is_used=False)
+        except PasswordResetToken.DoesNotExist:
+            return Response({'token': ['Invalid or expired reset token']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if expired
+        if not reset.is_valid():
+            return Response({'token': ['Reset token has expired']}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate password strength
+        is_valid, error_message = validate_password_strength(new_password)
+        if not is_valid:
+            return Response({'new_password': [error_message]}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Change password
+        reset.user.set_password(new_password)
+        reset.user.save()
+        
+        # Mark token as used
+        reset.is_used = True
+        reset.save()
+        
+        # Log security event
+        log_security_event(
+            user=reset.user,
+            action='password_reset_completed',
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request)
+        )
+        
+        # TODO: Send confirmation email
+        
+        return Response({'detail': 'Password reset successfully'})
 
 
 class IsStaffOrReadOnly(BasePermission):
@@ -308,7 +524,48 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 except json.JSONDecodeError:
                     pass
         
-        return super().update(request, *args, **kwargs)
+        # Helper to check for boolean flags in form data (which come as strings 'true'/'false')
+        def is_true(key):
+            val = request.data.get(key)
+            return val and str(val).lower() == 'true'
+
+        # Perform update first
+        response = super().update(request, *args, **kwargs)
+        
+        # Then handle deletions if successful
+        if response.status_code == 200:
+            instance = self.get_object()
+            changed = False
+            
+            if is_true('delete_image'):
+                instance.image = None
+                changed = True
+            if is_true('delete_image_2'):
+                instance.image_2 = None
+                changed = True
+            if is_true('delete_image_3'):
+                instance.image_3 = None
+                changed = True
+                
+            if changed:
+                instance.save()
+                # Refresh response data
+                serializer = self.get_serializer(instance)
+                response = Response(serializer.data)
+            
+            # Clear article list cache after successful update
+            # This ensures published/unpublished articles immediately appear/disappear on homepage
+            cache.delete_many([
+                'views.decorators.cache.cache_page.*.news.api_views.ArticleViewSet._cached_list.*',
+                'views.decorators.cache.cache_page.*.news.api_views.ArticleViewSet._cached_retrieve.*',
+            ])
+            # Also try specific cache key patterns
+            from django.core.cache.utils import make_template_fragment_key
+            cache.clear()  # Clear all cache to be safe
+            logger.info(f"Cache cleared after article update: {instance.id}")
+                
+        return response
+
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
@@ -332,79 +589,77 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Import AI engine
+        import traceback
+        
+        # Add both backend and ai_engine paths for proper imports
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
+        
+        if backend_dir not in sys.path:
+            sys.path.insert(0, backend_dir)
+        if ai_engine_dir not in sys.path:
+            sys.path.insert(0, ai_engine_dir)
+        
         try:
-            # Import AI engine
-            import traceback
+            from ai_engine.main import generate_article_from_youtube
+        except Exception as import_error:
+            print(f"Import error: {import_error}")
+            print(traceback.format_exc())
+            return Response(
+                {'error': f'Failed to import AI engine: {str(import_error)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # Get AI provider from request (default to 'groq')
+        provider = request.data.get('provider', 'groq')
+        if provider not in ['groq', 'gemini']:
+            return Response(
+                {'error': 'Provider must be either "groq" or "gemini"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Generate article with task_id for WebSocket progress and selected provider
+        result = generate_article_from_youtube(youtube_url, task_id=task_id, provider=provider)
+        
+        if result.get('success'):
+            article_id = result['article_id']
+            print(f"[generate_from_youtube] Article created with ID: {article_id}")
             
-            # Add both backend and ai_engine paths for proper imports
-            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
+            # Clear cache so new article appears immediately
+            from django.core.cache import cache
+            cache.clear()
+            print(f"[generate_from_youtube] Cache cleared")
             
-            if backend_dir not in sys.path:
-                sys.path.insert(0, backend_dir)
-            if ai_engine_dir not in sys.path:
-                sys.path.insert(0, ai_engine_dir)
-            
+            # Fetch the article (even if soft-deleted, to debug)
             try:
-                from ai_engine.main import generate_article_from_youtube
-            except Exception as import_error:
-                print(f"Import error: {import_error}")
-                print(traceback.format_exc())
+                article = Article.objects.get(id=article_id)
+                print(f"[generate_from_youtube] Article found: {article.title}, is_published={article.is_published}, is_deleted={article.is_deleted}")
+                
+                # Force publish and un-delete in case something went wrong
+                if not article.is_published or article.is_deleted:
+                    article.is_published = True
+                    article.is_deleted = False
+                    article.save()
+                    print(f"[generate_from_youtube] Article status updated to published")
+                
+            except Article.DoesNotExist:
+                print(f"[generate_from_youtube] Article with ID {article_id} not found!")
                 return Response(
-                    {'error': f'Failed to import AI engine: {str(import_error)}'},
+                    {'error': f'Article was created but cannot be found (ID: {article_id})'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            # Generate article with task_id for WebSocket progress
-            result = generate_article_from_youtube(youtube_url, task_id=task_id)
-            
-            if result.get('success'):
-                article_id = result['article_id']
-                print(f"[generate_from_youtube] Article created with ID: {article_id}")
-                
-                # Clear cache so new article appears immediately
-                from django.core.cache import cache
-                cache.clear()
-                print(f"[generate_from_youtube] Cache cleared")
-                
-                # Fetch the article (even if soft-deleted, to debug)
-                try:
-                    article = Article.objects.get(id=article_id)
-                    print(f"[generate_from_youtube] Article found: {article.title}, is_published={article.is_published}, is_deleted={article.is_deleted}")
-                    
-                    # Force publish and un-delete in case something went wrong
-                    if not article.is_published or article.is_deleted:
-                        article.is_published = True
-                        article.is_deleted = False
-                        article.save()
-                        print(f"[generate_from_youtube] Article status updated to published")
-                    
-                except Article.DoesNotExist:
-                    print(f"[generate_from_youtube] Article with ID {article_id} not found!")
-                    return Response(
-                        {'error': f'Article was created but cannot be found (ID: {article_id})'},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-                
-                serializer = self.get_serializer(article)
-                return Response({
-                    'success': True,
-                    'message': 'Article generated successfully',
-                    'article': serializer.data
-                })
-            else:
-                return Response(
-                    {'error': result.get('error', 'Unknown error')},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-        except Exception as e:
-            import traceback
-            print(f"Error generating article: {str(e)}")
-            print(traceback.format_exc())
+            serializer = self.get_serializer(article)
+            return Response({
+                'success': True,
+                'message': 'Article generated successfully',
+                'article': serializer.data
+            })
+        else:
             return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'error': result.get('error', 'Unknown error')},
+                status=status.HTTP_400_BAD_REQUEST
             )
     
     @action(detail=True, methods=['post'])
@@ -611,11 +866,23 @@ class CommentViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         article_id = self.request.query_params.get('article', None)
         is_approved = self.request.query_params.get('is_approved', None)
+        # Support 'approved' alias from frontend
+        if is_approved is None:
+            is_approved = self.request.query_params.get('approved', None)
         
+        # Filter by article
         if article_id:
             queryset = queryset.filter(article_id=article_id)
+            
+        # Filter by approval status
         if is_approved is not None:
-            queryset = queryset.filter(is_approved=(is_approved.lower() == 'true'))
+            queryset = queryset.filter(is_approved=(str(is_approved).lower() == 'true'))
+        
+        # By default, return only top-level comments (no parent)
+        # Use ?include_replies=true to get all comments including replies
+        include_replies = self.request.query_params.get('include_replies', 'false')
+        if include_replies.lower() != 'true':
+            queryset = queryset.filter(parent__isnull=True)
             
         return queryset
     
@@ -634,11 +901,17 @@ class CommentViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['patch', 'post'], permission_classes=[IsAuthenticated])
     def approve(self, request, pk=None):
-        """Approve comment"""
+        """Approve or reject comment"""
         comment = self.get_object()
-        comment.is_approved = True
+        
+        # Check if 'approved' is in request data (support both keys)
+        is_approved = request.data.get('approved')
+        if is_approved is None:
+            is_approved = request.data.get('is_approved', True)  # Default to True for backward compat
+            
+        comment.is_approved = bool(is_approved)
         comment.save(update_fields=['is_approved'])
         serializer = self.get_serializer(comment)
         return Response(serializer.data)
@@ -1049,12 +1322,17 @@ class SubscriberViewSet(viewsets.ModelViewSet):
     - Anyone can subscribe (rate limited)
     - Staff can view/manage subscribers
     """
-    queryset = Subscriber.objects.filter(is_active=True)
     serializer_class = SubscriberSerializer
     permission_classes = [AllowAny]
     
+    def get_queryset(self):
+        """Show all subscribers for admins, only active for others"""
+        if self.request.user.is_authenticated and self.request.user.is_staff:
+            return Subscriber.objects.all()
+        return Subscriber.objects.filter(is_active=True)
+    
     def get_permissions(self):
-        if self.action in ['list', 'destroy', 'send_newsletter']:
+        if self.action in ['list', 'destroy', 'send_newsletter', 'export_csv', 'import_csv', 'bulk_delete', 'newsletter_history']:
             return [IsAuthenticated()]
         return [AllowAny()]
     
@@ -1142,6 +1420,14 @@ class SubscriberViewSet(viewsets.ModelViewSet):
             
             sent = send_mass_mail(messages, fail_silently=False)
             
+            # Save to history
+            NewsletterHistory.objects.create(
+                subject=subject,
+                message=message,
+                sent_to_count=sent,
+                sent_by=request.user
+            )
+            
             return Response({
                 'message': f'Newsletter sent to {sent} subscribers',
                 'count': sent
@@ -1149,6 +1435,116 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Failed to send newsletter: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def export_csv(self, request):
+        """Export all subscribers as CSV"""
+        if not request.user.is_staff:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="subscribers.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Email', 'Status', 'Subscribed Date', 'Unsubscribed Date'])
+        
+        subscribers = Subscriber.objects.all()
+        for sub in subscribers:
+            writer.writerow([
+                sub.email,
+                'Active' if sub.is_active else 'Unsubscribed',
+                sub.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                sub.unsubscribed_at.strftime('%Y-%m-%d %H:%M:%S') if sub.unsubscribed_at else ''
+            ])
+        
+        return response
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def import_csv(self, request):
+        """Import subscribers from CSV file"""
+        if not request.user.is_staff:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        csv_file = request.FILES.get('file')
+        if not csv_file:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not csv_file.name.endswith('.csv'):
+            return Response({'error': 'File must be CSV format'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            import csv
+            import io
+            
+            decoded_file = csv_file.read().decode('utf-8')
+            csv_data = csv.DictReader(io.StringIO(decoded_file))
+            
+            added = 0
+            skipped = 0
+            
+            for row in csv_data:
+                email = row.get('email', '').lower().strip()
+                if not email:
+                    continue
+                
+                # Check if email is valid
+                from django.core.validators import validate_email
+                try:
+                    validate_email(email)
+                except:
+                    skipped += 1
+                    continue
+                
+                # Create or update subscriber
+                _, created = Subscriber.objects.get_or_create(
+                    email=email,
+                    defaults={'is_active': True}
+                )
+                
+                if created:
+                    added += 1
+                else:
+                    skipped += 1
+            
+            return Response({
+                'message': f'Import complete',
+                'added': added,
+                'skipped': skipped
+            })
+        except Exception as e:
+            logger.error(f"CSV import failed: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def bulk_delete(self, request):
+        """Delete multiple subscribers"""
+        if not request.user.is_staff:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({'error': 'No IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        deleted_count = Subscriber.objects.filter(id__in=ids).delete()[0]
+        
+        return Response({
+            'message': f'Deleted {deleted_count} subscribers',
+            'count': deleted_count
+        })
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def newsletter_history(self, request):
+        """Get newsletter history"""
+        if not request.user.is_staff:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        history = NewsletterHistory.objects.all()
+        serializer = NewsletterHistorySerializer(history, many=True)
+        return Response(serializer.data)
+
 
 
 class YouTubeChannelViewSet(viewsets.ModelViewSet):

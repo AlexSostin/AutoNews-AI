@@ -138,6 +138,7 @@ class Article(models.Model):
     # SEO Fields
     seo_title = models.CharField(max_length=200, blank=True)
     seo_description = models.CharField(max_length=160, blank=True)
+    meta_keywords = models.TextField(blank=True, help_text="Comma-separated SEO keywords")
     
     # Meta
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -215,6 +216,7 @@ class CarSpecification(models.Model):
 class Comment(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='comments', help_text="Authenticated user (optional)")
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies', help_text="Parent comment for replies")
     name = models.CharField(max_length=100, help_text="Your name")
     email = models.EmailField(help_text="Your email (won't be published)")
     content = models.TextField(help_text="Your comment")
@@ -341,6 +343,22 @@ class Subscriber(models.Model):
     
     def __str__(self):
         return self.email
+
+
+class NewsletterHistory(models.Model):
+    """Track all sent newsletters"""
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    sent_to_count = models.IntegerField(help_text="Number of subscribers who received this newsletter")
+    sent_at = models.DateTimeField(auto_now_add=True)
+    sent_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-sent_at']
+        verbose_name_plural = 'Newsletter History'
+    
+    def __str__(self):
+        return f"{self.subject} - {self.sent_at.strftime('%Y-%m-%d %H:%M')}"
 
 
 class YouTubeChannel(models.Model):
@@ -514,3 +532,111 @@ class AdminNotification(models.Model):
         )
 
 
+class SecurityLog(models.Model):
+    """
+    Security audit log for tracking important security events.
+    Helps detect unauthorized access attempts and monitor account changes.
+    """
+    ACTION_CHOICES = [
+        ('password_changed', 'Password Changed'),
+        ('email_changed', 'Email Changed'),
+        ('login_success', 'Login Success'),
+        ('login_failed', 'Login Failed'),
+        ('logout', 'Logout'),
+        ('password_reset_requested', 'Password Reset Requested'),
+        ('password_reset_completed', 'Password Reset Completed'),
+        ('account_locked', 'Account Locked'),
+    ]
+    
+    user = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='security_logs',
+        null=True,
+        blank=True,
+        help_text="User who performed the action (null for failed login attempts)"
+    )
+    action = models.CharField(max_length=50, choices=ACTION_CHOICES)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, help_text="Browser user agent string")
+    
+    # Additional context
+    old_value = models.CharField(max_length=255, blank=True, help_text="Old value (e.g., old email)")
+    new_value = models.CharField(max_length=255, blank=True, help_text="New value (e.g., new email)")
+    details = models.TextField(blank=True, help_text="Additional details in JSON format")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Security Log"
+        verbose_name_plural = "Security Logs"
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['action', '-created_at']),
+        ]
+    
+    def __str__(self):
+        username = self.user.username if self.user else 'Unknown'
+        return f"{username} - {self.get_action_display()} at {self.created_at}"
+
+
+class EmailVerification(models.Model):
+    """
+    Email verification for secure email changes.
+    User requests email change, receives 6-digit code, must verify before email updates.
+    """
+    user = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='email_verifications')
+    new_email = models.EmailField(help_text="New email address to verify")
+    code = models.CharField(max_length=6, help_text="6-digit verification code")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text="Code expiration time (15 minutes)")
+    is_used = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Email Verification"
+        verbose_name_plural = "Email Verifications"
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['code', 'is_used']),
+        ]
+    
+    def is_valid(self):
+        """Check if code is still valid (not expired, not used)"""
+        from django.utils import timezone
+        return not self.is_used and timezone.now() < self.expires_at
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.new_email} (expires: {self.expires_at})"
+
+
+class PasswordResetToken(models.Model):
+    """
+    Password reset tokens for "Forgot Password" functionality.
+    User requests reset, receives email with unique token link, can set new password.
+    """
+    user = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='password_resets')
+    token = models.CharField(max_length=64, unique=True, help_text="UUID token for password reset")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text="Token expiration time (1 hour)")
+    is_used = models.BooleanField(default=False)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Password Reset Token"
+        verbose_name_plural = "Password Reset Tokens"
+        indexes = [
+            models.Index(fields=['token', 'is_used']),
+            models.Index(fields=['user', '-created_at']),
+        ]
+    
+    def is_valid(self):
+        """Check if token is still valid (not expired, not used)"""
+        from django.utils import timezone
+        return not self.is_used and timezone.now() < self.expires_at
+    
+    def __str__(self):
+        return f"{self.user.username} - Reset requested at {self.created_at}"
