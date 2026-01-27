@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from .models import (
     Article, Category, Tag, Comment, Rating, CarSpecification, 
-    ArticleImage, SiteSettings, Favorite, Subscriber,
+    ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, PendingArticle, AutoPublishSchedule, EmailPreferences,
     AdminNotification
 )
@@ -217,17 +217,22 @@ class CommentSerializer(serializers.ModelSerializer):
     article_slug = serializers.CharField(source='article.slug', read_only=True)
     article_image = serializers.SerializerMethodField()
     article_category = serializers.SerializerMethodField()
-    approved = serializers.BooleanField(source='is_approved')  # Alias для frontend
+    approved = serializers.BooleanField(source='is_approved', read_only=True)  # Alias для frontend
     author_name = serializers.CharField(source='name', read_only=True)
+    # Reply fields
+    parent_author = serializers.SerializerMethodField()
+    replies_count = serializers.SerializerMethodField()
     # Email hidden from public API for privacy - only available to staff
     
     class Meta:
         model = Comment
         fields = ['id', 'article', 'article_title', 'article_slug', 'article_image',
                   'article_category', 'name', 'email', 'author_name',
-                  'content', 'created_at', 'is_approved', 'approved']
+                  'content', 'created_at', 'is_approved', 'approved',
+                  'parent', 'parent_author', 'replies_count']
         read_only_fields = ['created_at', 'article_title', 'article_slug', 'article_image',
-                           'article_category', 'author_name', 'is_approved', 'approved']
+                           'article_category', 'author_name', 'is_approved', 'approved',
+                           'parent_author', 'replies_count']
         extra_kwargs = {
             'email': {'write_only': True, 'required': False}  # Email is write-only and optional for authenticated users
         }
@@ -249,6 +254,16 @@ class CommentSerializer(serializers.ModelSerializer):
         if obj.article and obj.article.category:
             return obj.article.category.name
         return None
+    
+    def get_parent_author(self, obj):
+        """Get the name of the parent comment author"""
+        if obj.parent:
+            return obj.parent.name
+        return None
+    
+    def get_replies_count(self, obj):
+        """Get the count of replies to this comment"""
+        return obj.replies.filter(is_approved=True).count()
     
     def validate_name(self, value):
         """Sanitize name to prevent XSS"""
@@ -284,8 +299,8 @@ class CommentSerializer(serializers.ModelSerializer):
         """Sanitize content to prevent XSS"""
         import html
         import re
-        if not value or len(value.strip()) < 5:
-            raise serializers.ValidationError("Comment must be at least 5 characters")
+        if not value or len(value.strip()) < 2:
+            raise serializers.ValidationError("Comment must be at least 2 characters")
         if len(value) > 2000:
             raise serializers.ValidationError("Comment must be less than 2000 characters")
         # Remove HTML tags and escape special characters
@@ -360,8 +375,17 @@ class FavoriteSerializer(serializers.ModelSerializer):
 class SubscriberSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscriber
-        fields = ['id', 'email', 'is_active', 'created_at']
-        read_only_fields = ['is_active', 'created_at']
+        fields = ['id', 'email', 'is_active', 'created_at', 'unsubscribed_at']
+        read_only_fields = ['is_active', 'created_at', 'unsubscribed_at']
+
+
+class NewsletterHistorySerializer(serializers.ModelSerializer):
+    sent_by_name = serializers.CharField(source='sent_by.username', read_only=True)
+    
+    class Meta:
+        model = NewsletterHistory
+        fields = ['id', 'subject', 'message', 'sent_to_count', 'sent_at', 'sent_by_name']
+        read_only_fields = ['sent_at']
 
 
 class YouTubeChannelSerializer(serializers.ModelSerializer):
