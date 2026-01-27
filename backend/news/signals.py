@@ -15,7 +15,7 @@ def notify_new_comment(sender, instance, created, **kwargs):
         AdminNotification.create_notification(
             notification_type='comment',
             title='New Comment',
-            message=f'New comment on "{instance.article.title[:50]}..." by {instance.author}',
+            message=f'New comment on "{instance.article.title[:50]}..." by {instance.name}',
             link=f'/admin/articles/{instance.article.id}',
             priority='normal'
         )
@@ -66,3 +66,4 @@ def notify_pending_article(sender, instance, created, **kwargs):
             link='/admin/youtube-channels/pending',
             priority='high'
         )
+# Force rebuild 1769538478
