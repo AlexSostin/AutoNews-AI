@@ -21,12 +21,13 @@ except ImportError:
 # Legacy client for backwards compatibility
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-def analyze_transcript(transcript_text, provider='groq'):
+def analyze_transcript(transcript_text, video_title=None, provider='groq'):
     """
     Analyzes the transcript to extract car details using selected AI provider.
     
     Args:
         transcript_text: The video transcript text
+        video_title: The YouTube video title (optional but recommended for context)
         provider: 'groq' (default) or 'gemini'
     
     Returns:
@@ -35,13 +36,16 @@ def analyze_transcript(transcript_text, provider='groq'):
     provider_name = "Groq" if provider == 'groq' else "Google Gemini"
     print(f"Analyzing transcript with {provider_name}...")
     
+    context_str = f"Video Title: {video_title}\n" if video_title else ""
+    
     prompt = f"""
 Analyze this automotive video transcript and extract key information in STRUCTURED format.
-
+{context_str}
 Output format (use these EXACT labels):
 Make: [Brand name]
 Model: [Exact Model name]
 Year: [Model Year]
+SEO Title: [Short, clear title - e.g. "2026 Tesla Model 3 Review"]
 Engine: [Engine type/size - e.g., "1.5L Turbo" or "Electric motor"]
 Horsepower: [HP number - e.g., "300 HP"]
 Torque: [Torque - e.g., "400 Nm"]
@@ -68,11 +72,13 @@ Transcript:
 
 IMPORTANT: 
 1. Use EXACT labels above. 
-2. If info NOT in transcript, write "Not specified". DO NOT GUESS.
-3. Be precise with Make, Model, and Year.
+2. Prioritize facts from the transcript.
+3. If technical specs (HP, Battery, Price) are missing in transcript, YOU MAY USE YOUR INTERNAL KNOWLEDGE to fill them if you are confident about the exact car model.
+4. If you use internal knowledge, mark it as (estimated) or (standard spec).
+5. Be precise with Make, Model, and Year. Fix typos in transcript (e.g. "Chin L DMI" -> "BYD Qin L DM-i").
 """
     
-    system_prompt = "You are a strict and accurate automotive analyst. You NEVER hallucinate facts. You extract information exactly as stated in the transcript."
+    system_prompt = "You are an expert automotive analyst. You extract facts from transcripts but also use your vast knowledge of car specifications to fill in gaps when the video omits details. You correct obvious transcription errors (e.g. model names)."
     
     try:
         # Use AI provider factory
@@ -164,6 +170,7 @@ def extract_specs_dict(analysis):
         'make': 'Not specified',
         'model': 'Not specified',
         'year': None,
+        'seo_title': None,
         'engine': 'Not specified',
         'horsepower': None,
         'torque': 'Not specified',
@@ -188,6 +195,8 @@ def extract_specs_dict(analysis):
                 specs['year'] = int(year_str) if year_str.isdigit() else None
             except:
                 pass
+        elif line.startswith('SEO Title:'):
+            specs['seo_title'] = line.split(':', 1)[1].strip()
         elif line.startswith('Engine:'):
             specs['engine'] = line.split(':', 1)[1].strip()
         elif line.startswith('Horsepower:'):

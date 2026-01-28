@@ -21,7 +21,7 @@ from django.core.files import File
 from django.utils.text import slugify
 import re
 
-def publish_article(title, content, category_name="Reviews", image_path=None, image_paths=None, youtube_url=None, summary=None, tag_names=None, specs=None, meta_keywords=None):
+def publish_article(title, content, category_name="Reviews", image_path=None, image_paths=None, youtube_url=None, summary=None, tag_names=None, specs=None, meta_keywords=None, is_published=True):
     """
     Publishes the article to the Django database with full metadata.
     
@@ -29,8 +29,9 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
         image_path: Single image path (backwards compatibility)
         image_paths: List of up to 3 image paths [screenshot1, screenshot2, screenshot3]
         meta_keywords: Comma-separated SEO keywords
+        is_published: Whether to publish immediately (True) or save as draft (False)
     """
-    print(f"📤 Publishing article: {title}")
+    print(f"📤 Publishing article: {title} (Published: {is_published})")
     
     # Get or Create Category
     category, created = Category.objects.get_or_create(
@@ -60,7 +61,7 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
         content=content,
         category=category,
         youtube_url=youtube_url or '',
-        is_published=True,
+        is_published=is_published,
         seo_title=seo_title,
         seo_description=seo_description,
         meta_keywords=meta_keywords or ''
@@ -139,9 +140,10 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     if tag_names:
         added_tags = []
         for tag_name in tag_names:
+            slug = slugify(tag_name)
             tag, created = Tag.objects.get_or_create(
-                name=tag_name,
-                defaults={'slug': slugify(tag_name)}
+                slug=slug,
+                defaults={'name': tag_name}
             )
             article.tags.add(tag)
             added_tags.append(tag_name)

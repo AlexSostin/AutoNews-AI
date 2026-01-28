@@ -93,7 +93,7 @@ def check_duplicate(youtube_url):
     return None
 
 
-def _generate_article_content(youtube_url, task_id=None, provider='groq'):
+def _generate_article_content(youtube_url, task_id=None, provider='groq', video_title=None):
     """
     Internal function to generate article content without saving to DB.
     Returns dictionary with all article data.
@@ -125,6 +125,22 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq'):
         send_progress(1, 5, f"🚀 Начинаем генерацию с {provider_name}...")
         print(f"🚀 Генерация контента из: {youtube_url} используя {provider_name}")
         
+        # 0. Получаем заголовок видео, если его нет
+        if not video_title:
+             try:
+                 # Quick fetch using requests (avoid full client init if possible, or use client)
+                 # Better to use YouTubeClient properly
+                 from modules.youtube_client import YouTubeClient
+                 yt = YouTubeClient()
+                 # Simple request to get title via oEmbed or scrap (oEmbed is reliable and free)
+                 oembed_url = f"https://www.youtube.com/oembed?url={youtube_url}&format=json"
+                 resp = requests.get(oembed_url, timeout=5)
+                 if resp.status_code == 200:
+                     video_title = resp.json().get('title')
+                     print(f"🎥 Fetched Video Title: {video_title}")
+             except Exception as e:
+                 print(f"⚠️ Could not fetch video title: {e}")
+
         # 1. Получаем транскрипт
         send_progress(2, 20, "📝 Получение субтитров с YouTube...")
         print("📝 Получение транскрипта...")
@@ -139,7 +155,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq'):
         # 2. Анализируем транскрипт
         send_progress(3, 40, f"🔍 Анализ транскрипта с {provider_name} AI...")
         print("🔍 Анализ транскрипта...")
-        analysis = analyze_transcript(transcript, provider=provider)
+        analysis = analyze_transcript(transcript, video_title=video_title, provider=provider)
         
         if not analysis:
             send_progress(3, 100, "❌ Не удалось проанализировать")
@@ -157,10 +173,28 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq'):
         specs = extract_specs_dict(analysis)
         send_progress(4, 60, f"✓ {specs['make']} {specs['model']}")
         
+        # 2.7 WEB SEARCH ENRICHMENT
+        web_context = ""
+        try:
+            from ai_engine.modules.searcher import get_web_context
+            send_progress(4, 62, "🌐 Поиск информации в интернете...")
+            
+            # Helper to clean model name if it's "Chin L"
+            if "Chin" in specs.get('model', '') and "Qin" not in specs.get('model', ''):
+                specs['model'] = specs['model'].replace("Chin", "Qin")
+                
+            web_context = get_web_context(specs)
+            if web_context:
+                print(f"✓ Web search successful")
+        except Exception as e:
+            print(f"⚠️ Web search failed: {e}")
+        
         # 3. Генерируем статью
         send_progress(5, 65, f"✍️ Генерация статьи с {provider_name}...")
         print(f"✍️  Генерация статьи...")
-        article_html = generate_article(analysis, provider=provider)
+        
+        # Pass web context to generator
+        article_html = generate_article(analysis, provider=provider, web_context=web_context)
         
         if not article_html or len(article_html) < 100:
             send_progress(5, 100, "❌ Ошибка генерации статьи")
@@ -168,8 +202,27 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq'):
         
         send_progress(5, 75, "✓ Статья сгенерирована")
         
-        # 4. Извлекаем заголовок
-        title = extract_title(article_html)
+        # 4. Определяем заголовок (Title)
+        title = "New Car Review"
+        
+        # Priority 1: SEO Title from Analysis
+        if specs.get('seo_title') and len(specs['seo_title']) > 5:
+            title = specs['seo_title'].replace('"', '').replace("'", "")
+            print(f"📌 Using SEO Title form Analysis: {title}")
+            
+        # Priority 2: Construct from Specs (if Make/Model exist)
+        elif specs.get('make') and specs.get('model') and specs['make'] != 'Not specified':
+            year = specs.get('year', '')
+            year_str = f"{year} " if year else ""
+            title = f"{year_str}{specs['make']} {specs['model']} Review"
+            print(f"📌 Constructed Title from Specs: {title}")
+            
+        # Priority 3: Extract from HTML <h2>
+        else:
+            extracted = extract_title(article_html)
+            if extracted and len(extracted) > 5:
+                title = extracted
+                print(f"📌 Extracted Title from HTML: {title}")
         
         # 5. Извлекаем 3 скриншота из видео
         send_progress(6, 80, "📸 Извлечение скриншотов...")
@@ -184,26 +237,44 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq'):
                 # Upload to Cloudinary immediately
                 import cloudinary
                 import cloudinary.uploader
+                import shutil
+                from django.conf import settings
                 
                 print(f"☁️ Uploading {len(local_paths)} screenshots to Cloudinary...")
                 for path in local_paths:
                     if os.path.exists(path):
+                        uploaded = False
                         try:
-                            # Use task_id or video_id for folder organization if possible
-                            upload_result = cloudinary.uploader.upload(
-                                path, 
-                                folder="pending_articles",
-                                resource_type="image"
-                            )
-                            secure_url = upload_result.get('secure_url')
-                            if secure_url:
-                                screenshot_paths.append(secure_url)
-                                print(f"  ✓ Uploaded: {secure_url}")
-                            else:
-                                screenshot_paths.append(path) # Fallback
+                            # Try Cloudinary first
+                            if os.getenv('CLOUDINARY_URL'):
+                                upload_result = cloudinary.uploader.upload(
+                                    path, 
+                                    folder="pending_articles",
+                                    resource_type="image"
+                                )
+                                secure_url = upload_result.get('secure_url')
+                                if secure_url:
+                                    screenshot_paths.append(secure_url)
+                                    print(f"  ✓ Uploaded: {secure_url}")
+                                    uploaded = True
                         except Exception as cloud_err:
                             print(f"  ⚠️ Cloudinary upload failed for {path}: {cloud_err}")
-                            screenshot_paths.append(path) # Fallback
+                        
+                        # Fallback to local media if not uploaded
+                        if not uploaded:
+                            try:
+                                # Copy to MEDIA_ROOT
+                                media_dir = os.path.join(settings.MEDIA_ROOT, 'screenshots')
+                                os.makedirs(media_dir, exist_ok=True)
+                                filename = os.path.basename(path)
+                                dest_path = os.path.join(media_dir, filename)
+                                shutil.copy2(path, dest_path)
+                                # Add absolute path for publish_article to find it
+                                screenshot_paths.append(dest_path)
+                                print(f"  ✓ Copied to media: {dest_path}")
+                            except Exception as copy_err:
+                                print(f"  ❌ Failed to copy to media: {copy_err}")
+                                screenshot_paths.append(path) # Last resort
                     else:
                         screenshot_paths.append(path)
                         
@@ -255,7 +326,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq'):
             'error': str(e)
         }
 
-def generate_article_from_youtube(youtube_url, task_id=None, provider='groq'):
+def generate_article_from_youtube(youtube_url, task_id=None, provider='groq', is_published=True):
     """Generate and publish immediately (LEGACY/MANUAL flow)"""
     
     # 0. Check duplicate first
@@ -274,7 +345,7 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='groq'):
         return result
         
     # Publish to DB
-    print("📤 Публикация статьи...")
+    print(f"📤 Публикация статьи... (Published: {is_published})")
     article = publish_article(
         title=result['title'],
         content=result['content'],
@@ -284,6 +355,7 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='groq'):
         image_paths=result['image_paths'],
         tag_names=result['tag_names'],
         specs=result['specs'],
+        is_published=is_published,
         meta_keywords=result['meta_keywords']
     )
     
@@ -324,7 +396,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         return {'success': False, 'reason': 'pending'}
     
     # 3. Generate content
-    result = _generate_article_content(youtube_url, task_id=None, provider=provider)
+    result = _generate_article_content(youtube_url, task_id=None, provider=provider, video_title=video_title)
     
     if not result['success']:
         return result
@@ -356,6 +428,11 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         suggested_category=default_category,
         images=result['image_paths'],  # JSON field
         featured_image=result['image_paths'][0] if result['image_paths'] else '',
+        
+        # Save structured data for draft safety
+        specs=result['specs'],
+        tags=result['tag_names'],
+        
         status='pending'
     )
     

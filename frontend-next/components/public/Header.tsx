@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Menu, X, ChevronDown, User, Settings, LogOut, BookMarked } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,7 +17,7 @@ export default function Header() {
   const [user, setUser] = useState<UserType | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
-  
+
   const categoriesRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -29,23 +30,23 @@ export default function Header() {
       setUser(getUserFromStorage());
       setIsAdminUser(isAdmin());
     };
-    
+
     updateAuthState();
-    
+
     // Listen for storage changes (login/logout events)
     const handleStorageChange = () => {
       updateAuthState();
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
+
     // Custom event for same-tab login/logout
     const handleAuthChange = () => {
       updateAuthState();
     };
-    
+
     window.addEventListener('authChange', handleAuthChange);
-    
+
     // Load categories
     const getApiUrl = () => {
       if (typeof window !== 'undefined') {
@@ -63,7 +64,7 @@ export default function Header() {
         setCategories(cats.slice(0, 10)); // Show top 10
       })
       .catch(err => console.error('Failed to load categories:', err));
-      
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('authChange', handleAuthChange);
@@ -95,14 +96,21 @@ export default function Header() {
     <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between py-4">
-          <Link href="/" className="text-2xl font-bold hover:scale-105 transition-transform">
-            🚗 Fresh Motors
+          <Link href="/" className="hover:scale-105 transition-transform mr-16">
+            <Image
+              src="/logo.png"
+              alt="Fresh Motors"
+              width={200}
+              height={50}
+              className="h-12 w-auto object-contain scale-[2.9] origin-left"
+              priority
+            />
           </Link>
-          
+
           <nav className="hidden md:flex space-x-6 items-center">
             <Link href="/" className="hover:text-purple-300 transition-colors">Home</Link>
             <Link href="/articles" className="hover:text-purple-300 transition-colors">Articles</Link>
-            
+
             {/* Categories Dropdown */}
             <div className="relative" ref={categoriesRef}>
               <button
@@ -112,7 +120,7 @@ export default function Header() {
                 Categories
                 <ChevronDown size={16} className={`transition-transform ${isCategoriesOpen ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {isCategoriesOpen && (
                 <div className="absolute top-full left-0 mt-2 w-64 bg-white text-gray-900 rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
                   <div className="py-2">
@@ -140,7 +148,7 @@ export default function Header() {
                 </div>
               )}
             </div>
-            
+
             {/* Admin Link - Only for staff */}
             {isAdminUser && (
               <Link href="/admin" className="flex items-center gap-1 hover:text-purple-300 transition-colors">
@@ -148,7 +156,7 @@ export default function Header() {
                 Admin
               </Link>
             )}
-            
+
             {/* User Menu */}
             {isLoggedIn ? (
               <div className="relative" ref={userMenuRef}>
@@ -160,7 +168,7 @@ export default function Header() {
                   <span>{user?.username || 'Account'}</span>
                   <ChevronDown size={16} className={`transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {isUserMenuOpen && (
                   <div className="absolute top-full right-0 mt-2 w-56 bg-white text-gray-900 rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
                     <div className="py-2">
@@ -168,7 +176,7 @@ export default function Header() {
                         <div className="font-bold text-gray-900">{user?.username}</div>
                         <div className="text-xs text-gray-500">{user?.email}</div>
                       </div>
-                      
+
                       <Link
                         href="/profile"
                         onClick={() => setIsUserMenuOpen(false)}
@@ -177,7 +185,7 @@ export default function Header() {
                         <User size={18} className="text-purple-600" />
                         <span className="font-medium">My Profile</span>
                       </Link>
-                      
+
                       <Link
                         href="/profile/favorites"
                         onClick={() => setIsUserMenuOpen(false)}
@@ -186,7 +194,7 @@ export default function Header() {
                         <BookMarked size={18} className="text-purple-600" />
                         <span className="font-medium">Favorites</span>
                       </Link>
-                      
+
                       <button
                         onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-4 py-2 hover:bg-red-50 transition-colors border-t border-gray-200 text-red-600"
@@ -199,15 +207,15 @@ export default function Header() {
                 )}
               </div>
             ) : (
-              <Link 
-                href="/login" 
+              <Link
+                href="/login"
                 className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors font-medium"
               >
                 <User size={18} />
                 Login
               </Link>
             )}
-            
+
             {/* Search */}
             <SearchBar />
           </nav>
@@ -217,7 +225,7 @@ export default function Header() {
             <div className="md:hidden">
               <SearchBar />
             </div>
-            
+
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="md:hidden text-gray-900"
@@ -232,7 +240,7 @@ export default function Header() {
           <div ref={mobileMenuRef} className="md:hidden pb-4 space-y-2">
             <Link href="/" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
             <Link href="/articles" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Articles</Link>
-            
+
             {/* Mobile Categories */}
             <div>
               <button
@@ -256,7 +264,7 @@ export default function Header() {
                           e.preventDefault();
                           e.stopPropagation();
                           const slug = category.slug;
-                          setIsMenuOpen(false); 
+                          setIsMenuOpen(false);
                           setIsCategoriesOpen(false);
                           router.push(`/categories/${slug}`);
                         }}
@@ -285,7 +293,7 @@ export default function Header() {
                 </div>
               )}
             </div>
-            
+
             {/* Mobile Admin Link - Only for staff */}
             {isAdminUser && (
               <Link href="/admin" className="flex items-center gap-2 py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>
@@ -293,7 +301,7 @@ export default function Header() {
                 Admin
               </Link>
             )}
-            
+
             {/* Mobile User Menu */}
             {isLoggedIn ? (
               <div className="border-t border-white/20 pt-2 mt-2">
@@ -301,25 +309,25 @@ export default function Header() {
                   <div className="font-bold">{user?.username}</div>
                   <div className="text-xs text-purple-200">{user?.email}</div>
                 </div>
-                
-                <Link 
-                  href="/profile" 
-                  className="flex items-center gap-2 py-2 hover:text-purple-300" 
+
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-2 py-2 hover:text-purple-300"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <User size={18} />
                   My Profile
                 </Link>
-                
-                <Link 
-                  href="/profile/favorites" 
-                  className="flex items-center gap-2 py-2 hover:text-purple-300" 
+
+                <Link
+                  href="/profile/favorites"
+                  className="flex items-center gap-2 py-2 hover:text-purple-300"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <BookMarked size={18} />
                   Favorites
                 </Link>
-                
+
                 <button
                   onClick={() => {
                     setIsMenuOpen(false);
@@ -332,8 +340,8 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-              <Link 
-                href="/login" 
+              <Link
+                href="/login"
                 className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors font-medium mt-2"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -341,7 +349,7 @@ export default function Header() {
                 Login
               </Link>
             )}
-            
+
             {/* Mobile Search */}
             <div className="mt-2">
               <SearchBar />

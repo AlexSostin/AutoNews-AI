@@ -380,6 +380,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    pagination_class = None  # Return all categories for dropdowns
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'slug']
     ordering_fields = ['name', 'created_at']
@@ -398,6 +399,7 @@ class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     permission_classes = [IsStaffOrReadOnly]
+    pagination_class = None  # Return all tags
     lookup_field = 'slug'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'slug']
@@ -603,6 +605,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         
         try:
             from ai_engine.main import generate_article_from_youtube
+            from ai_engine.modules.youtube_client import YouTubeClient
         except Exception as import_error:
             print(f"Import error: {import_error}")
             print(traceback.format_exc())
@@ -618,44 +621,39 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 {'error': 'Provider must be either "groq" or "gemini"'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+            
         # Generate article with task_id for WebSocket progress and selected provider
-        result = generate_article_from_youtube(youtube_url, task_id=task_id, provider=provider)
+        # Now supporting Draft Safety: is_published=False
+        result = generate_article_from_youtube(
+            youtube_url, 
+            task_id=task_id, 
+            provider=provider,
+            is_published=False  # Save as Draft!
+        )
         
         if result.get('success'):
             article_id = result['article_id']
-            print(f"[generate_from_youtube] Article created with ID: {article_id}")
+            print(f"[generate_from_youtube] Draft Article created with ID: {article_id}")
             
             # Clear cache so new article appears immediately
             from django.core.cache import cache
             cache.clear()
-            print(f"[generate_from_youtube] Cache cleared")
             
-            # Fetch the article (even if soft-deleted, to debug)
+            # Fetch the article to verify
             try:
                 article = Article.objects.get(id=article_id)
-                print(f"[generate_from_youtube] Article found: {article.title}, is_published={article.is_published}, is_deleted={article.is_deleted}")
-                
-                # Force publish and un-delete in case something went wrong
-                if not article.is_published or article.is_deleted:
-                    article.is_published = True
-                    article.is_deleted = False
-                    article.save()
-                    print(f"[generate_from_youtube] Article status updated to published")
-                
+                serializer = self.get_serializer(article)
+                return Response({
+                    'success': True,
+                    'message': 'Article generated successfully (Draft)',
+                    'article': serializer.data
+                })
             except Article.DoesNotExist:
-                print(f"[generate_from_youtube] Article with ID {article_id} not found!")
                 return Response(
                     {'error': f'Article was created but cannot be found (ID: {article_id})'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-            
-            serializer = self.get_serializer(article)
-            return Response({
-                'success': True,
-                'message': 'Article generated successfully',
-                'article': serializer.data
-            })
+
         else:
             return Response(
                 {'error': result.get('error', 'Unknown error')},
@@ -1624,6 +1622,29 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             'channel_id': channel.id
         })
     
+    @action(detail=True, methods=['get'])
+    def fetch_videos(self, request, pk=None):
+        """Fetch latest videos from channel without generating"""
+        channel = self.get_object()
+        
+        try:
+            from ai_engine.modules.youtube_client import YouTubeClient
+            client = YouTubeClient()
+            
+            # Use channel_id if available, otherwise url
+            identifier = channel.channel_id if channel.channel_id else channel.channel_url
+            
+            # Fetch latest 10 videos
+            videos = client.get_latest_videos(identifier, max_results=10)
+            
+            return Response({
+                'channel': channel.name,
+                'videos': videos
+            })
+        except Exception as e:
+            logger.error(f"Error fetching videos: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     @action(detail=False, methods=['post'])
     def scan_all(self, request):
         """Trigger scan for all enabled channels (Background Process)"""
@@ -1724,7 +1745,20 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                             if resp.status_code == 200:
                                 content_file = ContentFile(resp.content, name=file_name)
                         
-                        # Case B: It's a local file
+                        # Case B: It's a local file relative path (from our new fix)
+                        elif image_path.startswith('/media/'):
+                             # Convert /media/screenshots/x.jpg -> .../backend/media/screenshots/x.jpg
+                             from django.conf import settings
+                             # Remove leading slash for join, or handle absolute path logic
+                             # settings.BASE_DIR is Path object
+                             full_path = os.path.join(settings.BASE_DIR, image_path.lstrip('/'))
+                             print(f"  Reading relative image: {full_path}")
+                             if os.path.exists(full_path):
+                                 with open(full_path, 'rb') as f:
+                                     content = f.read()
+                                     content_file = ContentFile(content, name=file_name)
+                        
+                        # Case C: It's a legacy absolute local path
                         elif os.path.exists(image_path):
                             print(f"  Reading local image: {image_path}")
                             with open(image_path, 'rb') as f:
@@ -1742,6 +1776,38 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                                 
                     except Exception as img_err:
                         print(f"Error saving image {image_path}: {img_err}")
+            
+            # Restore Tags from PendingArticle
+            if pending.tags and isinstance(pending.tags, list):
+                try:
+                    for tag_name in pending.tags:
+                        tag, _ = Tag.objects.get_or_create(
+                            name=tag_name, 
+                            defaults={'slug': slugify(tag_name)}
+                        )
+                        article.tags.add(tag)
+                    print(f"  Restored {len(pending.tags)} tags")
+                except Exception as e:
+                    print(f"  Error restoring tags: {e}")
+
+            # Restore Specs from PendingArticle
+            if pending.specs and isinstance(pending.specs, dict):
+                try:
+                    specs = pending.specs
+                    if specs.get('make') != 'Not specified':
+                        CarSpecification.objects.create(
+                            article=article,
+                            model_name=f"{specs.get('make', '')} {specs.get('model', '')}",
+                            engine=specs.get('engine', ''),
+                            horsepower=str(specs.get('horsepower', '')),
+                            torque=specs.get('torque', ''),
+                            zero_to_sixty=specs.get('acceleration', ''),
+                            top_speed=specs.get('top_speed', ''),
+                            price=specs.get('price', ''),
+                        )
+                        print("  Restored CarSpecification")
+                except Exception as e:
+                    print(f"  Error restoring specs: {e}")
             
             # Update pending article
             pending.status = 'published'

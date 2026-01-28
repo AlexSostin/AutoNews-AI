@@ -422,6 +422,10 @@ class PendingArticle(models.Model):
     images = models.JSONField(default=list, blank=True)
     featured_image = models.URLField(blank=True)
     
+    # Structured Data for Draft Safety
+    specs = models.JSONField(default=dict, blank=True, help_text="Car specifications (Make, Model, Year, etc.)")
+    tags = models.JSONField(default=list, blank=True, help_text="Suggested tags list")
+    
     # Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     

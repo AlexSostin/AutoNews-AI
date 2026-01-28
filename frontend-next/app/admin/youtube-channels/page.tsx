@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Youtube, 
-  Plus, 
-  Trash2, 
-  Edit2, 
-  Play, 
+import {
+  Youtube,
+  Plus,
+  Trash2,
+  Edit2,
+  Play,
   Pause,
   RefreshCw,
   Loader2,
@@ -15,7 +15,7 @@ import {
   Clock,
   FileText
 } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import api, { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
 
 interface Category {
@@ -57,6 +57,8 @@ export default function YouTubeChannelsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Existing state
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingChannel, setEditingChannel] = useState<YouTubeChannel | null>(null);
   const [formData, setFormData] = useState({
@@ -70,35 +72,42 @@ export default function YouTubeChannelsPage() {
   const [scanning, setScanning] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // New Scan state
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scannedVideos, setScannedVideos] = useState<Video[]>([]);
+  const [scanningChannel, setScanningChannel] = useState<YouTubeChannel | null>(null);
+  const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  interface Video {
+    id: string;
+    title: string;
+    description: string;
+    thumbnail: string;
+    published_at: string;
+    url: string;
+    status?: 'idle' | 'loading' | 'success' | 'error';
+    errorMsg?: string;
+    articleId?: number;
+  }
+
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-
       const [channelsRes, categoriesRes, scheduleRes] = await Promise.all([
-        fetch(`${apiUrl}/youtube-channels/`, { headers }),
-        fetch(`${apiUrl}/categories/`),
-        fetch(`${apiUrl}/auto-publish-schedule/`, { headers })
+        api.get('/youtube-channels/'),
+        api.get('/categories/'),
+        api.get('/auto-publish-schedule/')
       ]);
 
-      if (channelsRes.ok) {
-        const data = await channelsRes.json();
-        setChannels(Array.isArray(data) ? data : data.results || []);
-      }
-
-      if (categoriesRes.ok) {
-        const data = await categoriesRes.json();
-        setCategories(Array.isArray(data) ? data : data.results || []);
-      }
-
-      if (scheduleRes.ok) {
-        const data = await scheduleRes.json();
-        setSchedule(data);
+      setChannels(Array.isArray(channelsRes.data) ? channelsRes.data : channelsRes.data.results || []);
+      setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data.results || []);
+      if (scheduleRes.data) {
+        setSchedule(scheduleRes.data);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -113,37 +122,27 @@ export default function YouTubeChannelsPage() {
     setMessage(null);
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-      
-      const url = editingChannel 
-        ? `${apiUrl}/youtube-channels/${editingChannel.id}/`
-        : `${apiUrl}/youtube-channels/`;
-      
-      const response = await fetch(url, {
-        method: editingChannel ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          default_category: formData.default_category || null
-        })
-      });
+      const url = editingChannel
+        ? `/youtube-channels/${editingChannel.id}/`
+        : `/youtube-channels/`;
 
-      if (response.ok) {
-        setMessage({ type: 'success', text: editingChannel ? 'Channel updated!' : 'Channel added!' });
-        setShowAddModal(false);
-        setEditingChannel(null);
-        setFormData({ name: '', channel_url: '', is_enabled: true, auto_publish: false, default_category: '' });
-        fetchData();
-      } else {
-        const data = await response.json();
-        setMessage({ type: 'error', text: data.detail || 'Failed to save channel' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'An error occurred' });
+      const payload = {
+        ...formData,
+        default_category: formData.default_category || null
+      };
+
+      const response = editingChannel
+        ? await api.put(url, payload)
+        : await api.post(url, payload);
+
+      setMessage({ type: 'success', text: editingChannel ? 'Channel updated!' : 'Channel added!' });
+      setShowAddModal(false);
+      setEditingChannel(null);
+      setFormData({ name: '', channel_url: '', is_enabled: true, auto_publish: false, default_category: '' });
+      fetchData();
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || 'Failed to save channel';
+      setMessage({ type: 'error', text: errorMsg });
     } finally {
       setSaving(false);
     }
@@ -153,14 +152,7 @@ export default function YouTubeChannelsPage() {
     if (!confirm('Delete this channel?')) return;
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
+      await api.delete(`/youtube-channels/${id}/`);
       setChannels(channels.filter(c => c.id !== id));
       setMessage({ type: 'success', text: 'Channel deleted' });
     } catch (error) {
@@ -170,19 +162,11 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
 
   const handleToggleEnabled = async (channel: YouTubeChannel) => {
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      await fetch(`${apiUrl}/youtube-channels/${channel.id}/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ is_enabled: !channel.is_enabled })
+      await api.patch(`/youtube-channels/${channel.id}/`, {
+        is_enabled: !channel.is_enabled
       });
 
-      setChannels(channels.map(c => 
+      setChannels(channels.map(c =>
         c.id === channel.id ? { ...c, is_enabled: !c.is_enabled } : c
       ));
     } catch (error) {
@@ -193,19 +177,9 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
   const handleScanAll = async () => {
     setScanning(true);
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/youtube-channels/scan_all/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMessage({ type: 'success', text: data.message });
-        fetchData();
-      }
+      const response = await api.post('/youtube-channels/scan_all/');
+      setMessage({ type: 'success', text: response.data.message });
+      fetchData();
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to trigger scan' });
     } finally {
@@ -217,18 +191,9 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
     if (!schedule) return;
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      await fetch(`${apiUrl}/auto-publish-schedule/1/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ is_enabled: !schedule.is_enabled })
+      await api.patch('/auto-publish-schedule/1/', {
+        is_enabled: !schedule.is_enabled
       });
-
       setSchedule({ ...schedule, is_enabled: !schedule.is_enabled });
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to update schedule' });
@@ -255,6 +220,62 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
     );
   }
 
+  const handleDetailScan = async (channel: YouTubeChannel) => {
+    setScanningChannel(channel);
+    setScannedVideos([]);
+    setShowScanModal(true);
+    setScanLoading(true);
+    setScanError(null);
+
+    try {
+      // Corrected: use api client, relative path, no manual headers
+      const response = await api.get(`/youtube-channels/${channel.id}/fetch_videos/`);
+
+      const videos = response.data.videos;
+      setScannedVideos(videos);
+      if (videos.length === 0) {
+        setScanError('No recent videos found for this channel.');
+      }
+    } catch (error: any) {
+      console.error(error);
+      const errorMsg = error.response?.data?.error || 'Failed to fetch videos from YouTube.';
+      setScanError(errorMsg);
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
+  const handleGenerateFromVideo = async (video: Video) => {
+    // Set loading state for this specific video
+    setScannedVideos(prev => prev.map(v =>
+      v.id === video.id ? { ...v, status: 'loading', errorMsg: undefined } : v
+    ));
+
+    try {
+      const response = await api.post('/articles/generate_from_youtube/', {
+        youtube_url: video.url,
+        provider: 'gemini'
+      });
+
+      // Set success state
+      setScannedVideos(prev => prev.map(v =>
+        v.id === video.id ? {
+          ...v,
+          status: 'success',
+          articleId: response.data.article?.id || response.data.article_id // Handle both potential response formats
+        } : v
+      ));
+
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || 'Generation failed';
+
+      // Set error state
+      setScannedVideos(prev => prev.map(v =>
+        v.id === video.id ? { ...v, status: 'error', errorMsg: errorMsg } : v
+      ));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -262,16 +283,16 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
           <h1 className="text-2xl sm:text-3xl font-black text-gray-950">YouTube Channels</h1>
           <p className="text-gray-500 text-sm mt-1">Мониторинг каналов для автоматической генерации статей</p>
         </div>
-        
+
         <div className="flex gap-2">
-          <button
+          {/* <button
             onClick={handleScanAll}
             disabled={scanning}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
           >
             <RefreshCw size={18} className={scanning ? 'animate-spin' : ''} />
-            Scan Now
-          </button>
+            Scan All
+          </button> */}
           <button
             onClick={() => {
               setEditingChannel(null);
@@ -287,9 +308,8 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-        }`}>
+        <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          }`}>
           {message.text}
         </div>
       )}
@@ -304,7 +324,7 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
             <div>
               <h2 className="text-lg font-bold text-gray-900">Auto-Scan Schedule</h2>
               <p className="text-sm text-gray-500">
-                {schedule?.is_enabled 
+                {schedule?.is_enabled
                   ? `Scanning ${schedule.frequency === 'twice' ? 'twice daily' : schedule.frequency} at ${schedule.scan_time_1}${schedule.scan_time_2 ? ` & ${schedule.scan_time_2}` : ''}`
                   : 'Automatic scanning disabled'}
               </p>
@@ -395,9 +415,9 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{channel.name}</p>
-                          <a 
-                            href={channel.channel_url} 
-                            target="_blank" 
+                          <a
+                            href={channel.channel_url}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-gray-500 hover:text-purple-600 truncate block max-w-[200px]"
                           >
@@ -433,17 +453,23 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
                     <td className="py-4 px-6 text-center">
                       <button
                         onClick={() => handleToggleEnabled(channel)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          channel.is_enabled
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${channel.is_enabled
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-500'
+                          }`}
                       >
                         {channel.is_enabled ? 'Active' : 'Paused'}
                       </button>
                     </td>
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleDetailScan(channel)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          title="Scan Videos"
+                        >
+                          <RefreshCw size={18} />
+                        </button>
                         <button
                           onClick={() => openEditModal(channel)}
                           className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
@@ -499,7 +525,7 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSaveChannel} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -594,6 +620,141 @@ const response = await fetch(`${apiUrl}/youtube-channels/${id}/`, {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Scan Video Selection Modal */}
+      {showScanModal && scanningChannel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  New Videos from {scanningChannel.name}
+                </h2>
+                <p className="text-sm text-gray-500">Select videos to generate articles from</p>
+              </div>
+              <button
+                onClick={() => setShowScanModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              {scanLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                  <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-6"></div>
+                  <h3 className="text-lg font-bold text-gray-700 mb-2">Scanning YouTube...</h3>
+                  <p className="text-sm max-w-xs text-center">Fetching the latest videos. This usually takes 5-10 seconds, but may take up to a minute.</p>
+
+                  {/* Fake progress bar */}
+                  <div className="w-64 h-2 bg-gray-100 rounded-full mt-6 overflow-hidden">
+                    <div className="h-full bg-purple-500 animate-[progress_20s_ease-out_forwards] w-0"></div>
+                  </div>
+                </div>
+              ) : scanError ? (
+                <div className="flex flex-col items-center justify-center py-12 text-red-600">
+                  <div className="bg-red-50 p-4 rounded-full mb-4">
+                    <X size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold mb-2">Scan Failed</h3>
+                  <p className="text-center text-gray-600 max-w-sm mb-6">{scanError}</p>
+                  <button
+                    onClick={() => scanningChannel && handleDetailScan(scanningChannel)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : scannedVideos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                  <Youtube size={48} className="mb-4 text-gray-300" />
+                  <p>No videos found.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {scannedVideos.map((video) => (
+                    <div key={video.id} className="flex gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                      <div className="w-40 flex-shrink-0">
+                        <img
+                          src={video.thumbnail}
+                          alt={video.title}
+                          className="w-full h-24 object-cover rounded-lg shadow-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-900 line-clamp-1">{video.title}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(video.published_at).toLocaleDateString()}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                          {video.description}
+                        </p>
+                      </div>
+                      <div className="flex flex-col justify-center items-end min-w-[140px]">
+                        {video.status === 'success' ? (
+                          <div className="flex flex-col items-center text-green-600">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200">
+                              <Check size={18} />
+                              <span className="font-bold text-sm">Draft Created</span>
+                            </div>
+                            {video.articleId && (
+                              <Link href={`/admin/articles/${video.articleId}/edit`} className="text-xs text-green-600 underline mt-1 hover:text-green-800 font-medium">
+                                Edit Draft
+                              </Link>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleGenerateFromVideo(video)}
+                            disabled={video.status === 'loading'}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 whitespace-nowrap shadow-md transition-all ${video.status === 'error'
+                              ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                              : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700'
+                              }`}
+                          >
+                            {video.status === 'loading' ? (
+                              <>
+                                <Loader2 size={16} className="animate-spin" />
+                                Generating...
+                              </>
+                            ) : video.status === 'error' ? (
+                              <>
+                                <RefreshCw size={16} />
+                                Retry
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw size={16} />
+                                Generate
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        {video.status === 'error' && (
+                          <p className="text-xs text-red-500 mt-2 text-right max-w-[150px] leading-tight">
+                            {video.errorMsg}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowScanModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

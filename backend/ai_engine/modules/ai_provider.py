@@ -61,9 +61,10 @@ class GeminiProvider(AIProvider):
         
         # Try different model name formats
         model_names_to_try = [
-            'models/gemini-1.5-flash',  # Latest fast model
+            'gemini-2.0-flash',      # Available for user
+            'gemini-2.5-flash',      # Available for user
+            'gemini-flash-latest',   # Fallback alias
             'gemini-1.5-flash',
-            'models/gemini-pro',
             'gemini-pro',
         ]
         

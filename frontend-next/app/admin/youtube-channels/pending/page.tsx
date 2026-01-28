@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  FileText, 
-  Check, 
-  X, 
+import {
+  FileText,
+  Check,
+  X,
   Eye,
   Loader2,
   Clock,
@@ -110,7 +110,7 @@ export default function PendingArticlesPage() {
 
   const handleReject = async (id: number) => {
     const reason = prompt('Reason for rejection (optional):');
-    
+
     setProcessing(id);
     try {
       const apiUrl = getApiUrl();
@@ -150,9 +150,10 @@ export default function PendingArticlesPage() {
       <div className="flex items-center gap-4">
         <Link
           href="/admin/youtube-channels"
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="flex items-center gap-2 p-2 px-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <ArrowLeft size={24} />
+          <ArrowLeft size={20} />
+          <span className="font-medium">Back to Channels</span>
         </Link>
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Pending Articles</h1>
@@ -161,9 +162,8 @@ export default function PendingArticlesPage() {
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-        }`}>
+        <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          }`}>
           {message.text}
         </div>
       )}
@@ -194,21 +194,19 @@ export default function PendingArticlesPage() {
       <div className="flex gap-2">
         <button
           onClick={() => setFilter('pending')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-            filter === 'pending'
-              ? 'bg-orange-600 text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'pending'
+            ? 'bg-orange-600 text-white'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
         >
           Pending Only
         </button>
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-            filter === 'all'
-              ? 'bg-purple-600 text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'all'
+            ? 'bg-purple-600 text-white'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
         >
           All Articles
         </button>
@@ -225,12 +223,19 @@ export default function PendingArticlesPage() {
                   {/* Thumbnail */}
                   {article.featured_image && (
                     <img
-                      src={article.featured_image}
+                      src={(() => {
+                        const url = article.featured_image;
+                        if (!url) return '';
+                        if (url.startsWith('http')) return url;
+                        // Determine API URL for media
+                        const apiUrl = getApiUrl().replace('/api/v1', '');
+                        return `${apiUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+                      })()}
                       alt=""
                       className="w-full sm:w-40 h-24 object-cover rounded-lg"
                     />
                   )}
-                  
+
                   <div className="flex-1">
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -251,14 +256,13 @@ export default function PendingArticlesPage() {
                           </span>
                         </div>
                       </div>
-                      
+
                       {/* Status Badge */}
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        article.status === 'pending' ? 'bg-orange-100 text-orange-700' :
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${article.status === 'pending' ? 'bg-orange-100 text-orange-700' :
                         article.status === 'published' ? 'bg-green-100 text-green-700' :
-                        article.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                          article.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                        }`}>
                         {article.status}
                       </span>
                     </div>
@@ -317,12 +321,12 @@ export default function PendingArticlesPage() {
                     {article.excerpt && (
                       <p className="text-gray-600 italic mb-4">{article.excerpt}</p>
                     )}
-                    <div 
+                    <div
                       className="text-gray-800 max-h-96 overflow-y-auto"
                       dangerouslySetInnerHTML={{ __html: article.content.slice(0, 2000) + (article.content.length > 2000 ? '...' : '') }}
                     />
                   </div>
-                  
+
                   {/* Images */}
                   {article.images && article.images.length > 0 && (
                     <div className="mt-4">
@@ -331,7 +335,12 @@ export default function PendingArticlesPage() {
                         {article.images.slice(0, 4).map((img, idx) => (
                           <img
                             key={idx}
-                            src={img}
+                            src={(() => {
+                              if (!img) return '';
+                              if (img.startsWith('http')) return img;
+                              const apiUrl = getApiUrl().replace('/api/v1', '');
+                              return `${apiUrl}${img.startsWith('/') ? '' : '/'}${img}`;
+                            })()}
                             alt=""
                             className="w-24 h-16 object-cover rounded"
                           />

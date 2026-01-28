@@ -28,7 +28,8 @@ body {
 /* Better placeholder color for inputs */
 input::placeholder,
 textarea::placeholder {
-  color: #6b7280 !important; /* gray-500 */
+  color: #6b7280 !important;
+  /* gray-500 */
   opacity: 1;
 }
 
@@ -40,4 +41,111 @@ textarea::placeholder {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Custom Automotive Typography */
+.prose {
+  color: #374151;
+  /* gray-700 */
+}
+
+.prose h2 {
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: 800;
+  color: #111827;
+  /* gray-900 */
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Decorative accent for H2 */
+.prose h2::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 24px;
+  background: linear-gradient(to bottom, #4f46e5, #7c3aed);
+  /* indigo to purple */
+  margin-right: 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.prose p {
+  margin-bottom: 0.875rem;
+  /* mb-3.5 */
+  line-height: 1.8;
+  font-size: 1.1rem;
+}
+
+.prose ul {
+  list-style-type: none;
+  /* Custom bullets */
+  padding-left: 0;
+  margin-bottom: 1.5rem;
+  margin-top: 1rem;
+}
+
+.prose li {
+  position: relative;
+  padding-left: 1.75rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}
+
+/* Custom bullet points */
+.prose li::before {
+  content: '•';
+  color: #4f46e5;
+  /* indigo-600 */
+  font-weight: bold;
+  font-size: 1.5rem;
+  position: absolute;
+  left: 0.25rem;
+  top: -0.25rem;
+}
+
+.prose strong {
+  font-weight: 700;
+  color: #111827;
+  /* gray-900 */
+}
+
+/* Specific highlight for Pros & Cons sections if they appear in lists */
+.prose li strong {
+  color: #4338ca;
+  /* indigo-700 */
+}
+
+/* Custom Animations */
+@keyframes progress {
+  0% {
+    width: 0%;
+  }
+
+  10% {
+    width: 10%;
+  }
+
+  30% {
+    width: 40%;
+  }
+
+  60% {
+    width: 70%;
+  }
+
+  90% {
+    width: 90%;
+  }
+
+  100% {
+    width: 95%;
+  }
 }

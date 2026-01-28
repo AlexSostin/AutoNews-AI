@@ -23,13 +23,14 @@ except ImportError:
 # Legacy Groq client for backwards compatibility
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-def generate_article(analysis_data, provider='groq'):
+def generate_article(analysis_data, provider='groq', web_context=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
     
     Args:
         analysis_data: The analysis from the transcript
         provider: 'groq' (default) or 'gemini'
+        web_context: Optional string containing web search results
     
     Returns:
         HTML article content
@@ -37,7 +38,13 @@ def generate_article(analysis_data, provider='groq'):
     provider_display = "Groq" if provider == 'groq' else "Google Gemini"
     print(f"Generating article with {provider_display}...")
     
+    web_data_section = ""
+    if web_context:
+        web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to fill missing specs/facts):\n{web_context}\n"
+    
     prompt = f"""
+{web_data_section}
+Create a professional, SEO-optimized automotive article based on the analysis below.
 Create a professional, SEO-optimized automotive article based on the analysis below.
 Output ONLY clean HTML content (use <h2>, <p>, <ul>, etc.) - NO <html>, <head>, or <body> tags.
 
@@ -49,6 +56,15 @@ CRITICAL REQUIREMENTS:
 4. Include specific numbers, stats, and comparisons for SEO
 5. Use natural keywords related to the car brand, model, year
 6. Write engaging, informative content (aim for 800-1200 words)
+
+NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
+- NO "Advertisement", "Ad Space", or "Sponsor" blocks
+- NO placeholder text like "Article image 1" or "[Insert Image Here]"
+- NO social media links (Subscribe, Follow us)
+- NO navigation menus or headers/footers
+- NO "Read more" links
+- NO HTML <html>, <head>, or <body> tags
+
 
 Required Structure:
 - <h2>Title: First Drive: [Year] [Brand] [Model] - [One-line description]</h2>

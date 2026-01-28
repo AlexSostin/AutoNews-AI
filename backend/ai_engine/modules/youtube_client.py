@@ -70,12 +70,17 @@ class YouTubeClient:
 
         # Determine channel ID
         channel_id = channel_identifier
-        if 'youtube.com' in channel_identifier:
+        
+        if 'youtube.com' in channel_identifier or 'youtu.be' in channel_identifier:
             channel_id = self._get_channel_id(channel_identifier)
+        elif not channel_identifier.startswith('UC'):
+            # If it's not a URL and not a standard UC-ID, try searching as handle/name
+            print(f"Input '{channel_identifier}' is not a URL or Channel ID. Searching...")
+            channel_id = self._search_channel_id(channel_identifier)
             
         if not channel_id:
             print(f"Could not resolve channel ID for {channel_identifier}")
-            return []
+            raise Exception(f"Could not resolve Channel ID for '{channel_identifier}'. Please check the URL.")
 
         # Get channel's "uploads" playlist ID
         url = f"{self.base_url}/channels"
@@ -89,12 +94,12 @@ class YouTubeClient:
             response = requests.get(url, params=params)
             if response.status_code != 200:
                 print(f"Error fetching channel info: {response.text}")
-                return []
+                raise Exception(f"YouTube API Error: {response.status_code} - {response.text}")
                 
             data = response.json()
             if not data.get('items'):
                 print(f"Channel not found: {channel_id}")
-                return []
+                raise Exception(f"Channel not found on YouTube (ID: {channel_id})")
                 
             uploads_playlist_id = data['items'][0]['contentDetails']['relatedPlaylists']['uploads']
             
@@ -103,7 +108,7 @@ class YouTubeClient:
             
         except Exception as e:
             print(f"Error getting videos: {e}")
-            return []
+            raise e
 
     def _get_playlist_items(self, playlist_id, max_results):
         url = f"{self.base_url}/playlistItems"
@@ -117,7 +122,7 @@ class YouTubeClient:
         try:
             response = requests.get(url, params=params)
             if response.status_code != 200:
-                return []
+                raise Exception(f"Error fetching playlist: {response.status_code}")
                 
             data = response.json()
             videos = []
@@ -140,4 +145,4 @@ class YouTubeClient:
             
         except Exception as e:
             print(f"Error fetching playlist items: {e}")
-            return []
+            raise e

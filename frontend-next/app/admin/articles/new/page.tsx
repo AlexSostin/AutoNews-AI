@@ -26,6 +26,7 @@ export default function NewArticlePage() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [taskId, setTaskId] = useState<string>('');
+  const [provider, setProvider] = useState('groq'); // Default to groq
 
   const [formData, setFormData] = useState({
     title: '',
@@ -89,7 +90,7 @@ export default function NewArticlePage() {
       const response = await api.post('/articles/generate_from_youtube/', {
         youtube_url: formData.youtube_url,
         task_id: newTaskId,
-        provider: 'groq'
+        provider: provider
       });
 
       if (response.data.success) {
@@ -191,8 +192,38 @@ export default function NewArticlePage() {
           <div className="flex-1">
             <h3 className="text-xl font-black text-gray-950 mb-2">AI-Powered Article Generation</h3>
             <p className="text-gray-700 font-medium mb-4">
-              Generate a complete automotive article from a YouTube video using Groq AI (10x faster than ChatGPT!)
+              Generate a complete automotive article from a YouTube video using AI.
             </p>
+
+            {/* Provider Selection */}
+            <div className="flex items-center gap-4 mb-4">
+              <label className="text-sm font-bold text-gray-700">AI Provider:</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="provider"
+                    value="groq"
+                    checked={provider === 'groq'}
+                    onChange={(e) => setProvider(e.target.value)}
+                    className="text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm font-bold text-gray-900">Groq (Fast)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="provider"
+                    value="gemini"
+                    checked={provider === 'gemini'}
+                    onChange={(e) => setProvider(e.target.value)}
+                    className="text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm font-bold text-gray-900">Google Gemini (High Quality)</span>
+                </label>
+              </div>
+            </div>
+
             <div className="flex flex-wrap sm:flex-nowrap gap-3">
               <div className="flex-1 min-w-[200px] relative">
                 <Youtube className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
