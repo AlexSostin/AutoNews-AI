@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -29,7 +29,7 @@ interface SearchResponse {
     total_pages: number;
 }
 
-export default function SearchPage() {
+function SearchContent() {
     const searchParams = useSearchParams();
     const [query, setQuery] = useState(searchParams.get('q') || '');
     const [category, setCategory] = useState(searchParams.get('category') || '');
@@ -174,7 +174,7 @@ export default function SearchPage() {
                         {results.map(article => (
                             <Link
                                 key={article.id}
-                                href={`/article/${article.slug}`}
+                                href={`/articles/${article.slug}`}
                                 className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow overflow-hidden group"
                             >
                                 {/* Image */}
@@ -253,5 +253,20 @@ export default function SearchPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12">
+                <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p className="mt-4 text-gray-600">Loading search...</p>
+                </div>
+            </div>
+        }>
+            <SearchContent />
+        </Suspense>
     );
 }
