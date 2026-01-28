@@ -68,36 +68,69 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     
     # Add images (support for 3 screenshots from video)
     if image_paths and isinstance(image_paths, list):
-        print(f"  📸 Processing {len(image_paths)} image paths: {image_paths}")
+        print(f"  📸 Processing {len(image_paths)} image paths")
+        import requests
+        from django.core.files.base import ContentFile
+        
         # Multiple screenshots from video
         for i, img_path in enumerate(image_paths[:3]):  # Max 3 images
-            if img_path:
-                print(f"  📸 Checking image {i+1}: {img_path}")
-                print(f"      exists: {os.path.exists(img_path)}")
-                if os.path.exists(img_path):
-                    file_size = os.path.getsize(img_path)
-                    print(f"      size: {file_size} bytes")
-                    filename = os.path.basename(img_path)
+            if not img_path:
+                print(f"  ⚠️ Image path {i+1} is None")
+                continue
+
+            try:
+                content = None
+                filename = None
+                
+                # Case A: URL (Cloudinary)
+                if img_path.startswith('http'):
+                    print(f"  ⬇️ Downloading image from URL: {img_path}")
+                    resp = requests.get(img_path)
+                    if resp.status_code == 200:
+                        content = ContentFile(resp.content)
+                        # Extract filename from URL or generate one
+                        if '/pending_articles/' in img_path:
+                             filename = img_path.split('/')[-1]
+                        else:
+                             filename = f"image_{i+1}.jpg"
+                    else:
+                        print(f"  ❌ Failed to download: {resp.status_code}")
+                
+                # Case B: Local File
+                elif os.path.exists(img_path):
+                    print(f"  📂 Reading local image: {img_path}")
                     with open(img_path, 'rb') as f:
-                        file_content = File(f, name=filename)
-                        if i == 0:
-                            article.image.save(filename, file_content, save=False)
-                        elif i == 1:
-                            article.image_2.save(filename, file_content, save=False)
-                        elif i == 2:
-                            article.image_3.save(filename, file_content, save=False)
-                    print(f"  ✓ Screenshot {i+1} saved to storage: {filename}")
+                        file_content = f.read()
+                        content = ContentFile(file_content)
+                        filename = os.path.basename(img_path)
+                
                 else:
                     print(f"  ⚠️ Image file not found: {img_path}")
-            else:
-                print(f"  ⚠️ Image path {i+1} is None")
-    elif image_path and os.path.exists(image_path):
+                    
+                # Save if we got content
+                if content and filename:
+                    if i == 0:
+                        article.image.save(filename, content, save=False)
+                    elif i == 1:
+                        article.image_2.save(filename, content, save=False)
+                    elif i == 2:
+                        article.image_3.save(filename, content, save=False)
+                    print(f"  ✓ Image {i+1} attached: {filename}")
+                    
+            except Exception as e:
+                print(f"  ❌ Error processing image {img_path}: {e}")
+
+    elif image_path:
         # Single image (backwards compatibility)
-        filename = os.path.basename(image_path)
-        with open(image_path, 'rb') as f:
-            file_content = File(f, name=filename)
-            article.image.save(filename, file_content, save=False)
-            print(f"  ✓ Image attached: {filename}")
+        if image_path.startswith('http'):
+             # ... Logic for single URL if needed ...
+             pass
+        elif os.path.exists(image_path):
+            filename = os.path.basename(image_path)
+            with open(image_path, 'rb') as f:
+                file_content = File(f, name=filename)
+                article.image.save(filename, file_content, save=False)
+                print(f"  ✓ Image attached: {filename}")
     
     article.save()
     print(f"  ✓ Article saved with slug: {article.slug}")
