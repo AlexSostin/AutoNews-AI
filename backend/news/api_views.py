@@ -1696,16 +1696,34 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 title=pending.title,
                 slug=slug,
                 content=pending.content,
-                excerpt=pending.excerpt or pending.content[:200],
+                summary=pending.excerpt or pending.content[:200],
                 category=pending.suggested_category,
-                status='published',
+                is_published=True,
                 youtube_url=pending.video_url,
             )
             
-            # Set featured image if available
-            if pending.featured_image:
-                # Download and save image
-                pass  # TODO: implement image download
+            # Handle Images (Upload local files to Cloudinary/Storage)
+            if pending.images and isinstance(pending.images, list):
+                from django.core.files import File
+                import os
+                
+                # Try to process up to 3 images
+                for i, image_path in enumerate(pending.images[:3]):
+                    if not image_path: continue
+                    
+                    try:
+                        # Check if it's a local file existing on disk
+                        if os.path.exists(image_path):
+                            file_name = f"{slug}_{i+1}.jpg"
+                            with open(image_path, 'rb') as f:
+                                if i == 0:
+                                    article.image.save(file_name, File(f), save=True)
+                                elif i == 1:
+                                    article.image_2.save(file_name, File(f), save=True)
+                                elif i == 2:
+                                    article.image_3.save(file_name, File(f), save=True)
+                    except Exception as img_err:
+                        print(f"Error saving image {image_path}: {img_err}")
             
             # Update pending article
             pending.status = 'published'
