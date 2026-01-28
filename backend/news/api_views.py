@@ -1587,6 +1587,7 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
         
         import subprocess
         import sys
+        from django.conf import settings  # <--- Added import
         
         try:
             # In Docker, manage.py is in the current working directory usually, 
@@ -1631,6 +1632,7 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
         
         import subprocess
         import sys
+        from django.conf import settings  # <--- Added import
         
         try:
             manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
