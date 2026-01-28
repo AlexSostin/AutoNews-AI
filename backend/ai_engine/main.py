@@ -178,14 +178,40 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq'):
         try:
             screenshots_dir = os.path.join(current_dir, 'output', 'screenshots')
             os.makedirs(screenshots_dir, exist_ok=True)
-            screenshot_paths = extract_video_screenshots(youtube_url, output_dir=screenshots_dir, count=3)
+            local_paths = extract_video_screenshots(youtube_url, output_dir=screenshots_dir, count=3)
             
-            if screenshot_paths:
-                send_progress(6, 85, f"✓ Извлечено {len(screenshot_paths)} скриншотов")
+            if local_paths:
+                # Upload to Cloudinary immediately
+                import cloudinary
+                import cloudinary.uploader
+                
+                print(f"☁️ Uploading {len(local_paths)} screenshots to Cloudinary...")
+                for path in local_paths:
+                    if os.path.exists(path):
+                        try:
+                            # Use task_id or video_id for folder organization if possible
+                            upload_result = cloudinary.uploader.upload(
+                                path, 
+                                folder="pending_articles",
+                                resource_type="image"
+                            )
+                            secure_url = upload_result.get('secure_url')
+                            if secure_url:
+                                screenshot_paths.append(secure_url)
+                                print(f"  ✓ Uploaded: {secure_url}")
+                            else:
+                                screenshot_paths.append(path) # Fallback
+                        except Exception as cloud_err:
+                            print(f"  ⚠️ Cloudinary upload failed for {path}: {cloud_err}")
+                            screenshot_paths.append(path) # Fallback
+                    else:
+                        screenshot_paths.append(path)
+                        
+                send_progress(6, 85, f"✓ Извлечено и загружено {len(screenshot_paths)} скриншотов")
             else:
                 send_progress(6, 85, "⚠️ Скриншоты не найдены")
         except Exception as e:
-            print(f"⚠️  Ошибка при извлечении скриншотов: {e}")
+            print(f"⚠️  Ошибка при извлечении/загрузке скриншотов: {e}")
             screenshot_paths = []
         
         # 6. Создаем краткое описание

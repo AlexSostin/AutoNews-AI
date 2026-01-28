@@ -1702,26 +1702,44 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 youtube_url=pending.video_url,
             )
             
-            # Handle Images (Upload local files to Cloudinary/Storage)
+            # Handle Images (Upload local files or save Cloudinary URLs)
             if pending.images and isinstance(pending.images, list):
                 from django.core.files import File
+                from django.core.files.base import ContentFile
                 import os
+                import requests
                 
                 # Try to process up to 3 images
                 for i, image_path in enumerate(pending.images[:3]):
                     if not image_path: continue
                     
                     try:
-                        # Check if it's a local file existing on disk
-                        if os.path.exists(image_path):
-                            file_name = f"{slug}_{i+1}.jpg"
+                        file_name = f"{slug}_{i+1}.jpg"
+                        content_file = None
+                        
+                        # Case A: It's a URL (Cloudinary)
+                        if image_path.startswith('http'):
+                            print(f"  Downloading image from URL: {image_path}")
+                            resp = requests.get(image_path)
+                            if resp.status_code == 200:
+                                content_file = ContentFile(resp.content, name=file_name)
+                        
+                        # Case B: It's a local file
+                        elif os.path.exists(image_path):
+                            print(f"  Reading local image: {image_path}")
                             with open(image_path, 'rb') as f:
-                                if i == 0:
-                                    article.image.save(file_name, File(f), save=True)
-                                elif i == 1:
-                                    article.image_2.save(file_name, File(f), save=True)
-                                elif i == 2:
-                                    article.image_3.save(file_name, File(f), save=True)
+                                content = f.read()
+                                content_file = ContentFile(content, name=file_name)
+                                
+                        # Save to Article if we have content
+                        if content_file:
+                            if i == 0:
+                                article.image.save(file_name, content_file, save=True)
+                            elif i == 1:
+                                article.image_2.save(file_name, content_file, save=True)
+                            elif i == 2:
+                                article.image_3.save(file_name, content_file, save=True)
+                                
                     except Exception as img_err:
                         print(f"Error saving image {image_path}: {img_err}")
             
