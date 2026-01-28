@@ -1585,12 +1585,26 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
         """Manually trigger scan for a specific channel (Background Process)"""
         channel = self.get_object()
         
-        # Trigger management command in background
         import subprocess
         import sys
         
         try:
+            # In Docker, manage.py is in the current working directory usually, 
+            # or rely on relative path from api_views location
+            # BASE_DIR is .../backend/auto_news_site (usually) or .../backend
+            
+            # Try to find manage.py reliably
             manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
+            if not os.path.exists(manage_py):
+                # Try one level up if settings is in a subdir
+                manage_py = os.path.join(os.path.dirname(settings.BASE_DIR), 'manage.py')
+            
+            if not os.path.exists(manage_py):
+                 # Fallback to simple 'manage.py' assuming CWD is correct root
+                 manage_py = 'manage.py'
+
+            print(f"🚀 Launching scan for {channel.name} using {manage_py}")
+            
             subprocess.Popen(
                 [sys.executable, manage_py, 'scan_youtube', '--channel_id', str(channel.id)],
                 stdout=subprocess.DEVNULL,
@@ -1599,8 +1613,10 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             )
             message = f'Background scan started for {channel.name}'
         except Exception as e:
-            print(f"Error starting scan: {e}")
-            message = 'Failed to start scan process'
+            print(f"❌ Error starting scan: {e}")
+            import traceback
+            print(traceback.format_exc())
+            message = f'Failed to start scan: {str(e)}'
             
         return Response({
             'message': message,
@@ -1627,8 +1643,8 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             count = YouTubeChannel.objects.filter(is_enabled=True).count()
             message = f'Background scan started for {count} channels'
         except Exception as e:
-            print(f"Error starting scan: {e}")
-            message = 'Failed to start scan process'
+            print(f"❌ Error starting scan: {e}")
+            message = f'Failed to start scan: {str(e)}'
             count = 0
             
         return Response({
