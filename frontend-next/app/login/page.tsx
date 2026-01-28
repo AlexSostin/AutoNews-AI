@@ -35,12 +35,12 @@ export default function LoginPage() {
 
     try {
       await login(formData);
-      
+
       // Проверяем роль пользователя
       const userData = localStorage.getItem('user');
       if (userData) {
         const user = JSON.parse(userData);
-        
+
         // Показываем красивое уведомление
         toast.success(
           `Welcome back, ${user.username}! 🎉`,
@@ -58,7 +58,7 @@ export default function LoginPage() {
             icon: '✨',
           }
         );
-        
+
         // Небольшая задержка для показа уведомления, затем редирект
         setTimeout(() => {
           router.push('/');
@@ -144,7 +144,7 @@ export default function LoginPage() {
                 tabIndex={-1}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
+                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
                 style={{ background: 'none', border: 'none', padding: 0 }}
               >
                 {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}

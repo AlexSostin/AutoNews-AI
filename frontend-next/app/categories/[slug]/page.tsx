@@ -12,30 +12,36 @@ const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.ap
 const LOCAL_API_URL = 'http://localhost:8001/api/v1';
 
 const getApiUrl = () => {
+  // 1. If running on server (Docker/Node), use internal Docker URL if available
   if (typeof window === 'undefined') {
-    // Server-side: use production on Railway
-    if (process.env.RAILWAY_ENVIRONMENT === 'production') {
-      return PRODUCTION_API_URL;
+    if (process.env.API_INTERNAL_URL) {
+      return process.env.API_INTERNAL_URL;
     }
-    return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
   }
-  // Client-side
-  const host = window.location.hostname;
-  if (host !== 'localhost' && host !== '127.0.0.1') {
+
+  // 2. Custom domain API
+  if (process.env.CUSTOM_DOMAIN_API) {
+    return process.env.CUSTOM_DOMAIN_API;
+  }
+
+  // 3. Check if running on Railway (production)
+  if (process.env.RAILWAY_ENVIRONMENT === 'production') {
     return PRODUCTION_API_URL;
   }
-  return LOCAL_API_URL;
+
+  // 4. Default fallback for client-side local dev
+  return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
 };
 
 async function getCategory(slug: string) {
   const res = await fetch(`${getApiUrl()}/categories/?search=${slug}`, {
     cache: 'no-store'
   });
-  
+
   if (!res.ok) {
     return null;
   }
-  
+
   const data = await res.json();
   const categories = Array.isArray(data) ? data : data.results || [];
   return categories.find((cat: any) => cat.slug === slug) || null;
@@ -46,11 +52,11 @@ async function getArticlesByCategory(categorySlug: string, page = 1) {
     `${getApiUrl()}/articles/?category=${categorySlug}&page=${page}&page_size=12`,
     { cache: 'no-store' }
   );
-  
+
   if (!res.ok) {
     return { results: [], count: 0, next: null, previous: null };
   }
-  
+
   return res.json();
 }
 
@@ -63,7 +69,7 @@ export default async function CategoryPage({
 }) {
   const { slug } = await params;
   const category = await getCategory(slug);
-  
+
   if (!category) {
     notFound();
   }
@@ -76,7 +82,7 @@ export default async function CategoryPage({
   return (
     <>
       <Header />
-      
+
       <main className="flex-1 bg-gray-50">
         {/* Category Header */}
         <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 text-white py-16 relative overflow-hidden">
@@ -84,8 +90,8 @@ export default async function CategoryPage({
           <div className="container mx-auto px-4 relative z-10">
             <div className="max-w-3xl">
               <div className="flex items-center gap-3 mb-4">
-                <Link 
-                  href="/articles" 
+                <Link
+                  href="/articles"
                   className="text-white/80 hover:text-white transition-colors"
                 >
                   Articles
@@ -158,11 +164,10 @@ export default async function CategoryPage({
                         <Link
                           key={pageNum}
                           href={`/categories/${slug}?page=${pageNum}`}
-                          className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-all ${
-                            page === pageNum
+                          className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-all ${page === pageNum
                               ? 'bg-indigo-600 text-white shadow-md'
                               : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50'
-                          }`}
+                            }`}
                         >
                           {pageNum}
                         </Link>
@@ -185,7 +190,7 @@ export default async function CategoryPage({
           )}
         </section>
       </main>
-      
+
       <Footer />
     </>
   );

@@ -15,16 +15,27 @@ except ImportError:
 # Import utils
 try:
     from ai_engine.modules.utils import clean_title, calculate_reading_time, validate_article_quality
+    from ai_engine.modules.ai_provider import get_ai_provider
 except ImportError:
     from modules.utils import clean_title, calculate_reading_time, validate_article_quality
+    from modules.ai_provider import get_ai_provider
 
+# Legacy Groq client for backwards compatibility
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-def generate_article(analysis_data):
+def generate_article(analysis_data, provider='groq'):
     """
-    Generates a structured HTML article based on the analysis using Groq (super fast!).
+    Generates a structured HTML article based on the analysis using selected AI provider.
+    
+    Args:
+        analysis_data: The analysis from the transcript
+        provider: 'groq' (default) or 'gemini'
+    
+    Returns:
+        HTML article content
     """
-    print("Generating article with Groq...")
+    provider_display = "Groq" if provider == 'groq' else "Google Gemini"
+    print(f"Generating article with {provider_display}...")
     
     prompt = f"""
 Create a professional, SEO-optimized automotive article based on the analysis below.
@@ -75,22 +86,22 @@ Analysis Data:
 Remember: Clean title with NO HTML entities! Write comprehensive, engaging content!
 """
     
+    system_prompt = "You are a professional automotive journalist. Write engaging, SEO-optimized articles with specific data and comparisons."
+    
     try:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": "You are a professional automotive journalist. Write engaging, SEO-optimized articles with specific data and comparisons."},
-                {"role": "user", "content": prompt}
-            ],
+        # Use AI provider factory
+        ai = get_ai_provider(provider)
+        article_content = ai.generate_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
             temperature=0.8,
             max_tokens=3000
         )
-        article_content = response.choices[0].message.content if response.choices else ""
         
         if not article_content:
-            raise Exception("Groq returned empty article")
+            raise Exception(f"{provider_display} returned empty article")
             
-        print(f"✓ Article generated successfully! Length: {len(article_content)} characters")
+        print(f"✓ Article generated successfully with {provider_display}! Length: {len(article_content)} characters")
         
         # Проверка качества статьи
         quality = validate_article_quality(article_content)
@@ -105,5 +116,5 @@ Remember: Clean title with NO HTML entities! Write comprehensive, engaging conte
         
         return article_content
     except Exception as e:
-        print(f"❌ Error during article generation: {e}")
+        print(f"❌ Error during article generation with {provider_display}: {e}")
         return ""

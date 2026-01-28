@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Eye, 
-  FileText, 
+import {
+  BarChart3,
+  TrendingUp,
+  Eye,
+  FileText,
   MessageSquare,
   Clock,
   ArrowUp,
@@ -14,12 +14,38 @@ import {
   Mail
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line, Pie } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface Article {
   id: number;
   title: string;
   slug: string;
   views_count: number;
+  views: number;
   created_at: string;
   category?: { name: string };
 }
@@ -29,16 +55,25 @@ interface Stats {
   totalViews: number;
   totalComments: number;
   totalSubscribers: number;
-  totalCategories: number;
-  trendingArticles: Article[];
+  articlesGrowth: number;
   popularArticles: Article[];
-  recentArticles: Article[];
+}
+
+interface TimelineData {
+  labels: string[];
+  data: number[];
+}
+
+interface CategoriesData {
+  labels: string[];
+  data: number[];
 }
 
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [timeline, setTimeline] = useState<TimelineData | null>(null);
+  const [categories, setCategories] = useState<CategoriesData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | 'all'>('7d');
 
   useEffect(() => {
     fetchStats();
@@ -50,50 +85,35 @@ export default function AnalyticsPage() {
       const token = localStorage.getItem('access_token');
       const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-      // Fetch all data in parallel
+      // Fetch new analytics endpoints
       const [
-        articlesRes,
-        trendingRes,
-        popularRes,
-        categoriesRes,
-        commentsRes,
-        subscribersRes
+        overviewRes,
+        topArticlesRes,
+        timelineRes,
+        categoriesRes
       ] = await Promise.all([
-        fetch(`${apiUrl}/articles/`),
-        fetch(`${apiUrl}/articles/trending/`),
-        fetch(`${apiUrl}/articles/popular/`),
-        fetch(`${apiUrl}/categories/`),
-        fetch(`${apiUrl}/comments/`, { headers }),
-        fetch(`${apiUrl}/subscribers/`, { headers }).catch(() => null)
+        fetch(`${apiUrl}/analytics/overview/`, { headers }),
+        fetch(`${apiUrl}/analytics/articles/top/?limit=10`, { headers }),
+        fetch(`${apiUrl}/analytics/views/timeline/?days=30`, { headers }),
+        fetch(`${apiUrl}/analytics/categories/`, { headers })
       ]);
 
-      const articlesData = await articlesRes.json();
-      const trendingData = await trendingRes.json();
-      const popularData = await popularRes.json();
+      const overviewData = await overviewRes.json();
+      const topArticlesData = await topArticlesRes.json();
+      const timelineData = await timelineRes.json();
       const categoriesData = await categoriesRes.json();
-      const commentsData = commentsRes.ok ? await commentsRes.json() : { results: [] };
-      const subscribersData = subscribersRes?.ok ? await subscribersRes.json() : { results: [] };
-
-      const articles = Array.isArray(articlesData) ? articlesData : articlesData.results || [];
-      const trending = Array.isArray(trendingData) ? trendingData : trendingData.results || [];
-      const popular = Array.isArray(popularData) ? popularData : popularData.results || [];
-      const categories = Array.isArray(categoriesData) ? categoriesData : categoriesData.results || [];
-      const comments = Array.isArray(commentsData) ? commentsData : commentsData.results || [];
-      const subscribers = Array.isArray(subscribersData) ? subscribersData : subscribersData.results || [];
-
-      // Calculate total views
-      const totalViews = articles.reduce((sum: number, a: Article) => sum + (a.views_count || 0), 0);
 
       setStats({
-        totalArticles: articlesData.count || articles.length,
-        totalViews,
-        totalComments: commentsData.count || comments.length,
-        totalSubscribers: subscribersData.count || subscribers.length,
-        totalCategories: categoriesData.count || categories.length,
-        trendingArticles: trending.slice(0, 10),
-        popularArticles: popular.slice(0, 10),
-        recentArticles: articles.slice(0, 5)
+        totalArticles: overviewData.total_articles,
+        totalViews: overviewData.total_views,
+        totalComments: overviewData.total_comments,
+        totalSubscribers: overviewData.total_subscribers,
+        articlesGrowth: overviewData.articles_growth_percent,
+        popularArticles: topArticlesData.articles
       });
+
+      setTimeline(timelineData);
+      setCategories(categoriesData);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -110,34 +130,34 @@ export default function AnalyticsPage() {
   }
 
   const statCards = [
-    { 
-      title: 'Total Views', 
-      value: stats?.totalViews?.toLocaleString() || '0', 
-      icon: Eye, 
+    {
+      title: 'Total Views',
+      value: stats?.totalViews?.toLocaleString() || '0',
+      icon: Eye,
       color: 'bg-blue-500',
       trend: '+12%',
       trendUp: true
     },
-    { 
-      title: 'Articles', 
-      value: stats?.totalArticles?.toString() || '0', 
-      icon: FileText, 
+    {
+      title: 'Articles',
+      value: stats?.totalArticles?.toString() || '0',
+      icon: FileText,
       color: 'bg-green-500',
-      trend: '+3',
-      trendUp: true
+      trend: `${stats?.articlesGrowth > 0 ? '+' : ''}${stats?.articlesGrowth || 0}%`,
+      trendUp: (stats?.articlesGrowth || 0) > 0
     },
-    { 
-      title: 'Comments', 
-      value: stats?.totalComments?.toString() || '0', 
-      icon: MessageSquare, 
+    {
+      title: 'Comments',
+      value: stats?.totalComments?.toString() || '0',
+      icon: MessageSquare,
       color: 'bg-orange-500',
       trend: '+8',
       trendUp: true
     },
-    { 
-      title: 'Subscribers', 
-      value: stats?.totalSubscribers?.toString() || '0', 
-      icon: Mail, 
+    {
+      title: 'Subscribers',
+      value: stats?.totalSubscribers?.toString() || '0',
+      icon: Mail,
       color: 'bg-purple-500',
       trend: '+5',
       trendUp: true
@@ -147,28 +167,7 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Analytics</h1>
-        
-        {/* Time Range Selector */}
-        <div className="flex gap-2 bg-white rounded-lg p-1 shadow">
-          {[
-            { value: '7d', label: '7 Days' },
-            { value: '30d', label: '30 Days' },
-            { value: 'all', label: 'All Time' }
-          ].map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setTimeRange(option.value as '7d' | '30d' | 'all')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                timeRange === option.value
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <h1 className="text-2xl sm:text-3xl font-black text-gray-950">📊 Analytics Dashboard</h1>
       </div>
 
       {/* Stats Cards */}
@@ -181,9 +180,8 @@ export default function AnalyticsPage() {
                 <div className={`${stat.color} p-3 rounded-lg text-white`}>
                   <Icon size={24} />
                 </div>
-                <div className={`flex items-center gap-1 text-sm font-medium ${
-                  stat.trendUp ? 'text-green-600' : 'text-red-600'
-                }`}>
+                <div className={`flex items-center gap-1 text-sm font-medium ${stat.trendUp ? 'text-green-600' : 'text-red-600'
+                  }`}>
                   {stat.trendUp ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
                   {stat.trend}
                 </div>
@@ -195,123 +193,108 @@ export default function AnalyticsPage() {
         })}
       </div>
 
-      {/* Trending & Popular Articles */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Trending Articles */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="text-orange-500" size={24} />
-            <h2 className="text-xl font-bold text-gray-900">Trending (7 Days)</h2>
+        {/* Timeline Chart */}
+        {timeline && (
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">📈 Articles Published (Last 30 Days)</h3>
+            <Line
+              data={{
+                labels: timeline.labels,
+                datasets: [
+                  {
+                    label: 'Articles',
+                    data: timeline.data,
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                plugins: {
+                  legend: { display: false },
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0 }
+                  }
+                }
+              }}
+            />
           </div>
-          <div className="space-y-3">
-            {stats?.trendingArticles?.length ? (
-              stats.trendingArticles.map((article, index) => (
-                <div 
-                  key={article.id} 
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                    index === 0 ? 'bg-yellow-500' : 
-                    index === 1 ? 'bg-gray-400' : 
-                    index === 2 ? 'bg-orange-600' : 'bg-gray-300'
-                  }`}>
-                    {index + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate text-sm">
-                      {article.title}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {article.category?.name || 'Uncategorized'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 text-gray-600">
-                    <Eye size={14} />
-                    <span className="text-sm font-medium">{article.views_count?.toLocaleString() || 0}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-center py-4">No trending articles yet</p>
-            )}
-          </div>
-        </div>
+        )}
 
-        {/* Popular All Time */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="text-purple-500" size={24} />
-            <h2 className="text-xl font-bold text-gray-900">Popular (All Time)</h2>
+        {/* Categories Pie Chart */}
+        {categories && (
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">🥧 Articles by Category</h3>
+            <Pie
+              data={{
+                labels: categories.labels,
+                datasets: [
+                  {
+                    data: categories.data,
+                    backgroundColor: [
+                      'rgba(59, 130, 246, 0.8)',
+                      'rgba(16, 185, 129, 0.8)',
+                      'rgba(139, 92, 246, 0.8)',
+                      'rgba(249, 115, 22, 0.8)',
+                      'rgba(236, 72, 153, 0.8)',
+                      'rgba(234, 179, 8, 0.8)',
+                    ],
+                    borderWidth: 2,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                plugins: {
+                  legend: { position: 'right' },
+                },
+              }}
+            />
           </div>
-          <div className="space-y-3">
-            {stats?.popularArticles?.length ? (
-              stats.popularArticles.map((article, index) => (
-                <div 
-                  key={article.id} 
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                    index === 0 ? 'bg-purple-600' : 
-                    index === 1 ? 'bg-purple-500' : 
-                    index === 2 ? 'bg-purple-400' : 'bg-gray-300'
-                  }`}>
-                    {index + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate text-sm">
-                      {article.title}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {article.category?.name || 'Uncategorized'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 text-gray-600">
-                    <Eye size={14} />
-                    <span className="text-sm font-medium">{article.views_count?.toLocaleString() || 0}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-center py-4">No popular articles yet</p>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Recent Activity */}
+      {/* Top Articles Table */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Clock className="text-blue-500" size={24} />
-          <h2 className="text-xl font-bold text-gray-900">Recent Articles</h2>
+          <BarChart3 className="text-purple-500" size={24} />
+          <h2 className="text-xl font-bold text-gray-900">🔥 Top 10 Articles by Views</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Rank</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Title</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Category</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Views</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Published</th>
               </tr>
             </thead>
             <tbody>
-              {stats?.recentArticles?.map((article) => (
+              {stats?.popularArticles?.map((article, index) => (
                 <tr key={article.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4">
-                    <p className="font-medium text-gray-900 truncate max-w-xs">{article.title}</p>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                      {article.category?.name || 'Uncategorized'}
+                    <span className="text-xl">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <span className="text-gray-600">{article.views_count?.toLocaleString() || 0}</span>
+                    <a href={`/article/${article.slug}`} target="_blank" className="text-blue-600 hover:underline font-medium">
+                      {article.title}
+                    </a>
                   </td>
                   <td className="py-3 px-4">
-                    <span className="text-gray-500 text-sm">
-                      {new Date(article.created_at).toLocaleDateString()}
-                    </span>
+                    <span className="font-semibold">{article.views?.toLocaleString() || 0}</span>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-500">
+                    {new Date(article.created_at).toLocaleDateString()}
                   </td>
                 </tr>
               ))}

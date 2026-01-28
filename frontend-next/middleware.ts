@@ -22,8 +22,8 @@ export async function middleware(request: NextRequest) {
 
   // Login page - redirect if has token
   if (isLoginRoute && token) {
-    console.log('[Middleware] Has token on login page, redirecting to admin');
-    return NextResponse.redirect(new URL('/admin', request.url));
+    console.log('[Middleware] Has token on login page, redirecting to home');
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return NextResponse.next();

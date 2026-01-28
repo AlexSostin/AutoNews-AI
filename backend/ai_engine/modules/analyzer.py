@@ -12,13 +12,28 @@ except ImportError:
         GROQ_API_KEY = os.getenv('GROQ_API_KEY')
         GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
 
+# Import AI provider
+try:
+    from ai_engine.modules.ai_provider import get_ai_provider
+except ImportError:
+    from modules.ai_provider import get_ai_provider
+
+# Legacy client for backwards compatibility
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-def analyze_transcript(transcript_text):
+def analyze_transcript(transcript_text, provider='groq'):
     """
-    Analyzes the transcript to extract car details using Groq (super fast!).
+    Analyzes the transcript to extract car details using selected AI provider.
+    
+    Args:
+        transcript_text: The video transcript text
+        provider: 'groq' (default) or 'gemini'
+    
+    Returns:
+        Structured analysis text
     """
-    print("Analyzing transcript with Groq...")
+    provider_name = "Groq" if provider == 'groq' else "Google Gemini"
+    print(f"Analyzing transcript with {provider_name}...")
     
     prompt = f"""
 Analyze this automotive video transcript and extract key information in STRUCTURED format.
@@ -54,25 +69,25 @@ Transcript:
 IMPORTANT: Use exact labels above. If info not available, write "Not specified".
 """
     
+    system_prompt = "You are an expert automotive analyst. Provide detailed, structured analysis."
+    
     try:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": "You are an expert automotive analyst. Provide detailed, structured analysis."},
-                {"role": "user", "content": prompt}
-            ],
+        # Use AI provider factory
+        ai = get_ai_provider(provider)
+        analysis = ai.generate_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
             temperature=0.7,
             max_tokens=2000
         )
-        analysis = response.choices[0].message.content if response.choices else ""
         
         if not analysis:
-            raise Exception("Groq returned empty analysis")
+            raise Exception(f"{provider_name} returned empty analysis")
             
-        print(f"Analysis complete. Length: {len(analysis)} characters")
+        print(f"Analysis complete with {provider_name}. Length: {len(analysis)} characters")
         return analysis
     except Exception as e:
-        print(f"Error during analysis: {e}")
+        print(f"Error during analysis with {provider_name}: {e}")
         return ""
 
 

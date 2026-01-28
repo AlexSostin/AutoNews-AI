@@ -14,6 +14,8 @@ interface Comment {
   content: string;
   approved: boolean;
   created_at: string;
+  parent: number | null;
+  parent_author: string | null;
 }
 
 export default function CommentsPage() {
@@ -43,7 +45,8 @@ export default function CommentsPage() {
 
   const handleApprove = async (id: number) => {
     try {
-      await api.patch(`/comments/${id}/`, { approved: true });
+      // Use the approve action endpoint
+      await api.post(`/comments/${id}/approve/`, { approved: true });
       setComments(comments.map(c => c.id === id ? { ...c, approved: true } : c));
     } catch (error) {
       console.error('Failed to approve comment:', error);
@@ -53,7 +56,8 @@ export default function CommentsPage() {
 
   const handleReject = async (id: number) => {
     try {
-      await api.patch(`/comments/${id}/`, { approved: false });
+      // Use the approve action endpoint with approved: false
+      await api.post(`/comments/${id}/approve/`, { approved: false });
       setComments(comments.map(c => c.id === id ? { ...c, approved: false } : c));
     } catch (error) {
       console.error('Failed to reject comment:', error);
@@ -93,31 +97,28 @@ export default function CommentsPage() {
         <div className="flex gap-2">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              filter === 'all'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'all'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             All
           </button>
           <button
             onClick={() => setFilter('pending')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              filter === 'pending'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'pending'
+              ? 'bg-amber-600 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             Pending {pendingCount > 0 && `(${pendingCount})`}
           </button>
           <button
             onClick={() => setFilter('approved')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              filter === 'approved'
-                ? 'bg-green-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'approved'
+              ? 'bg-green-600 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             Approved
           </button>
@@ -143,11 +144,10 @@ export default function CommentsPage() {
           comments.map((comment) => (
             <div
               key={comment.id}
-              className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
-                comment.approved
-                  ? 'border-green-500'
-                  : 'border-amber-500'
-              }`}
+              className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${comment.approved
+                ? 'border-green-500'
+                : 'border-amber-500'
+                }`}
             >
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div className="flex-1">
@@ -173,6 +173,11 @@ export default function CommentsPage() {
                     >
                       {comment.article_title}
                     </Link>
+                    {comment.parent_author && (
+                      <span className="ml-2 text-indigo-600">
+                        • Reply to <strong>@{comment.parent_author}</strong>
+                      </span>
+                    )}
                   </p>
                   <p className="text-gray-800 font-medium">{comment.content}</p>
                   <p className="text-xs text-gray-500 mt-2 font-medium">

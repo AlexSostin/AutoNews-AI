@@ -93,10 +93,15 @@ def check_duplicate(youtube_url):
     return None
 
 
-def generate_article_from_youtube(youtube_url, task_id=None):
+def generate_article_from_youtube(youtube_url, task_id=None, provider='groq'):
     """
     Generate article from YouTube URL and return article data.
     Used by Django API.
+    
+    Args:
+        youtube_url: YouTube video URL
+        task_id: Optional WebSocket task ID for progress updates
+        provider: AI provider to use - 'groq' (default) or 'gemini'
     
     УЛУЧШЕННАЯ ВЕРСИЯ с:
     - Проверкой дубликатов
@@ -105,6 +110,7 @@ def generate_article_from_youtube(youtube_url, task_id=None):
     - Сохранением характеристик авто
     - SEO оптимизацией
     - WebSocket прогрессом
+    - Выбором AI провайдера
     """
     
     def send_progress(step, progress, message):
@@ -130,8 +136,9 @@ def generate_article_from_youtube(youtube_url, task_id=None):
             print(f"WebSocket progress error: {e}")
     
     try:
-        send_progress(1, 5, "🚀 Начинаем генерацию...")
-        print(f"🚀 Генерация статьи из: {youtube_url}")
+        provider_name = "Groq" if provider == 'groq' else "Google Gemini"
+        send_progress(1, 5, f"🚀 Начинаем генерацию с {provider_name}...")
+        print(f"🚀 Генерация статьи из: {youtube_url} используя {provider_name}")
         
         # 0. Проверка дубликатов
         send_progress(1, 10, "🔍 Проверка дубликатов...")
@@ -159,9 +166,9 @@ def generate_article_from_youtube(youtube_url, task_id=None):
         print(f"✓ Транскрипт получен ({len(transcript)} символов)")
         
         # 2. Анализируем транскрипт
-        send_progress(3, 40, "🔍 Анализ транскрипта с AI...")
+        send_progress(3, 40, f"🔍 Анализ транскрипта с {provider_name} AI...")
         print("🔍 Анализ транскрипта...")
-        analysis = analyze_transcript(transcript)
+        analysis = analyze_transcript(transcript, provider=provider)
         
         if not analysis:
             send_progress(3, 100, "❌ Не удалось проанализировать")
@@ -185,9 +192,9 @@ def generate_article_from_youtube(youtube_url, task_id=None):
         print(f"✓ Характеристики: {specs['make']} {specs['model']} {specs['year'] or ''}")
         
         # 3. Генерируем статью
-        send_progress(5, 65, "✍️ Генерация статьи с Groq AI...")
-        print("✍️  Генерация статьи с Groq AI...")
-        article_html = generate_article(analysis)
+        send_progress(5, 65, f"✍️ Генерация статьи с {provider_name}...")
+        print(f"✍️  Генерация статьи с {provider_name}...")
+        article_html = generate_article(analysis, provider=provider)
         
         if not article_html or len(article_html) < 100:
             send_progress(5, 100, "❌ Ошибка генерации статьи")
@@ -236,6 +243,18 @@ def generate_article_from_youtube(youtube_url, task_id=None):
             else:
                 summary = f"Comprehensive review of the {specs['make']} {specs['model']}"
         
+        
+        # 6.5. Генерация SEO keywords
+        from modules.seo_helpers import generate_seo_keywords
+        seo_keywords = ''
+        
+        # Only generate if analysis is a dict (not a string)
+        if isinstance(analysis, dict):
+            seo_keywords = generate_seo_keywords(analysis, title)
+            print(f"✓ SEO Keywords: {seo_keywords}")
+        else:
+            print(f"⚠️ Analysis is not a dict, skipping SEO keywords generation")
+        
         # 7. Публикуем статью с ПОЛНЫМИ метаданными и скриншотами
         send_progress(8, 95, "📤 Сохранение в базу данных...")
         print("📤 Публикация статьи...")
@@ -247,7 +266,8 @@ def generate_article_from_youtube(youtube_url, task_id=None):
             youtube_url=youtube_url,
             image_paths=screenshot_paths,  # 3 скриншота из видео
             tag_names=tag_names,  # Автоматические теги
-            specs=specs  # Характеристики авто
+            specs=specs,  # Характеристики авто
+            meta_keywords=seo_keywords  # SEO keywords
         )
         
         send_progress(9, 100, f"✅ Статья создана: {article.title[:50]}...")

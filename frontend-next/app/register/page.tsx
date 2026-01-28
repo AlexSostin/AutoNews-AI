@@ -51,7 +51,7 @@ export default function RegisterPage() {
     try {
       const apiUrl = getApiUrl();
       console.log('Registering at:', apiUrl); // Debug log
-      
+
       const response = await fetch(`${apiUrl}/users/register/`, {
         method: 'POST',
         headers: {
@@ -153,7 +153,7 @@ export default function RegisterPage() {
                 tabIndex={-1}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
+                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
                 style={{ background: 'none', border: 'none', padding: 0 }}
               >
                 {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
@@ -180,7 +180,7 @@ export default function RegisterPage() {
                 tabIndex={-1}
                 aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 onClick={() => setShowConfirmPassword((v) => !v)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
+                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
                 style={{ background: 'none', border: 'none', padding: 0 }}
               >
                 {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}

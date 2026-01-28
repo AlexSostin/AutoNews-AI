@@ -113,7 +113,80 @@ def download_thumbnail_only(youtube_url):
     return video_id, thumbnail_path, video_title
 
 
-def extract_video_screenshots(youtube_url, output_dir=None, count=3):
+def extract_video_screenshots(youtube_url, output_dir=None, count=1):
+    """
+    Downloads the best quality YouTube thumbnail (maxresdefault).
+    Only downloads 1 high-quality image to avoid duplicates.
+    
+    Returns list with single thumbnail path.
+    """
+    if output_dir is None:
+        output_dir = TRANSCRIPTS_DIR
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Extract video ID
+    video_id = extract_video_id(youtube_url)
+    if not video_id:
+        print("⚠️ Could not extract video ID from URL")
+        return []
+    
+    print(f"📸 Downloading best quality YouTube thumbnail for video {video_id}...")
+    
+    # Try only the BEST quality thumbnail to avoid duplicates
+    # YouTube numbered thumbnails often don't exist or return same image
+    thumbnail_urls = [
+        f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",  # 1920x1080 - BEST!
+        f"https://i.ytimg.com/vi/{video_id}/sddefault.jpg",      # 640x480 - Fallback
+        f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",      # 480x360 - Last resort
+    ]
+    
+    
+    
+    thumbnails = []
+    
+    import requests
+    from PIL import Image
+    from io import BytesIO
+    
+    # Try each URL until we get one good quality image
+    for url in thumbnail_urls:
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200 and len(response.content) > 10000:  # Min 10KB for quality
+                # Verify it's a valid image
+                try:
+                    img = Image.open(BytesIO(response.content))
+                    width, height = img.size
+                    
+                    # We want at least 640px width for quality
+                    if width >= 640:
+                        # Save thumbnail
+                        output_filename = f"{video_id}_cover.jpg"
+                        output_path = os.path.join(output_dir, output_filename)
+                        
+                        with open(output_path, 'wb') as f:
+                            f.write(response.content)
+                        
+                        thumbnails.append(output_path)
+                        print(f"  ✓ High-quality thumbnail downloaded: {width}x{height} ({len(response.content)//1024}KB)")
+                        break  # Got one good image, stop here!
+                        
+                except Exception as e:
+                    continue
+                    
+        except Exception as e:
+            continue
+    
+    if thumbnails:
+        print(f"✓ Downloaded best quality thumbnail")
+    else:
+        print("⚠️ No thumbnail could be downloaded")
+    
+    return thumbnails
+
+
+
     """
     Extracts multiple screenshots from a YouTube video at different timestamps.
     Downloads short video segments and extracts frames from them.
@@ -178,7 +251,7 @@ def extract_video_screenshots(youtube_url, output_dir=None, count=3):
                 print(f"  Downloading segment {i+1}/{count} at {timestamp}s...")
                 
                 ydl_opts_download = {
-                    'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
+                    'format': 'best[height<=1080][ext=mp4]/best[height<=1080]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',  # Up to 1080p
                     'outtmpl': temp_video,
                     'quiet': True,
                     'no_warnings': True,
@@ -192,13 +265,13 @@ def extract_video_screenshots(youtube_url, output_dir=None, count=3):
                 
                 # Check if video was downloaded
                 if os.path.exists(temp_video) and os.path.getsize(temp_video) > 1000:
-                    # Extract first frame from segment
+                    # Extract first frame from segment with high quality
                     cmd = [
                         ffmpeg_exe,
                         '-i', temp_video,
                         '-vframes', '1',
-                        '-vf', 'scale=1280:-1',
-                        '-q:v', '2',
+                        '-vf', 'scale=1920:-1',  # Scale to 1920px width (FullHD)
+                        '-q:v', '1',  # Highest JPEG quality (1-31, lower is better)
                         '-y',
                         output_image
                     ]

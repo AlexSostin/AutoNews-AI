@@ -43,7 +43,7 @@ export default function ArticlesPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
-    
+
     try {
       await api.delete(`/articles/${id}/`);
       setArticles(articles.filter(a => a.id !== id));
@@ -52,6 +52,29 @@ export default function ArticlesPage() {
       alert('Failed to delete article');
     }
   };
+
+  const handleTogglePublish = async (id: number, currentStatus: boolean) => {
+    try {
+      console.log('🔄 Toggle publish status:', { id, currentStatus, newStatus: !currentStatus });
+
+      // Optimistic update
+      setArticles(articles.map(a =>
+        a.id === id ? { ...a, is_published: !currentStatus } : a
+      ));
+
+      const response = await api.patch(`/articles/${id}/`, { is_published: !currentStatus });
+      console.log('✅ Update successful:', response.data);
+    } catch (error: any) {
+      console.error('❌ Failed to update published status:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      alert('Failed to update status: ' + (error.response?.data?.detail || error.message));
+      // Revert on error
+      setArticles(articles.map(a =>
+        a.id === id ? { ...a, is_published: currentStatus } : a
+      ));
+    }
+  };
+
 
   const filteredArticles = articles.filter(article =>
     article.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -88,31 +111,28 @@ export default function ArticlesPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setFilter('all')}
-              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                filter === 'all'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${filter === 'all'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setFilter('published')}
-              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                filter === 'published'
-                  ? 'bg-green-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${filter === 'published'
+                ? 'bg-green-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Published
             </button>
             <button
               onClick={() => setFilter('draft')}
-              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                filter === 'draft'
-                  ? 'bg-amber-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${filter === 'draft'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Drafts
             </button>
@@ -173,15 +193,20 @@ export default function ArticlesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {article.is_published ? (
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                          Published
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={article.is_published}
+                          onChange={() => handleTogglePublish(article.id, article.is_published)}
+                          className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                        />
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${article.is_published
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-amber-100 text-amber-700'
+                          }`}>
+                          {article.is_published ? 'Published' : 'Draft'}
                         </span>
-                      ) : (
-                        <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-semibold">
-                          Draft
-                        </span>
-                      )}
+                      </label>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1">

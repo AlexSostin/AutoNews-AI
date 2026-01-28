@@ -88,6 +88,7 @@ ai_engine/output/transcripts/*.webp
 ai_engine/output/transcripts/*.jpg
 ai_engine/output/transcripts/*.png
 ai_engine/output/transcripts/*.mp4
+ai_engine/output/screenshots/*.jpg
 
 # Thumbnails and media
 media/articles/*

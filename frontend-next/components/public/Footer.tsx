@@ -7,19 +7,19 @@ import { useEffect, useState } from 'react';
 // Custom SVG Icons
 const XIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 );
 
 const TikTokIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
   </svg>
 );
 
 const TelegramIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
   </svg>
 );
 
@@ -71,7 +71,7 @@ export default function Footer() {
       return 'http://localhost:8001/api/v1';
     };
     const apiUrl = getApiUrl();
-    
+
     // Load settings
     fetch(`${apiUrl}/settings/`)
       .then(res => res.json())
@@ -95,7 +95,7 @@ export default function Footer() {
     if (!email.trim()) return;
 
     setSubscribeStatus('loading');
-    
+
     try {
       const getApiUrl = () => {
         if (typeof window !== 'undefined') {
@@ -106,13 +106,13 @@ export default function Footer() {
         }
         return 'http://localhost:8001/api/v1';
       };
-      
-      const response = await fetch(`${getApiUrl()}/subscribers/subscribe/`, {
+
+      const response = await fetch(`${getApiUrl()}/subscribers/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
-      
+
       if (response.ok) {
         setSubscribeStatus('success');
         setEmail('');
@@ -128,7 +128,7 @@ export default function Footer() {
       console.error('Subscribe error:', error);
       setSubscribeStatus('error');
     }
-    
+
     setTimeout(() => setSubscribeStatus('idle'), 3000);
   };
 
@@ -185,8 +185,8 @@ export default function Footer() {
             <p className="text-gray-300 text-sm mb-4">
               Your source for the latest automotive news, reviews, and insights.
             </p>
-            <a 
-              href="mailto:info@freshmotors.net" 
+            <a
+              href="mailto:info@freshmotors.net"
               className="text-gray-300 hover:text-purple-400 transition-colors text-sm flex items-center gap-2 mb-4"
             >
               <Mail size={16} />
@@ -212,7 +212,7 @@ export default function Footer() {
               </div>
             )}
           </div>
-          
+
           <div>
             <h4 className="font-bold mb-4 text-purple-400">Quick Links</h4>
             <ul className="space-y-2 text-sm">
@@ -229,8 +229,8 @@ export default function Footer() {
               {categories.length > 0 ? (
                 categories.map((cat) => (
                   <li key={cat.id}>
-                    <Link 
-                      href={`/categories/${cat.slug}`} 
+                    <Link
+                      href={`/categories/${cat.slug}`}
                       className="text-gray-300 hover:text-purple-400 transition-colors"
                     >
                       {cat.name}
@@ -246,7 +246,7 @@ export default function Footer() {
               )}
             </ul>
           </div>
-          
+
           <div>
             <h4 className="font-bold mb-4 text-purple-400">Company</h4>
             <ul className="space-y-2 text-sm">
@@ -266,7 +266,7 @@ export default function Footer() {
             </ul>
           </div>
         </div>
-        
+
         <div className="border-t border-gray-700 pt-8 text-center text-gray-400 text-sm">
           <p>{settings?.footer_text || `© ${new Date().getFullYear()} Fresh Motors. All rights reserved.`}</p>
         </div>

@@ -37,7 +37,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -53,6 +53,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
     current_image: '',
     current_image_2: '',
     current_image_3: '',
+    delete_image: false,
+    delete_image_2: false,
+    delete_image_3: false,
   });
 
   useEffect(() => {
@@ -71,7 +74,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       ]);
 
       const article = articleRes.data;
-      
+
       // Helper to build full image URL (runtime detection)
       const getMediaUrl = () => {
         if (typeof window !== 'undefined') {
@@ -82,13 +85,13 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         }
         return 'http://localhost:8001';
       };
-      
+
       const buildImageUrl = (path: string) => {
         if (!path) return '';
         if (path.startsWith('http://') || path.startsWith('https://')) return path;
         return `${getMediaUrl()}${path}`;
       };
-      
+
       setFormData({
         title: article.title || '',
         slug: article.slug || '',
@@ -104,6 +107,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         current_image: buildImageUrl(article.thumbnail_url || article.image || ''),
         current_image_2: buildImageUrl(article.image_2_url || article.image_2 || ''),
         current_image_3: buildImageUrl(article.image_3_url || article.image_3 || ''),
+        delete_image: false,
+        delete_image_2: false,
+        delete_image_3: false,
       });
 
       // Handle both array and paginated response
@@ -132,11 +138,11 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         formDataToSend.append('category_id', formData.category);
         formDataToSend.append('tag_ids', JSON.stringify(formData.tags));
         formDataToSend.append('is_published', formData.published.toString());
-        
+
         if (formData.youtube_url) {
           formDataToSend.append('youtube_url', formData.youtube_url);
         }
-        
+
         if (formData.image) {
           formDataToSend.append('image', formData.image);
         }
@@ -146,6 +152,11 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         if (formData.image_3) {
           formDataToSend.append('image_3', formData.image_3);
         }
+
+        // Handle image deletion
+        if (formData.delete_image) formDataToSend.append('delete_image', 'true');
+        if (formData.delete_image_2) formDataToSend.append('delete_image_2', 'true');
+        if (formData.delete_image_3) formDataToSend.append('delete_image_3', 'true');
 
         await api.put(`/articles/${articleId}/`, formDataToSend, {
           headers: {
@@ -166,7 +177,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
         await api.put(`/articles/${articleId}/`, payload);
       }
-      
+
       alert('Article updated successfully!');
       router.push('/admin/articles');
     } catch (error: any) {
@@ -276,26 +287,47 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           <div className="border-t pt-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Images</h3>
             <p className="text-sm text-gray-600 mb-4">Replace images or keep existing ones from AI generation</p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Image 1 */}
               <div>
                 <label className="block text-sm font-bold text-gray-900 mb-2">Image 1 (Main)</label>
-                {formData.current_image && (
-                  <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200">
-                    <img 
-                      src={formData.current_image} 
-                      alt="Current Image 1" 
+                {formData.current_image && !formData.delete_image && (
+                  <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group">
+                    <img
+                      src={formData.current_image}
+                      alt="Current Image 1"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded">Current</div>
+                    <div className="absolute top-1 right-1 flex gap-1">
+                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">Current</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, delete_image: true })}
+                        className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {formData.delete_image && (
+                  <div className="mb-2 text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200 flex justify-between items-center">
+                    <span>Marked for deletion</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, delete_image: false })}
+                      className="text-gray-600 underline text-xs hover:text-gray-900"
+                    >
+                      Undo
+                    </button>
                   </div>
                 )}
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                  onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null, delete_image: false })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
                 />
                 {formData.image && (
                   <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image.name}</p>
@@ -305,21 +337,42 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               {/* Image 2 */}
               <div>
                 <label className="block text-sm font-bold text-gray-900 mb-2">Image 2</label>
-                {formData.current_image_2 && (
+                {formData.current_image_2 && !formData.delete_image_2 && (
                   <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200">
-                    <img 
-                      src={formData.current_image_2} 
-                      alt="Current Image 2" 
+                    <img
+                      src={formData.current_image_2}
+                      alt="Current Image 2"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded">Current</div>
+                    <div className="absolute top-1 right-1 flex gap-1">
+                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">Current</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, delete_image_2: true })}
+                        className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {formData.delete_image_2 && (
+                  <div className="mb-2 text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200 flex justify-between items-center">
+                    <span>Marked for deletion</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, delete_image_2: false })}
+                      className="text-gray-600 underline text-xs hover:text-gray-900"
+                    >
+                      Undo
+                    </button>
                   </div>
                 )}
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image_2: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                  onChange={(e) => setFormData({ ...formData, image_2: e.target.files?.[0] || null, delete_image_2: false })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
                 />
                 {formData.image_2 && (
                   <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image_2.name}</p>
@@ -329,21 +382,42 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               {/* Image 3 */}
               <div>
                 <label className="block text-sm font-bold text-gray-900 mb-2">Image 3</label>
-                {formData.current_image_3 && (
+                {formData.current_image_3 && !formData.delete_image_3 && (
                   <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200">
-                    <img 
-                      src={formData.current_image_3} 
-                      alt="Current Image 3" 
+                    <img
+                      src={formData.current_image_3}
+                      alt="Current Image 3"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded">Current</div>
+                    <div className="absolute top-1 right-1 flex gap-1">
+                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">Current</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, delete_image_3: true })}
+                        className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {formData.delete_image_3 && (
+                  <div className="mb-2 text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200 flex justify-between items-center">
+                    <span>Marked for deletion</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, delete_image_3: false })}
+                      className="text-gray-600 underline text-xs hover:text-gray-900"
+                    >
+                      Undo
+                    </button>
                   </div>
                 )}
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image_3: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                  onChange={(e) => setFormData({ ...formData, image_3: e.target.files?.[0] || null, delete_image_3: false })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
                 />
                 {formData.image_3 && (
                   <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image_3.name}</p>
@@ -379,11 +453,10 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                   key={tag.id}
                   type="button"
                   onClick={() => handleTagToggle(tag.id)}
-                  className={`px-4 py-2 rounded-full font-medium transition-all ${
-                    formData.tags.includes(tag.id)
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-4 py-2 rounded-full font-medium transition-all ${formData.tags.includes(tag.id)
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {tag.name}
                 </button>

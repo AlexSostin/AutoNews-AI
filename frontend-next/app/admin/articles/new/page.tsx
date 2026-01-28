@@ -26,7 +26,7 @@ export default function NewArticlePage() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [taskId, setTaskId] = useState<string>('');
-  
+
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -84,11 +84,12 @@ export default function NewArticlePage() {
     const newTaskId = `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     setTaskId(newTaskId);
     setGenerating(true);
-    
+
     try {
       const response = await api.post('/articles/generate_from_youtube/', {
         youtube_url: formData.youtube_url,
-        task_id: newTaskId
+        task_id: newTaskId,
+        provider: 'groq'
       });
 
       if (response.data.success) {
@@ -128,11 +129,11 @@ export default function NewArticlePage() {
       formDataToSend.append('category_id', formData.category);
       formDataToSend.append('tag_ids', JSON.stringify(formData.tags));
       formDataToSend.append('is_published', formData.published.toString());
-      
+
       if (formData.youtube_url) {
         formDataToSend.append('youtube_url', formData.youtube_url);
       }
-      
+
       // Add images if selected
       if (formData.image) {
         formDataToSend.append('image', formData.image);
@@ -149,7 +150,7 @@ export default function NewArticlePage() {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
+
       alert('Article created successfully!');
       router.push('/admin/articles');
     } catch (error: any) {
@@ -204,6 +205,7 @@ export default function NewArticlePage() {
                   disabled={generating}
                 />
               </div>
+
               <button
                 type="button"
                 onClick={handleGenerateFromYoutube}
@@ -223,7 +225,7 @@ export default function NewArticlePage() {
                 )}
               </button>
             </div>
-            
+
             {/* Progress Component */}
             {generating && taskId && (
               <div className="mt-4">
@@ -293,7 +295,7 @@ export default function NewArticlePage() {
           <div className="border-t pt-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Images (Optional)</h3>
             <p className="text-sm text-gray-600 mb-4">Upload up to 3 images or they will be auto-extracted from YouTube during AI generation</p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Image 1 */}
               <div>
@@ -302,7 +304,7 @@ export default function NewArticlePage() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
                 />
                 {formData.image && (
                   <p className="text-xs text-green-600 mt-1">✓ {formData.image.name}</p>
@@ -316,7 +318,7 @@ export default function NewArticlePage() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => setFormData({ ...formData, image_2: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
                 />
                 {formData.image_2 && (
                   <p className="text-xs text-green-600 mt-1">✓ {formData.image_2.name}</p>
@@ -330,7 +332,7 @@ export default function NewArticlePage() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => setFormData({ ...formData, image_3: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
                 />
                 {formData.image_3 && (
                   <p className="text-xs text-green-600 mt-1">✓ {formData.image_3.name}</p>
@@ -385,11 +387,10 @@ export default function NewArticlePage() {
                   key={tag.id}
                   type="button"
                   onClick={() => handleTagToggle(tag.id)}
-                  className={`px-4 py-2 rounded-full font-medium transition-all ${
-                    formData.tags.includes(tag.id)
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-4 py-2 rounded-full font-medium transition-all ${formData.tags.includes(tag.id)
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {tag.name}
                 </button>

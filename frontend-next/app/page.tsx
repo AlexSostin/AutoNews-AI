@@ -17,19 +17,25 @@ const LOCAL_API_URL = 'http://localhost:8001/api/v1';
 
 // Get API URL - use production URL on Railway, localhost for local dev
 const getApiUrl = () => {
-  // Custom domain API
+  // 1. If running on server (Docker/Node), use internal Docker URL if available
+  if (typeof window === 'undefined') {
+    if (process.env.API_INTERNAL_URL) {
+      return process.env.API_INTERNAL_URL;
+    }
+  }
+
+  // 2. Custom domain API
   if (process.env.CUSTOM_DOMAIN_API) {
     return process.env.CUSTOM_DOMAIN_API;
   }
-  // Check if running on Railway (production)
+
+  // 3. Check if running on Railway (production)
   if (process.env.RAILWAY_ENVIRONMENT === 'production') {
     return PRODUCTION_API_URL;
   }
-  // Check env vars
-  if (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost')) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  return LOCAL_API_URL;
+
+  // 4. Default fallback for client-side local dev
+  return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
 };
 
 async function getSettings() {
@@ -49,7 +55,7 @@ async function checkIsAdmin() {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
     if (!token) return false;
-    
+
     const res = await fetch(`${getApiUrl()}/users/me/`, {
       headers: { 'Authorization': `Bearer ${token}` },
       cache: 'no-store',
@@ -66,14 +72,14 @@ async function getArticles() {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
+
     const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
       cache: 'no-store',
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!res.ok) return { results: [] };
     return await res.json();
   } catch (error) {
@@ -90,14 +96,14 @@ async function getCategories() {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
+
     const res = await fetch(`${getApiUrl()}/categories/`, {
       next: { revalidate: 3600 },
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : data.results || [];
@@ -111,7 +117,7 @@ export default async function Home() {
   // Check maintenance mode first
   const settings = await getSettings();
   const isAdmin = await checkIsAdmin();
-  
+
   if (settings?.maintenance_mode && !isAdmin) {
     return <MaintenancePage message={settings.maintenance_message} />;
   }
@@ -123,7 +129,7 @@ export default async function Home() {
   return (
     <>
       <Header />
-      
+
       <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
         {/* Hero Section */}
         <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 text-white py-24 relative overflow-hidden">
@@ -131,8 +137,8 @@ export default async function Home() {
           <div className="container mx-auto px-4 text-center relative z-10">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg">Welcome to Fresh Motors</h1>
             <p className="text-lg sm:text-xl md:text-2xl mb-10 text-white/90 max-w-2xl mx-auto">Your premier source for automotive news, reviews, and insights</p>
-            <Link 
-              href="/articles" 
+            <Link
+              href="/articles"
               className="bg-white text-purple-900 px-6 sm:px-10 py-3 sm:py-4 rounded-full font-bold hover:bg-purple-50 hover:shadow-xl transition-all inline-block text-base sm:text-lg shadow-lg hover:scale-105 transform"
             >
               Explore Articles →
@@ -175,7 +181,7 @@ export default async function Home() {
                   View All →
                 </Link>
               </div>
-              
+
               {articles.length === 0 ? (
                 <EmptyState />
               ) : (
@@ -216,7 +222,7 @@ export default async function Home() {
           <AdBanner format="leaderboard" />
         </div>
       </main>
-      
+
       <Footer />
       <StickyBottomAd />
     </>

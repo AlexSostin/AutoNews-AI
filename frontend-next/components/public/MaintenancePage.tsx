@@ -10,7 +10,7 @@ interface MaintenancePageProps {
 
 export default function MaintenancePage({ message }: MaintenancePageProps) {
   const [dots, setDots] = useState('');
-  
+
   useEffect(() => {
     const interval = setInterval(() => {
       setDots(prev => prev.length >= 3 ? '' : prev + '.');
@@ -32,12 +32,12 @@ export default function MaintenancePage({ message }: MaintenancePageProps) {
 
         {/* Title */}
         <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
-          🚧 На ремонте{dots}
+          🚧 Under Maintenance{dots}
         </h1>
 
         {/* Message */}
         <p className="text-xl text-white/80 mb-8 leading-relaxed">
-          {message || 'Мы работаем над улучшением сайта. Пожалуйста, загляните позже!'}
+          {message || 'We are currently improving our website. Please check back soon!'}
         </p>
 
         {/* Progress bar animation */}
@@ -46,17 +46,26 @@ export default function MaintenancePage({ message }: MaintenancePageProps) {
         </div>
 
         {/* Admin Login Button */}
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold transition-all duration-300 border border-white/30 hover:border-white/50"
+        <button
+          onClick={() => {
+            // Clear all auth data to ensure clean login state
+            document.cookie = 'access_token=; path=/; max-age=0';
+            document.cookie = 'refresh_token=; path=/; max-age=0';
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            // Force reload to login page
+            window.location.href = '/login';
+          }}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold transition-all duration-300 border border-white/30 hover:border-white/50 cursor-pointer"
         >
           <LogIn size={20} />
-          Войти как администратор
-        </Link>
+          Login as Administrator
+        </button>
 
         {/* Footer */}
         <p className="mt-12 text-white/50 text-sm">
-          © 2026 Fresh Motors. Скоро вернёмся!
+          © 2026 Fresh Motors. We will be back soon!
         </p>
       </div>
     </div>
