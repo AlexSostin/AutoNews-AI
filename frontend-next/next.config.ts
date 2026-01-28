@@ -71,7 +71,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://api.freshmotors.net https://*.up.railway.app https://*.sentry.io https://pagead2.googlesyndication.com",
+              "connect-src 'self' https://api.freshmotors.net https://*.up.railway.app wss://*.up.railway.app wss://localhost:8001 https://*.sentry.io https://pagead2.googlesyndication.com",
               "media-src 'self' https:",
               "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com",
               "object-src 'none'",

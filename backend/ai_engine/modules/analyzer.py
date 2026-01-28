@@ -40,8 +40,8 @@ Analyze this automotive video transcript and extract key information in STRUCTUR
 
 Output format (use these EXACT labels):
 Make: [Brand name]
-Model: [Model name]
-Year: [Year if mentioned, else estimate based on context]
+Model: [Exact Model name]
+Year: [Model Year]
 Engine: [Engine type/size - e.g., "1.5L Turbo" or "Electric motor"]
 Horsepower: [HP number - e.g., "300 HP"]
 Torque: [Torque - e.g., "400 Nm"]
@@ -66,10 +66,13 @@ Summary: [2-3 sentence overview]
 Transcript:
 {transcript_text[:15000]}
 
-IMPORTANT: Use exact labels above. If info not available, write "Not specified".
+IMPORTANT: 
+1. Use EXACT labels above. 
+2. If info NOT in transcript, write "Not specified". DO NOT GUESS.
+3. Be precise with Make, Model, and Year.
 """
     
-    system_prompt = "You are an expert automotive analyst. Provide detailed, structured analysis."
+    system_prompt = "You are a strict and accurate automotive analyst. You NEVER hallucinate facts. You extract information exactly as stated in the transcript."
     
     try:
         # Use AI provider factory
