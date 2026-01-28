@@ -1582,33 +1582,57 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def scan_now(self, request, pk=None):
-        """Manually trigger scan for a specific channel"""
+        """Manually trigger scan for a specific channel (Background Process)"""
         channel = self.get_object()
         
-        # This would trigger the AI engine to scan this channel
-        # For now, just update last_checked
-        channel.last_checked = timezone.now()
-        channel.save()
+        # Trigger management command in background
+        import subprocess
+        import sys
         
+        try:
+            manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
+            subprocess.Popen(
+                [sys.executable, manage_py, 'scan_youtube', '--channel_id', str(channel.id)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            message = f'Background scan started for {channel.name}'
+        except Exception as e:
+            print(f"Error starting scan: {e}")
+            message = 'Failed to start scan process'
+            
         return Response({
-            'message': f'Scan triggered for {channel.name}',
+            'message': message,
             'channel_id': channel.id
         })
     
     @action(detail=False, methods=['post'])
     def scan_all(self, request):
-        """Trigger scan for all enabled channels"""
+        """Trigger scan for all enabled channels (Background Process)"""
         if not request.user.is_staff:
             return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
         
-        channels = YouTubeChannel.objects.filter(is_enabled=True)
-        count = channels.count()
+        import subprocess
+        import sys
         
-        # Update last_checked for all
-        channels.update(last_checked=timezone.now())
-        
+        try:
+            manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
+            subprocess.Popen(
+                [sys.executable, manage_py, 'scan_youtube'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            count = YouTubeChannel.objects.filter(is_enabled=True).count()
+            message = f'Background scan started for {count} channels'
+        except Exception as e:
+            print(f"Error starting scan: {e}")
+            message = 'Failed to start scan process'
+            count = 0
+            
         return Response({
-            'message': f'Scan triggered for {count} channels',
+            'message': message,
             'count': count
         })
 
