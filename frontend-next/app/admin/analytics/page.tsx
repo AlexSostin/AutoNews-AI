@@ -143,8 +143,8 @@ export default function AnalyticsPage() {
       value: stats?.totalArticles?.toString() || '0',
       icon: FileText,
       color: 'bg-green-500',
-      trend: `${stats?.articlesGrowth > 0 ? '+' : ''}${stats?.articlesGrowth || 0}%`,
-      trendUp: (stats?.articlesGrowth || 0) > 0
+      trend: `${(stats?.articlesGrowth ?? 0) > 0 ? '+' : ''}${stats?.articlesGrowth ?? 0}%`,
+      trendUp: (stats?.articlesGrowth ?? 0) > 0
     },
     {
       title: 'Comments',
