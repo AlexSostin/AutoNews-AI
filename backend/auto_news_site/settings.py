@@ -525,7 +525,7 @@ REST_FRAMEWORK = {
 # JWT Settings
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # 1 day - balanced security/UX
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # 15 minutes - better security
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,  # Rotate refresh tokens on use
     'BLACKLIST_AFTER_ROTATION': True,
@@ -535,24 +535,28 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,  # Update last_login on token refresh
 }
 
-# CORS Settings
-# Allow all origins temporarily to debug CORS issues
-CORS_ALLOW_ALL_ORIGINS = True  # TODO: restrict in production
+# CORS Settings - PRODUCTION SECURE
+# Only allow requests from our own domains
+CORS_ALLOW_ALL_ORIGINS = False  # ✅ SECURE: Only whitelisted origins
 
-# Explicit allowed origins as backup
+# Allowed origins - only our domains
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'https://autonews-ai-production.up.railway.app',
-    'https://heroic-healing-production-2365.up.railway.app',
-    # Custom domain
+    # Production domains
     'https://freshmotors.net',
     'https://www.freshmotors.net',
-    'http://freshmotors.net',
-    'http://www.freshmotors.net',
-]
+    'https://api.freshmotors.net',
+    # Railway deployments
+    'https://autonews-ai-production.up.railway.app',
+    'https://heroic-healing-production-2365.up.railway.app',
+] + (
+    # Local development (only if DEBUG=True)
+    [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+    ] if DEBUG else []
+)
 
 # Also allow media files to be accessed cross-origin
 CORS_URLS_REGEX = r'^.*$'  # Apply CORS to all URLs including /media/
@@ -582,6 +586,17 @@ CORS_ALLOWED_HEADERS = [
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# Session Cookie Security
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
+SESSION_COOKIE_NAME = 'sessionid'  # Don't reveal Django
+
+# CSRF Cookie Security  
+CSRF_COOKIE_HTTPONLY = True  # Prevent JavaScript access
+CSRF_COOKIE_SAMESITE = 'Lax'  # Additional protection
+CSRF_COOKIE_NAME = 'csrftoken'  # Standard name
 
 # HTTPS settings (activate in production)
 if not DEBUG:
@@ -590,9 +605,9 @@ if not DEBUG:
     USE_X_FORWARDED_HOST = True
     
     SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31536000
+    SESSION_COOKIE_SECURE = True  # HTTPS only
+    CSRF_COOKIE_SECURE = True  # HTTPS only
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
