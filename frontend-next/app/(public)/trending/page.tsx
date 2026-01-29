@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import ArticleCard from '@/components/public/ArticleCard';
 import Pagination from '@/components/public/Pagination';
 import { ArticleGridSkeleton } from '@/components/public/Skeletons';
@@ -38,7 +36,7 @@ export default function TrendingPage() {
 
         const res = await fetch(`${getApiUrl()}/articles/?${params}`);
         const data = await res.json();
-        
+
         setArticles(data.results || []);
         setTotalPages(Math.ceil((data.count || 0) / pageSize));
       } catch (error) {
@@ -58,8 +56,7 @@ export default function TrendingPage() {
 
   return (
     <>
-      <Header />
-      
+
       <main className="flex-1 bg-gray-50 min-h-screen">
         {/* Hero Header */}
         <section className="bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white py-16 relative overflow-hidden">
@@ -92,11 +89,10 @@ export default function TrendingPage() {
                     {/* Ranking Badge */}
                     {currentPage === 1 && index < 3 && (
                       <div className="absolute -top-2 -left-2 z-10">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${
-                          index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
                           index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
-                          'bg-gradient-to-br from-orange-400 to-orange-600'
-                        }`}>
+                            'bg-gradient-to-br from-orange-400 to-orange-600'
+                          }`}>
                           {index + 1}
                         </div>
                       </div>
@@ -117,8 +113,7 @@ export default function TrendingPage() {
           )}
         </div>
       </main>
-      
-      <Footer />
+
     </>
   );
 }

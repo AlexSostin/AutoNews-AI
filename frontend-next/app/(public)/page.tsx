@@ -1,8 +1,5 @@
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import ArticleCard from '@/components/public/ArticleCard';
 import AdBanner from '@/components/public/AdBanner';
-import StickyBottomAd from '@/components/public/StickyBottomAd';
 import TrendingSection from '@/components/public/TrendingSection';
 import EmptyState from '@/components/public/EmptyState';
 import MaintenancePage from '@/components/public/MaintenancePage';
@@ -128,8 +125,6 @@ export default async function Home() {
 
   return (
     <>
-      <Header />
-
       <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
         {/* Hero Section */}
         <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 text-white py-24 relative overflow-hidden">
@@ -222,9 +217,6 @@ export default async function Home() {
           <AdBanner format="leaderboard" />
         </div>
       </main>
-
-      <Footer />
-      <StickyBottomAd />
     </>
   );
 }

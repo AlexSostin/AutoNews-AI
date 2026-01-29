@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import { Shield, Lock, Eye, Database, Cookie, Mail, Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 
@@ -41,20 +39,15 @@ export default function PrivacyPolicyPage() {
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="animate-spin text-purple-600" size={48} />
-        </main>
-        <Footer />
-      </>
+      <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-purple-600" size={48} />
+      </main>
     );
   }
 
   return (
     <>
-      <Header />
-      
+
       <main className="flex-1 bg-gray-50">
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-16">
@@ -71,7 +64,7 @@ export default function PrivacyPolicyPage() {
           <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12">
             {hasCustomContent ? (
               /* Custom Content from Admin */
-              <div 
+              <div
                 className="prose prose-lg max-w-none text-gray-700"
                 dangerouslySetInnerHTML={{ __html: pageContent }}
               />
@@ -81,13 +74,13 @@ export default function PrivacyPolicyPage() {
                 {/* Introduction */}
                 <section className="mb-10">
                   <p className="text-gray-700 mb-4">
-                    At Fresh Motors, we take your privacy seriously. This Privacy Policy explains how we collect, 
-                    use, disclose, and safeguard your information when you visit our website. Please read this 
-                    privacy policy carefully. If you do not agree with the terms of this privacy policy, 
+                    At Fresh Motors, we take your privacy seriously. This Privacy Policy explains how we collect,
+                    use, disclose, and safeguard your information when you visit our website. Please read this
+                    privacy policy carefully. If you do not agree with the terms of this privacy policy,
                     please do not access the site.
                   </p>
                   <p className="text-gray-700">
-                    We reserve the right to make changes to this Privacy Policy at any time and for any reason. 
+                    We reserve the right to make changes to this Privacy Policy at any time and for any reason.
                     We will alert you about any changes by updating the "Last Updated" date of this Privacy Policy.
                   </p>
                 </section>
@@ -100,10 +93,10 @@ export default function PrivacyPolicyPage() {
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">Information We Collect</h2>
                   </div>
-                  
+
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Personal Data</h3>
                   <p className="text-gray-700 mb-4">
-                    We may collect personally identifiable information, such as your name and email address, 
+                    We may collect personally identifiable information, such as your name and email address,
                     that you voluntarily give to us when you:
                   </p>
                   <ul className="list-disc list-inside text-gray-700 mb-4 space-y-1 ml-4">
@@ -134,7 +127,7 @@ export default function PrivacyPolicyPage() {
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">How We Use Your Information</h2>
                   </div>
-                  
+
                   <p className="text-gray-700 mb-4">
                     We may use the information we collect from you to:
                   </p>
@@ -156,15 +149,15 @@ export default function PrivacyPolicyPage() {
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">Cookies and Tracking Technologies</h2>
                   </div>
-                  
+
                   <p className="text-gray-700 mb-4">
-                    We may use cookies, web beacons, tracking pixels, and other tracking technologies to help 
-                    customize the website and improve your experience. Most web browsers are set to accept 
-                    cookies by default. You can choose to set your browser to remove or reject cookies, but 
+                    We may use cookies, web beacons, tracking pixels, and other tracking technologies to help
+                    customize the website and improve your experience. Most web browsers are set to accept
+                    cookies by default. You can choose to set your browser to remove or reject cookies, but
                     this may affect the availability and functionality of our website.
                   </p>
                   <p className="text-gray-700">
-                    We may also use third-party analytics tools (such as Google Analytics) to help us understand 
+                    We may also use third-party analytics tools (such as Google Analytics) to help us understand
                     how users engage with our website.
                   </p>
                 </section>
@@ -177,7 +170,7 @@ export default function PrivacyPolicyPage() {
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">Disclosure of Your Information</h2>
                   </div>
-                  
+
                   <p className="text-gray-700 mb-4">
                     We may share information we have collected about you in certain situations:
                   </p>
@@ -192,8 +185,8 @@ export default function PrivacyPolicyPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Third-Party Websites</h2>
                   <p className="text-gray-700">
-                    Our website may contain links to third-party websites and applications. We are not responsible 
-                    for the privacy practices of these third parties. We encourage you to review their privacy 
+                    Our website may contain links to third-party websites and applications. We are not responsible
+                    for the privacy practices of these third parties. We encourage you to review their privacy
                     policies before providing any personal information.
                   </p>
                 </section>
@@ -202,8 +195,8 @@ export default function PrivacyPolicyPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Security of Your Information</h2>
                   <p className="text-gray-700">
-                    We use administrative, technical, and physical security measures to protect your personal 
-                    information. However, no security system is impenetrable, and we cannot guarantee the absolute 
+                    We use administrative, technical, and physical security measures to protect your personal
+                    information. However, no security system is impenetrable, and we cannot guarantee the absolute
                     security of our systems or your information.
                   </p>
                 </section>
@@ -226,8 +219,8 @@ export default function PrivacyPolicyPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">International Users & GDPR</h2>
                   <p className="text-gray-700 mb-4">
-                    If you are located in the European Economic Area (EEA), United Kingdom, or other regions with 
-                    data protection laws, you have additional rights under the General Data Protection Regulation (GDPR) 
+                    If you are located in the European Economic Area (EEA), United Kingdom, or other regions with
+                    data protection laws, you have additional rights under the General Data Protection Regulation (GDPR)
                     and similar legislation:
                   </p>
                   <ul className="list-disc list-inside text-gray-700 space-y-2 ml-4">
@@ -239,13 +232,13 @@ export default function PrivacyPolicyPage() {
                     <li><strong>Right to Object:</strong> Object to processing based on legitimate interests</li>
                   </ul>
                   <p className="text-gray-700 mt-4">
-                    For users in California (USA), you may have additional rights under the California Consumer 
-                    Privacy Act (CCPA) and California Privacy Rights Act (CPRA), including the right to know what 
-                    personal information is collected and the right to opt-out of the sale of personal information. 
+                    For users in California (USA), you may have additional rights under the California Consumer
+                    Privacy Act (CCPA) and California Privacy Rights Act (CPRA), including the right to know what
+                    personal information is collected and the right to opt-out of the sale of personal information.
                     We do not sell personal information.
                   </p>
                   <p className="text-gray-700 mt-4">
-                    For users in Canada, your privacy rights are protected under the Personal Information Protection 
+                    For users in Canada, your privacy rights are protected under the Personal Information Protection
                     and Electronic Documents Act (PIPEDA) and provincial privacy laws.
                   </p>
                 </section>
@@ -254,9 +247,9 @@ export default function PrivacyPolicyPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Children's Privacy</h2>
                   <p className="text-gray-700">
-                    Our website is not intended for children under the age of 16. We do not knowingly collect 
-                    personal information from children under 16. If you are a parent or guardian and believe your 
-                    child has provided us with personal information, please contact us immediately, and we will 
+                    Our website is not intended for children under the age of 16. We do not knowingly collect
+                    personal information from children under 16. If you are a parent or guardian and believe your
+                    child has provided us with personal information, please contact us immediately, and we will
                     take steps to delete such information from our systems.
                   </p>
                 </section>
@@ -270,8 +263,8 @@ export default function PrivacyPolicyPage() {
                     <h2 className="text-2xl font-black text-gray-900">Newsletter and Marketing</h2>
                   </div>
                   <p className="text-gray-700">
-                    If you subscribe to our newsletter, we will send you periodic emails about automotive news, 
-                    articles, and updates. You can unsubscribe at any time by clicking the unsubscribe link at 
+                    If you subscribe to our newsletter, we will send you periodic emails about automotive news,
+                    articles, and updates. You can unsubscribe at any time by clicking the unsubscribe link at
                     the bottom of any email or by contacting us directly.
                   </p>
                 </section>
@@ -280,7 +273,7 @@ export default function PrivacyPolicyPage() {
                 <section className="bg-purple-50 rounded-xl p-6">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Contact Us</h2>
                   <p className="text-gray-700 mb-4">
-                    If you have questions or comments about this Privacy Policy, or wish to exercise your 
+                    If you have questions or comments about this Privacy Policy, or wish to exercise your
                     data protection rights, please contact us through our{' '}
                     <a href="/contact" className="text-purple-600 hover:text-purple-800 font-medium underline">
                       Contact Page
@@ -295,8 +288,7 @@ export default function PrivacyPolicyPage() {
           </div>
         </div>
       </main>
-      
-      <Footer />
+
     </>
   );
 }

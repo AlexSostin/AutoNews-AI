@@ -269,9 +269,10 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
                                 filename = os.path.basename(path)
                                 dest_path = os.path.join(media_dir, filename)
                                 shutil.copy2(path, dest_path)
-                                # Add absolute path for publish_article to find it
-                                screenshot_paths.append(dest_path)
-                                print(f"  ✓ Copied to media: {dest_path}")
+                                # Store relative URL for DB and frontend
+                                relative_url = os.path.join(settings.MEDIA_URL, 'screenshots', filename)
+                                screenshot_paths.append(relative_url)
+                                print(f"  ✓ Copied to media: {dest_path} -> {relative_url}")
                             except Exception as copy_err:
                                 print(f"  ❌ Failed to copy to media: {copy_err}")
                                 screenshot_paths.append(path) # Last resort

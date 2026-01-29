@@ -1,11 +1,8 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import ArticleCard from '@/components/public/ArticleCard';
 import AdBanner from '@/components/public/AdBanner';
-import StickyBottomAd from '@/components/public/StickyBottomAd';
 import ShareButtons from '@/components/public/ShareButtons';
 import RatingStars from '@/components/public/RatingStars';
 import ArticleContentWithImages from '@/components/public/ArticleContentWithImages';
@@ -124,8 +121,6 @@ export default async function ArticleDetailPage({
 
   return (
     <>
-      <Header />
-
       {/* Track page view */}
       <ViewTracker articleSlug={article.slug} />
 
@@ -500,7 +495,6 @@ export default async function ArticleDetailPage({
         </div>
       </main>
 
-      <Footer />
     </>
   );
 }

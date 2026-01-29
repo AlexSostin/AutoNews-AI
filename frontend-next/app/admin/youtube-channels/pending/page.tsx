@@ -11,7 +11,8 @@ import {
   Youtube,
   ArrowLeft,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Edit
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
@@ -81,7 +82,7 @@ export default function PendingArticlesPage() {
     }
   };
 
-  const handleApprove = async (id: number) => {
+  const handleApprove = async (id: number, publish: boolean = true) => {
     setProcessing(id);
     try {
       const apiUrl = getApiUrl();
@@ -89,11 +90,25 @@ export default function PendingArticlesPage() {
 
       const response = await fetch(`${apiUrl}/pending-articles/${id}/approve/`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ publish })
       });
 
       if (response.ok) {
         const data = await response.json();
+
+        if (!publish && data.article_slug) {
+          setMessage({ type: 'success', text: 'Article approved as draft! Redirecting...' });
+          // Give a tiny moment for the message to be seen before redirect
+          setTimeout(() => {
+            window.location.href = `/admin/articles/${data.article_slug}/edit`;
+          }, 800);
+          return;
+        }
+
         setMessage({ type: 'success', text: `Article published! Slug: ${data.article_slug}` });
         setArticles(articles.filter(a => a.id !== id));
         if (stats) setStats({ ...stats, pending: stats.pending - 1, published: stats.published + 1 });
@@ -104,7 +119,7 @@ export default function PendingArticlesPage() {
     } catch (error) {
       setMessage({ type: 'error', text: 'An error occurred' });
     } finally {
-      setProcessing(null);
+      if (processing === id) setProcessing(null);
     }
   };
 
@@ -281,6 +296,14 @@ export default function PendingArticlesPage() {
                             <Check size={16} />
                           )}
                           Approve & Publish
+                        </button>
+                        <button
+                          onClick={() => handleApprove(article.id, false)}
+                          disabled={processing === article.id}
+                          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+                        >
+                          <Edit size={16} />
+                          Edit & Approve
                         </button>
                         <button
                           onClick={() => handleReject(article.id)}

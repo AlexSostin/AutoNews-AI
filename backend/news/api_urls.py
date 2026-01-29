@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 from .api_views import (
-    ArticleViewSet, CategoryViewSet, TagViewSet, 
+    ArticleViewSet, CategoryViewSet, TagViewSet, TagGroupViewSet, 
     CommentViewSet, RatingViewSet, CarSpecificationViewSet, 
     ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
     FavoriteViewSet, SubscriberViewSet,
@@ -32,6 +32,7 @@ router = DefaultRouter()
 router.register(r'articles', ArticleViewSet, basename='article')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'tags', TagViewSet, basename='tag')
+router.register(r'tag-groups', TagGroupViewSet, basename='taggroup')
 router.register(r'comments', CommentViewSet, basename='comment')
 router.register(r'ratings', RatingViewSet, basename='rating')
 router.register(r'car-specifications', CarSpecificationViewSet, basename='carspecification')

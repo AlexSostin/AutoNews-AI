@@ -60,7 +60,6 @@ export default function Footer() {
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   useEffect(() => {
-    // Production API URL - hardcoded to avoid build-time issues
     const getApiUrl = () => {
       if (typeof window !== 'undefined') {
         const host = window.location.hostname;
@@ -72,22 +71,50 @@ export default function Footer() {
     };
     const apiUrl = getApiUrl();
 
-    // Load settings
-    fetch(`${apiUrl}/settings/`)
-      .then(res => res.json())
-      .then(data => setSettings(data))
-      .catch(err => console.error('Failed to load settings:', err));
+    // Cache duration: 10 minutes
+    const CACHE_DURATION = 10 * 60 * 1000;
 
-    // Load categories
-    fetch(`${apiUrl}/categories/`)
-      .then(res => res.json())
-      .then(data => {
-        const cats = Array.isArray(data) ? data : data.results || [];
-        // Show all categories, sorted alphabetically
-        const sortedCats = cats.sort((a: Category, b: Category) => a.name.localeCompare(b.name));
-        setCategories(sortedCats);
-      })
-      .catch(err => console.error('Failed to load categories:', err));
+    const loadData = async () => {
+      try {
+        // Try to load categories from cache
+        const cachedCats = localStorage.getItem('freshmotors_categories');
+        const cachedCatsTime = localStorage.getItem('freshmotors_categories_time');
+
+        if (cachedCats && cachedCatsTime && (Date.now() - parseInt(cachedCatsTime) < CACHE_DURATION)) {
+          setCategories(JSON.parse(cachedCats));
+        } else {
+          const res = await fetch(`${apiUrl}/categories/`);
+          if (res.ok) {
+            const data = await res.json();
+            const cats = Array.isArray(data) ? data : data.results || [];
+            const sortedCats = cats.sort((a: Category, b: Category) => a.name.localeCompare(b.name));
+            setCategories(sortedCats);
+            localStorage.setItem('freshmotors_categories', JSON.stringify(sortedCats));
+            localStorage.setItem('freshmotors_categories_time', Date.now().toString());
+          }
+        }
+
+        // Try to load settings from cache
+        const cachedSettings = localStorage.getItem('freshmotors_settings');
+        const cachedSettingsTime = localStorage.getItem('freshmotors_settings_time');
+
+        if (cachedSettings && cachedSettingsTime && (Date.now() - parseInt(cachedSettingsTime) < CACHE_DURATION)) {
+          setSettings(JSON.parse(cachedSettings));
+        } else {
+          const res = await fetch(`${apiUrl}/settings/`);
+          if (res.ok) {
+            const data = await res.json();
+            setSettings(data);
+            localStorage.setItem('freshmotors_settings', JSON.stringify(data));
+            localStorage.setItem('freshmotors_settings_time', Date.now().toString());
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load footer data:', err);
+      }
+    };
+
+    loadData();
   }, []);
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {

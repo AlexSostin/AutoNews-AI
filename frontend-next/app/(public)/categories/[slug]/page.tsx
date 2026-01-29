@@ -1,7 +1,5 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import ArticleCard from '@/components/public/ArticleCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Article, Category } from '@/types';
@@ -81,7 +79,6 @@ export default async function CategoryPage({
 
   return (
     <>
-      <Header />
 
       <main className="flex-1 bg-gray-50">
         {/* Category Header */}
@@ -165,8 +162,8 @@ export default async function CategoryPage({
                           key={pageNum}
                           href={`/categories/${slug}?page=${pageNum}`}
                           className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-all ${page === pageNum
-                              ? 'bg-indigo-600 text-white shadow-md'
-                              : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50'
                             }`}
                         >
                           {pageNum}
@@ -191,7 +188,6 @@ export default async function CategoryPage({
         </section>
       </main>
 
-      <Footer />
     </>
   );
 }

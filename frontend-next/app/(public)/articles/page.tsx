@@ -4,8 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import ArticleCard from '@/components/public/ArticleCard';
 import Pagination from '@/components/public/Pagination';
 import { ArticleGridSkeleton } from '@/components/public/Skeletons';
@@ -13,7 +11,6 @@ import TagsDropdown from '@/components/public/TagsDropdown';
 import CategoriesDropdown from '@/components/public/CategoriesDropdown';
 import SearchInput from '@/components/public/SearchInput';
 import AdBanner from '@/components/public/AdBanner';
-import StickyBottomAd from '@/components/public/StickyBottomAd';
 import { Article, Category, Tag } from '@/types';
 
 // Runtime API URL detection for client components
@@ -31,26 +28,26 @@ export const dynamic = 'force-dynamic';
 function ArticlesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const [articles, setArticles] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  
+
   const page = parseInt(searchParams.get('page') || '1');
   const category = searchParams.get('category') || '';
   const tag = searchParams.get('tag') || '';
   const search = searchParams.get('search') || '';
-  
+
   const totalPages = Math.ceil(totalCount / 12);
 
   useEffect(() => {
     let isMounted = true;
-    
+
     async function loadData() {
       setLoading(true);
-      
+
       try {
         // Fetch articles
         const params = new URLSearchParams();
@@ -72,18 +69,18 @@ function ArticlesContent() {
         if (isMounted) setLoading(false);
       }
     }
-    
+
     loadData();
-    
+
     return () => {
       isMounted = false;
     };
   }, [page, category, tag, search]);
-  
+
   // Load categories and tags only once
   useEffect(() => {
     let isMounted = true;
-    
+
     async function loadFilters() {
       try {
         const apiUrl = getApiUrl();
@@ -91,12 +88,12 @@ function ArticlesContent() {
           fetch(`${apiUrl}/categories/`),
           fetch(`${apiUrl}/tags/`)
         ]);
-        
+
         if (categoriesRes.ok && isMounted) {
           const categoriesData = await categoriesRes.json();
           setCategories(Array.isArray(categoriesData) ? categoriesData : categoriesData.results || []);
         }
-        
+
         if (tagsRes.ok && isMounted) {
           const tagsData = await tagsRes.json();
           setTags(Array.isArray(tagsData) ? tagsData : tagsData.results || []);
@@ -105,9 +102,9 @@ function ArticlesContent() {
         console.error('Error loading filters:', error);
       }
     }
-    
+
     loadFilters();
-    
+
     return () => {
       isMounted = false;
     };
@@ -115,22 +112,16 @@ function ArticlesContent() {
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <main className="flex-1 bg-gray-50">
-          <div className="container mx-auto px-4 py-12">
-            <ArticleGridSkeleton />
-          </div>
-        </main>
-        <Footer />
-      </>
+      <main className="flex-1 bg-gray-50">
+        <div className="container mx-auto px-4 py-12">
+          <ArticleGridSkeleton />
+        </div>
+      </main>
     );
   }
 
   return (
     <>
-      <Header />
-      
       <main className="flex-1 bg-gray-50">
         {/* Top Ad */}
         <div className="bg-white border-b border-gray-200 py-4">
@@ -154,8 +145,8 @@ function ArticlesContent() {
               {/* Categories Filter */}
               <div>
                 <label className="block text-sm font-black text-gray-950 mb-3">Category</label>
-                <CategoriesDropdown 
-                  categories={categories} 
+                <CategoriesDropdown
+                  categories={categories}
                   currentCategory={category}
                   currentTag={tag}
                   currentSearch={search}
@@ -165,9 +156,9 @@ function ArticlesContent() {
               {/* Tags Filter */}
               <div>
                 <label className="block text-sm font-black text-gray-950 mb-3">Tag</label>
-                <TagsDropdown 
-                  tags={tags} 
-                  currentTag={tag} 
+                <TagsDropdown
+                  tags={tags}
+                  currentTag={tag}
                   currentCategory={category}
                 />
               </div>
@@ -246,7 +237,7 @@ function ArticlesContent() {
                   {Array.from({ length: Math.ceil(articles.length / 3) }, (_, rowIndex) => {
                     const rowArticles = articles.slice(rowIndex * 3, rowIndex * 3 + 3);
                     const showAd = (rowIndex + 1) % 2 === 0 && rowIndex < Math.ceil(articles.length / 3) - 1;
-                    
+
                     return (
                       <div key={rowIndex}>
                         {/* Row of articles */}
@@ -255,7 +246,7 @@ function ArticlesContent() {
                             <ArticleCard key={article.id} article={article} />
                           ))}
                         </div>
-                        
+
                         {/* Ad after every 2nd row (6 articles) */}
                         {showAd && (
                           <div className="flex justify-center py-8 my-4">
@@ -298,11 +289,10 @@ function ArticlesContent() {
                         <Link
                           key={pageNum}
                           href={`/articles?page=${pageNum}${category ? `&category=${category}` : ''}${tag ? `&tag=${tag}` : ''}${search ? `&search=${search}` : ''}`}
-                          className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-all ${
-                            page === pageNum
-                              ? 'bg-indigo-600 text-white shadow-md'
-                              : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50'
-                          }`}
+                          className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-all ${page === pageNum
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50'
+                            }`}
                         >
                           {pageNum}
                         </Link>
@@ -340,9 +330,6 @@ function ArticlesContent() {
           </div>
         </div>
       </main>
-      
-      <Footer />
-      <StickyBottomAd />
     </>
   );
 }

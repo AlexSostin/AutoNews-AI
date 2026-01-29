@@ -52,6 +52,19 @@ interface Schedule {
   total_articles_generated: number;
 }
 
+interface Video {
+  id: string;
+  title: string;
+  description: string;
+  thumbnail: string;
+  published_at: string;
+  url: string;
+  status?: 'idle' | 'loading' | 'success' | 'error';
+  errorMsg?: string;
+  articleId?: number;
+  pendingId?: number;
+}
+
 export default function YouTubeChannelsPage() {
   const [channels, setChannels] = useState<YouTubeChannel[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -80,17 +93,6 @@ export default function YouTubeChannelsPage() {
   const [scanLoading, setScanLoading] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
-  interface Video {
-    id: string;
-    title: string;
-    description: string;
-    thumbnail: string;
-    published_at: string;
-    url: string;
-    status?: 'idle' | 'loading' | 'success' | 'error';
-    errorMsg?: string;
-    articleId?: number;
-  }
 
   useEffect(() => {
     fetchData();
@@ -246,14 +248,19 @@ export default function YouTubeChannelsPage() {
   };
 
   const handleGenerateFromVideo = async (video: Video) => {
+    if (!scanningChannel) return;
+
     // Set loading state for this specific video
     setScannedVideos(prev => prev.map(v =>
       v.id === video.id ? { ...v, status: 'loading', errorMsg: undefined } : v
     ));
 
     try {
-      const response = await api.post('/articles/generate_from_youtube/', {
-        youtube_url: video.url,
+      // Use the new generate_pending endpoint on the specific channel
+      const response = await api.post(`/youtube-channels/${scanningChannel.id}/generate_pending/`, {
+        video_url: video.url,
+        video_id: video.id,
+        video_title: video.title,
         provider: 'gemini'
       });
 
@@ -262,7 +269,7 @@ export default function YouTubeChannelsPage() {
         v.id === video.id ? {
           ...v,
           status: 'success',
-          articleId: response.data.article?.id || response.data.article_id // Handle both potential response formats
+          pendingId: response.data.pending_id
         } : v
       ));
 
@@ -272,6 +279,29 @@ export default function YouTubeChannelsPage() {
       // Set error state
       setScannedVideos(prev => prev.map(v =>
         v.id === video.id ? { ...v, status: 'error', errorMsg: errorMsg } : v
+      ));
+    }
+  };
+
+  const handleApproveToDraft = async (pendingId: number, videoId: string) => {
+    // Set loading state for this video's action
+    setScannedVideos(prev => prev.map(v =>
+      v.id === videoId ? { ...v, status: 'loading' } : v
+    ));
+
+    try {
+      const response = await api.post(`/pending-articles/${pendingId}/approve/`, {
+        publish: false
+      });
+
+      if (response.data.article_slug) {
+        // Redirect to editor
+        window.location.href = `/admin/articles/${response.data.article_slug}/edit`;
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || 'Approval failed';
+      setScannedVideos(prev => prev.map(v =>
+        v.id === videoId ? { ...v, status: 'error', errorMsg: errorMsg } : v
       ));
     }
   };
@@ -696,16 +726,28 @@ export default function YouTubeChannelsPage() {
                       </div>
                       <div className="flex flex-col justify-center items-end min-w-[140px]">
                         {video.status === 'success' ? (
-                          <div className="flex flex-col items-center text-green-600">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200">
-                              <Check size={18} />
-                              <span className="font-bold text-sm">Draft Created</span>
+                          <div className="flex flex-col gap-2 min-w-[150px]">
+                            <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg border border-green-200">
+                              <Check size={16} />
+                              <span className="font-bold text-xs uppercase tracking-wider">Saved</span>
                             </div>
-                            {video.articleId && (
-                              <Link href={`/admin/articles/${video.articleId}/edit`} className="text-xs text-green-600 underline mt-1 hover:text-green-800 font-medium">
-                                Edit Draft
+
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => video.pendingId && handleApproveToDraft(video.pendingId, video.id)}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs font-black transition-all shadow-sm active:scale-95"
+                              >
+                                <Edit2 size={14} />
+                                EDIT
+                              </button>
+                              <Link
+                                href="/admin/youtube-channels/pending"
+                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                                title="View in Queue"
+                              >
+                                <FileText size={16} />
                               </Link>
-                            )}
+                            </div>
                           </div>
                         ) : (
                           <button

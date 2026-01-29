@@ -517,8 +517,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '1000/hour'
+        'anon': '5000/hour',
+        'user': '20000/hour'
     }
 }
 
@@ -641,12 +641,6 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django_errors.log',
-            'formatter': 'verbose',
-        },
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
@@ -655,13 +649,13 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
+            'handlers': ['console'],
+            'level': 'INFO',
             'propagate': True,
         },
         'news': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
+            'handlers': ['console'],
+            'level': 'INFO',
             'propagate': False,
         },
     },

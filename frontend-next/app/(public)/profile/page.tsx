@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import { isAuthenticated, getUserFromStorage, getToken } from '@/lib/auth';
 import { favoriteAPI } from '@/lib/favorites';
 import { getApiUrl } from '@/lib/api';
@@ -565,32 +563,24 @@ export default function ProfilePage() {
 
   if (loading || !authChecked) {
     return (
-      <>
-        <Header />
-        <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            <p className="mt-4 text-gray-600">Loading profile...</p>
-          </div>
-        </main>
-        <Footer />
-      </>
+      <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <p className="mt-4 text-gray-600">Loading profile...</p>
+        </div>
+      </main>
     );
   }
 
   if (!user) {
     // Should not happen as we redirect in useEffect, but just in case show loading
     return (
-      <>
-        <Header />
-        <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            <p className="mt-4 text-gray-600">Redirecting...</p>
-          </div>
-        </main>
-        <Footer />
-      </>
+      <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <p className="mt-4 text-gray-600">Redirecting...</p>
+        </div>
+      </main>
     );
   }
 
@@ -635,7 +625,6 @@ export default function ProfilePage() {
 
   return (
     <>
-      <Header />
 
       <main className="flex-1 bg-gray-50">
         <div className="container mx-auto px-4 py-12">
@@ -1474,7 +1463,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <Footer />
     </>
   );
 }

@@ -97,9 +97,22 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
                     else:
                         print(f"  ❌ Failed to download: {resp.status_code}")
                 
-                # Case B: Local File
+                # Case B: Local File (Relative or Absolute)
+                elif img_path.startswith('/media/'):
+                    from django.conf import settings
+                    # Convert /media/screenshots/x.jpg -> .../backend/media/screenshots/x.jpg
+                    full_path = os.path.join(settings.BASE_DIR, img_path.lstrip('/'))
+                    if os.path.exists(full_path):
+                        print(f"  📂 Reading relative media: {full_path}")
+                        with open(full_path, 'rb') as f:
+                            file_content = f.read()
+                            content = ContentFile(file_content)
+                            filename = os.path.basename(img_path)
+                    else:
+                        print(f"  ⚠️ Relative media file not found: {full_path}")
+                
                 elif os.path.exists(img_path):
-                    print(f"  📂 Reading local image: {img_path}")
+                    print(f"  📂 Reading absolute local image: {img_path}")
                     with open(img_path, 'rb') as f:
                         file_content = f.read()
                         content = ContentFile(file_content)

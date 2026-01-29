@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Clock, 
+import {
+  Clock,
   Save,
   Loader2,
   ArrowLeft,
@@ -135,9 +135,9 @@ export default function SchedulePage() {
 
       if (response.ok) {
         const data = await response.json();
-        setMessage({ 
-          type: 'success', 
-          text: `Scan completed! ${data.videos_found} new videos found, ${data.articles_generated} articles generated` 
+        setMessage({
+          type: 'success',
+          text: `Scan completed! ${data.videos_found} new videos found, ${data.articles_generated} articles generated`
         });
         fetchSchedule(); // Refresh stats
       } else {
@@ -182,9 +182,8 @@ export default function SchedulePage() {
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-        }`}>
+        <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          }`}>
           {message.text}
         </div>
       )}
@@ -214,13 +213,11 @@ export default function SchedulePage() {
             </div>
             <button
               onClick={() => setSchedule({ ...schedule, is_enabled: !schedule.is_enabled })}
-              className={`relative w-14 h-8 rounded-full transition-colors ${
-                schedule.is_enabled ? 'bg-purple-600' : 'bg-gray-300'
-              }`}
+              className={`relative w-14 h-8 rounded-full transition-colors ${schedule.is_enabled ? 'bg-purple-600' : 'bg-gray-300'
+                }`}
             >
-              <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                schedule.is_enabled ? 'translate-x-6' : ''
-              }`} />
+              <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${schedule.is_enabled ? 'translate-x-6' : ''
+                }`} />
             </button>
           </div>
 
@@ -233,7 +230,7 @@ export default function SchedulePage() {
             <select
               value={schedule.frequency}
               onChange={(e) => setSchedule({ ...schedule, frequency: e.target.value as Schedule['frequency'] })}
-              className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
             >
               <option value="manual">Manual only</option>
               <option value="once">Once per day (1 time)</option>
@@ -257,7 +254,7 @@ export default function SchedulePage() {
                     type="time"
                     value={schedule.scan_time_1?.slice(0, 5) || '08:00'}
                     onChange={(e) => setSchedule({ ...schedule, scan_time_1: e.target.value + ':00' })}
-                    className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                   />
                 </div>
 
@@ -268,7 +265,7 @@ export default function SchedulePage() {
                       type="time"
                       value={schedule.scan_time_2?.slice(0, 5) || '18:00'}
                       onChange={(e) => setSchedule({ ...schedule, scan_time_2: e.target.value + ':00' })}
-                      className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                     />
                   </div>
                 )}
@@ -281,7 +278,7 @@ export default function SchedulePage() {
                         type="time"
                         value={schedule.scan_time_3?.slice(0, 5) || '12:00'}
                         onChange={(e) => setSchedule({ ...schedule, scan_time_3: e.target.value + ':00' })}
-                        className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                       />
                     </div>
                     <div>
@@ -290,7 +287,7 @@ export default function SchedulePage() {
                         type="time"
                         value={schedule.scan_time_4?.slice(0, 5) || '22:00'}
                         onChange={(e) => setSchedule({ ...schedule, scan_time_4: e.target.value + ':00' })}
-                        className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                       />
                     </div>
                   </>

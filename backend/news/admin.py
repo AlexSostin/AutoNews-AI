@@ -5,7 +5,7 @@ from django.urls import path
 from django.utils import timezone
 from datetime import timedelta
 from .models import (
-    Article, Category, Tag, CarSpecification, SiteSettings, Comment, Rating,
+    Article, Category, Tag, TagGroup, CarSpecification, SiteSettings, Comment, Rating,
     ArticleImage, Favorite, SecurityLog, EmailVerification, PasswordResetToken
 )
 import sys
@@ -410,11 +410,23 @@ class CategoryAdmin(admin.ModelAdmin):
         return obj.articles.count()
     article_count.short_description = 'Articles'
 
+@admin.register(TagGroup)
+class TagGroupAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug', 'order', 'tag_count')
+    prepopulated_fields = {'slug': ('name',)}
+    list_editable = ('order',)
+    
+    def tag_count(self, obj):
+        return obj.tags.count()
+    tag_count.short_description = 'Tags'
+
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'usage_count')
+    list_display = ('name', 'group', 'slug', 'usage_count')
+    list_filter = ('group',)
     prepopulated_fields = {'slug': ('name',)}
-    search_fields = ('name',)
+    search_fields = ('name', 'group__name')
+    list_editable = ('group',)
     
     def usage_count(self, obj):
         return obj.article_set.count()

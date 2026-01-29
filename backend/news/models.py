@@ -107,9 +107,33 @@ class Category(models.Model):
             models.Index(fields=['name']),
         ]
 
+class TagGroup(models.Model):
+    """
+    Groups for tags (e.g., 'Manufacturers', 'Body Types', 'Features', 'Years')
+    Allows organizing the large list of tags into manageable categories.
+    """
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(unique=True, blank=True)
+    order = models.IntegerField(default=0, help_text="Display order")
+    
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = "Tag Group"
+        verbose_name_plural = "Tag Groups"
+        
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
 class Tag(models.Model):
     name = models.CharField(max_length=50, db_index=True)
     slug = models.SlugField(unique=True, blank=True)
+    group = models.ForeignKey(TagGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='tags', help_text="Category group for this tag")
 
     def save(self, *args, **kwargs):
         if not self.slug:

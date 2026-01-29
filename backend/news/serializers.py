@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from .models import (
-    Article, Category, Tag, Comment, Rating, CarSpecification, 
+    Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, PendingArticle, AutoPublishSchedule, EmailPreferences,
     AdminNotification
@@ -51,12 +51,19 @@ class CategorySerializer(serializers.ModelSerializer):
         return obj.articles.count()
 
 
+class TagGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TagGroup
+        fields = ['id', 'name', 'slug', 'order']
+
+
 class TagSerializer(serializers.ModelSerializer):
     article_count = serializers.SerializerMethodField()
+    group_name = serializers.CharField(source='group.name', read_only=True)
     
     class Meta:
         model = Tag
-        fields = ['id', 'name', 'slug', 'article_count']
+        fields = ['id', 'name', 'slug', 'group', 'group_name', 'article_count']
     
     def get_article_count(self, obj):
         return obj.article_set.count()

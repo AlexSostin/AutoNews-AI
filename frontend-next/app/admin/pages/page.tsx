@@ -13,27 +13,132 @@ interface PageSettings {
   contact_address_enabled: boolean;
   support_email: string;
   business_email: string;
-  
+
   // About Page
   about_page_title: string;
   about_page_content: string;
   about_page_enabled: boolean;
-  
+
   // Privacy Page
   privacy_page_title: string;
   privacy_page_content: string;
   privacy_page_enabled: boolean;
-  
+
   // Terms Page
   terms_page_title: string;
   terms_page_content: string;
   terms_page_enabled: boolean;
-  
+
   // Contact Page
   contact_page_title: string;
   contact_page_subtitle: string;
   contact_page_enabled: boolean;
 }
+
+const defaultAboutContent = `
+<h2>Our Story</h2>
+<p>Founded with a passion for automobiles and a commitment to delivering accurate, timely information, Fresh Motors has grown into a comprehensive platform for car enthusiasts, industry professionals, and everyday drivers alike.</p>
+<p>We believe that staying informed about the automotive world should be accessible, engaging, and reliable. From breaking news about the latest electric vehicles to detailed reviews of classic sports cars, we cover it all with expertise and enthusiasm.</p>
+<p>Our team of automotive journalists and industry experts work tirelessly to bring you the most relevant and interesting content, helping you make informed decisions about your next vehicle purchase or simply stay connected with the ever-evolving world of automobiles.</p>
+
+<h2>What We Stand For</h2>
+<ul>
+  <li><strong>Accuracy</strong>: We verify every fact and double-check our sources to ensure you get reliable information.</li>
+  <li><strong>Innovation</strong>: We stay ahead of automotive trends and emerging technologies to keep you informed.</li>
+  <li><strong>Excellence</strong>: We strive for excellence in every article, review, and piece of content we publish.</li>
+  <li><strong>Community</strong>: We foster a community of car enthusiasts who share our passion for automobiles.</li>
+</ul>
+
+<h2>What We Cover</h2>
+<p><strong>Latest News</strong>: Breaking stories from the automotive industry, including new model announcements, technological breakthroughs, and industry trends.</p>
+<p><strong>In-Depth Reviews</strong>: Comprehensive reviews of the latest vehicles, covering performance, features, safety, and value for money.</p>
+<p><strong>Electric Vehicles</strong>: Dedicated coverage of the EV revolution, including battery technology, charging infrastructure, and sustainability.</p>
+<p><strong>Expert Analysis</strong>: Insights from industry experts, market analysis, and predictions about the future of transportation.</p>
+`;
+
+const defaultPrivacyContent = `
+<p>At Fresh Motors, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the site.</p>
+<p>We reserve the right to make changes to this Privacy Policy at any time and for any reason. We will alert you about any changes by updating the "Last Updated" date of this Privacy Policy.</p>
+
+<h2>Information We Collect</h2>
+<h3>Personal Data</h3>
+<p>We may collect personally identifiable information, such as your name and email address, that you voluntarily give to us when you subscribe to our newsletter, submit comments or contact forms, register for an account, or participate in surveys or contests.</p>
+<h3>Derivative Data</h3>
+<p>Our servers may automatically collect information when you access our website, such as your IP address, browser type, operating system, referral URLs, and pages viewed.</p>
+
+<h2>How We Use Your Information</h2>
+<p>We may use the information we collect to send you our newsletter, respond to your comments, improve our website, analyze website usage and trends, and address technical issues.</p>
+
+<h2>Cookies and Tracking Technologies</h2>
+<p>We may use cookies and other tracking technologies to help customize the website and improve your experience. Most browsers are set to accept cookies by default, but you can choose to remove or reject them.</p>
+
+<h2>Disclosure of Your Information</h2>
+<p>We may share information in certain situations, such as by law or to protect rights, with third-party service providers, or in connection with business transfers.</p>
+
+<h2>Third-Party Websites</h2>
+<p>Our website may contain links to third-party websites and applications. We are not responsible for the privacy practices of these third parties.</p>
+
+<h2>Security of Your Information</h2>
+<p>We use administrative, technical, and physical security measures to protect your personal information. However, no security system is impenetrable.</p>
+
+<h2>Newsletter and Marketing</h2>
+<p>If you subscribe to our newsletter, we will send you periodic emails about automotive news. You can unsubscribe at any time.</p>
+
+<h2>Your Rights</h2>
+<p>Depending on your location, you may have the right to access, correct, or delete your personal information, object to or restrict processing, and withdraw consent.</p>
+
+<h2>GDPR and International Users</h2>
+<p>For users in the EEA, UK, or other regions with data protection laws, you have specific rights under GDPR, including the right to access, rectification, erasure, and data portability.</p>
+
+<h2>Children's Privacy</h2>
+<p>Our website is not intended for children under 16. We do not knowingly collect personal information from children under 16.</p>
+
+<h2>Contact Us</h2>
+<p>If you have questions about this Privacy Policy, please contact us through our Contact Page.</p>
+`;
+
+const defaultTermsContent = `
+<p>Welcome to Fresh Motors. These Terms of Service ("Terms") govern your access to and use of our website, services, and content. By accessing or using Fresh Motors, you agree to be bound by these Terms.</p>
+
+<h2>Acceptance of Terms</h2>
+<p>By accessing and using this website, you accept and agree to be bound by these Terms and our Privacy Policy. If you do not agree to these Terms, you are not authorized to use our website.</p>
+
+<h2>Use of Website</h2>
+<p>You may use our website for lawful purposes only. You agree not to violate any laws, infringe on intellectual property, or transmit harmful code.</p>
+
+<h2>Intellectual Property Rights</h2>
+<p>All content on this website, including text, images, and logos, is the property of Fresh Motors and is protected by copyright and other laws. We grant you a limited license for personal, non-commercial use.</p>
+
+<h2>User-Generated Content</h2>
+<p>By submitting content, you grant us a license to use it and represent that you own the rights to that content.</p>
+
+<h2>Third-Party Links and Services</h2>
+<p>Our website may contain links to third-party services. We are not responsible for their content or practices.</p>
+
+<h2>Disclaimer of Warranties</h2>
+<p>Our website is provided on an "AS IS" basis. Fresh Motors disclaims all warranties, express or implied.</p>
+
+<h2>Limitation of Liability</h2>
+<p>Fresh Motors shall not be liable for any indirect, incidental, or consequential damages resulting from your use of the website.</p>
+
+<h2>Indemnification</h2>
+<p>You agree to indemnify and hold harmless Fresh Motors from any claims arising out of your use of the website or violation of these Terms.</p>
+
+<h2>Changes to Terms</h2>
+<p>We reserve the right to modify these Terms at any time. Your continued use constitutes acceptance of the new Terms.</p>
+
+<h2>Governing Law</h2>
+<p>These Terms shall be governed by the laws of your jurisdiction. Any disputes will be resolved through good-faith negotiation or arbitration.</p>
+
+<h2>Age Requirements</h2>
+<p>You must be at least 16 years of age to use this website.</p>
+
+<h2>International Users</h2>
+<p>If you access the website from outside our primary region, you are responsible for compliance with local laws.</p>
+
+<h2>Contact Us</h2>
+<p>If you have questions about these Terms, please contact us through our Contact Page.</p>
+`;
 
 const defaultSettings: PageSettings = {
   contact_email: '',
@@ -44,13 +149,13 @@ const defaultSettings: PageSettings = {
   support_email: '',
   business_email: '',
   about_page_title: 'About Fresh Motors',
-  about_page_content: '',
+  about_page_content: defaultAboutContent,
   about_page_enabled: true,
   privacy_page_title: 'Privacy Policy',
-  privacy_page_content: '',
+  privacy_page_content: defaultPrivacyContent,
   privacy_page_enabled: true,
   terms_page_title: 'Terms of Service',
-  terms_page_content: '',
+  terms_page_content: defaultTermsContent,
   terms_page_enabled: true,
   contact_page_title: 'Contact Us',
   contact_page_subtitle: '',
@@ -71,9 +176,18 @@ export default function PagesPage() {
   const fetchSettings = async () => {
     try {
       const response = await api.get('/settings/');
+      const data = response.data;
+
+      // Handle potential array response
+      const settings = Array.isArray(data) ? data[0] : data;
+
       setFormData({
         ...defaultSettings,
-        ...response.data,
+        ...settings,
+        // Sync defaults if DB is empty
+        about_page_content: settings?.about_page_content?.trim() || defaultAboutContent,
+        privacy_page_content: settings?.privacy_page_content?.trim() || defaultPrivacyContent,
+        terms_page_content: settings?.terms_page_content?.trim() || defaultTermsContent,
       });
     } catch (error) {
       console.error('Failed to fetch settings:', error);
@@ -144,7 +258,7 @@ export default function PagesPage() {
           <div>
             <p className="text-yellow-800 font-medium">Important!</p>
             <p className="text-yellow-700 text-sm mt-1">
-              Make sure to update all contact information with your real data. 
+              Make sure to update all contact information with your real data.
               Displaying fake contact information can damage trust and may cause legal issues.
               If you don&apos;t have a phone or address, disable those fields using the toggle.
             </p>
@@ -159,11 +273,10 @@ export default function PagesPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab.id
-                  ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.id
+                ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
             >
               <tab.icon size={18} />
               <span>{tab.label}</span>
@@ -176,7 +289,7 @@ export default function PagesPage() {
           {activeTab === 'contact' && (
             <div className="space-y-6">
               <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Contact Page Settings</h2>
-              
+
               {/* Contact Page Visibility */}
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
@@ -186,13 +299,11 @@ export default function PagesPage() {
                 <button
                   type="button"
                   onClick={() => handleChange('contact_page_enabled', !formData.contact_page_enabled)}
-                  className={`relative w-14 h-7 rounded-full transition-colors ${
-                    formData.contact_page_enabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${formData.contact_page_enabled ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
                 >
-                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    formData.contact_page_enabled ? 'left-8' : 'left-1'
-                  }`} />
+                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.contact_page_enabled ? 'left-8' : 'left-1'
+                    }`} />
                 </button>
               </div>
 
@@ -220,7 +331,7 @@ export default function PagesPage() {
               </div>
 
               <h3 className="text-md font-bold text-gray-900 border-b pb-2 mt-6">Email Addresses</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -260,7 +371,7 @@ export default function PagesPage() {
               </div>
 
               <h3 className="text-md font-bold text-gray-900 border-b pb-2 mt-6">Phone Number</h3>
-              
+
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Phone className="text-gray-500" size={20} />
@@ -272,13 +383,11 @@ export default function PagesPage() {
                 <button
                   type="button"
                   onClick={() => handleChange('contact_phone_enabled', !formData.contact_phone_enabled)}
-                  className={`relative w-14 h-7 rounded-full transition-colors ${
-                    formData.contact_phone_enabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${formData.contact_phone_enabled ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
                 >
-                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    formData.contact_phone_enabled ? 'left-8' : 'left-1'
-                  }`} />
+                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.contact_phone_enabled ? 'left-8' : 'left-1'
+                    }`} />
                 </button>
               </div>
 
@@ -296,7 +405,7 @@ export default function PagesPage() {
               )}
 
               <h3 className="text-md font-bold text-gray-900 border-b pb-2 mt-6">Physical Address</h3>
-              
+
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <MapPin className="text-gray-500" size={20} />
@@ -308,13 +417,11 @@ export default function PagesPage() {
                 <button
                   type="button"
                   onClick={() => handleChange('contact_address_enabled', !formData.contact_address_enabled)}
-                  className={`relative w-14 h-7 rounded-full transition-colors ${
-                    formData.contact_address_enabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${formData.contact_address_enabled ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
                 >
-                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    formData.contact_address_enabled ? 'left-8' : 'left-1'
-                  }`} />
+                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.contact_address_enabled ? 'left-8' : 'left-1'
+                    }`} />
                 </button>
               </div>
 
@@ -344,13 +451,11 @@ export default function PagesPage() {
                 <button
                   type="button"
                   onClick={() => handleChange('about_page_enabled', !formData.about_page_enabled)}
-                  className={`relative w-14 h-7 rounded-full transition-colors ${
-                    formData.about_page_enabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${formData.about_page_enabled ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
                 >
-                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    formData.about_page_enabled ? 'left-8' : 'left-1'
-                  }`} />
+                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.about_page_enabled ? 'left-8' : 'left-1'
+                    }`} />
                 </button>
               </div>
 
@@ -366,7 +471,16 @@ export default function PagesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Page Content (HTML)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">Page Content (HTML)</label>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('about_page_content', defaultAboutContent)}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 transition-colors"
+                  >
+                    Reset to Default (Full Text)
+                  </button>
+                </div>
                 <textarea
                   value={formData.about_page_content}
                   onChange={(e) => handleChange('about_page_content', e.target.value)}
@@ -390,13 +504,11 @@ export default function PagesPage() {
                 <button
                   type="button"
                   onClick={() => handleChange('privacy_page_enabled', !formData.privacy_page_enabled)}
-                  className={`relative w-14 h-7 rounded-full transition-colors ${
-                    formData.privacy_page_enabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${formData.privacy_page_enabled ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
                 >
-                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    formData.privacy_page_enabled ? 'left-8' : 'left-1'
-                  }`} />
+                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.privacy_page_enabled ? 'left-8' : 'left-1'
+                    }`} />
                 </button>
               </div>
 
@@ -412,7 +524,16 @@ export default function PagesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Privacy Policy Content (HTML)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">Privacy Policy Content (HTML)</label>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('privacy_page_content', defaultPrivacyContent)}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 transition-colors"
+                  >
+                    Reset to Default (Full Text)
+                  </button>
+                </div>
                 <textarea
                   value={formData.privacy_page_content}
                   onChange={(e) => handleChange('privacy_page_content', e.target.value)}
@@ -436,13 +557,11 @@ export default function PagesPage() {
                 <button
                   type="button"
                   onClick={() => handleChange('terms_page_enabled', !formData.terms_page_enabled)}
-                  className={`relative w-14 h-7 rounded-full transition-colors ${
-                    formData.terms_page_enabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${formData.terms_page_enabled ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
                 >
-                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    formData.terms_page_enabled ? 'left-8' : 'left-1'
-                  }`} />
+                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.terms_page_enabled ? 'left-8' : 'left-1'
+                    }`} />
                 </button>
               </div>
 
@@ -458,7 +577,16 @@ export default function PagesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Terms of Service Content (HTML)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">Terms of Service Content (HTML)</label>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('terms_page_content', defaultTermsContent)}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 transition-colors"
+                  >
+                    Reset to Default (Full Text)
+                  </button>
+                </div>
                 <textarea
                   value={formData.terms_page_content}
                   onChange={(e) => handleChange('terms_page_content', e.target.value)}

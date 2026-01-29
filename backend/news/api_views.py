@@ -12,13 +12,13 @@ from django.contrib.auth.models import User
 from django.contrib.auth.hashers import check_password
 from django.utils import timezone
 from .models import (
-    Article, Category, Tag, Comment, Rating, CarSpecification, 
+    Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, PendingArticle, AutoPublishSchedule, AdminNotification
 )
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
-    CategorySerializer, TagSerializer, CommentSerializer, 
+    CategorySerializer, TagSerializer, TagGroupSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
     SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer, NewsletterHistorySerializer,
     YouTubeChannelSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
@@ -385,14 +385,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'slug']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
-    
-    @method_decorator(cache_page(60 * 60))  # Cache for 1 hour
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
-    
-    @method_decorator(cache_page(60 * 60))
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+
+
+class TagGroupViewSet(viewsets.ModelViewSet):
+    queryset = TagGroup.objects.all()
+    serializer_class = TagGroupSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 class TagViewSet(viewsets.ModelViewSet):
@@ -400,19 +398,10 @@ class TagViewSet(viewsets.ModelViewSet):
     serializer_class = TagSerializer
     permission_classes = [IsStaffOrReadOnly]
     pagination_class = None  # Return all tags
-    lookup_field = 'slug'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'slug']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
-    
-    @method_decorator(cache_page(60 * 60))  # Cache for 1 hour
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
-    
-    @method_decorator(cache_page(60 * 60))
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
 
 
 class ArticleViewSet(viewsets.ModelViewSet):
@@ -1039,6 +1028,14 @@ class SiteSettingsViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(settings)
         return Response(serializer.data)
 
+    def update(self, request, *args, **kwargs):
+        """Always update the single settings instance"""
+        settings = SiteSettings.load()
+        serializer = self.get_serializer(settings, data=request.data, partial=kwargs.get('partial', False))
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
 
 class UserViewSet(viewsets.ViewSet):
     """
@@ -1644,6 +1641,39 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error fetching videos: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def generate_pending(self, request, pk=None):
+        """Generate a PendingArticle from a specific video"""
+        channel = self.get_object()
+        video_url = request.data.get('video_url')
+        video_id = request.data.get('video_id')
+        video_title = request.data.get('video_title')
+        provider = request.data.get('provider', 'gemini')
+        
+        if not video_url:
+            return Response({'error': 'video_url is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            from ai_engine.main import create_pending_article
+            
+            result = create_pending_article(
+                youtube_url=video_url,
+                channel_id=channel.id,
+                video_title=video_title,
+                video_id=video_id,
+                provider=provider
+            )
+            
+            if result.get('success'):
+                return Response(result)
+            else:
+                return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error generating pending article: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'])
     def scan_all(self, request):
@@ -1713,13 +1743,15 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             base_slug = slugify(pending.title)[:80]
             slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
             
+            is_published = request.data.get('publish', True)
+            
             article = Article.objects.create(
                 title=pending.title,
                 slug=slug,
                 content=pending.content,
                 summary=pending.excerpt or pending.content[:200],
                 category=pending.suggested_category,
-                is_published=True,
+                is_published=is_published,
                 youtube_url=pending.video_url,
             )
             
@@ -1817,7 +1849,7 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             pending.save()
             
             return Response({
-                'message': 'Article published successfully',
+                'message': 'Article approved successfully' if not is_published else 'Article published successfully',
                 'article_id': article.id,
                 'article_slug': article.slug
             })
@@ -1868,9 +1900,15 @@ class AutoPublishScheduleViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(schedule)
         return Response(serializer.data)
     
-    def update(self, request, pk=None):
+    def retrieve(self, request, pk=None):
+        # Always return the single schedule object
         schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
-        serializer = self.get_serializer(schedule, data=request.data, partial=True)
+        serializer = self.get_serializer(schedule)
+        return Response(serializer.data)
+    
+    def update(self, request, *args, **kwargs):
+        schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
+        serializer = self.get_serializer(schedule, data=request.data, partial=kwargs.get('partial', False))
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

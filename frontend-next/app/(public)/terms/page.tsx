@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import { FileText, AlertCircle, Scale, UserCheck, Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 
@@ -41,20 +39,15 @@ export default function TermsPage() {
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="animate-spin text-purple-600" size={48} />
-        </main>
-        <Footer />
-      </>
+      <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-purple-600" size={48} />
+      </main>
     );
   }
 
   return (
     <>
-      <Header />
-      
+
       <main className="flex-1 bg-gray-50">
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-16">
@@ -71,7 +64,7 @@ export default function TermsPage() {
           <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12">
             {hasCustomContent ? (
               /* Custom Content from Admin */
-              <div 
+              <div
                 className="prose prose-lg max-w-none text-gray-700"
                 dangerouslySetInnerHTML={{ __html: pageContent }}
               />
@@ -81,14 +74,14 @@ export default function TermsPage() {
                 {/* Introduction */}
                 <section className="mb-10">
                   <p className="text-gray-700 mb-4">
-                    Welcome to Fresh Motors. These Terms of Service ("Terms") govern your access to and use of our 
-                    website, services, and content. By accessing or using Fresh Motors, you agree to be bound by 
+                    Welcome to Fresh Motors. These Terms of Service ("Terms") govern your access to and use of our
+                    website, services, and content. By accessing or using Fresh Motors, you agree to be bound by
                     these Terms. If you do not agree to these Terms, please do not use our website.
                   </p>
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
                     <AlertCircle className="text-amber-600 flex-shrink-0 mt-1" size={20} />
                     <p className="text-sm text-amber-900">
-                      <strong>Important:</strong> Please read these Terms carefully before using our services. 
+                      <strong>Important:</strong> Please read these Terms carefully before using our services.
                       Your continued use of the website constitutes acceptance of these Terms.
                     </p>
                   </div>
@@ -103,8 +96,8 @@ export default function TermsPage() {
                     <h2 className="text-2xl font-black text-gray-900">Acceptance of Terms</h2>
                   </div>
                   <p className="text-gray-700">
-                    By accessing and using this website, you accept and agree to be bound by these Terms and 
-                    our Privacy Policy. If you do not agree to these Terms, you are not authorized to use our 
+                    By accessing and using this website, you accept and agree to be bound by these Terms and
+                    our Privacy Policy. If you do not agree to these Terms, you are not authorized to use our
                     website and should discontinue use immediately.
                   </p>
                 </section>
@@ -112,7 +105,7 @@ export default function TermsPage() {
                 {/* Use of Website */}
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Use of Website</h2>
-                  
+
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Permitted Use</h3>
                   <p className="text-gray-700 mb-4">
                     You may use our website for lawful purposes only. You agree not to:
@@ -135,17 +128,17 @@ export default function TermsPage() {
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">Intellectual Property Rights</h2>
                   </div>
-                  
+
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Our Content</h3>
                   <p className="text-gray-700 mb-4">
-                    All content on this website, including but not limited to text, images, graphics, logos, 
-                    videos, and software, is the property of Fresh Motors or its content suppliers and is protected 
+                    All content on this website, including but not limited to text, images, graphics, logos,
+                    videos, and software, is the property of Fresh Motors or its content suppliers and is protected
                     by copyright, trademark, and other intellectual property laws.
                   </p>
 
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Limited License</h3>
                   <p className="text-gray-700 mb-4">
-                    We grant you a limited, non-exclusive, non-transferable license to access and use our website 
+                    We grant you a limited, non-exclusive, non-transferable license to access and use our website
                     for personal, non-commercial purposes. You may not:
                   </p>
                   <ul className="list-disc list-inside text-gray-700 space-y-1 ml-4">
@@ -173,10 +166,10 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Third-Party Links and Services</h2>
                   <p className="text-gray-700">
-                    Our website may contain links to third-party websites or services that are not owned or 
-                    controlled by Fresh Motors. We have no control over and assume no responsibility for the content, 
-                    privacy policies, or practices of any third-party websites or services. You acknowledge and 
-                    agree that Fresh Motors shall not be liable for any damage or loss caused by your use of any 
+                    Our website may contain links to third-party websites or services that are not owned or
+                    controlled by Fresh Motors. We have no control over and assume no responsibility for the content,
+                    privacy policies, or practices of any third-party websites or services. You acknowledge and
+                    agree that Fresh Motors shall not be liable for any damage or loss caused by your use of any
                     third-party content or services.
                   </p>
                 </section>
@@ -185,15 +178,15 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Disclaimer of Warranties</h2>
                   <p className="text-gray-700 mb-4">
-                    Our website and content are provided on an "AS IS" and "AS AVAILABLE" basis. We make no 
-                    warranties or representations about the accuracy, reliability, completeness, or timeliness 
+                    Our website and content are provided on an "AS IS" and "AS AVAILABLE" basis. We make no
+                    warranties or representations about the accuracy, reliability, completeness, or timeliness
                     of the content.
                   </p>
                   <div className="bg-gray-100 rounded-lg p-4">
                     <p className="text-sm text-gray-700 font-medium uppercase mb-2">Disclaimer:</p>
                     <p className="text-sm text-gray-600">
-                      TO THE FULLEST EXTENT PERMITTED BY LAW, FRESH MOTORS DISCLAIMS ALL WARRANTIES, EXPRESS OR 
-                      IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND 
+                      TO THE FULLEST EXTENT PERMITTED BY LAW, FRESH MOTORS DISCLAIMS ALL WARRANTIES, EXPRESS OR
+                      IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
                       NON-INFRINGEMENT.
                     </p>
                   </div>
@@ -203,9 +196,9 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Limitation of Liability</h2>
                   <p className="text-gray-700">
-                    To the maximum extent permitted by law, Fresh Motors and its officers, directors, employees, 
-                    and agents shall not be liable for any indirect, incidental, special, consequential, or 
-                    punitive damages, including but not limited to loss of profits, data, or other intangible 
+                    To the maximum extent permitted by law, Fresh Motors and its officers, directors, employees,
+                    and agents shall not be liable for any indirect, incidental, special, consequential, or
+                    punitive damages, including but not limited to loss of profits, data, or other intangible
                     losses resulting from your use or inability to use our website.
                   </p>
                 </section>
@@ -214,9 +207,9 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Indemnification</h2>
                   <p className="text-gray-700">
-                    You agree to indemnify, defend, and hold harmless Fresh Motors and its affiliates from any claims, 
-                    liabilities, damages, losses, and expenses (including reasonable attorneys' fees) arising out 
-                    of or in any way connected with your access to or use of our website or your violation of 
+                    You agree to indemnify, defend, and hold harmless Fresh Motors and its affiliates from any claims,
+                    liabilities, damages, losses, and expenses (including reasonable attorneys' fees) arising out
+                    of or in any way connected with your access to or use of our website or your violation of
                     these Terms.
                   </p>
                 </section>
@@ -225,9 +218,9 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Changes to Terms</h2>
                   <p className="text-gray-700">
-                    We reserve the right to modify or replace these Terms at any time at our sole discretion. 
-                    If we make material changes, we will provide notice by posting the updated Terms on this 
-                    page with a new "Last Updated" date. Your continued use of the website after any changes 
+                    We reserve the right to modify or replace these Terms at any time at our sole discretion.
+                    If we make material changes, we will provide notice by posting the updated Terms on this
+                    page with a new "Last Updated" date. Your continued use of the website after any changes
                     constitutes acceptance of the new Terms.
                   </p>
                 </section>
@@ -236,14 +229,14 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Governing Law</h2>
                   <p className="text-gray-700 mb-4">
-                    These Terms shall be governed by and construed in accordance with the applicable laws of 
-                    your jurisdiction. Any disputes arising from these Terms or your use of the website will 
-                    be resolved in accordance with the laws applicable to your place of residence, to the 
+                    These Terms shall be governed by and construed in accordance with the applicable laws of
+                    your jurisdiction. Any disputes arising from these Terms or your use of the website will
+                    be resolved in accordance with the laws applicable to your place of residence, to the
                     extent required by local consumer protection laws.
                   </p>
                   <p className="text-gray-700">
-                    For users outside your local jurisdiction, you agree that any disputes will be resolved 
-                    through good-faith negotiation or, if necessary, through binding arbitration in accordance 
+                    For users outside your local jurisdiction, you agree that any disputes will be resolved
+                    through good-faith negotiation or, if necessary, through binding arbitration in accordance
                     with internationally recognized arbitration rules.
                   </p>
                 </section>
@@ -252,8 +245,8 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Age Requirements</h2>
                   <p className="text-gray-700">
-                    You must be at least 16 years of age to use this website. By using Fresh Motors, you represent 
-                    and warrant that you meet this age requirement. If you are under 16, please do not use our 
+                    You must be at least 16 years of age to use this website. By using Fresh Motors, you represent
+                    and warrant that you meet this age requirement. If you are under 16, please do not use our
                     website or submit any personal information.
                   </p>
                 </section>
@@ -262,9 +255,9 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">International Users</h2>
                   <p className="text-gray-700">
-                    Fresh Motors is accessible worldwide. If you access the website from outside of our primary 
-                    operating region, you do so at your own initiative and are responsible for compliance with 
-                    local laws. Nothing in these Terms excludes or limits any consumer rights that cannot be 
+                    Fresh Motors is accessible worldwide. If you access the website from outside of our primary
+                    operating region, you do so at your own initiative and are responsible for compliance with
+                    local laws. Nothing in these Terms excludes or limits any consumer rights that cannot be
                     excluded or limited under the laws of your country of residence.
                   </p>
                 </section>
@@ -284,8 +277,7 @@ export default function TermsPage() {
           </div>
         </div>
       </main>
-      
-      <Footer />
+
     </>
   );
 }

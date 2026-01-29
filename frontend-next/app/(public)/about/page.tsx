@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from '@/components/public/Header';
-import Footer from '@/components/public/Footer';
 import { Users, Target, Award, TrendingUp, Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 
@@ -56,20 +54,15 @@ export default function AboutPage() {
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="animate-spin text-purple-600" size={48} />
-        </main>
-        <Footer />
-      </>
+      <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-purple-600" size={48} />
+      </main>
     );
   }
 
   return (
     <>
-      <Header />
-      
+
       <main className="flex-1 bg-gray-50">
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-20">
@@ -85,7 +78,7 @@ export default function AboutPage() {
           {/* Custom Content from Admin */}
           {hasCustomContent ? (
             <section className="bg-white rounded-2xl shadow-lg p-8 md:p-12 mb-8">
-              <div 
+              <div
                 className="prose prose-lg max-w-none text-gray-700"
                 dangerouslySetInnerHTML={{ __html: pageContent }}
               />
@@ -97,18 +90,18 @@ export default function AboutPage() {
                 <h2 className="text-3xl font-black text-gray-900 mb-6">Our Story</h2>
                 <div className="prose prose-lg max-w-none text-gray-700">
                   <p className="mb-4">
-                    Founded with a passion for automobiles and a commitment to delivering accurate, timely information, 
-                    Fresh Motors has grown into a comprehensive platform for car enthusiasts, industry professionals, 
+                    Founded with a passion for automobiles and a commitment to delivering accurate, timely information,
+                    Fresh Motors has grown into a comprehensive platform for car enthusiasts, industry professionals,
                     and everyday drivers alike.
                   </p>
                   <p className="mb-4">
-                    We believe that staying informed about the automotive world should be accessible, engaging, 
-                    and reliable. From breaking news about the latest electric vehicles to detailed reviews of 
+                    We believe that staying informed about the automotive world should be accessible, engaging,
+                    and reliable. From breaking news about the latest electric vehicles to detailed reviews of
                     classic sports cars, we cover it all with expertise and enthusiasm.
                   </p>
                   <p>
-                    Our team of automotive journalists and industry experts work tirelessly to bring you the most 
-                    relevant and interesting content, helping you make informed decisions about your next vehicle 
+                    Our team of automotive journalists and industry experts work tirelessly to bring you the most
+                    relevant and interesting content, helping you make informed decisions about your next vehicle
                     purchase or simply stay connected with the ever-evolving world of automobiles.
                   </p>
                 </div>
@@ -167,28 +160,28 @@ export default function AboutPage() {
                   <div>
                     <h3 className="text-xl font-bold text-purple-600 mb-3">Latest News</h3>
                     <p className="text-gray-700 mb-4">
-                      Breaking stories from the automotive industry, including new model announcements, 
+                      Breaking stories from the automotive industry, including new model announcements,
                       technological breakthroughs, and industry trends.
                     </p>
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-purple-600 mb-3">In-Depth Reviews</h3>
                     <p className="text-gray-700 mb-4">
-                      Comprehensive reviews of the latest vehicles, covering performance, features, 
+                      Comprehensive reviews of the latest vehicles, covering performance, features,
                       safety, and value for money.
                     </p>
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-purple-600 mb-3">Electric Vehicles</h3>
                     <p className="text-gray-700 mb-4">
-                      Dedicated coverage of the EV revolution, including battery technology, 
+                      Dedicated coverage of the EV revolution, including battery technology,
                       charging infrastructure, and sustainability.
                     </p>
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-purple-600 mb-3">Expert Analysis</h3>
                     <p className="text-gray-700 mb-4">
-                      Insights from industry experts, market analysis, and predictions about 
+                      Insights from industry experts, market analysis, and predictions about
                       the future of transportation.
                     </p>
                   </div>
@@ -198,8 +191,7 @@ export default function AboutPage() {
           )}
         </div>
       </main>
-      
-      <Footer />
+
     </>
   );
 }
