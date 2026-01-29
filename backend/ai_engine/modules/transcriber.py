@@ -32,6 +32,31 @@ def transcribe_from_youtube(youtube_url, max_retries=3):
                 'no_warnings': True,
             }
             
+            # Check for cookies file to bypass "Sign in" errors
+            # Priority 1: Environment Variable (Best for Production)
+            cookies_content = os.getenv('YOUTUBE_COOKIES_CONTENT')
+            if cookies_content:
+                try:
+                    cookies_path = '/tmp/cookies.txt'
+                    with open(cookies_path, 'w') as f:
+                        f.write(cookies_content)
+                    ydl_opts['cookiefile'] = cookies_path
+                    # print(f"🍪 Using cookies from Environment Variable") # Optional debug
+                except Exception as e:
+                    print(f"⚠️ Failed to write cookies from env: {e}")
+
+            # Priority 2: Local file (overrides env if present in dev)
+            local_cookies = os.path.join(os.getcwd(), 'cookies.txt')
+            if os.path.exists(local_cookies):
+                ydl_opts['cookiefile'] = local_cookies
+                print(f"🍪 Using cookies from {local_cookies}")
+            elif not cookies_content:
+                # Priority 3: Default Docker path
+                docker_cookies = '/app/cookies.txt'
+                if os.path.exists(docker_cookies):
+                    ydl_opts['cookiefile'] = docker_cookies
+                    print(f"🍪 Using cookies from {docker_cookies}")
+            
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 video_info = ydl.extract_info(youtube_url, download=False)
                 break

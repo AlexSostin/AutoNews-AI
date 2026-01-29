@@ -147,29 +147,29 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         transcript = transcribe_from_youtube(youtube_url)
         
         if not transcript or len(transcript) < 5:
-            send_progress(2, 100, "❌ Не удалось получить транскрипт")
-            raise Exception("Не удалось получить транскрипт или он слишком короткий")
+            send_progress(2, 100, "❌ Failed to retrieve transcript")
+            raise Exception("Failed to retrieve transcript or it is too short")
         
-        send_progress(2, 30, f"✓ Транскрипт получен ({len(transcript)} символов)")
+        send_progress(2, 30, f"✓ Transcript received ({len(transcript)} chars)")
         
-        # 2. Анализируем транскрипт
-        send_progress(3, 40, f"🔍 Анализ транскрипта с {provider_name} AI...")
-        print("🔍 Анализ транскрипта...")
+        # 2. Analyze transcript
+        send_progress(3, 40, f"🔍 Analyzing transcript with {provider_name} AI...")
+        print("🔍 Analyzing transcript...")
         analysis = analyze_transcript(transcript, video_title=video_title, provider=provider)
         
         if not analysis:
-            send_progress(3, 100, "❌ Не удалось проанализировать")
-            raise Exception("Не удалось проанализировать транскрипт")
+            send_progress(3, 100, "❌ Analysis failed")
+            raise Exception("Failed to analyze transcript")
         
-        send_progress(3, 50, "✓ Анализ завершен")
+        send_progress(3, 50, "✓ Analysis complete")
         
-        # 2.5. Определяем категорию и теги
-        send_progress(4, 55, "🏷️ Категоризация и теги...")
+        # 2.5. Categorize and Tags
+        send_progress(4, 55, "🏷️ Categorizing...")
         from modules.analyzer import categorize_article, extract_specs_dict
         
         category_name, tag_names = categorize_article(analysis)
         
-        # 2.6. Извлекаем характеристики для БД
+        # 2.6. Extract Specs
         specs = extract_specs_dict(analysis)
         send_progress(4, 60, f"✓ {specs['make']} {specs['model']}")
         
@@ -177,7 +177,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         web_context = ""
         try:
             from ai_engine.modules.searcher import get_web_context
-            send_progress(4, 62, "🌐 Поиск информации в интернете...")
+            send_progress(4, 62, "🌐 Searching web for facts...")
             
             # Helper to clean model name if it's "Chin L"
             if "Chin" in specs.get('model', '') and "Qin" not in specs.get('model', ''):
@@ -189,16 +189,16 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         except Exception as e:
             print(f"⚠️ Web search failed: {e}")
         
-        # 3. Генерируем статью
-        send_progress(5, 65, f"✍️ Генерация статьи с {provider_name}...")
-        print(f"✍️  Генерация статьи...")
+        # 3. Generate Article
+        send_progress(5, 65, f"✍️ Generating article with {provider_name}...")
+        print(f"✍️  Generating article...")
         
         # Pass web context to generator
         article_html = generate_article(analysis, provider=provider, web_context=web_context)
         
         if not article_html or len(article_html) < 100:
-            send_progress(5, 100, "❌ Ошибка генерации статьи")
-            raise Exception("Статья не сгенерирована или слишком короткая")
+            send_progress(5, 100, "❌ Article generation failed")
+            raise Exception("Article content is empty or too short")
         
         send_progress(5, 75, "✓ Статья сгенерирована")
         
