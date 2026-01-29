@@ -29,7 +29,8 @@ export default function TagsPage() {
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | 'all'>('all');
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | 'all' | 'ungrouped'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Modal State
   const [showTagModal, setShowTagModal] = useState(false);
@@ -207,12 +208,18 @@ export default function TagsPage() {
   };
 
   // Filtered Tags
-  const filteredTags = selectedGroupFilter === 'all'
-    ? tags
-    : tags.filter(t => t.group === selectedGroupFilter);
+  const filteredTags = tags.filter(t => {
+    // Search filter
+    if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+
+    // Group filter
+    if (selectedGroupFilter === 'all') return true;
+    if (selectedGroupFilter === 'ungrouped') return t.group === null;
+    return t.group === selectedGroupFilter;
+  });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-screen bg-gray-50 relative">
+    <div className="p-6 max-w-6xl mx-auto min-h-screen bg-gray-50 relative">
       {/* Menu Background Overlay for Quick Select */}
       {activeTagMenuId && (
         <div
@@ -269,45 +276,75 @@ export default function TagsPage() {
       ) : activeTab === 'tags' ? (
         // --- TAGS VIEW ---
         <div className="space-y-6">
-          {/* Filter Bar */}
-          {groups.length > 0 && (
-            <div className="flex items-center gap-2 overflow-x-auto pb-2">
-              <Filter size={16} className="text-gray-400 min-w-[16px]" />
-              <button
-                onClick={() => setSelectedGroupFilter('all')}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroupFilter === 'all'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-              >
-                All Tags
-              </button>
-              {groups.map(group => (
+          {/* Filter & Search Bar */}
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            {groups.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 flex-1 min-w-0">
+                <Filter size={16} className="text-gray-400 min-w-[16px]" />
                 <button
-                  key={group.id}
-                  onClick={() => setSelectedGroupFilter(group.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroupFilter === group.id
+                  onClick={() => setSelectedGroupFilter('all')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroupFilter === 'all'
                     ? 'bg-indigo-600 text-white'
                     : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                     }`}
                 >
-                  {group.name}
+                  All Tags
                 </button>
-              ))}
-            </div>
-          )}
+                <button
+                  onClick={() => setSelectedGroupFilter('ungrouped')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroupFilter === 'ungrouped'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                >
+                  Uncategorized
+                </button>
+                {groups.map(group => (
+                  <button
+                    key={group.id}
+                    onClick={() => setSelectedGroupFilter(group.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroupFilter === group.id
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    {group.name}
+                  </button>
+                ))}
+              </div>
+            )}
 
-          <div className="bg-white rounded-lg shadow-md overflow-hidden p-6">
+            <div className="relative w-full md:w-64">
+              <input
+                type="text"
+                placeholder="Search tags..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              />
+              <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md overflow-hidden p-6 pb-80">
             {filteredTags.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500">No tags found.</p>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredTags.map((tag) => (
                   <div
                     key={tag.id}
-                    className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 hover:shadow-lg transition-all group relative min-w-[200px]"
+                    className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 hover:shadow-lg transition-all group relative"
                   >
                     <div className="flex items-start justify-between gap-4 mb-2">
                       <div>
@@ -336,7 +373,7 @@ export default function TagsPage() {
 
                             {/* Quick Select Menu Popover */}
                             {activeTagMenuId === tag.id && (
-                              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-2 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-2 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="px-3 py-1 text-[10px] uppercase tracking-widest font-black text-gray-400 border-b border-gray-50 mb-1">
                                   Assign Group
                                 </div>
