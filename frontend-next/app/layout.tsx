@@ -53,11 +53,10 @@ export default async function RootLayout({
             </Script>
           </>
         )}
-        <Script
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1075473812019633"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
         {/* Restore auth cookies from localStorage before page load */}
         <script
