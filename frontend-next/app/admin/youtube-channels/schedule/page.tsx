@@ -8,9 +8,11 @@ import {
   ArrowLeft,
   Play,
   Calendar,
-  Zap
+  Zap,
+  Check,
+  AlertCircle
 } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import api, { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
 
 interface Schedule {
@@ -39,15 +41,10 @@ export default function SchedulePage() {
 
   const fetchSchedule = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
+      const response = await api.get('/auto-publish-schedule/');
 
-      const response = await fetch(`${apiUrl}/auto-publish-schedule/`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200) {
+        const data = response.data;
         // Get first schedule or create default
         if (data.results && data.results.length > 0) {
           setSchedule(data.results[0]);
@@ -55,21 +52,14 @@ export default function SchedulePage() {
           setSchedule(data[0]);
         } else {
           // Create default schedule
-          const createResponse = await fetch(`${apiUrl}/auto-publish-schedule/`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              is_enabled: false,
-              frequency: 'twice',
-              scan_time_1: '08:00:00',
-              scan_time_2: '18:00:00'
-            })
+          const createResponse = await api.post('/auto-publish-schedule/', {
+            is_enabled: false,
+            frequency: 'twice',
+            scan_time_1: '08:00:00',
+            scan_time_2: '18:00:00'
           });
-          if (createResponse.ok) {
-            setSchedule(await createResponse.json());
+          if (createResponse.status === 201 || createResponse.status === 200) {
+            setSchedule(createResponse.data);
           }
         }
       }
@@ -80,33 +70,24 @@ export default function SchedulePage() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!schedule) return;
 
     setSaving(true);
     setMessage(null);
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/auto-publish-schedule/${schedule.id}/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          is_enabled: schedule.is_enabled,
-          frequency: schedule.frequency,
-          scan_time_1: schedule.scan_time_1,
-          scan_time_2: schedule.scan_time_2,
-          scan_time_3: schedule.scan_time_3,
-          scan_time_4: schedule.scan_time_4
-        })
+      const response = await api.patch(`/auto-publish-schedule/${schedule.id}/`, {
+        is_enabled: schedule.is_enabled,
+        frequency: schedule.frequency,
+        scan_time_1: schedule.scan_time_1,
+        scan_time_2: schedule.scan_time_2,
+        scan_time_3: schedule.scan_time_3,
+        scan_time_4: schedule.scan_time_4
       });
 
-      if (response.ok) {
+      if (response.status === 200) {
         setMessage({ type: 'success', text: 'Schedule saved successfully!' });
       } else {
         setMessage({ type: 'error', text: 'Failed to save schedule' });
@@ -125,27 +106,20 @@ export default function SchedulePage() {
     setMessage(null);
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
+      const response = await api.post(`/auto-publish-schedule/${schedule.id}/trigger_scan/`);
 
-      const response = await fetch(`${apiUrl}/auto-publish-schedule/${schedule.id}/trigger_scan/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200) {
+        const data = response.data;
         setMessage({
           type: 'success',
           text: `Scan completed! ${data.videos_found} new videos found, ${data.articles_generated} articles generated`
         });
         fetchSchedule(); // Refresh stats
       } else {
-        const data = await response.json();
-        setMessage({ type: 'error', text: data.error || 'Failed to trigger scan' });
+        setMessage({ type: 'error', text: 'Failed to trigger scan' });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'An error occurred' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.error || 'An error occurred' });
     } finally {
       setScanning(false);
     }

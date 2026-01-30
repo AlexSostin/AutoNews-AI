@@ -385,6 +385,26 @@ class CategoryViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'slug']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
+    lookup_field = 'slug'
+
+    def get_object(self):
+        """Support lookup by both slug and ID"""
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_value = self.kwargs[lookup_url_kwarg]
+        
+        try:
+            if lookup_value.isdigit():
+                obj = queryset.get(id=lookup_value)
+            else:
+                obj = queryset.get(slug=lookup_value)
+        except Category.DoesNotExist:
+            from django.shortcuts import get_object_or_404
+            filter_kwargs = {self.lookup_field: lookup_value}
+            obj = get_object_or_404(queryset, **filter_kwargs)
+        
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 class TagGroupViewSet(viewsets.ModelViewSet):

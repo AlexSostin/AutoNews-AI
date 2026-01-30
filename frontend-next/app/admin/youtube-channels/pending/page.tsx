@@ -2,19 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import {
-  FileText,
+  Youtube,
+  Clock,
   Check,
   X,
-  Eye,
   Loader2,
-  Clock,
-  Youtube,
-  ArrowLeft,
+  Trash2,
+  Filter,
+  ArrowRight,
+  Eye,
+  Search,
   ChevronDown,
   ChevronUp,
-  Edit
+  Edit,
+  FileText,
+  ArrowLeft
 } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import api, { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
 
 interface PendingArticle {
@@ -58,23 +62,13 @@ export default function PendingArticlesPage() {
 
   const fetchData = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-
       const [articlesRes, statsRes] = await Promise.all([
-        fetch(`${apiUrl}/pending-articles/?status=${filter === 'pending' ? 'pending' : ''}`, { headers }),
-        fetch(`${apiUrl}/pending-articles/stats/`, { headers })
+        api.get(`/pending-articles/?status=${filter === 'pending' ? 'pending' : ''}`),
+        api.get(`/pending-articles/stats/`)
       ]);
 
-      if (articlesRes.ok) {
-        const data = await articlesRes.json();
-        setArticles(Array.isArray(data) ? data : data.results || []);
-      }
-
-      if (statsRes.ok) {
-        setStats(await statsRes.json());
-      }
+      setArticles(Array.isArray(articlesRes.data) ? articlesRes.data : articlesRes.data.results || []);
+      setStats(statsRes.data);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -85,68 +79,47 @@ export default function PendingArticlesPage() {
   const handleApprove = async (id: number, publish: boolean = true) => {
     setProcessing(id);
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
+      const response = await api.post(`/pending-articles/${id}/approve/`, { publish });
 
-      const response = await fetch(`${apiUrl}/pending-articles/${id}/approve/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ publish })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200 || response.status === 201) {
+        const data = response.data;
 
         if (!publish && data.article_slug) {
           setMessage({ type: 'success', text: 'Article approved as draft! Redirecting...' });
-          // Give a tiny moment for the message to be seen before redirect
           setTimeout(() => {
             window.location.href = `/admin/articles/${data.article_slug}/edit`;
-          }, 800);
-          return;
+          }, 1500);
+        } else {
+          setMessage({ type: 'success', text: 'Article published successfully!' });
         }
 
-        setMessage({ type: 'success', text: `Article published! Slug: ${data.article_slug}` });
         setArticles(articles.filter(a => a.id !== id));
         if (stats) setStats({ ...stats, pending: stats.pending - 1, published: stats.published + 1 });
       } else {
-        const data = await response.json();
-        setMessage({ type: 'error', text: data.error || 'Failed to approve' });
+        setMessage({ type: 'error', text: 'Failed to approve' });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'An error occurred' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.error || 'An error occurred' });
     } finally {
       if (processing === id) setProcessing(null);
     }
   };
 
   const handleReject = async (id: number) => {
-    const reason = prompt('Reason for rejection (optional):');
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    if (reason === null) return;
 
     setProcessing(id);
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
+      const response = await api.post(`/pending-articles/${id}/reject/`, { reason: reason || '' });
 
-      const response = await fetch(`${apiUrl}/pending-articles/${id}/reject/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ reason: reason || '' })
-      });
-
-      if (response.ok) {
+      if (response.status === 200) {
         setMessage({ type: 'success', text: 'Article rejected' });
         setArticles(articles.filter(a => a.id !== id));
         if (stats) setStats({ ...stats, pending: stats.pending - 1, rejected: stats.rejected + 1 });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'An error occurred' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.error || 'An error occurred' });
     } finally {
       setProcessing(null);
     }

@@ -307,7 +307,7 @@ export default function YouTubeChannelsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto min-h-screen bg-gray-50 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-950">YouTube Channels</h1>
