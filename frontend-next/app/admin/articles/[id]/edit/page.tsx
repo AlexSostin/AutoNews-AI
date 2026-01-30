@@ -28,6 +28,7 @@ interface ArticleData {
   category: number;
   tags: number[];
   published: boolean;
+  is_hero: boolean;
   youtube_url: string;
 }
 
@@ -47,6 +48,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
     category: '',
     tags: [] as number[],
     published: false,
+    is_hero: false,
     youtube_url: '',
     image: null as File | null,
     image_2: null as File | null,
@@ -101,6 +103,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         category: article.category?.id?.toString() || '',
         tags: Array.isArray(article.tags) ? article.tags.map((tag: any) => tag.id) : [],
         published: article.is_published ?? false,
+        is_hero: article.is_hero ?? false,
         youtube_url: article.youtube_url || '',
         image: null,
         image_2: null,
@@ -139,6 +142,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         formDataToSend.append('category_id', formData.category);
         formDataToSend.append('tag_ids', JSON.stringify(formData.tags));
         formDataToSend.append('is_published', formData.published.toString());
+        formDataToSend.append('is_hero', formData.is_hero.toString());
 
         if (formData.youtube_url) {
           formDataToSend.append('youtube_url', formData.youtube_url);
@@ -173,6 +177,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           category_id: parseInt(formData.category),
           tag_ids: formData.tags,
           is_published: formData.published,
+          is_hero: formData.is_hero,
           youtube_url: formData.youtube_url,
         };
 
@@ -476,8 +481,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                         type="button"
                         onClick={() => handleTagToggle(tag.id)}
                         className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ${formData.tags.includes(tag.id)
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
-                            : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
                           }`}
                       >
                         {tag.name}
@@ -492,18 +497,32 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          {/* Published Status */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="published"
-              checked={formData.published}
-              onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-              className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-            />
-            <label htmlFor="published" className="text-sm font-bold text-gray-900">
-              Published
-            </label>
+          <div className="flex flex-wrap gap-8">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="published"
+                checked={formData.published}
+                onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <label htmlFor="published" className="text-sm font-bold text-gray-900 cursor-pointer">
+                Published (Visible on site)
+              </label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="is_hero"
+                checked={formData.is_hero}
+                onChange={(e) => setFormData({ ...formData, is_hero: e.target.checked })}
+                className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+              />
+              <label htmlFor="is_hero" className="text-sm font-bold text-gray-900 cursor-pointer">
+                Hero (Promote to homepage banner)
+              </label>
+            </div>
           </div>
 
           {/* Submit Button */}

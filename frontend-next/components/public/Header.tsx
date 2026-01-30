@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X, ChevronDown, User, Settings, LogOut, BookMarked } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Settings, LogOut, BookMarked, ArrowRight } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import SearchBar from './SearchBar';
@@ -122,29 +122,36 @@ export default function Header() {
               </button>
 
               {isCategoriesOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white text-gray-900 rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
-                  <div className="py-2">
-                    {categories.map((category) => (
-                      <Link
-                        key={category.id}
-                        href={`/categories/${category.slug}`}
-                        onClick={() => setIsCategoriesOpen(false)}
-                        className="block px-4 py-2 hover:bg-purple-50 transition-colors"
-                      >
-                        <div className="font-medium text-gray-900">{category.name}</div>
-                        {category.article_count > 0 && (
-                          <div className="text-xs text-gray-500">{category.article_count} articles</div>
-                        )}
-                      </Link>
-                    ))}
+                <div className="absolute top-full left-0 mt-4 w-[480px] bg-white text-gray-900 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-gray-100 overflow-hidden z-50 animate-slide-up">
+                  <div className="p-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      {categories.map((category) => (
+                        <Link
+                          key={category.id}
+                          href={`/categories/${category.slug}`}
+                          onClick={() => setIsCategoriesOpen(false)}
+                          className="group flex flex-col p-3 rounded-xl hover:bg-indigo-50 transition-all"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{category.name}</span>
+                            <span className="text-[10px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                              {category.article_count}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 line-clamp-1">{category.description || 'Explore the latest news in ' + category.name}</p>
+                        </Link>
+                      ))}
+                    </div>
                     <Link
                       href="/articles"
                       onClick={() => setIsCategoriesOpen(false)}
-                      className="block px-4 py-2 mt-1 border-t border-gray-200 text-purple-600 hover:bg-purple-50 font-medium transition-colors"
+                      className="flex items-center justify-center gap-2 py-3 mt-6 border-t border-gray-100 text-indigo-600 hover:text-indigo-700 font-bold transition-colors group"
                     >
-                      View All Categories →
+                      Browse All Categories <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </div>
+                  {/* Bottom accented bar */}
+                  <div className="h-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 w-full"></div>
                 </div>
               )}
             </div>

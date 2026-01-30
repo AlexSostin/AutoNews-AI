@@ -41,6 +41,11 @@ class SiteSettings(models.Model):
     google_analytics_id = models.CharField(max_length=50, blank=True, help_text="GA4 Measurement ID")
     google_adsense_id = models.CharField(max_length=50, blank=True, help_text="ca-pub-XXXXXX")
     
+    # Hero Section
+    use_classic_hero = models.BooleanField(default=False, help_text="Show classic purple background instead of dynamic articles")
+    hero_title = models.CharField(max_length=200, default="Welcome to Fresh Motors", help_text="Custom title for Hero section")
+    hero_subtitle = models.TextField(default="Your premier source for automotive news, reviews, and insights", help_text="Custom subtitle for Hero section")
+    
     # Footer
     footer_text = models.TextField(default="© 2026 Fresh Motors. All rights reserved.")
     
@@ -170,6 +175,7 @@ class Article(models.Model):
     is_published = models.BooleanField(default=False, db_index=True)
     is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete - allows recreating articles with same slug")
     views = models.PositiveIntegerField(default=0, help_text="Number of times this article has been viewed", db_index=True)
+    is_hero = models.BooleanField(default=False, db_index=True, help_text="Show in Home page Hero section")
     
     class Meta:
         ordering = ['-created_at']

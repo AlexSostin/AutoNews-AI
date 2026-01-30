@@ -3,6 +3,7 @@ import AdBanner from '@/components/public/AdBanner';
 import TrendingSection from '@/components/public/TrendingSection';
 import EmptyState from '@/components/public/EmptyState';
 import MaintenancePage from '@/components/public/MaintenancePage';
+import Hero from '@/components/public/Hero';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 
@@ -127,40 +128,49 @@ export default async function Home() {
     <>
       <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
         {/* Hero Section */}
-        <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 text-white py-24 relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="container mx-auto px-4 text-center relative z-10">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg">Welcome to Fresh Motors</h1>
-            <p className="text-lg sm:text-xl md:text-2xl mb-10 text-white/90 max-w-2xl mx-auto">Your premier source for automotive news, reviews, and insights</p>
-            <Link
-              href="/articles"
-              className="bg-white text-purple-900 px-6 sm:px-10 py-3 sm:py-4 rounded-full font-bold hover:bg-purple-50 hover:shadow-xl transition-all inline-block text-base sm:text-lg shadow-lg hover:scale-105 transform"
-            >
-              Explore Articles →
-            </Link>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-gray-50 to-transparent"></div>
-        </section>
+        <Hero articles={articles} settings={settings} />
 
         {/* Top Leaderboard Ad */}
         <div className="container mx-auto px-4 py-8 flex justify-center">
           <AdBanner format="leaderboard" />
         </div>
 
-        {/* Categories */}
+        {/* Categories Section - Refined & Premium */}
         {categories.length > 0 && (
-          <section className="container mx-auto px-4 py-12">
-            <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">Browse by Category</h2>
-            <div className="flex flex-wrap gap-4 justify-center">
-              {categories.map((category: any) => (
-                <Link
-                  key={category.id}
-                  href={`/categories/${category.slug}`}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-white border-2 border-indigo-200 text-indigo-700 rounded-full hover:bg-indigo-50 hover:border-indigo-400 hover:shadow-md transition-all font-medium"
-                >
-                  {category.name} <span className="text-indigo-400">({category.article_count})</span>
-                </Link>
-              ))}
+          <section className="relative py-16 overflow-hidden">
+            {/* Background Decoration */}
+            <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-indigo-100/50 rounded-full blur-3xl -z-10"></div>
+            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-purple-100/30 rounded-full blur-3xl -z-10"></div>
+
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
+                  Browse by Category
+                </h2>
+                <div className="w-20 h-1.5 bg-indigo-600 mx-auto rounded-full"></div>
+              </div>
+
+              <div className="flex flex-wrap gap-4 sm:gap-6 justify-center">
+                {categories.map((category: any) => (
+                  <Link
+                    key={category.id}
+                    href={`/categories/${category.slug}`}
+                    className="group relative px-6 sm:px-8 py-3 sm:py-4 bg-white/70 backdrop-blur-md border border-gray-200 rounded-2xl transition-all duration-300 hover:border-indigo-500 hover:shadow-[0_20px_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden"
+                  >
+                    {/* Hover Glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                    <div className="relative flex items-center gap-3">
+                      <span className="text-gray-900 font-bold text-lg sm:text-xl group-hover:text-indigo-600 transition-colors">
+                        {category.name}
+                      </span>
+                      <span className="flex items-center justify-center bg-gray-100 text-gray-500 text-xs font-black min-w-[28px] h-[28px] px-1.5 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                        {category.article_count}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
           </section>
         )}

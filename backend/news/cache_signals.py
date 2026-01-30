@@ -4,7 +4,7 @@ Cache invalidation signals for automatic cache clearing when data changes
 from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.dispatch import receiver
 from django.core.cache import cache
-from .models import Article, Category, Tag
+from .models import Article, Category, Tag, Rating, Comment
 
 
 @receiver([post_save, post_delete], sender=Article)
@@ -57,3 +57,26 @@ def invalidate_article_tags_cache(sender, instance, **kwargs):
         ])
         if hasattr(cache, 'delete_pattern'):
             cache.delete_pattern('article_list*')
+
+
+@receiver([post_save, post_delete], sender=Rating)
+def invalidate_article_on_rating(sender, instance, **kwargs):
+    """Clear article-related caches when a rating is added or changed"""
+    cache.delete_many([
+        f'article_{instance.article.id}',
+        f'article_{instance.article.slug}',
+        'trending_articles',
+    ])
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern('article_list*')
+
+
+@receiver([post_save, post_delete], sender=Comment)
+def invalidate_article_on_comment(sender, instance, **kwargs):
+    """Clear article-related caches when a comment is added or changed"""
+    cache.delete_many([
+        f'article_{instance.article.id}',
+        f'article_{instance.article.slug}',
+    ])
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern('article_list*')

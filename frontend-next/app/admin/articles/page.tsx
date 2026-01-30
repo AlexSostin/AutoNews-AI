@@ -11,6 +11,7 @@ interface Article {
   slug: string;
   category_name: string;
   is_published: boolean;
+  is_hero: boolean;
   created_at: string;
   average_rating: number;
 }
@@ -75,6 +76,24 @@ export default function ArticlesPage() {
     }
   };
 
+
+  const handleToggleHero = async (id: number, currentStatus: boolean) => {
+    try {
+      // Optimistic update
+      setArticles(articles.map(a =>
+        a.id === id ? { ...a, is_hero: !currentStatus } : a
+      ));
+
+      await api.patch(`/articles/${id}/`, { is_hero: !currentStatus });
+    } catch (error: any) {
+      console.error('Failed to update hero status:', error);
+      alert('Failed to update status: ' + (error.response?.data?.detail || error.message));
+      // Revert on error
+      setArticles(articles.map(a =>
+        a.id === id ? { ...a, is_hero: currentStatus } : a
+      ));
+    }
+  };
 
   const filteredArticles = articles.filter(article =>
     article.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -170,6 +189,9 @@ export default function ArticlesPage() {
                     Status
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                    Hero
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Rating
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
@@ -205,6 +227,22 @@ export default function ArticlesPage() {
                           : 'bg-amber-100 text-amber-700'
                           }`}>
                           {article.is_published ? 'Published' : 'Draft'}
+                        </span>
+                      </label>
+                    </td>
+                    <td className="px-6 py-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={article.is_hero || false}
+                          onChange={() => handleToggleHero(article.id, article.is_hero)}
+                          className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300"
+                        />
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${article.is_hero
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-gray-100 text-gray-400'
+                          }`}>
+                          {article.is_hero ? 'Active' : 'No'}
                         </span>
                       </label>
                     </td>

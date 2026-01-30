@@ -17,6 +17,7 @@ import ViewStats from '@/components/public/ViewStats';
 import ViewTracker from '@/components/public/ViewTracker';
 import PriceConverter from '@/components/public/PriceConverter';
 import JsonLd from '@/components/public/JsonLd';
+import RelatedCarousel from '@/components/public/RelatedCarousel';
 import { Article } from '@/types';
 import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
 
@@ -55,19 +56,6 @@ async function getArticle(slug: string): Promise<Article | null> {
   return res.json();
 }
 
-async function getRelatedArticles(categorySlug: string, currentSlug: string) {
-  const res = await fetch(`${getApiUrl()}/articles/?category=${categorySlug}&page_size=3`, {
-    cache: 'no-store'
-  });
-
-  if (!res.ok) {
-    return [];
-  }
-
-  const data = await res.json();
-  return data.results.filter((a: any) => a.slug !== currentSlug).slice(0, 3);
-}
-
 function formatDate(dateString: string) {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -84,10 +72,6 @@ export default async function ArticleDetailPage({
   if (!article) {
     notFound();
   }
-
-  const relatedArticles = article.category_slug
-    ? await getRelatedArticles(article.category_slug, article.slug)
-    : [];
 
   // Constants for URLs
   const PROD_MEDIA = 'https://heroic-healing-production-2365.up.railway.app';
@@ -252,37 +236,34 @@ export default async function ArticleDetailPage({
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="max-w-4xl mx-auto">
             {/* Main Content */}
-            <div className="lg:col-span-2">
+            <div className="space-y-8">
 
-              {/* Top Article Ad */}
-              <div className="mb-8 flex justify-center">
-                <AdBanner format="leaderboard" />
-              </div>
+              {/* Top Article Ad (Conditional - hidden for now) */}
+              <AdBanner format="leaderboard" />
 
               {/* Article Content */}
-              <div className="bg-white rounded-xl shadow-md p-8 mb-8">
+              <div className="bg-white rounded-xl shadow-md p-8">
                 <ArticleContentWithImages
                   content={articleContentHtml}
                   images={articleImages}
                 />
               </div>
 
-              {/* Mid Article Ad */}
-              <div className="mb-8 flex justify-center">
-                <AdBanner format="rectangle" />
-              </div>
-
-
+              {/* Mid Article Ad (Conditional - hidden for now) */}
+              <AdBanner format="rectangle" />
 
               {/* Video Screenshots Gallery */}
               {(article.image || article.image_2 || article.image_3) && (() => {
-                const imageCount = [article.thumbnail_url, article.image_2_url, article.image_3_url].filter(Boolean).length;
+                const imagesToCount = [article.thumbnail_url, article.image_2_url, article.image_3_url].filter(Boolean);
+                const imageCount = imagesToCount.length;
+                if (imageCount === 0) return null;
+
                 const gridCols = imageCount === 1 ? 'md:grid-cols-1 max-w-2xl mx-auto' : imageCount === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3';
 
                 return (
-                  <div className="bg-white rounded-xl shadow-md p-4 sm:p-8 mb-8">
+                  <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
                     <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Vehicle Gallery</h3>
 
                     {/* Mobile: Horizontal scroll slider */}
@@ -370,7 +351,7 @@ export default async function ArticleDetailPage({
 
               {/* YouTube Video */}
               {hasYoutubeVideo && (
-                <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+                <div className="bg-white rounded-xl shadow-md p-6">
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">Watch Video</h3>
                   <div className="relative aspect-video">
                     <iframe
@@ -386,7 +367,7 @@ export default async function ArticleDetailPage({
 
               {/* Car Specifications */}
               {article.specs && (
-                <div className="bg-white rounded-xl shadow-md p-8 mb-8">
+                <div className="bg-white rounded-xl shadow-md p-8">
                   <h3 className="text-2xl font-bold text-gray-900 mb-6">Specifications</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {article.specs.make && (
@@ -458,7 +439,7 @@ export default async function ArticleDetailPage({
 
               {/* Tags */}
               {article.tag_names && article.tag_names.length > 0 && (
-                <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+                <div className="bg-white rounded-xl shadow-md p-6">
                   <div className="flex items-center gap-3 flex-wrap">
                     <Tag size={20} className="text-indigo-600" />
                     {article.tag_names.map((tag: string) => (
@@ -474,53 +455,16 @@ export default async function ArticleDetailPage({
                 </div>
               )}
 
+              {/* Related Articles Carousel */}
+              {article.category_slug && (
+                <RelatedCarousel
+                  categorySlug={article.category_slug}
+                  currentArticleSlug={article.slug}
+                />
+              )}
+
               {/* Comments Section */}
               <CommentSection articleId={article.id} />
-            </div>
-
-            {/* Sidebar */}
-            <div className="lg:col-span-1 space-y-8">
-              {/* Sidebar Ad 1 */}
-              <div className="bg-white rounded-xl shadow-md p-4 flex justify-center sticky top-8">
-                <AdBanner format="rectangle" />
-              </div>
-
-              {/* Sidebar Ad 2 */}
-              <div className="bg-white rounded-xl shadow-md p-4 flex justify-center">
-                <AdBanner format="large-rectangle" />
-              </div>
-
-              {/* Related Articles */}
-              {relatedArticles.length > 0 && (
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-6">Related Articles</h3>
-                  <div className="space-y-6">{relatedArticles.map((related: any) => (
-                    <Link
-                      key={related.id}
-                      href={`/articles/${related.slug}`}
-                      className="block group"
-                    >
-                      <div className="relative h-32 mb-3 rounded-lg overflow-hidden">
-                        <Image
-                          src={fixUrl(related.image)}
-                          alt={related.title}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-300"
-                          unoptimized
-                        />
-                      </div>
-                      <h4 className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-2">
-                        {related.title}
-                      </h4>
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <Calendar size={14} />
-                        {formatDate(related.created_at)}
-                      </p>
-                    </Link>
-                  ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

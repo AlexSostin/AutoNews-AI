@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Facebook, Instagram, Youtube, Linkedin, Wrench, AlertTriangle } from 'lucide-react';
+import { Save, Facebook, Instagram, Youtube, Linkedin, Wrench, AlertTriangle, Eye } from 'lucide-react';
 import api from '@/lib/api';
 
 // Custom SVG Icons
@@ -65,6 +65,9 @@ export default function SettingsPage() {
     tiktok_enabled: false,
     telegram_url: '',
     telegram_enabled: false,
+    use_classic_hero: false,
+    hero_title: '',
+    hero_subtitle: '',
   });
 
   useEffect(() => {
@@ -115,6 +118,67 @@ export default function SettingsPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Hero Section Settings */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 rounded-lg bg-indigo-600 text-white">
+              <Eye size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Hero Section</h2>
+              <p className="text-sm text-gray-500">Configure the main homepage banner</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* Toggle Switch */}
+            <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+              <div>
+                <p className="font-bold text-gray-900">Classic Purple Hero</p>
+                <p className="text-sm text-gray-600">
+                  Switch back to the original purple welcome message instead of article slides
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.use_classic_hero}
+                  onChange={(e) => setFormData({ ...formData, use_classic_hero: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Hero Title</label>
+                <input
+                  type="text"
+                  value={formData.hero_title}
+                  onChange={(e) => setFormData({ ...formData, hero_title: e.target.value })}
+                  placeholder="Welcome to Fresh Motors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Hero Subtitle</label>
+                <textarea
+                  value={formData.hero_subtitle}
+                  onChange={(e) => setFormData({ ...formData, hero_subtitle: e.target.value })}
+                  rows={1}
+                  placeholder="Your premier source for automotive news..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900"
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 italic">
+              Note: When classic mode is OFF, the section will show articles marked as "Hero" in the Articles manager.
+            </p>
+          </div>
+        </div>
+
         {/* Maintenance Mode - Top Priority */}
         <div className={`rounded-lg shadow-md p-6 border-2 ${formData.maintenance_mode ? 'bg-orange-50 border-orange-400' : 'bg-white border-transparent'}`}>
           <div className="flex items-center gap-3 mb-4">

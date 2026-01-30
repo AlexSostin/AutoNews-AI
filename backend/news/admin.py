@@ -59,13 +59,13 @@ class ArticleImageInline(admin.TabularInline):
 
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
-    list_display = ('title', 'category', 'is_published', 'is_deleted', 'created_at', 'view_count')
+    list_display = ('title', 'category', 'is_published', 'is_hero', 'is_deleted', 'created_at', 'view_count')
     list_filter = ('is_published', 'is_deleted', 'category', 'created_at', 'updated_at')
     search_fields = ('title', 'content', 'summary', 'seo_title', 'seo_description')
     prepopulated_fields = {'slug': ('title',)}
     inlines = [CarSpecificationInline, ArticleImageInline]
     date_hierarchy = 'created_at'
-    list_editable = ('is_published',)
+    list_editable = ('is_published', 'is_hero')
     actions = ['publish_articles', 'unpublish_articles', 'soft_delete_articles', 'restore_articles', 'hard_delete_articles']
     readonly_fields = ('created_at', 'updated_at')
     
@@ -107,8 +107,8 @@ class ArticleAdmin(admin.ModelAdmin):
             'fields': ('seo_title', 'seo_description'),
             'classes': ('collapse',)
         }),
-        ('Publishing & Stats', {
-            'fields': ('is_published', 'views', 'created_at', 'updated_at')
+        ('Publishing & Hero Settings', {
+            'fields': ('is_published', 'is_hero', 'views', 'created_at', 'updated_at')
         })
     )
     
@@ -639,6 +639,10 @@ class PasswordResetTokenAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Site Information', {
             'fields': ('site_name', 'site_description', 'contact_email')
+        }),
+        ('Hero Section', {
+            'fields': ('use_classic_hero', 'hero_title', 'hero_subtitle'),
+            'description': 'Configure the main banner on the homepage.'
         }),
         ('Maintenance Mode', {
             'fields': ('maintenance_mode', 'maintenance_message'),

@@ -97,6 +97,7 @@ class ArticleImageSerializer(serializers.ModelSerializer):
 class ArticleListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for article lists"""
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_slug = serializers.CharField(source='category.slug', read_only=True)
     tag_names = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
@@ -107,10 +108,10 @@ class ArticleListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Article
-        fields = ['id', 'title', 'slug', 'summary', 'category', 'category_name',
+        fields = ['id', 'title', 'slug', 'summary', 'category', 'category_name', 'category_slug',
                   'tag_names', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'price_usd', 'average_rating', 'views',
-                  'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited']
+                  'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero']
     
     def get_tag_names(self, obj):
         return [tag.name for tag in obj.tags.all()]
@@ -147,6 +148,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
 class ArticleDetailSerializer(serializers.ModelSerializer):
     """Full serializer with all relations"""
     category = CategorySerializer(read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_slug = serializers.CharField(source='category.slug', read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), 
         source='category', 
@@ -172,10 +175,11 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
         fields = ['id', 'title', 'slug', 'content', 'summary', 'category', 'category_id',
+                  'category_name', 'category_slug',
                   'tags', 'tag_ids', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'youtube_url', 'price_usd', 'views', 
                   'car_specification', 'images', 'average_rating', 'rating_count',
-                  'created_at', 'updated_at', 'is_published', 'is_favorited']
+                  'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero']
         read_only_fields = ['slug', 'views', 'created_at', 'updated_at']
     
     def validate_image(self, value):
