@@ -53,34 +53,34 @@ export default async function RootLayout({
             </Script>
           </>
         )}
-        <script
+        <Script
+          id="adsense-init"
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1075473812019633"
           crossOrigin="anonymous"
+          strategy="afterInteractive"
         />
         {/* Restore auth cookies from localStorage before page load */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var accessToken = localStorage.getItem('access_token');
-                  var refreshToken = localStorage.getItem('refresh_token');
-                  var isSecure = location.protocol === 'https:';
-                  var secureFlag = isSecure ? '; Secure' : '';
-                  var maxAge = 7 * 24 * 60 * 60;
-                  
-                  if (accessToken && !document.cookie.includes('access_token=')) {
-                    document.cookie = 'access_token=' + accessToken + '; path=/; max-age=' + maxAge + '; SameSite=Lax' + secureFlag;
-                  }
-                  if (refreshToken && !document.cookie.includes('refresh_token=')) {
-                    document.cookie = 'refresh_token=' + refreshToken + '; path=/; max-age=' + maxAge + '; SameSite=Lax' + secureFlag;
-                  }
-                } catch(e) {}
-              })();
-            `,
-          }}
-        />
+        <Script id="auth-restore" strategy="beforeInteractive">
+          {`
+            (function() {
+              try {
+                var accessToken = localStorage.getItem('access_token');
+                var refreshToken = localStorage.getItem('refresh_token');
+                var isSecure = location.protocol === 'https:';
+                var secureFlag = isSecure ? '; Secure' : '';
+                var maxAge = 7 * 24 * 60 * 60;
+                
+                if (accessToken && !document.cookie.includes('access_token=')) {
+                  document.cookie = 'access_token=' + accessToken + '; path=/; max-age=' + maxAge + '; SameSite=Lax' + secureFlag;
+                }
+                if (refreshToken && !document.cookie.includes('refresh_token=')) {
+                  document.cookie = 'refresh_token=' + refreshToken + '; path=/; max-age=' + maxAge + '; SameSite=Lax' + secureFlag;
+                }
+              } catch(e) {}
+            })();
+          `}
+        </Script>
       </head>
       <body className="antialiased min-h-screen flex flex-col bg-gray-50">
         <Toaster
