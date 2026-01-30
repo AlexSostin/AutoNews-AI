@@ -301,10 +301,242 @@ See [AD_SETUP_GUIDE.md](AD_SETUP_GUIDE.md) for complete setup instructions.
 1. Change `SECRET_KEY` in `settings.py`
 2. Set `DEBUG = False`
 3. Configure `ALLOWED_HOSTS`
+### AI & Media Processing
+- **Groq API** - AI text generation (llama-3.3-70b-versatile)
+- **yt-dlp** - YouTube video/subtitle extraction
+- **FFmpeg 8.0.1** - Video screenshot extraction
+- **Gemini API** - Backup AI model
+
+### Frontend
+- **Bootstrap 5.3.0** - Responsive framework
+- **Font Awesome** - Icons (via CDN)
+- **Google Favicons API** - Social media icons
+- **Custom CSS** - Gradient themes and animations
+
+### Admin
+- **Django Jazzmin** - Beautiful admin interface
+- **Custom Admin Actions** - Generate articles directly from admin panel
+
+## 📋 Requirements
+
+- Python 3.13+
+- FFmpeg (for video processing)
+- Groq API Key (free tier available)
+- Optional: Gemini API Key (backup)
+
+## 🚀 Installation
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/yourusername/Auto_News.git
+cd Auto_News
+```
+
+### 2. Create Virtual Environment
+```bash
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # Linux/Mac
+```
+
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Install FFmpeg
+**Windows:**
+- Download from https://ffmpeg.org/download.html
+- Add to PATH
+
+**Linux:**
+```bash
+sudo apt install ffmpeg
+```
+
+**Mac:**
+```bash
+brew install ffmpeg
+```
+
+### 5. Configure API Keys
+Create `ai_engine/config.py`:
+```python
+GROQ_API_KEY = "your_groq_api_key_here"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+GEMINI_API_KEY = "your_gemini_api_key_here"  # Optional backup
+```
+
+**Get API Keys:**
+- Groq: https://console.groq.com/ (Free tier: 30 requests/minute)
+- Gemini: https://makersuite.google.com/app/apikey (Optional)
+
+### 6. Run Migrations
+```bash
+python manage.py migrate
+```
+
+### 7. Create Superuser
+```bash
+python manage.py createsuperuser
+```
+
+### 8. Create Categories and Tags
+```bash
+python create_categories.py
+python create_tags.py
+```
+
+### 9. Run Development Server
+```bash
+python manage.py runserver 8001
+```
+
+Visit: http://127.0.0.1:8001
+
+## 📖 Usage
+
+### Generate Article from Admin Panel
+1. Login to admin: http://127.0.0.1:8001/admin
+2. Go to **News → Articles**
+3. Click **"Add Article"**
+4. Paste YouTube URL in **"YouTube URL"** field
+5. Click **"Save"** - article generates automatically in ~15 seconds
+6. View published article on homepage
+
+### Generate Article from Command Line
+```bash
+python ai_engine/main.py "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+### Features Generated Automatically:
+✅ Article title (cleaned and formatted)  
+✅ Full article content (HTML formatted)  
+✅ 3 screenshots from video  
+✅ Car specifications (make, model, year, horsepower, etc.)  
+✅ Category assignment  
+✅ Tag assignment  
+✅ SEO-friendly slug  
+
+## 📁 Project Structure
+
+```
+Auto_News/
+├── ai_engine/              # AI article generation engine
+│   ├── config.py          # API keys configuration
+│   ├── main.py            # Main orchestrator
+│   └── modules/
+│       ├── downloader.py  # YouTube download & screenshot extraction
+│       ├── transcriber.py # Subtitle extraction
+│       ├── analyzer.py    # Car spec extraction
+│       ├── article_generator.py  # AI article generation
+│       ├── publisher.py   # Database publication
+│       └── utils.py       # Helper functions
+├── auto_news_site/        # Django project settings
+├── news/                  # Main Django app
+│   ├── models.py         # Article, Category, Tag, Comment, Rating, CarSpec
+│   ├── views.py          # All page views
+│   ├── admin.py          # Admin interface with AI integration
+│   └── urls.py           # URL routing
+├── templates/             # HTML templates
+│   ├── base.html         # Base template with header/footer
+│   ├── news/
+│   │   ├── home.html     # Homepage with hero section
+│   │   ├── article_detail.html  # Article page with all features
+│   │   ├── privacy.html  # Privacy policy
+│   │   └── contact.html  # Contact page
+│   └── ads/              # Ad templates
+├── static/               # CSS, JS, images
+├── media/                # Uploaded images
+├── requirements.txt     # Python dependencies
+└── README.md           # This file
+```
+
+## 🎨 Customization
+
+### Change Theme Colors
+Edit `templates/base.html` and search for gradient colors:
+```css
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+```
+Replace with your colors.
+
+### Add More Categories
+Edit `create_categories.py` and run:
+```bash
+python create_categories.py
+```
+
+### Modify AI Prompts
+Edit prompts in:
+- `ai_engine/modules/article_generator.py` - Article generation
+- `ai_engine/modules/analyzer.py` - Specification extraction
+
+### Configure Ad Placements
+1. Get AdSense code from https://www.google.com/adsense
+2. Edit templates in `templates/ads/`
+3. See `AD_SETUP_GUIDE.md` for detailed instructions
+
+## 💰 Monetization
+
+The platform is **monetization-ready** with:
+- **5 ad positions** pre-configured
+- **Automatic in-content ads** (JavaScript injection)
+- **AdSense guide** with revenue estimates
+
+**Estimated Revenue** (Google AdSense):
+- 10k visitors/month: $50-150
+- 50k visitors/month: $300-800
+
+See [AD_SETUP_GUIDE.md](AD_SETUP_GUIDE.md) for complete setup instructions.
+
+## 🔒 Security Notes
+
+**Before Production:**
+1. Change `SECRET_KEY` in `settings.py`
+2. Set `DEBUG = False`
+3. Configure `ALLOWED_HOSTS`
 4. Use PostgreSQL instead of SQLite
 5. Set up HTTPS/SSL
 6. Never commit `config.py` with API keys
 7. Use environment variables for secrets
+
+## 💾 Database Backups
+
+For production safety, always ensure you have a backup strategy.
+
+### 1. Railway Automatic Backups
+Railway provides automatic daily backups for PostgreSQL. Visit your Railway dashboard → Database → Backups to configure.
+
+### 2. Manual Daily Backups
+You can use the provided script to save a local copy of your data:
+
+```bash
+cd backend
+chmod +x scripts/backup_production.sh
+./scripts/backup_production.sh "your_database_url"
+```
+
+The script will create a compressed `.sql.gz` file in the `backend/backups/` directory.
+
+### 3. Media Files
+All media files are stored on **Cloudinary**. They are safe from server redeploys. To backup media, use the Cloudinary export tool.
+
+## 🚀 Production Polish (10/10 Readiness)
+
+The project includes:
+- **SEO Microdata**: JSON-LD and Schema.org for all articles.
+- **Frontend Stability**: React Error Boundaries to prevent UI crashes.
+- **Analytics**: GA4 integration manageable from the admin panel.
+- **Error Tracking**: Sentry integrated for real-time error monitoring.
+- **Security**: HTTPS, Secure Cookies, HSTS, and Rate Limiting.
+
+---
+
+Made with ❤️ for automotive enthusiasts
+
+**Star ⭐ this repo if you find it useful!**
+# Railway rebuild trigger 1769536543
 
 ## 📄 License
 

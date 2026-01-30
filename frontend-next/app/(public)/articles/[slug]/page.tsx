@@ -16,6 +16,7 @@ import ReadingTime from '@/components/public/ReadingTime';
 import ViewStats from '@/components/public/ViewStats';
 import ViewTracker from '@/components/public/ViewTracker';
 import PriceConverter from '@/components/public/PriceConverter';
+import JsonLd from '@/components/public/JsonLd';
 import { Article } from '@/types';
 import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
 
@@ -119,8 +120,38 @@ export default async function ArticleDetailPage({
     article.image_3_url || article.image_3
   ].filter((url): url is string => Boolean(url)).map(url => fixUrl(url));
 
+  // JSON-LD data for SEO
+  const jsonLdData = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": article.title,
+    "description": article.summary,
+    "image": articleImages,
+    "datePublished": article.created_at,
+    "dateModified": article.updated_at || article.created_at,
+    "author": {
+      "@type": "Person",
+      "name": article.author || "Fresh Motors Team"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Fresh Motors",
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.png`
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": fullUrl
+    }
+  };
+
   return (
     <>
+      {/* JSON-LD Microdata */}
+      <JsonLd data={jsonLdData} />
+
       {/* Track page view */}
       <ViewTracker articleSlug={article.slug} />
 
