@@ -50,14 +50,14 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) return;
-      
+
       const apiUrl = getApiUrl();
       const response = await fetch(`${apiUrl}/notifications/?limit=10`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setNotifications(data.notifications || []);
@@ -73,7 +73,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) return;
-      
+
       const apiUrl = getApiUrl();
       await fetch(`${apiUrl}/notifications/${id}/mark_read/`, {
         method: 'POST',
@@ -81,8 +81,8 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
-      setNotifications(prev => 
+
+      setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, is_read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
@@ -97,7 +97,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
       setLoading(true);
       const token = localStorage.getItem('access_token');
       if (!token) return;
-      
+
       const apiUrl = getApiUrl();
       await fetch(`${apiUrl}/notifications/mark_all_read/`, {
         method: 'POST',
@@ -105,7 +105,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
     } catch (error) {
@@ -145,8 +145,8 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
-      <div className="flex items-center justify-between">
+    <header className="bg-white shadow-sm border-b border-gray-200 py-3 sm:py-4">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Mobile Menu Button */}
           <button
@@ -155,16 +155,16 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
           >
             <Menu size={24} />
           </button>
-          
+
           <h1 className="text-lg sm:text-xl md:text-2xl font-black text-gray-950">
             Admin Dashboard
           </h1>
         </div>
-        
+
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Notifications */}
           <div className="relative" ref={dropdownRef}>
-            <button 
+            <button
               onClick={() => {
                 setIsOpen(!isOpen);
                 if (!isOpen) fetchNotifications();
@@ -179,7 +179,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                 </span>
               )}
             </button>
-            
+
             {/* Notifications Dropdown */}
             {isOpen && (
               <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[80vh] overflow-hidden">
@@ -205,7 +205,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Notifications List */}
                 <div className="overflow-y-auto max-h-[60vh]">
                   {notifications.length === 0 ? (
@@ -219,9 +219,8 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                       <div
                         key={notification.id}
                         onClick={() => handleNotificationClick(notification)}
-                        className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${priorityColors[notification.priority]} ${
-                          !notification.is_read ? 'bg-blue-50/50' : ''
-                        }`}
+                        className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${priorityColors[notification.priority]} ${!notification.is_read ? 'bg-blue-50/50' : ''
+                          }`}
                       >
                         <div className="flex items-start gap-3">
                           <div className="mt-0.5">
@@ -248,7 +247,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                     ))
                   )}
                 </div>
-                
+
                 {/* Footer */}
                 {notifications.length > 0 && (
                   <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
@@ -263,12 +262,12 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
               </div>
             )}
           </div>
-          
+
           <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-full">
             <User size={20} className="text-gray-800" />
             <span className="font-bold text-gray-900">Admin</span>
           </div>
-          
+
           {/* Mobile User Icon */}
           <div className="sm:hidden p-2 bg-gray-100 rounded-full">
             <User size={18} className="text-gray-800" />

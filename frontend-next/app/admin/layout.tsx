@@ -13,10 +13,17 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
+    // Load sidebar state from localStorage
+    const savedState = localStorage.getItem('adminSidebarCollapsed');
+    if (savedState === 'true') {
+      setIsCollapsed(true);
+    }
+
     // Check if user is authenticated and is staff
     const checkAuth = () => {
       if (!isAuthenticated()) {
@@ -36,6 +43,12 @@ export default function AdminLayout({
     checkAuth();
   }, [router]);
 
+  const toggleSidebar = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem('adminSidebarCollapsed', String(newState));
+  };
+
   if (!authorized) {
     return (
       <div className="flex min-h-screen bg-gray-100 items-center justify-center">
@@ -46,10 +59,15 @@ export default function AdminLayout({
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col w-full lg:w-auto">
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={isCollapsed}
+        onToggle={toggleSidebar}
+      />
+      <div className="flex-1 flex flex-col min-w-0">
         <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-3 sm:p-4 md:p-6">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 transition-all duration-300">
           {children}
         </main>
       </div>
