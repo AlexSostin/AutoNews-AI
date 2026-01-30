@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import re
+import requests
 
 # Add ai_engine directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -389,12 +390,12 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
     existing = Article.objects.filter(youtube_url=youtube_url).exists()
     if existing:
         print(f"Skipping {youtube_url} - already exists")
-        return {'success': False, 'reason': 'exists'}
+        return {'success': False, 'reason': 'exists', 'error': 'Article already exists in the database'}
         
     # 2. Check if already pending
     if PendingArticle.objects.filter(video_id=video_id).exists():
         print(f"Skipping {youtube_url} - already pending")
-        return {'success': False, 'reason': 'pending'}
+        return {'success': False, 'reason': 'pending', 'error': 'Article is already in the pending queue'}
     
     # 3. Generate content
     result = _generate_article_content(youtube_url, task_id=None, provider=provider, video_title=video_title)
