@@ -23,12 +23,48 @@ export default function CookieConsent() {
   });
 
   useEffect(() => {
+    // Smart Control: Check if Google AdSense CMP (Funding Choices) is present
+    const checkForGoogleCMP = () => {
+      if (typeof window !== 'undefined') {
+        const isGoogleCMPPresent = !!(window as any).googlefc ||
+          !!document.querySelector('.google-ads-privacymessage') ||
+          !!(window as any).__tcfapi;
+
+        if (isGoogleCMPPresent) {
+          setIsVisible(false);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Initial check
+    if (checkForGoogleCMP()) return;
+
+    // Check periodically for the first 5 seconds as the script loads async
+    const interval = setInterval(() => {
+      if (checkForGoogleCMP()) {
+        clearInterval(interval);
+      }
+    }, 500);
+
+    const timeout = setTimeout(() => clearInterval(interval), 5000);
+
     // Check if user has already consented
     const consent = localStorage.getItem(CONSENT_KEY);
     if (!consent) {
       // Small delay for better UX
-      const timer = setTimeout(() => setIsVisible(true), 1000);
-      return () => clearTimeout(timer);
+      const timer = setTimeout(() => {
+        // Double check CMP before showing
+        if (!checkForGoogleCMP()) {
+          setIsVisible(true);
+        }
+      }, 1500);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(timeout);
+        clearInterval(interval);
+      };
     } else {
       // Load saved settings
       const savedSettings = localStorage.getItem(CONSENT_SETTINGS_KEY);
@@ -36,6 +72,11 @@ export default function CookieConsent() {
         setSettings(JSON.parse(savedSettings));
       }
     }
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
   }, []);
 
   const saveConsent = (consentSettings: ConsentSettings) => {
@@ -43,12 +84,12 @@ export default function CookieConsent() {
     localStorage.setItem(CONSENT_SETTINGS_KEY, JSON.stringify(consentSettings));
     setSettings(consentSettings);
     setIsVisible(false);
-    
+
     // Trigger analytics if accepted
     if (consentSettings.analytics && typeof window !== 'undefined') {
       // Dispatch event for analytics scripts
-      window.dispatchEvent(new CustomEvent('cookieConsentGranted', { 
-        detail: consentSettings 
+      window.dispatchEvent(new CustomEvent('cookieConsentGranted', {
+        detail: consentSettings
       }));
     }
   };
@@ -79,11 +120,11 @@ export default function CookieConsent() {
   return (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9998]"
-        onClick={() => {}} // Prevent closing on backdrop click
+        onClick={() => { }} // Prevent closing on backdrop click
       />
-      
+
       {/* Main Banner */}
       <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
@@ -106,8 +147,8 @@ export default function CookieConsent() {
               {!showSettings ? (
                 <>
                   <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-                    We use cookies to enhance your browsing experience, analyze site traffic, 
-                    and personalize content. By clicking "Accept All", you consent to our use 
+                    We use cookies to enhance your browsing experience, analyze site traffic,
+                    and personalize content. By clicking "Accept All", you consent to our use
                     of cookies. You can customize your preferences or reject non-essential cookies.
                   </p>
 
@@ -173,9 +214,8 @@ export default function CookieConsent() {
                       <div className="ml-4">
                         <button
                           onClick={() => setSettings({ ...settings, analytics: !settings.analytics })}
-                          className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${
-                            settings.analytics ? 'bg-purple-600 justify-end' : 'bg-gray-600 justify-start'
-                          }`}
+                          className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${settings.analytics ? 'bg-purple-600 justify-end' : 'bg-gray-600 justify-start'
+                            }`}
                         >
                           <div className="w-5 h-5 bg-white rounded-full shadow" />
                         </button>
@@ -193,9 +233,8 @@ export default function CookieConsent() {
                       <div className="ml-4">
                         <button
                           onClick={() => setSettings({ ...settings, marketing: !settings.marketing })}
-                          className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${
-                            settings.marketing ? 'bg-purple-600 justify-end' : 'bg-gray-600 justify-start'
-                          }`}
+                          className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${settings.marketing ? 'bg-purple-600 justify-end' : 'bg-gray-600 justify-start'
+                            }`}
                         >
                           <div className="w-5 h-5 bg-white rounded-full shadow" />
                         </button>
