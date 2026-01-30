@@ -24,20 +24,24 @@ export default function AdInjector({ contentId }: AdInjectorProps) {
   }, []);
 
   useEffect(() => {
+    // Ad injection disabled in favor of Google Auto Ads
+    return;
+    /*
     const articleContent = document.getElementById(contentId);
     if (!articleContent) return;
+    */
 
     // Find all h2 headings
     const headings = articleContent.querySelectorAll('h2');
-    
+
     if (headings.length < 2) return; // Need at least 2 sections
 
     // Mobile: insert after every 2nd h2 (indices 1, 3, 5, 7...)
     // Desktop: insert after 2nd and 4th h2 (indices 1, 3)
-    const insertAfter = isMobile 
+    const insertAfter = isMobile
       ? Array.from({ length: Math.floor(headings.length / 2) }, (_, i) => i * 2 + 1)
       : [1, 3];
-    
+
     let insertedCount = 0;
     const maxAds = isMobile ? 4 : 2; // More ads on mobile
 
@@ -45,7 +49,7 @@ export default function AdInjector({ contentId }: AdInjectorProps) {
       if (insertAfter.includes(index) && insertedCount < maxAds) {
         // Find next sibling or end of section
         let insertPoint = heading.nextElementSibling;
-        
+
         // Skip one paragraph after heading
         if (insertPoint && insertPoint.tagName === 'P') {
           insertPoint = insertPoint.nextElementSibling;

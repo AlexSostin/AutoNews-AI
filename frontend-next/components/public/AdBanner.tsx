@@ -7,13 +7,13 @@ interface AdBannerProps {
   responsive?: boolean;
 }
 
-export default function AdBanner({ 
-  slot = 'ad-slot', 
+export default function AdBanner({
+  slot = 'ad-slot',
   format = 'rectangle',
   className = '',
-  responsive = true 
+  responsive = true
 }: AdBannerProps) {
-  
+
   const sizeClasses = {
     'leaderboard': 'w-full h-[90px] max-w-[728px]', // 728x90
     'rectangle': 'w-full h-[250px] max-w-[300px]', // 300x250
@@ -23,6 +23,10 @@ export default function AdBanner({
     'half-page': 'w-full h-[600px] max-w-[300px]', // 300x600
   };
 
+  // Placeholder is hidden until actual ad slot is configured
+  return null;
+
+  /* Original placeholder UI - kept for future reference
   return (
     <div className={`flex items-center justify-center bg-gray-100 border border-gray-200 rounded-lg overflow-hidden ${sizeClasses[format]} ${className}`}>
       <div className="text-center p-4">
@@ -36,10 +40,10 @@ export default function AdBanner({
           {format === 'half-page' && '300 × 600'}
         </div>
         <div className="text-xs text-gray-400 mt-2">
-          {/* You can replace this with actual ad code (Google AdSense, etc.) */}
           Ad Space
         </div>
       </div>
     </div>
   );
+  */
 }

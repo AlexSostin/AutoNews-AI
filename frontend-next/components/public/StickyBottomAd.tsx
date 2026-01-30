@@ -5,7 +5,8 @@ import { X } from 'lucide-react';
 import AdBanner from './AdBanner';
 
 export default function StickyBottomAd() {
-  const [isVisible, setIsVisible] = useState(true);
+  // Hidden until actual ad is configured
+  return null;
 
   if (!isVisible) return null;
 
