@@ -76,5 +76,9 @@ htmlcov/
 backup_*.json
 
 # Logs
-logs/
 *.log
+logs/
+
+# Secrets
+*key.json
+backend/gsc_key.json

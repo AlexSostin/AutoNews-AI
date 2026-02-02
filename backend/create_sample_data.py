@@ -13,14 +13,14 @@ def create_sample_data():
     print("Creating sample data...")
 
     # Categories
-    cat_news, _ = Category.objects.get_or_create(name="News")
-    cat_reviews, _ = Category.objects.get_or_create(name="Reviews")
-    cat_evs, _ = Category.objects.get_or_create(name="EVs")
+    cat_news, _ = Category.objects.get_or_create(slug="news", defaults={"name": "News"})
+    cat_reviews, _ = Category.objects.get_or_create(slug="reviews", defaults={"name": "Reviews"})
+    cat_evs, _ = Category.objects.get_or_create(slug="evs", defaults={"name": "EVs"})
 
     # Tags
-    tag_tesla, _ = Tag.objects.get_or_create(name="Tesla")
-    tag_concept, _ = Tag.objects.get_or_create(name="Concept")
-    tag_suv, _ = Tag.objects.get_or_create(name="SUV")
+    tag_tesla, _ = Tag.objects.get_or_create(slug="tesla", defaults={"name": "Tesla"})
+    tag_concept, _ = Tag.objects.get_or_create(slug="concept", defaults={"name": "Concept"})
+    tag_suv, _ = Tag.objects.get_or_create(slug="suv", defaults={"name": "SUV"})
 
     # Articles
     # 1. Tesla Article

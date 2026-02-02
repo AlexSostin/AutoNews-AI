@@ -34,9 +34,10 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     print(f"📤 Publishing article: {title} (Published: {is_published})")
     
     # Get or Create Category
+    cat_slug = slugify(category_name)
     category, created = Category.objects.get_or_create(
-        name=category_name,
-        defaults={'slug': slugify(category_name)}
+        slug=cat_slug,
+        defaults={'name': category_name}
     )
     if created:
         print(f"  ✓ Created new category: {category_name}")
@@ -167,17 +168,19 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     # Save car specifications
     if specs and specs.get('make') != 'Not specified':
         try:
-            car_spec = CarSpecification.objects.create(
+            car_spec, _ = CarSpecification.objects.update_or_create(
                 article=article,
-                make=specs.get('make', ''),
-                model=specs.get('model', ''),
-                year=specs.get('year'),
-                engine_type=specs.get('engine', ''),
-                horsepower=specs.get('horsepower'),
-                torque=specs.get('torque', ''),
-                zero_to_sixty=specs.get('acceleration', ''),
-                top_speed=specs.get('top_speed', ''),
-                price=specs.get('price', ''),
+                defaults={
+                    'make': specs.get('make', ''),
+                    'model': specs.get('model', ''),
+                    'year': specs.get('year'),
+                    'engine_type': specs.get('engine', ''),
+                    'horsepower': specs.get('horsepower'),
+                    'torque': specs.get('torque', ''),
+                    'zero_to_sixty': specs.get('acceleration', ''),
+                    'top_speed': specs.get('top_speed', ''),
+                    'price': specs.get('price', ''),
+                }
             )
             print(f"  ✓ Car specs saved: {specs['make']} {specs['model']}")
         except Exception as e:

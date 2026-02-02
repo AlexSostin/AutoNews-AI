@@ -3,7 +3,9 @@ import sys
 import django
 
 # Setup Django
-sys.path.append('c:/Projects/Auto_News')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.append(BASE_DIR)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
 django.setup()
 
@@ -23,7 +25,7 @@ categories = [
 ]
 
 for name, slug in categories:
-    cat, created = Category.objects.get_or_create(name=name, defaults={'slug': slug})
+    cat, created = Category.objects.get_or_create(slug=slug, defaults={'name': name})
     if created:
         print(f'✅ Created: {name}')
     else:

@@ -1876,9 +1876,10 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             if pending.tags and isinstance(pending.tags, list):
                 try:
                     for tag_name in pending.tags:
+                        tag_slug = slugify(tag_name)
                         tag, _ = Tag.objects.get_or_create(
-                            name=tag_name, 
-                            defaults={'slug': slugify(tag_name)}
+                            slug=tag_slug, 
+                            defaults={'name': tag_name}
                         )
                         article.tags.add(tag)
                     print(f"  Restored {len(pending.tags)} tags")
@@ -1890,15 +1891,17 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 try:
                     specs = pending.specs
                     if specs.get('make') != 'Not specified':
-                        CarSpecification.objects.create(
+                        CarSpecification.objects.update_or_create(
                             article=article,
-                            model_name=f"{specs.get('make', '')} {specs.get('model', '')}",
-                            engine=specs.get('engine', ''),
-                            horsepower=str(specs.get('horsepower', '')),
-                            torque=specs.get('torque', ''),
-                            zero_to_sixty=specs.get('acceleration', ''),
-                            top_speed=specs.get('top_speed', ''),
-                            price=specs.get('price', ''),
+                            defaults={
+                                'model_name': f"{specs.get('make', '')} {specs.get('model', '')}",
+                                'engine': specs.get('engine', ''),
+                                'horsepower': str(specs.get('horsepower', '')),
+                                'torque': specs.get('torque', ''),
+                                'zero_to_sixty': specs.get('acceleration', ''),
+                                'top_speed': specs.get('top_speed', ''),
+                                'price': specs.get('price', ''),
+                            }
                         )
                         print("  Restored CarSpecification")
                 except Exception as e:

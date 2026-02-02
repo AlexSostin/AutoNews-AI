@@ -287,7 +287,7 @@ class ArticleAdmin(admin.ModelAdmin):
                         slug=slug,
                         summary=summary[:300],  # Limit summary length
                         content=article_html,
-                        category=category if category else Category.objects.get_or_create(name=cat_name, defaults={'slug': 'reviews'})[0],
+                        category=category if category else Category.objects.get_or_create(slug='reviews', defaults={'name': 'Reviews'})[0],
                         price_usd=price_usd,  # Add extracted price
                         is_published=False  # Save as draft
                     )
