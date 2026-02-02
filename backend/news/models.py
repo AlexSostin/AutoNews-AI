@@ -153,9 +153,9 @@ class Article(models.Model):
     slug = models.SlugField(blank=True, max_length=250, db_index=True)
     summary = models.TextField(blank=True, help_text="Short description for list view")
     content = models.TextField()
-    image = models.ImageField(upload_to='articles/', blank=True, null=True, help_text="Main featured image (screenshot 1)")
-    image_2 = models.ImageField(upload_to='articles/', blank=True, null=True, help_text="Screenshot 2 from video")
-    image_3 = models.ImageField(upload_to='articles/', blank=True, null=True, help_text="Screenshot 3 from video")
+    image = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Main featured image (screenshot 1)")
+    image_2 = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Screenshot 2 from video")
+    image_3 = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Screenshot 3 from video")
     youtube_url = models.URLField(blank=True, help_text="YouTube video URL for AI generation")
     
     # Price field (in USD, converted to other currencies on frontend)
@@ -295,7 +295,7 @@ class Rating(models.Model):
 
 class ArticleImage(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='gallery')
-    image = models.ImageField(upload_to='gallery/', help_text="Additional images for gallery")
+    image = models.ImageField(upload_to='gallery/', max_length=255, help_text="Additional images for gallery")
     caption = models.CharField(max_length=200, blank=True, help_text="Image caption/description")
     order = models.IntegerField(default=0, help_text="Display order")
     created_at = models.DateTimeField(auto_now_add=True)
