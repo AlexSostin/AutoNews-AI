@@ -713,7 +713,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
         logger.debug(f"Rating attempt - Article: {article.id}, Fingerprint hash: {fingerprint[:8]}...")
         
         # Check if user already rated (by fingerprint)
-        existing_rating = Rating.objects.filter(article=article, ip_address=fingerprint).first()
+        # Standards: If user is authenticated, use user ID as primary key for uniqueness
+        if request.user.is_authenticated:
+            existing_rating = Rating.objects.filter(article=article, user=request.user).first()
+        else:
+            existing_rating = Rating.objects.filter(article=article, ip_address=fingerprint).first()
         
         if existing_rating:
             # Update existing rating
@@ -726,6 +730,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             try:
                 rating_obj = Rating.objects.create(
                     article=article,
+                    user=request.user if request.user.is_authenticated else None,
                     rating=rating_int,
                     ip_address=fingerprint
                 )
@@ -738,6 +743,15 @@ class ArticleViewSet(viewsets.ModelViewSet):
         
         # Recalculate average
         article.refresh_from_db()
+        
+        # CLEAR CACHE to ensure average rating is updated for anonymous users immediately
+        # This fixes the bug where rating resets to 0.0 on refresh
+        try:
+            from django.core.cache import cache
+            cache.clear() # Simplest way to ensure all lists and details are fresh
+            logger.info(f"Cache cleared after rating article: {article.id}")
+        except Exception as e:
+            logger.error(f"Failed to clear cache: {e}")
         
         return Response({
             'average_rating': article.average_rating(),
@@ -793,6 +807,12 @@ class ArticleViewSet(viewsets.ModelViewSet):
             # Sync to database every 10 views (reduces DB writes)
             if new_count % 10 == 0:
                 Article.objects.filter(id=article.id).update(views=new_count)
+                # Clear cache so the new view count is visible
+                try:
+                    from django.core.cache import cache
+                    cache.clear()
+                except Exception:
+                    pass
             
             return Response({'views': new_count})
         except Exception:

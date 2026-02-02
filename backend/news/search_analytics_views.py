@@ -89,8 +89,9 @@ class AnalyticsOverviewAPIView(APIView):
     
     def get(self, request):
         # Total counts
-        total_articles = Article.objects.filter(is_published=True, is_deleted=False).count()
-        total_views = Article.objects.filter(is_published=True, is_deleted=False).aggregate(Sum('views'))['views__sum'] or 0
+        published_articles = Article.objects.filter(is_published=True, is_deleted=False)
+        total_articles = published_articles.count()
+        total_views = published_articles.aggregate(Sum('views'))['views__sum'] or 0
         total_comments = Comment.objects.filter(is_approved=True).count()
         total_subscribers = Subscriber.objects.filter(is_active=True).count()
         
@@ -99,20 +100,51 @@ class AnalyticsOverviewAPIView(APIView):
         last_30_days = now - timedelta(days=30)
         prev_30_days = now - timedelta(days=60)
         
+        # 1. Articles Growth
         articles_last_30 = Article.objects.filter(created_at__gte=last_30_days, is_published=True).count()
         articles_prev_30 = Article.objects.filter(created_at__gte=prev_30_days, created_at__lt=last_30_days, is_published=True).count()
-        
         articles_growth = 0
         if articles_prev_30 > 0:
             articles_growth = round(((articles_last_30 - articles_prev_30) / articles_prev_30) * 100, 1)
+        elif articles_last_30 > 0:
+            articles_growth = 100.0
+
+        # 2. Views Growth
+        views_last_30 = Article.objects.filter(created_at__gte=last_30_days, is_published=True).aggregate(Sum('views'))['views__sum'] or 0
+        views_prev_30 = Article.objects.filter(created_at__gte=prev_30_days, created_at__lt=last_30_days, is_published=True).aggregate(Sum('views'))['views__sum'] or 0
+        views_growth = 0
+        if views_prev_30 > 0:
+            views_growth = round(((views_last_30 - views_prev_30) / views_prev_30) * 100, 1)
+        elif views_last_30 > 0:
+            views_growth = 100.0
+
+        # 3. Comments Growth
+        comments_last_30 = Comment.objects.filter(created_at__gte=last_30_days, is_approved=True).count()
+        comments_prev_30 = Comment.objects.filter(created_at__gte=prev_30_days, created_at__lt=last_30_days, is_approved=True).count()
+        comments_growth = 0
+        if comments_prev_30 > 0:
+            comments_growth = round(((comments_last_30 - comments_prev_30) / comments_prev_30) * 100, 1)
+        elif comments_last_30 > 0:
+            comments_growth = 100.0
+
+        # 4. Subscribers Growth
+        subs_last_30 = Subscriber.objects.filter(created_at__gte=last_30_days, is_active=True).count()
+        subs_prev_30 = Subscriber.objects.filter(created_at__gte=prev_30_days, created_at__lt=last_30_days, is_active=True).count()
+        subs_growth = 0
+        if subs_prev_30 > 0:
+            subs_growth = round(((subs_last_30 - subs_prev_30) / subs_prev_30) * 100, 1)
+        elif subs_last_30 > 0:
+            subs_growth = 100.0
         
         return Response({
             'total_articles': total_articles,
             'total_views': total_views,
             'total_comments': total_comments,
             'total_subscribers': total_subscribers,
-            'articles_last_30_days': articles_last_30,
-            'articles_growth_percent': articles_growth
+            'articles_growth': articles_growth,
+            'views_growth': views_growth,
+            'comments_growth': comments_growth,
+            'subscribers_growth': subs_growth,
         })
 
 
@@ -201,3 +233,73 @@ class AnalyticsCategoriesAPIView(APIView):
         }
         
         return Response(data)
+
+class GSCAnalyticsAPIView(APIView):
+    """
+    Search Console analytics for the dashboard
+    GET /api/v1/analytics/gsc/?days=30
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from news.models import GSCReport, ArticleGSCStats
+        days = int(request.GET.get('days', 30))
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=days)
+
+        # 1. Site-wide timeline
+        reports = GSCReport.objects.filter(
+            date__gte=start_date,
+            date__lte=end_date
+        ).order_by('date')
+
+        labels = []
+        clicks_data = []
+        impressions_data = []
+        
+        # Create full range
+        date_map = {r.date: r for r in reports}
+        for i in range(days + 1):
+            curr_date = start_date + timedelta(days=i)
+            labels.append(curr_date.strftime('%Y-%m-%d'))
+            report = date_map.get(curr_date)
+            clicks_data.append(report.clicks if report else 0)
+            impressions_data.append(report.impressions if report else 0)
+
+        # 2. Key Metrics Summary (Last 7 days vs previous 7 days)
+        last_7_end = end_date - timedelta(days=2) # Latest data
+        last_7_start = last_7_end - timedelta(days=7)
+        prev_7_end = last_7_start
+        prev_7_start = prev_7_end - timedelta(days=7)
+
+        def get_summary(start, end):
+            stats = GSCReport.objects.filter(date__gte=start, date__lte=end).aggregate(
+                Sum('clicks'), Sum('impressions'), Sum('position')
+            )
+            count = GSCReport.objects.filter(date__gte=start, date__lte=end).count()
+            
+            clicks = stats['clicks__sum'] or 0
+            impressions = stats['impressions__sum'] or 0
+            ctr = (clicks / impressions * 100) if impressions > 0 else 0
+            avg_pos = (stats['position__sum'] / count) if count > 0 else 0
+            
+            return {
+                'clicks': clicks,
+                'impressions': impressions,
+                'ctr': round(ctr, 2),
+                'position': round(avg_pos, 1)
+            }
+
+        current_summary = get_summary(last_7_start, last_7_end)
+        previous_summary = get_summary(prev_7_start, prev_7_end)
+
+        return Response({
+            'timeline': {
+                'labels': labels,
+                'clicks': clicks_data,
+                'impressions': impressions_data,
+            },
+            'summary': current_summary,
+            'previous_summary': previous_summary,
+            'last_sync': GSCReport.objects.order_by('-updated_at').first().updated_at.isoformat() if reports.exists() else None
+        })

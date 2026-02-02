@@ -158,6 +158,7 @@ export default function Hero({ articles, settings }: HeroProps) {
                             fill
                             className="object-cover"
                             priority={index === 0}
+                            loading={index === 0 ? "eager" : "lazy"}
                             unoptimized
                         />
                         {/* Progressive Gradient Overlay: Ensures text readability while keeping car visible */}

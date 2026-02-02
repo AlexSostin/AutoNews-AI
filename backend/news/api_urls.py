@@ -52,7 +52,7 @@ from .api_views import (
 )
 from .search_analytics_views import (
     SearchAPIView, AnalyticsOverviewAPIView, AnalyticsTopArticlesAPIView,
-    AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView
+    AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView, GSCAnalyticsAPIView
 )
 
 urlpatterns = [
@@ -89,6 +89,7 @@ urlpatterns = [
     path('analytics/articles/top/', AnalyticsTopArticlesAPIView.as_view(), name='analytics_top_articles'),
     path('analytics/views/timeline/', AnalyticsViewsTimelineAPIView.as_view(), name='analytics_timeline'),
     path('analytics/categories/', AnalyticsCategoriesAPIView.as_view(), name='analytics_categories'),
+    path('analytics/gsc/', GSCAnalyticsAPIView.as_view(), name='analytics_gsc'),
     
     # API endpoints
     path('', include(router.urls)),

@@ -193,13 +193,21 @@ class Article(models.Model):
         ]
     
     def save(self, *args, **kwargs):
-        # Optimize images before saving (skip if already optimized)
-        # Disabled for now as it causes issues with AI-generated screenshots
-        # if self.image and hasattr(self.image, 'file') and not self.image.name.endswith('_optimized.webp'):
-        #     try:
-        #         self.image = optimize_image(self.image, max_width=1920, max_height=1080, quality=85)
-        #     except Exception as e:
-        #         print(f"Image optimization failed: {e}")
+        # Optimize images before saving
+        from .image_utils import optimize_image
+        
+        # Helper for batch optimization
+        def process_img(field_name):
+            img = getattr(self, field_name)
+            if img and hasattr(img, 'file') and not img.name.endswith('_optimized.webp'):
+                try:
+                    setattr(self, field_name, optimize_image(img, max_width=1920, max_height=1080, quality=85))
+                except Exception as e:
+                    print(f"[{field_name}] optimization failed: {e}")
+
+        process_img('image')
+        process_img('image_2')
+        process_img('image_3')
         
         if not self.slug:
             base_slug = slugify(self.title)
@@ -674,3 +682,43 @@ class PasswordResetToken(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - Reset requested at {self.created_at}"
+
+class GSCReport(models.Model):
+    """Daily overall site performance from Google Search Console"""
+    date = models.DateField(unique=True, db_index=True)
+    clicks = models.IntegerField(default=0)
+    impressions = models.IntegerField(default=0)
+    ctr = models.FloatField(default=0.0)
+    position = models.FloatField(default=0.0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-date']
+        verbose_name = "GSC Daily Report"
+        verbose_name_plural = "GSC Daily Reports"
+    
+    def __str__(self):
+        return f"GSC Report for {self.date}"
+
+class ArticleGSCStats(models.Model):
+    """Search performance per article"""
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='search_stats')
+    date = models.DateField(db_index=True)
+    clicks = models.IntegerField(default=0)
+    impressions = models.IntegerField(default=0)
+    ctr = models.FloatField(default=0.0)
+    position = models.FloatField(default=0.0)
+    
+    # Store top queries for this article as JSON
+    top_queries = models.JSONField(default=list, blank=True)
+    
+    class Meta:
+        unique_together = ('article', 'date')
+        ordering = ['-date']
+        verbose_name = "Article Search Stat"
+        verbose_name_plural = "Article Search Stats"
+    
+    def __str__(self):
+        return f"Stats for {self.article.title} on {self.date}"

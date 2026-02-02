@@ -64,3 +64,7 @@ pytest-django==4.7.0
 # Security
 django-ratelimit==4.1.0
 googlesearch-python
+google-api-python-client==2.116.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+markdown==3.7

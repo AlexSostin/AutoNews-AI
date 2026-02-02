@@ -81,8 +81,15 @@ const getApiUrl = () => {
 };
 
 async function getArticle(slug: string): Promise<Article | null> {
+  const { headers } = await import('next/headers');
+  const headersList = await headers();
+  const cookie = headersList.get('cookie') || '';
+
   const res = await fetch(`${getApiUrl()}/articles/${slug}/`, {
-    cache: 'no-store'
+    cache: 'no-store',
+    headers: {
+      'Cookie': cookie
+    }
   });
 
   if (!res.ok) {
@@ -187,6 +194,7 @@ export default async function ArticleDetailPage({
             fill
             className="object-cover"
             priority
+            loading="eager"
             unoptimized
           />
         </div>

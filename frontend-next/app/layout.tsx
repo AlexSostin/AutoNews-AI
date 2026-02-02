@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from 'next/link';
 import Script from 'next/script';
+import AdSenseScript from "@/components/public/AdSenseScript";
 import ErrorBoundary from "@/components/public/ErrorBoundary";
 import "./globals.css";
 import BackToTop from "@/components/public/BackToTop";
@@ -36,7 +38,7 @@ export default async function RootLayout({
   const gaId = await getGAId();
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {gaId && (
           <>
@@ -54,11 +56,6 @@ export default async function RootLayout({
             </Script>
           </>
         )}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1075473812019633"
-          crossOrigin="anonymous"
-        ></script>
         {/* Restore auth cookies from localStorage before page load */}
         <Script id="auth-restore" strategy="beforeInteractive">
           {`
@@ -80,6 +77,8 @@ export default async function RootLayout({
             })();
           `}
         </Script>
+        {/* AdSense Injected via Client Component to avoid hydration and data-nscript issues */}
+        <AdSenseScript />
       </head>
       <body className="antialiased min-h-screen flex flex-col bg-gray-50">
         <Toaster

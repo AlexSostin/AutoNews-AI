@@ -1,6 +1,8 @@
 from groq import Groq
 import sys
 import os
+import markdown
+import re
 
 # Import config - try multiple paths, fallback to env
 try:
@@ -86,7 +88,12 @@ Required Structure:
   * Timeline for each region (e.g., "Europe Q2 2026, Asia Q3 2026")
   * Any regional exclusives or variations (different trims, specs by region)
   * Pricing differences between major markets
-- <h2>Pros & Cons</h2> with <ul> lists (be specific!)
+- <h2>Pros & Cons</h2> - CRITICAL: Use <ul> and <li> tags for the lists. Each pro and con MUST be a separate <li> item.
+  Example:
+  <ul>
+    <li>Pro item 1</li>
+    <li>Pro item 2</li>
+  </ul>
 - Conclusion paragraph with recommendation and target buyer
 
 Writing Style:
@@ -119,6 +126,9 @@ Remember: Clean title with NO HTML entities! Write comprehensive, engaging conte
             
         print(f"✓ Article generated successfully with {provider_display}! Length: {len(article_content)} characters")
         
+        # Post-processing: ensure it's HTML, not Markdown
+        article_content = ensure_html_only(article_content)
+        
         # Проверка качества статьи
         quality = validate_article_quality(article_content)
         if not quality['valid']:
@@ -134,3 +144,25 @@ Remember: Clean title with NO HTML entities! Write comprehensive, engaging conte
     except Exception as e:
         print(f"❌ Error during article generation with {provider_display}: {e}")
         return ""
+
+def ensure_html_only(content):
+    """
+    Ensures the content is properly formatted HTML.
+    If it detects Markdown (like stars for lists or bold), it converts it to HTML.
+    """
+    # If it already has list tags, it's likely fine
+    if "<li>" in content and "<ul>" in content:
+        return content
+
+    # Fix "mashed" lists: "**Pros:** * Item 1 * Item 2" 
+    # and also "Pros: * Item 1 * Item 2"
+    # Convert " * " or " - " to "\n\n* " to help markdown parser identify it as a list.
+    # We use \s+ to ensure it's not part of **bolding** (which has no space between stars).
+    if "*" in content or "-" in content:
+        content = re.sub(r'\s+[\*\-]\s+', r'\n\n* ', content)
+        
+        print("🔧 Detected Markdown patterns without HTML tags. Converting to HTML...")
+        html_content = markdown.markdown(content, extensions=['extra', 'sane_lists'])
+        return html_content
+
+    return content
