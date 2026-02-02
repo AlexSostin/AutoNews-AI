@@ -522,17 +522,23 @@ class ArticleViewSet(viewsets.ModelViewSet):
             data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
             
             # Parse tag_ids from JSON string to list
-            tag_ids = data.get('tag_ids')
-            if tag_ids and isinstance(tag_ids, str):
+            tag_ids_raw = data.get('tag_ids')
+            if tag_ids_raw and isinstance(tag_ids_raw, str):
                 try:
-                    parsed_tags = json.loads(tag_ids)
-                    # Replace the string with actual list in request data
-                    if hasattr(request.data, '_mutable'):
-                        request.data._mutable = True
-                    request.data.setlist('tag_ids', [str(t) for t in parsed_tags])
-                    if hasattr(request.data, '_mutable'):
-                        request.data._mutable = False
-                except json.JSONDecodeError:
+                    parsed_tags = json.loads(tag_ids_raw)
+                    if isinstance(parsed_tags, list):
+                        # Use actual list for serializer
+                        if hasattr(request.data, 'setlist'):
+                            if hasattr(request.data, '_mutable'):
+                                request.data._mutable = True
+                            request.data.setlist('tag_ids', [str(t) for t in parsed_tags])
+                            if hasattr(request.data, '_mutable'):
+                                request.data._mutable = False
+                        else:
+                            # Fallback for regular dict (unlikely in multipart but safe)
+                            request.data['tag_ids'] = [str(t) for t in parsed_tags]
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.warning(f"Failed to parse tag_ids in ArticleViewSet: {e}")
                     pass
         
         # Helper to check for boolean flags in form data (which come as strings 'true'/'false')
@@ -541,39 +547,44 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return val and str(val).lower() == 'true'
 
         # Perform update first
-        response = super().update(request, *args, **kwargs)
+        try:
+            response = super().update(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in ArticleViewSet.update super().update: {e}")
+            raise
         
         # Then handle deletions if successful
         if response.status_code == 200:
-            instance = self.get_object()
-            changed = False
-            
-            if is_true('delete_image'):
-                instance.image = None
-                changed = True
-            if is_true('delete_image_2'):
-                instance.image_2 = None
-                changed = True
-            if is_true('delete_image_3'):
-                instance.image_3 = None
-                changed = True
+            try:
+                instance = self.get_object()
+                changed = False
                 
-            if changed:
-                instance.save()
-                # Refresh response data
-                serializer = self.get_serializer(instance)
-                response = Response(serializer.data)
-            
-            # Clear article list cache after successful update
-            # This ensures published/unpublished articles immediately appear/disappear on homepage
-            cache.delete_many([
-                'views.decorators.cache.cache_page.*.news.api_views.ArticleViewSet._cached_list.*',
-                'views.decorators.cache.cache_page.*.news.api_views.ArticleViewSet._cached_retrieve.*',
-            ])
-            # Also try specific cache key patterns
-            from django.core.cache.utils import make_template_fragment_key
-            cache.clear()  # Clear all cache to be safe
-            logger.info(f"Cache cleared after article update: {instance.id}")
+                if is_true('delete_image'):
+                    instance.image = None
+                    changed = True
+                if is_true('delete_image_2'):
+                    instance.image_2 = None
+                    changed = True
+                if is_true('delete_image_3'):
+                    instance.image_3 = None
+                    changed = True
+                    
+                if changed:
+                    instance.save()
+                    # Refresh response data with same context
+                    serializer = self.get_serializer(instance)
+                    response = Response(serializer.data)
+                
+                # Clear cache safely
+                try:
+                    cache.clear()
+                    logger.info(f"Cache cleared after article update: {instance.id}")
+                except Exception as cache_err:
+                    logger.warning(f"Failed to clear cache: {cache_err}")
+                    
+            except Exception as inner_err:
+                logger.error(f"Error in ArticleViewSet.update post-processing: {inner_err}")
+                # Don't return 500 if update was already successful
                 
         return response
 
