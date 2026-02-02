@@ -173,9 +173,10 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         print("📝 Получение транскрипта...")
         transcript = transcribe_from_youtube(youtube_url)
         
-        if not transcript or len(transcript) < 5:
-            send_progress(2, 100, "❌ Failed to retrieve transcript")
-            raise Exception("Failed to retrieve transcript or it is too short")
+        if not transcript or len(transcript) < 5 or transcript.startswith("ERROR:"):
+            error_msg = transcript if transcript and transcript.startswith("ERROR:") else "Failed to retrieve transcript or it is too short"
+            send_progress(2, 100, f"❌ {error_msg}")
+            raise Exception(error_msg)
         
         send_progress(2, 30, f"✓ Transcript received ({len(transcript)} chars)")
         
