@@ -50,6 +50,9 @@ export default function SchedulePage() {
           setSchedule(data.results[0]);
         } else if (Array.isArray(data) && data.length > 0) {
           setSchedule(data[0]);
+        } else if (data && typeof data === 'object' && data.id) {
+          // Handle single object response
+          setSchedule(data);
         } else {
           // Create default schedule
           const createResponse = await api.post('/auto-publish-schedule/', {
@@ -112,7 +115,7 @@ export default function SchedulePage() {
         const data = response.data;
         setMessage({
           type: 'success',
-          text: `Scan completed! ${data.videos_found} new videos found, ${data.articles_generated} articles generated`
+          text: data.message || 'Scan triggered successfully! New articles will appear in the pending queue soon.'
         });
         fetchSchedule(); // Refresh stats
       } else {

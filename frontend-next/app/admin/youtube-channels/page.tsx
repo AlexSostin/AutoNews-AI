@@ -108,8 +108,14 @@ export default function YouTubeChannelsPage() {
 
       setChannels(Array.isArray(channelsRes.data) ? channelsRes.data : channelsRes.data.results || []);
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data.results || []);
-      if (scheduleRes.data) {
-        setSchedule(scheduleRes.data);
+
+      const scheduleData = scheduleRes.data;
+      if (scheduleData.results && scheduleData.results.length > 0) {
+        setSchedule(scheduleData.results[0]);
+      } else if (Array.isArray(scheduleData) && scheduleData.length > 0) {
+        setSchedule(scheduleData[0]);
+      } else if (scheduleData && typeof scheduleData === 'object' && scheduleData.id) {
+        setSchedule(scheduleData);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -272,6 +278,9 @@ export default function YouTubeChannelsPage() {
           pendingId: response.data.pending_id
         } : v
       ));
+
+      // Refresh channels data to update pending counts
+      fetchData();
 
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || 'Generation failed';
@@ -666,7 +675,10 @@ export default function YouTubeChannelsPage() {
                 <p className="text-sm text-gray-500">Select videos to generate articles from</p>
               </div>
               <button
-                onClick={() => setShowScanModal(false)}
+                onClick={() => {
+                  setShowScanModal(false);
+                  fetchData();
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <X size={20} />
@@ -791,7 +803,10 @@ export default function YouTubeChannelsPage() {
 
             <div className="p-4 border-t border-gray-200 flex justify-end">
               <button
-                onClick={() => setShowScanModal(false)}
+                onClick={() => {
+                  setShowScanModal(false);
+                  fetchData();
+                }}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
               >
                 Close

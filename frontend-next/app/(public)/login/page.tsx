@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import '../register/register-password.css';
 import { useRouter } from 'next/navigation';
@@ -85,11 +86,17 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <Link href="/" className="text-4xl font-bold text-white hover:scale-105 transition-transform inline-block">
-            🚗 Fresh Motors
+        <div className="text-center mb-6">
+          <Link href="/" className="hover:scale-110 transition-transform duration-300 inline-block">
+            <Image
+              src="/logo.png"
+              alt="Fresh Motors"
+              width={800}
+              height={200}
+              className="h-48 md:h-56 w-auto object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]"
+              priority
+            />
           </Link>
-          <p className="text-white/90 mt-2">Admin Login</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-2xl p-8">

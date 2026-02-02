@@ -1665,6 +1665,17 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
         channel = self.get_object()
         
         try:
+            # Add both backend and ai_engine paths for proper imports
+            import os
+            import sys
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
+            
+            if backend_dir not in sys.path:
+                sys.path.insert(0, backend_dir)
+            if ai_engine_dir not in sys.path:
+                sys.path.insert(0, ai_engine_dir)
+                
             from ai_engine.modules.youtube_client import YouTubeClient
             client = YouTubeClient()
             
@@ -1695,6 +1706,15 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             return Response({'error': 'video_url is required'}, status=status.HTTP_400_BAD_REQUEST)
             
         try:
+            # Add both backend and ai_engine paths for proper imports
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
+            
+            if backend_dir not in sys.path:
+                sys.path.insert(0, backend_dir)
+            if ai_engine_dir not in sys.path:
+                sys.path.insert(0, ai_engine_dir)
+                
             from ai_engine.main import create_pending_article
             
             result = create_pending_article(
@@ -1706,6 +1726,9 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             )
             
             if result.get('success'):
+                # Clear cache to ensure pending counts are updated
+                cache.clear()
+                logger.info(f"Cache cleared after manual generation for channel {channel.name}")
                 return Response(result)
             else:
                 return Response(result, status=status.HTTP_400_BAD_REQUEST)
@@ -1953,22 +1976,44 @@ class AutoPublishScheduleViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data)
     
-    @action(detail=False, methods=['post'])
-    def trigger_scan(self, request):
+    @action(detail=True, methods=['post'])
+    def trigger_scan(self, request, pk=None):
         """Manually trigger a scan now"""
         if not request.user.is_staff:
             return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
         
-        schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
+        schedule = self.get_object()
         schedule.last_scan = timezone.now()
         schedule.total_scans += 1
         schedule.save()
         
-        # Here you would trigger the actual scan process
-        # For now just return success
+        # Trigger the actual scan process in background
+        import subprocess
+        import sys
+        from django.conf import settings
+        
+        try:
+            manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
+            if not os.path.exists(manage_py):
+                # Try one level up if settings is in a subdir
+                manage_py = os.path.join(os.path.dirname(settings.BASE_DIR), 'manage.py')
+            
+            if not os.path.exists(manage_py):
+                 manage_py = 'manage.py'
+
+            subprocess.Popen(
+                [sys.executable, manage_py, 'scan_youtube'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            message = 'Auto-scan triggered for all enabled channels'
+        except Exception as e:
+            logger.error(f"Error triggering auto-scan: {e}")
+            message = f'Failed to trigger scan: {str(e)}'
         
         return Response({
-            'message': 'Scan triggered',
+            'message': message,
             'timestamp': schedule.last_scan
         })
 

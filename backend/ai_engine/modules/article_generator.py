@@ -1,7 +1,10 @@
 from groq import Groq
 import sys
 import os
-import markdown
+try:
+    import markdown
+except ImportError:
+    markdown = None
 import re
 
 # Import config - try multiple paths, fallback to env
@@ -51,8 +54,11 @@ Create a professional, SEO-optimized automotive article based on the analysis be
 Output ONLY clean HTML content (use <h2>, <p>, <ul>, etc.) - NO <html>, <head>, or <body> tags.
 
 CRITICAL REQUIREMENTS:
-1. Title MUST be in format: "First Drive: YEAR BRAND MODEL - Brief Description"
-   Example: "First Drive: 2026 Tesla Model 3 - Revolutionary Electric Sedan"
+1. Title MUST be descriptive, engaging, and unique.
+   Include: YEAR, BRAND, MODEL, and if available, PRICE or specific VERSION/TRIM.
+   NO static prefixes like "First Drive:".
+   Example: "2025 BYD Seal 06 GT Review: A Powerful Electric Hatchback for $25,000"
+   Example: "Testing the 2024 Tesla Model 3 Highland: Significant Updates to a Best-Seller"
 2. NO HTML entities in title (use plain text, no &quot; or &amp;)
 3. Structure with clear sections using <h2> headings
 4. Include specific numbers, stats, and comparisons for SEO
@@ -69,7 +75,7 @@ NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
 
 
 Required Structure:
-- <h2>Title: First Drive: [Year] [Brand] [Model] - [One-line description]</h2>
+- <h2>[Year] [Brand] [Model] [Version] Review: [Hook/Description]</h2>
 - Introduction paragraph (2-3 sentences with key specs)
 - <h2>Performance & Specs</h2> - Include specific numbers (HP, torque, 0-60, range, battery, price)
 - <h2>Design & Interior</h2> - Describe styling, materials, space
@@ -106,7 +112,7 @@ Writing Style:
 Analysis Data:
 {analysis_data}
 
-Remember: Clean title with NO HTML entities! Write comprehensive, engaging content!
+Remember: Be creative with the title, but include all facts! Write comprehensive, engaging content!
 """
     
     system_prompt = "You are a professional automotive journalist. Write engaging, SEO-optimized articles with specific data and comparisons."
@@ -162,7 +168,49 @@ def ensure_html_only(content):
         content = re.sub(r'\s+[\*\-]\s+', r'\n\n* ', content)
         
         print("🔧 Detected Markdown patterns without HTML tags. Converting to HTML...")
-        html_content = markdown.markdown(content, extensions=['extra', 'sane_lists'])
+        if markdown:
+            # Use real markdown if available
+            html_content = markdown.markdown(content, extensions=['extra', 'sane_lists'])
+            return html_content
+        else:
+            # Enhanced fallback if library is missing
+            print("⚠️ Warning: 'markdown' module not found. Using enhanced fallback conversion.")
+            
+            # 1. Clean up backticks
+            content = re.sub(r'```[a-z]*\n?', '', content)
+            content = re.sub(r'```', '', content)
+            
+            # 2. Convert headings
+            content = re.sub(r'^###\s+(.*)$', r'<h3>\1</h3>', content, flags=re.MULTILINE)
+            content = re.sub(r'^##\s+(.*)$', r'<h2>\1</h2>', content, flags=re.MULTILINE)
+            content = re.sub(r'^#\s+(.*)$', r'<h1>\1</h1>', content, flags=re.MULTILINE)
+            
+            # 3. Convert simple lists
+            content = re.sub(r'^\*\s+(.*)$', r'<li>\1</li>', content, flags=re.MULTILINE)
+            content = re.sub(r'^\-\s+(.*)$', r'<li>\1</li>', content, flags=re.MULTILINE)
+            
+            # 4. Wrap lists - very simple logic
+            if '<li>' in content:
+                 content = content.replace('<li>', '<ul><li>', 1)
+                 content = content.replace('</li>\n\n', '</li></ul>\n\n')
+            
+            # 5. Convert **bold**
+            content = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', content)
+            
+            # 6. Paragraphs - wrap anything not in a tag
+            if "<p>" not in content:
+                blocks = content.split('\n\n')
+                new_blocks = []
+                for b in blocks:
+                    b = b.strip()
+                    if not b: continue
+                    if b.startswith('<'):
+                        new_blocks.append(b)
+                    else:
+                        new_blocks.append(f"<p>{b}</p>")
+                content = '\n\n'.join(new_blocks)
+                
+            return content
         return html_content
 
     return content

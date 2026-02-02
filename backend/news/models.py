@@ -201,9 +201,13 @@ class Article(models.Model):
             img = getattr(self, field_name)
             if img and hasattr(img, 'file') and not img.name.endswith('_optimized.webp'):
                 try:
-                    setattr(self, field_name, optimize_image(img, max_width=1920, max_height=1080, quality=85))
+                    optimized_img = optimize_image(img, max_width=1920, max_height=1080, quality=85)
+                    if optimized_img:
+                        setattr(self, field_name, optimized_img)
                 except Exception as e:
-                    print(f"[{field_name}] optimization failed: {e}")
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"[{field_name}] optimization failed: {e}")
 
         process_img('image')
         process_img('image_2')
@@ -219,9 +223,10 @@ class Article(models.Model):
                 counter += 1
             self.slug = slug
         if not self.seo_title:
-            self.seo_title = self.title
+            self.seo_title = self.title[:200]
         if not self.seo_description:
-            self.seo_description = self.summary[:160]
+            summary_text = self.summary or ""
+            self.seo_description = summary_text[:160]
         super().save(*args, **kwargs)
     
     def average_rating(self):

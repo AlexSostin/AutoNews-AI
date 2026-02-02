@@ -199,8 +199,12 @@ export default async function Home() {
               ) : (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                    {articles.slice(0, 6).map((article: any) => (
-                      <ArticleCard key={article.id} article={article} />
+                    {articles.slice(0, 6).map((article: any, index: number) => (
+                      <ArticleCard
+                        key={article.id}
+                        article={article}
+                        priority={index < 3}
+                      />
                     ))}
                   </div>
 

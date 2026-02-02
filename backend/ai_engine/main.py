@@ -35,10 +35,36 @@ except ImportError:
     from modules.downloader import extract_video_screenshots
 
 def extract_title(html_content):
-    match = re.search(r'<h2>(.*?)</h2>', html_content)
-    if match:
-        return match.group(1)
-    return "New Car Review" 
+    """
+    Extracts the main title from the generated HTML.
+    Ignores generic section headers like 'Performance & Specs'.
+    """
+    # Find all h2 tags
+    h2_matches = re.findall(r'<h2>(.*?)</h2>', html_content, re.IGNORECASE)
+    
+    # List of section headers to ignore as titles
+    ignore_headers = [
+        'performance & specs', 'performance and specs', 
+        'design & interior', 'design and interior',
+        'technology & features', 'technology and features',
+        'driving experience', 'pros & cons', 'pros and cons',
+        'conclusion', 'us market availability & pricing',
+        'global market & regional availability',
+        'title:', 'introduction'
+    ]
+    
+    for title in h2_matches:
+        clean_t = title.strip().replace('Title:', '').strip()
+        # Skip if it's too short or a common header
+        if len(clean_t) < 10:
+            continue
+        if any(header in clean_t.lower() for header in ignore_headers) and len(clean_t) < 40:
+             continue
+             
+        # If we reached here, it's likely the main title
+        return clean_t
+        
+    return "New Car Review"
 
 def main(youtube_url):
     print(f"Starting pipeline for: {youtube_url}")
@@ -289,16 +315,38 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         
         # 6. Создаем краткое описание
         send_progress(7, 90, "📝 Создание описания...")
-        summary_lines = [line for line in analysis.split('\n') if line.startswith('Summary:')]
-        if summary_lines:
-            summary = summary_lines[0].replace('Summary:', '').strip()[:300]
-        else:
+        import html
+        
+        # Try to extract summary from AI analysis if available
+        summary = ""
+        if isinstance(analysis, str) and 'Summary:' in analysis:
+            summary = analysis.split('Summary:')[-1].split('\n')[0].strip()
+        elif isinstance(analysis, dict) and analysis.get('summary'):
+            summary = analysis.get('summary')
+            
+        if not summary:
+            # Scrape from HTML, but skip the first heading (it's often redundant)
+            # and thoroughly clean tags and unescape content
+            temp_content = article_html
+            # Skip first h2 if it exists
+            if '</h2>' in temp_content:
+                temp_content = temp_content.split('</h2>', 1)[-1]
+            
             import re
-            match = re.search(r'<p>(.*?)</p>', article_html, re.DOTALL)
+            match = re.search(r'<p>(.*?)</p>', temp_content, re.DOTALL)
             if match:
-                summary = re.sub(r'<[^>]+>', '', match.group(1))[:300]
+                raw_text = match.group(1)
+                # Unescape first to catch &lt;h2&gt; etc.
+                clean_text = html.unescape(raw_text)
+                # Strip any remaining tags
+                summary = re.sub(r'<[^>]+>', '', clean_text).strip()[:300]
             else:
-                summary = f"Comprehensive review of the {specs['make']} {specs['model']}"
+                # Absolute fallback from whole content
+                clean_all = re.sub(r'<[^>]+>', '', html.unescape(temp_content))
+                summary = clean_all.strip()[:300]
+                
+        if not summary:
+            summary = f"Comprehensive review of the {specs.get('make', '')} {specs.get('model', '')}"
         
         # 6.5. Генерация SEO keywords
         from modules.seo_helpers import generate_seo_keywords
@@ -316,7 +364,8 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
             'specs': specs,
             'meta_keywords': seo_keywords,
             'image_paths': screenshot_paths,
-            'analysis': analysis
+            'analysis': analysis,
+            'video_title': video_title
         }
         
     except Exception as e:
@@ -386,14 +435,17 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         
     from news.models import PendingArticle, YouTubeChannel, Category, Article
     
-    # 1. Check if article exists
-    existing = Article.objects.filter(youtube_url=youtube_url).exists()
+    # 1. Check if article exists (only non-deleted)
+    existing = Article.objects.filter(youtube_url=youtube_url, is_deleted=False).exists()
     if existing:
         print(f"Skipping {youtube_url} - already exists")
         return {'success': False, 'reason': 'exists', 'error': 'Article already exists in the database'}
         
-    # 2. Check if already pending
-    if PendingArticle.objects.filter(video_id=video_id).exists():
+    # 2. Check if already pending (exclude rejected or published-but-deleted)
+    # We allow generation if the existing PendingArticle is 'rejected' 
+    # or if it's 'published' but the resulting article was later deleted.
+    pending_exists = PendingArticle.objects.filter(video_id=video_id, status__in=['pending', 'approved']).exists()
+    if pending_exists:
         print(f"Skipping {youtube_url} - already pending")
         return {'success': False, 'reason': 'pending', 'error': 'Article is already in the pending queue'}
     
@@ -419,11 +471,20 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
              pass
 
     # 5. Create PendingArticle
+    # Ensure video_id and video_title are present (DB requirements)
+    final_video_title = result.get('video_title') or video_title or "Untitled YouTube Video"
+    
+    if not video_id:
+        # Try to extract from URL
+        import re
+        id_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', youtube_url)
+        video_id = id_match.group(1) if id_match else f"ext_{int(timezone.now().timestamp())}"
+
     pending = PendingArticle.objects.create(
         youtube_channel=channel,
         video_url=youtube_url,
         video_id=video_id,
-        video_title=video_title,
+        video_title=final_video_title[:500],
         title=result['title'],
         content=result['content'],
         excerpt=result['summary'],
