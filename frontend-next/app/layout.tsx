@@ -23,6 +23,7 @@ async function getGAId() {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://freshmotors.net'),
   title: "Fresh Motors - Latest Automotive News & Reviews",
   description: "Your source for the latest automotive news, car reviews, and industry insights.",
 };
@@ -53,13 +54,11 @@ export default async function RootLayout({
             </Script>
           </>
         )}
-        <Script
-          id="adsense-init"
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1075473812019633"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
+        ></script>
         {/* Restore auth cookies from localStorage before page load */}
         <Script id="auth-restore" strategy="beforeInteractive">
           {`

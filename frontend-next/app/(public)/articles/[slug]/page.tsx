@@ -20,6 +20,42 @@ import JsonLd from '@/components/public/JsonLd';
 import RelatedCarousel from '@/components/public/RelatedCarousel';
 import { Article } from '@/types';
 import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> }
+): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await getArticle(slug);
+
+  if (!article) {
+    return {
+      title: 'Article Not Found',
+    };
+  }
+
+  return {
+    title: `${article.title} - Fresh Motors`,
+    description: article.summary,
+    alternates: {
+      canonical: `/articles/${slug}`,
+    },
+    openGraph: {
+      title: article.title,
+      description: article.summary,
+      url: `/articles/${slug}`,
+      type: 'article',
+      images: [
+        {
+          url: article.image || '/logo.png',
+          width: 1200,
+          height: 630,
+          alt: article.title,
+        },
+      ],
+    },
+  };
+}
 
 // Production API URL
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';

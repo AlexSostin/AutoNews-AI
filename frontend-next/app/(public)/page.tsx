@@ -6,6 +6,13 @@ import MaintenancePage from '@/components/public/MaintenancePage';
 import Hero from '@/components/public/Hero';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: '/',
+  },
+};
 
 export const dynamic = 'force-dynamic';
 
