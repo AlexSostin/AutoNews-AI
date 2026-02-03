@@ -242,7 +242,9 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         elif specs.get('make') and specs.get('model') and specs['make'] != 'Not specified':
             year = specs.get('year', '')
             year_str = f"{year} " if year else ""
-            title = f"{year_str}{specs['make']} {specs['model']} Review"
+            trim = specs.get('trim', '')
+            trim_str = f" {trim}" if trim and trim != 'Not specified' else ""
+            title = f"{year_str}{specs['make']} {specs['model']}{trim_str} Review"
             print(f"📌 Constructed Title from Specs: {title}")
             
         # Priority 3: Extract from HTML <h2>

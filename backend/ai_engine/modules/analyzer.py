@@ -43,9 +43,10 @@ Analyze this automotive video transcript and extract key information in STRUCTUR
 {context_str}
 Output format (use these EXACT labels):
 Make: [Brand name]
-Model: [Exact Model name]
+Model: [Base Model name, e.g. "SU7", "Golf"]
+Trim/Version: [Specific version or trim, e.g. "Ultra", "Performance", "GTI", "Standard"]
 Year: [Model Year]
-SEO Title: [Short, clear title - e.g. "2026 Tesla Model 3 Review"]
+SEO Title: [Short, clear title - e.g. "2026 Tesla Model 3 Performance Review"]
 Engine: [Engine type/size - e.g., "1.5L Turbo" or "Electric motor"]
 Horsepower: [HP number - e.g., "300 HP"]
 Torque: [Torque - e.g., "400 Nm"]
@@ -75,7 +76,8 @@ IMPORTANT:
 2. Prioritize facts from the transcript.
 3. If technical specs (HP, Battery, Price) are missing in transcript, YOU MAY USE YOUR INTERNAL KNOWLEDGE to fill them if you are confident about the exact car model.
 4. If you use internal knowledge, mark it as (estimated) or (standard spec).
-5. Be precise with Make, Model, and Year. Fix typos in transcript (e.g. "Chin L DMI" -> "BYD Qin L DM-i").
+5. Be extremely precise with Make, Model, and Trim. Fix typos in transcript (e.g. "Chin L DMI" -> "BYD Qin L DM-i").
+6. IMPORTANT: Do not normalize or "correct" model names unless you are 100% sure it's a transcription error. A "YU7" is NOT an "SU7" if they are different models.
 """
     
     system_prompt = "You are an expert automotive analyst. You extract facts from transcripts but also use your vast knowledge of car specifications to fill in gaps when the video omits details. You correct obvious transcription errors (e.g. model names)."
@@ -169,6 +171,7 @@ def extract_specs_dict(analysis):
     specs = {
         'make': 'Not specified',
         'model': 'Not specified',
+        'trim': 'Not specified',
         'year': None,
         'seo_title': None,
         'engine': 'Not specified',
@@ -189,6 +192,8 @@ def extract_specs_dict(analysis):
             specs['make'] = line.split(':', 1)[1].strip()
         elif line.startswith('Model:'):
             specs['model'] = line.split(':', 1)[1].strip()
+        elif line.startswith('Trim/Version:'):
+            specs['trim'] = line.split(':', 1)[1].strip()
         elif line.startswith('Year:'):
             year_str = line.split(':', 1)[1].strip()
             try:

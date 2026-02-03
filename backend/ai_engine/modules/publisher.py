@@ -171,13 +171,15 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
             car_spec, _ = CarSpecification.objects.update_or_create(
                 article=article,
                 defaults={
+                    'model_name': f"{specs.get('make', '')} {specs.get('model', '')} {specs.get('trim', '')}".strip(),
                     'make': specs.get('make', ''),
                     'model': specs.get('model', ''),
+                    'trim': specs.get('trim', ''),
                     'year': specs.get('year'),
-                    'engine_type': specs.get('engine', ''),
+                    'engine': specs.get('engine', ''),
                     'horsepower': specs.get('horsepower'),
                     'torque': specs.get('torque', ''),
-                    'zero_to_sixty': specs.get('acceleration', ''),
+                    'zero_to_sixty': specs.get('zero_to_sixty', specs.get('acceleration', '')),
                     'top_speed': specs.get('top_speed', ''),
                     'price': specs.get('price', ''),
                 }
