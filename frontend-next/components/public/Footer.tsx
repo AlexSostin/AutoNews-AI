@@ -288,6 +288,7 @@ export default function Footer() {
               {(settings?.about_page_enabled !== false) && (
                 <li><Link href="/about" className="text-gray-300 hover:text-purple-400 transition-colors">About Us</Link></li>
               )}
+              <li><Link href="/for-authors" className="text-gray-300 hover:text-purple-400 transition-colors font-bold text-indigo-400">For Authors</Link></li>
               {(settings?.contact_page_enabled !== false) && (
                 <li><Link href="/contact" className="text-gray-300 hover:text-purple-400 transition-colors">Contact Us</Link></li>
               )}

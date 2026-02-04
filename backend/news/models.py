@@ -158,6 +158,10 @@ class Article(models.Model):
     image_3 = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Screenshot 3 from video")
     youtube_url = models.URLField(blank=True, help_text="YouTube video URL for AI generation")
     
+    # Author / Source Credits
+    author_name = models.CharField(max_length=200, blank=True, help_text="Original content creator name")
+    author_channel_url = models.URLField(blank=True, help_text="Original creator channel URL")
+    
     # Price field (in USD, converted to other currencies on frontend)
     price_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Price in USD (AI extracts from video)")
     

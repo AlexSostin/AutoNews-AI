@@ -27,6 +27,8 @@ export interface Article {
   tags: number[];
   tag_names: string[];
   author?: string;
+  author_name?: string;
+  author_channel_url?: string;
   views?: number;
   average_rating: number;
   rating_count: number;

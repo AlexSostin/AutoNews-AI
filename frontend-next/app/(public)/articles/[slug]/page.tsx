@@ -19,7 +19,17 @@ import PriceConverter from '@/components/public/PriceConverter';
 import JsonLd from '@/components/public/JsonLd';
 import RelatedCarousel from '@/components/public/RelatedCarousel';
 import { Article } from '@/types';
-import { Calendar, User, Eye, Tag, Star } from 'lucide-react';
+import {
+  Calendar,
+  User,
+  Eye,
+  Tag,
+  Star,
+  Youtube,
+  Handshake,
+  ExternalLink,
+  AlertTriangle
+} from 'lucide-react';
 import type { Metadata } from 'next';
 
 export async function generateMetadata(
@@ -228,12 +238,29 @@ export default async function ArticleDetailPage({
                   <span>{formatDate(article.created_at)}</span>
                 </div>
 
-                {article.author && (
+                {article.author_name ? (
+                  <div className="flex items-center gap-2">
+                    <User size={16} className="text-indigo-600" />
+                    <span className="font-bold">Author:</span>
+                    {article.author_channel_url ? (
+                      <a
+                        href={article.author_channel_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 transition-colors font-bold"
+                      >
+                        {article.author_name}
+                      </a>
+                    ) : (
+                      <span>{article.author_name}</span>
+                    )}
+                  </div>
+                ) : (article.author && (
                   <div className="flex items-center gap-2">
                     <User size={16} className="text-indigo-600" />
                     <span>{article.author}</span>
                   </div>
-                )}
+                ))}
 
                 {/* Reading Time */}
                 <ReadingTime content={article.content} />
@@ -509,6 +536,70 @@ export default async function ArticleDetailPage({
                   </div>
                 </div>
               )}
+
+              {/* Author Credits & Original Source */}
+              <div className="bg-gray-900 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Youtube size={120} />
+                </div>
+
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Handshake className="text-indigo-400" size={24} />
+                    <h3 className="text-xl font-bold">Author & Original Source</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                      <p className="text-gray-400 text-xs uppercase tracking-widest font-bold mb-2">Original Creator</p>
+                      {article.author_name ? (
+                        <a
+                          href={article.author_channel_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-2xl font-black hover:text-indigo-400 transition-colors flex items-center gap-2"
+                        >
+                          {article.author_name}
+                          <ExternalLink size={20} className="text-gray-500" />
+                        </a>
+                      ) : (
+                        <p className="text-2xl font-black">Unknown Author</p>
+                      )}
+                    </div>
+
+                    {article.youtube_url && (
+                      <div>
+                        <p className="text-gray-400 text-xs uppercase tracking-widest font-bold mb-2">Original Video</p>
+                        <a
+                          href={article.youtube_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-400 hover:text-indigo-300 transition-colors font-bold flex items-center gap-2 truncate"
+                        >
+                          Watch on YouTube
+                          <ExternalLink size={16} />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex items-start gap-3">
+                    <AlertTriangle className="text-amber-400 flex-shrink-0 mt-0.5" size={18} />
+                    <p className="text-sm text-gray-300 leading-relaxed">
+                      <span className="font-bold text-white">Note:</span> This article is an automated AI interpretation of video content. It is created for informational purposes and may contain inaccuracies compared to the original source. We always recommend watching the full video for comprehensive information.
+                    </p>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-white/10 text-center sm:text-left">
+                    <Link
+                      href="/for-authors"
+                      className="text-xs text-gray-400 hover:text-white transition-colors"
+                    >
+                      Learn more about our Author Policy →
+                    </Link>
+                  </div>
+                </div>
+              </div>
 
               {/* Related Articles Carousel */}
               {article.category_slug && (

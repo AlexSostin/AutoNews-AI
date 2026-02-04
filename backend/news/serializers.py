@@ -111,7 +111,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'slug', 'summary', 'category', 'category_name', 'category_slug',
                   'tag_names', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'price_usd', 'average_rating', 'views',
-                  'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero']
+                  'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited', 
+                  'is_hero', 'author_name', 'author_channel_url']
     
     def get_tag_names(self, obj):
         return [tag.name for tag in obj.tags.all()]
@@ -179,7 +180,8 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
                   'tags', 'tag_ids', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'youtube_url', 'price_usd', 'views', 
                   'car_specification', 'images', 'average_rating', 'rating_count',
-                  'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero']
+                  'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero',
+                  'author_name', 'author_channel_url']
         read_only_fields = ['slug', 'views', 'created_at', 'updated_at']
     
     def validate_image(self, value):

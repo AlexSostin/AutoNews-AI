@@ -1819,6 +1819,13 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             
             is_published = request.data.get('publish', True)
             
+            # Extract author info from channel if available
+            author_name = ""
+            author_channel_url = ""
+            if pending.youtube_channel:
+                author_name = pending.youtube_channel.name
+                author_channel_url = pending.youtube_channel.channel_url
+
             article = Article.objects.create(
                 title=pending.title,
                 slug=slug,
@@ -1827,6 +1834,8 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 category=pending.suggested_category,
                 is_published=is_published,
                 youtube_url=pending.video_url,
+                author_name=author_name,
+                author_channel_url=author_channel_url
             )
             
             # Handle Images (Upload local files or save Cloudinary URLs)
