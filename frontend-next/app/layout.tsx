@@ -28,6 +28,36 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://freshmotors.net'),
   title: "Fresh Motors - Latest Automotive News & Reviews",
   description: "Your source for the latest automotive news, car reviews, and industry insights.",
+  icons: {
+    icon: [
+      { url: '/logo.png', sizes: 'any' },
+      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/logo.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: '/logo.png',
+  },
+  openGraph: {
+    title: "Fresh Motors - Latest Automotive News & Reviews",
+    description: "Your source for the latest automotive news, car reviews, and industry insights.",
+    url: 'https://freshmotors.net',
+    siteName: 'Fresh Motors',
+    images: [
+      {
+        url: '/logo.png',
+        width: 1200,
+        height: 630,
+        alt: 'Fresh Motors Logo',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Fresh Motors - Latest Automotive News & Reviews",
+    description: "Your source for the latest automotive news, car reviews, and industry insights.",
+    images: ['/logo.png'],
+  },
 };
 
 export default async function RootLayout({
