@@ -1,26 +1,26 @@
 import { NextResponse } from 'next/server';
 
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-const SITE_URL = 'https://freshmotors.net';
+const SITE_URL = 'https://www.freshmotors.net';
 
 async function getArticles() {
-    try {
-        const res = await fetch(`${PRODUCTION_API_URL}/articles/?is_published=true&page_size=50`, {
-            next: { revalidate: 3600 }, // Revalidate every hour
-        });
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.results || [];
-    } catch (e) {
-        console.error('Failed to fetch articles for RSS:', e);
-        return [];
-    }
+  try {
+    const res = await fetch(`${PRODUCTION_API_URL}/articles/?is_published=true&page_size=50`, {
+      next: { revalidate: 3600 }, // Revalidate every hour
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.results || [];
+  } catch (e) {
+    console.error('Failed to fetch articles for RSS:', e);
+    return [];
+  }
 }
 
 export async function GET() {
-    const articles = await getArticles();
+  const articles = await getArticles();
 
-    const rss = `<?xml version="1.0" encoding="UTF-8"?>
+  const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Fresh Motors - Latest Automotive News</title>
@@ -50,10 +50,10 @@ export async function GET() {
   </channel>
 </rss>`;
 
-    return new NextResponse(rss, {
-        headers: {
-            'Content-Type': 'application/xml; charset=utf-8',
-            'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-        },
-    });
+  return new NextResponse(rss, {
+    headers: {
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+    },
+  });
 }
