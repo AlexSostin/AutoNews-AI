@@ -88,18 +88,27 @@ Required Structure:
   * Any federal or state EV tax credits/incentives if electric/hybrid
   * Comparison to competitor pricing in US market
   * Registration and ownership costs considerations
-- <h2>Global Market & Regional Availability</h2> - CRITICAL: Include:
-  * List which major regions will get this car: North America, Europe, Asia, Middle East, Australia, South America
-  * Mention specific countries or markets where it will be sold
-  * Timeline for each region (e.g., "Europe Q2 2026, Asia Q3 2026")
-  * Any regional exclusives or variations (different trims, specs by region)
-  * Pricing differences between major markets
+- <h2>Global Market & Regional Availability</h2> - CRITICAL: Format this section with clear structure:
+  * Use <h3> sub-headings for each major region (e.g., <h3>Asia</h3>, <h3>Europe</h3>, <h3>North America</h3>)
+  * Under each region, use <ul> and <li> tags to list specific countries and details
+  * Example format:
+    <h3>Asia</h3>
+    <ul>
+      <li><strong>China:</strong> Available Q1 2026, starting at ¥280,000</li>
+      <li><strong>Singapore:</strong> Expected Q2 2026, pricing TBA</li>
+      <li><strong>Thailand:</strong> Launch planned for Q3 2026</li>
+    </ul>
+  * Include timeline, pricing differences, and regional variations for each market
+  * Keep each bullet point concise (1-2 sentences max)
 - <h2>Pros & Cons</h2> - CRITICAL: Use <ul> and <li> tags for the lists. Each pro and con MUST be a separate <li> item.
   Example:
+  <h3>Pros</h3>
   <ul>
     <li>Pro item 1</li>
     <li>Pro item 2</li>
   </ul>
+  <h3>Cons</h3>
+  <ul>
 - Conclusion paragraph with recommendation and target buyer
 
 Writing Style:

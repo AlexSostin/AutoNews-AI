@@ -14,6 +14,13 @@ interface Article {
   is_hero: boolean;
   created_at: string;
   average_rating: number;
+  image?: string;
+}
+
+interface PaginationInfo {
+  count: number;
+  next: string | null;
+  previous: string | null;
 }
 
 export default function ArticlesPage() {
@@ -21,20 +28,33 @@ export default function ArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [pagination, setPagination] = useState<PaginationInfo>({ count: 0, next: null, previous: null });
 
   useEffect(() => {
     fetchArticles();
-  }, [filter]);
+  }, [filter, currentPage, itemsPerPage]);
 
   const fetchArticles = async () => {
     try {
       setLoading(true);
-      const params: any = { page_size: 100 };
+      const params: any = {
+        page: currentPage,
+        page_size: itemsPerPage
+      };
       if (filter !== 'all') {
         params.is_published = filter === 'published' ? 'true' : 'false';
       }
       const response = await api.get('/articles/', { params });
       setArticles(response.data.results || response.data);
+      if (response.data.count !== undefined) {
+        setPagination({
+          count: response.data.count,
+          next: response.data.next,
+          previous: response.data.previous
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch articles:', error);
     } finally {
@@ -179,6 +199,9 @@ export default function ArticlesPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
+                  <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                    Image
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Title
                   </th>
@@ -205,6 +228,19 @@ export default function ArticlesPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredArticles.map((article) => (
                   <tr key={article.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-4">
+                      <div className="w-20 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                        {article.image ? (
+                          <img
+                            src={article.image}
+                            alt={article.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-gray-400 text-xs">No image</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-gray-900">{article.title}</div>
                       <div className="text-sm text-gray-600 font-medium">{article.slug}</div>
@@ -289,8 +325,75 @@ export default function ArticlesPage() {
         )}
       </div>
 
-      <div className="mt-4 text-sm text-gray-600 font-medium">
-        Showing {filteredArticles.length} of {articles.length} articles
+      {/* Pagination Controls */}
+      <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-lg shadow-md p-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600 font-medium">Items per page:</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => {
+              setItemsPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
+          >
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
+
+        <div className="text-sm text-gray-600 font-medium">
+          Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, pagination.count)} of {pagination.count} articles
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={!pagination.previous}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            Previous
+          </button>
+
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, Math.ceil(pagination.count / itemsPerPage)) }, (_, i) => {
+              const totalPages = Math.ceil(pagination.count / itemsPerPage);
+              let pageNum;
+
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`w-10 h-10 rounded-lg font-bold transition-all ${currentPage === pageNum
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => setCurrentPage(prev => prev + 1)}
+            disabled={!pagination.next}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
