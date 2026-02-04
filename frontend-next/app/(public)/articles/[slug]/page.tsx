@@ -38,21 +38,30 @@ export async function generateMetadata(
     title: `${article.title} - Fresh Motors`,
     description: article.summary,
     alternates: {
-      canonical: `/articles/${slug}`,
+      canonical: `https://freshmotors.net/articles/${slug}`,
     },
     openGraph: {
       title: article.title,
       description: article.summary,
-      url: `/articles/${slug}`,
+      url: `https://freshmotors.net/articles/${slug}`,
       type: 'article',
+      publishedTime: article.created_at,
+      modifiedTime: article.updated_at,
+      authors: ['Fresh Motors'],
       images: [
         {
-          url: article.image || '/logo.png',
+          url: article.image || 'https://freshmotors.net/logo.png',
           width: 1200,
           height: 630,
           alt: article.title,
         },
       ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description: article.summary,
+      images: [article.image || 'https://freshmotors.net/logo.png'],
     },
   };
 }

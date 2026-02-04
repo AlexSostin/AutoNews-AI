@@ -48,7 +48,7 @@ router.register(r'notifications', AdminNotificationViewSet, basename='notificati
 from .api_views import (
     CurrencyRatesView, CurrentUserView, ChangePasswordView, EmailPreferencesView,
     RequestEmailChangeView, VerifyEmailChangeView,
-    PasswordResetRequestView, PasswordResetConfirmView
+    PasswordResetRequestView, PasswordResetConfirmView, NewsletterSubscribeView
 )
 from .search_analytics_views import (
     SearchAPIView, AnalyticsOverviewAPIView, AnalyticsTopArticlesAPIView,
@@ -80,6 +80,9 @@ urlpatterns = [
     
     # Currency rates
     path('currency-rates/', CurrencyRatesView.as_view(), name='currency_rates'),
+    
+    # Newsletter subscription
+    path('newsletter/subscribe/', NewsletterSubscribeView.as_view(), name='newsletter_subscribe'),
     
     # Search endpoint
     path('search/', SearchAPIView.as_view(), name='search'),

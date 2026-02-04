@@ -6,7 +6,8 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import (
     Article, Category, Tag, TagGroup, CarSpecification, SiteSettings, Comment, Rating,
-    ArticleImage, Favorite, SecurityLog, EmailVerification, PasswordResetToken
+    ArticleImage, Favorite, SecurityLog, EmailVerification, PasswordResetToken,
+    NewsletterSubscriber
 )
 import sys
 import os
@@ -690,3 +691,21 @@ class PasswordResetTokenAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
+@admin.register(NewsletterSubscriber)
+class NewsletterSubscriberAdmin(admin.ModelAdmin):
+    list_display = ('email', 'is_active', 'subscribed_at', 'ip_address')
+    list_filter = ('is_active', 'subscribed_at')
+    search_fields = ('email',)
+    readonly_fields = ('subscribed_at', 'unsubscribed_at', 'ip_address')
+    actions = ['activate_subscribers', 'deactivate_subscribers']
+    
+    def activate_subscribers(self, request, queryset):
+        count = queryset.update(is_active=True, unsubscribed_at=None)
+        self.message_user(request, f'{count} subscribers activated.')
+    activate_subscribers.short_description = 'Activate selected subscribers'
+    
+    def deactivate_subscribers(self, request, queryset):
+        from django.utils import timezone
+        count = queryset.update(is_active=False, unsubscribed_at=timezone.now())
+        self.message_user(request, f'{count} subscribers deactivated.')
+    deactivate_subscribers.short_description = 'Deactivate selected subscribers'

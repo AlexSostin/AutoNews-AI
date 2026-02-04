@@ -70,6 +70,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="alternate" type="application/rss+xml" title="Fresh Motors RSS Feed" href="/feed.xml" />
         {gaId && (
           <>
             <Script

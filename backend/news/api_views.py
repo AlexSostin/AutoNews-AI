@@ -2123,3 +2123,49 @@ class AdminNotificationViewSet(viewsets.ModelViewSet):
         )
         serializer = self.get_serializer(notification)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+@method_decorator(ratelimit(key='ip', rate='5/h', method='POST', block=True), name='post')
+class NewsletterSubscribeView(APIView):
+    """Newsletter subscription endpoint"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from .models import NewsletterSubscriber
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError
+        
+        email = request.data.get('email', '').strip().lower()
+        
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate email format
+        try:
+            validate_email(email)
+        except ValidationError:
+            return Response({'error': 'Invalid email format'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get IP address for tracking
+        ip_address = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
+        if ip_address:
+            ip_address = ip_address.split(',')[0].strip()
+        
+        # Create or update subscriber
+        subscriber, created = NewsletterSubscriber.objects.get_or_create(
+            email=email,
+            defaults={'is_active': True, 'ip_address': ip_address}
+        )
+        
+        if not created:
+            if not subscriber.is_active:
+                # Reactivate subscription
+                subscriber.is_active = True
+                subscriber.unsubscribed_at = None
+                subscriber.ip_address = ip_address
+                subscriber.save()
+                return Response({'message': 'Successfully resubscribed!'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'message': 'Already subscribed!'}, status=status.HTTP_200_OK)
+        
+        logger.info(f"New newsletter subscriber: {email}")
+        return Response({'message': 'Successfully subscribed!'}, status=status.HTTP_201_CREATED)

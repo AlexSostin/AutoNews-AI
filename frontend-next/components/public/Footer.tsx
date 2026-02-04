@@ -134,7 +134,7 @@ export default function Footer() {
         return 'http://localhost:8001/api/v1';
       };
 
-      const response = await fetch(`${getApiUrl()}/subscribers/`, {
+      const response = await fetch(`${getApiUrl()}/newsletter/subscribe/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -143,10 +143,18 @@ export default function Footer() {
       if (response.ok) {
         setSubscribeStatus('success');
         setEmail('');
+
+        // Track newsletter signup with GA4
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'newsletter_signup', {
+            method: 'footer_form',
+          });
+        }
       } else {
         const data = await response.json();
-        if (data.error?.includes('already subscribed')) {
+        if (data.message?.includes('subscribed')) {
           setSubscribeStatus('success'); // Already subscribed is still success
+          setEmail('');
         } else {
           setSubscribeStatus('error');
         }
@@ -289,7 +297,7 @@ export default function Footer() {
               {(settings?.terms_page_enabled !== false) && (
                 <li><Link href="/terms" className="text-gray-300 hover:text-purple-400 transition-colors">Terms of Service</Link></li>
               )}
-              <li><a href={`${typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://heroic-healing-production-2365.up.railway.app' : 'http://localhost:8001'}/feed/rss/`} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-purple-400 transition-colors">RSS Feed</a></li>
+              <li><a href="/feed.xml" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-purple-400 transition-colors">RSS Feed</a></li>
             </ul>
           </div>
         </div>

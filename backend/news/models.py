@@ -730,3 +730,20 @@ class ArticleGSCStats(models.Model):
     
     def __str__(self):
         return f"Stats for {self.article.title} on {self.date}"
+
+class NewsletterSubscriber(models.Model):
+    """Newsletter email subscribers"""
+    email = models.EmailField(unique=True, db_index=True)
+    is_active = models.BooleanField(default=True)
+    subscribed_at = models.DateTimeField(auto_now_add=True)
+    unsubscribed_at = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-subscribed_at']
+        verbose_name = 'Newsletter Subscriber'
+        verbose_name_plural = 'Newsletter Subscribers'
+    
+    def __str__(self):
+        status = "Active" if self.is_active else "Unsubscribed"
+        return f"{self.email} ({status})"
