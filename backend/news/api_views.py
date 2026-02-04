@@ -2133,6 +2133,7 @@ class NewsletterSubscribeView(APIView):
         from .models import NewsletterSubscriber
         from django.core.validators import validate_email
         from django.core.exceptions import ValidationError
+        from .email_service import email_service
         
         email = request.data.get('email', '').strip().lower()
         
@@ -2163,9 +2164,19 @@ class NewsletterSubscribeView(APIView):
                 subscriber.unsubscribed_at = None
                 subscriber.ip_address = ip_address
                 subscriber.save()
+                
+                # Send welcome email for resubscription
+                email_service.send_newsletter_welcome(email)
+                
                 return Response({'message': 'Successfully resubscribed!'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': 'Already subscribed!'}, status=status.HTTP_200_OK)
         
-        logger.info(f"New newsletter subscriber: {email}")
+        # Send welcome email to new subscriber
+        email_sent = email_service.send_newsletter_welcome(email)
+        if email_sent:
+            logger.info(f"New newsletter subscriber: {email} - welcome email sent")
+        else:
+            logger.warning(f"New newsletter subscriber: {email} - welcome email failed")
+        
         return Response({'message': 'Successfully subscribed!'}, status=status.HTTP_201_CREATED)

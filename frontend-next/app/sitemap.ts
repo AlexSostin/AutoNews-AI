@@ -5,13 +5,20 @@ const SITE_URL = 'https://freshmotors.net';
 
 async function getArticles() {
     try {
-        const res = await fetch(`${PRODUCTION_API_URL}/articles/?is_published=true`, {
+        const res = await fetch(`${PRODUCTION_API_URL}/articles/?is_published=true&page_size=100`, {
             next: { revalidate: 3600 },
+            headers: {
+                'Accept': 'application/json',
+            },
         });
-        if (!res.ok) return [];
+        if (!res.ok) {
+            console.error(`Failed to fetch articles for sitemap: ${res.status}`);
+            return [];
+        }
         const data = await res.json();
-        return data.results || [];
+        return data.results || data || [];
     } catch (e) {
+        console.error('Error fetching articles for sitemap:', e);
         return [];
     }
 }
@@ -20,10 +27,18 @@ async function getCategories() {
     try {
         const res = await fetch(`${PRODUCTION_API_URL}/categories/`, {
             next: { revalidate: 3600 },
+            headers: {
+                'Accept': 'application/json',
+            },
         });
-        if (!res.ok) return [];
-        return await res.json();
+        if (!res.ok) {
+            console.error(`Failed to fetch categories for sitemap: ${res.status}`);
+            return [];
+        }
+        const data = await res.json();
+        return Array.isArray(data) ? data : (data.results || []);
     } catch (e) {
+        console.error('Error fetching categories for sitemap:', e);
         return [];
     }
 }
@@ -50,13 +65,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         {
             url: SITE_URL,
             lastModified: new Date(),
-            changeFrequency: 'daily',
+            changeFrequency: 'daily' as const,
             priority: 1,
         },
         {
             url: `${SITE_URL}/articles`,
             lastModified: new Date(),
-            changeFrequency: 'daily',
+            changeFrequency: 'daily' as const,
             priority: 0.8,
         },
         ...articleEntries,
