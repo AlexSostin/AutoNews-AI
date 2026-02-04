@@ -69,3 +69,4 @@ google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 markdown==3.7
 sendgrid==6.11.0
+feedparser==6.0.11

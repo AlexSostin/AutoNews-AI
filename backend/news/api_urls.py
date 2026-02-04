@@ -8,7 +8,7 @@ from .api_views import (
     CommentViewSet, RatingViewSet, CarSpecificationViewSet, 
     ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
     FavoriteViewSet, SubscriberViewSet,
-    YouTubeChannelViewSet, PendingArticleViewSet, AutoPublishScheduleViewSet,
+    YouTubeChannelViewSet, RSSFeedViewSet, PendingArticleViewSet, AutoPublishScheduleViewSet,
     AdminNotificationViewSet
 )
 from .health import health_check, health_check_detailed, readiness_check
@@ -42,6 +42,7 @@ router.register(r'users', UserViewSet, basename='user')
 router.register(r'favorites', FavoriteViewSet, basename='favorite')
 router.register(r'subscribers', SubscriberViewSet, basename='subscriber')
 router.register(r'youtube-channels', YouTubeChannelViewSet, basename='youtube-channel')
+router.register(r'rss-feeds', RSSFeedViewSet, basename='rss-feed')
 router.register(r'pending-articles', PendingArticleViewSet, basename='pending-article')
 router.register(r'auto-publish-schedule', AutoPublishScheduleViewSet, basename='auto-publish-schedule')
 router.register(r'notifications', AdminNotificationViewSet, basename='notification')

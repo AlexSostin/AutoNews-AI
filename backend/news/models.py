@@ -442,6 +442,48 @@ class YouTubeChannel(models.Model):
         return self.name
 
 
+class RSSFeed(models.Model):
+    """RSS feeds from automotive brands and news sources"""
+    SOURCE_TYPES = [
+        ('brand', 'Automotive Brand'),
+        ('media', 'Automotive Media'),
+        ('blog', 'Industry Blog'),
+    ]
+    
+    name = models.CharField(max_length=200, help_text="Feed name for display (e.g., 'Mercedes-Benz Press')")
+    feed_url = models.URLField(unique=True, help_text="RSS/Atom feed URL")
+    website_url = models.URLField(blank=True, help_text="Main website URL")
+    source_type = models.CharField(max_length=20, choices=SOURCE_TYPES, default='brand')
+    
+    # Settings
+    is_enabled = models.BooleanField(default=True, help_text="Enable monitoring for this feed")
+    auto_publish = models.BooleanField(default=False, help_text="Automatically publish articles (skip review)")
+    default_category = models.ForeignKey(
+        'Category', on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Default category for articles from this feed"
+    )
+    
+    # Tracking
+    last_checked = models.DateTimeField(null=True, blank=True)
+    last_entry_date = models.DateTimeField(null=True, blank=True, help_text="Publication date of last processed entry")
+    entries_processed = models.IntegerField(default=0)
+    
+    # Metadata
+    logo_url = models.URLField(blank=True, help_text="Brand/source logo URL")
+    description = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = "RSS Feed"
+        verbose_name_plural = "RSS Feeds"
+    
+    def __str__(self):
+        return self.name
+
+
 class PendingArticle(models.Model):
     """Articles waiting for review before publishing"""
     STATUS_CHOICES = [
@@ -451,14 +493,24 @@ class PendingArticle(models.Model):
         ('published', 'Published'),
     ]
     
-    # Source info
+    # Source info (YouTube OR RSS)
     youtube_channel = models.ForeignKey(
         YouTubeChannel, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='pending_articles'
     )
-    video_url = models.URLField(help_text="Source YouTube video URL")
-    video_id = models.CharField(max_length=50)
-    video_title = models.CharField(max_length=500)
+    rss_feed = models.ForeignKey(
+        RSSFeed, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pending_articles'
+    )
+    
+    # YouTube-specific fields (optional)
+    video_url = models.URLField(blank=True, help_text="Source YouTube video URL")
+    video_id = models.CharField(max_length=50, blank=True)
+    video_title = models.CharField(max_length=500, blank=True)
+    
+    # RSS-specific fields (optional)
+    source_url = models.URLField(blank=True, help_text="Original article/press release URL")
+    content_hash = models.CharField(max_length=64, blank=True, db_index=True, help_text="SHA256 hash for deduplication")
     
     # Generated content
     title = models.CharField(max_length=500)

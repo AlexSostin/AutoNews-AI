@@ -4,7 +4,7 @@ from django.conf import settings
 from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
-    YouTubeChannel, PendingArticle, AutoPublishSchedule, EmailPreferences,
+    YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, EmailPreferences,
     AdminNotification
 )
 
@@ -414,6 +414,27 @@ class YouTubeChannelSerializer(serializers.ModelSerializer):
             'pending_count', 'created_at', 'updated_at'
         ]
         read_only_fields = ['channel_id', 'last_checked', 'last_video_id', 'videos_processed', 'created_at', 'updated_at']
+    
+    def get_pending_count(self, obj):
+        return obj.pending_articles.filter(status='pending').count()
+    
+    def get_category_name(self, obj):
+        return obj.default_category.name if obj.default_category else None
+
+
+class RSSFeedSerializer(serializers.ModelSerializer):
+    pending_count = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = RSSFeed
+        fields = [
+            'id', 'name', 'feed_url', 'website_url', 'source_type',
+            'is_enabled', 'auto_publish', 'default_category', 'category_name',
+            'last_checked', 'last_entry_date', 'entries_processed',
+            'logo_url', 'description', 'pending_count', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['last_checked', 'last_entry_date', 'entries_processed', 'created_at', 'updated_at']
     
     def get_pending_count(self, obj):
         return obj.pending_articles.filter(status='pending').count()

@@ -14,14 +14,14 @@ from django.utils import timezone
 from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
-    YouTubeChannel, PendingArticle, AutoPublishSchedule, AdminNotification
+    YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, AdminNotification
 )
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
     CategorySerializer, TagSerializer, TagGroupSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
     SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer, NewsletterHistorySerializer,
-    YouTubeChannelSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
+    YouTubeChannelSerializer, RSSFeedSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
     AdminNotificationSerializer
 )
 import os
@@ -1780,12 +1780,93 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
         })
 
 
+class RSSFeedViewSet(viewsets.ModelViewSet):
+    """
+    Manage RSS feeds for automatic article generation.
+    Staff only.
+    """
+    queryset = RSSFeed.objects.all()
+    serializer_class = RSSFeedSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        return [IsAuthenticated()]
+    
+    @action(detail=True, methods=['post'])
+    def scan_now(self, request, pk=None):
+        """Manually trigger scan for a specific RSS feed (Background Process)"""
+        feed = self.get_object()
+        
+        import subprocess
+        import sys
+        from django.conf import settings
+        
+        try:
+            manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
+            if not os.path.exists(manage_py):
+                manage_py = os.path.join(os.path.dirname(settings.BASE_DIR), 'manage.py')
+            
+            if not os.path.exists(manage_py):
+                manage_py = 'manage.py'
+
+            print(f"🚀 Launching RSS scan for {feed.name} using {manage_py}")
+            
+            subprocess.Popen(
+                [sys.executable, manage_py, 'scan_rss_feeds', '--feed-id', str(feed.id)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            message = f'Background scan started for {feed.name}'
+        except Exception as e:
+            print(f"❌ Error starting RSS scan: {e}")
+            import traceback
+            print(traceback.format_exc())
+            message = f'Failed to start scan: {str(e)}'
+            
+        return Response({
+            'message': message,
+            'feed_id': feed.id
+        })
+    
+    @action(detail=False, methods=['post'])
+    def scan_all(self, request):
+        """Scan all enabled RSS feeds (Background Process)"""
+        import subprocess
+        import sys
+        from django.conf import settings
+        
+        try:
+            manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
+            subprocess.Popen(
+                [sys.executable, manage_py, 'scan_rss_feeds', '--all'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            count = RSSFeed.objects.filter(is_enabled=True).count()
+            message = f'Background scan started for {count} RSS feeds'
+        except Exception as e:
+            print(f"❌ Error starting RSS scan: {e}")
+            message = f'Failed to start scan: {str(e)}'
+            count = 0
+            
+        return Response({
+            'message': message,
+            'count': count
+        })
+
+
 class PendingArticleViewSet(viewsets.ModelViewSet):
     """
     Manage pending articles waiting for review.
     Staff only.
     """
-    queryset = PendingArticle.objects.all()
+    queryset = PendingArticle.objects.select_related(
+        'youtube_channel',
+        'rss_feed',
+        'suggested_category'
+    ).all()
     serializer_class = PendingArticleSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -1794,7 +1875,11 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
     
     def get_queryset(self):
-        queryset = PendingArticle.objects.all()
+        queryset = PendingArticle.objects.select_related(
+            'youtube_channel',
+            'rss_feed',
+            'suggested_category'
+        ).all()
         status_filter = self.request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)

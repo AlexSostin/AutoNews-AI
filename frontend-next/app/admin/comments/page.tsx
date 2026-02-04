@@ -22,20 +22,32 @@ export default function CommentsPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ count: 0, next: null, previous: null });
 
   useEffect(() => {
     fetchComments();
-  }, [filter]);
+  }, [filter, currentPage]);
 
   const fetchComments = async () => {
     try {
       setLoading(true);
-      const params: any = { page_size: 100 };
+      const params: any = {
+        page: currentPage,
+        page_size: 20  // Reduced from 100 for better performance
+      };
       if (filter !== 'all') {
         params.approved = filter === 'approved' ? 'true' : 'false';
       }
       const response = await api.get('/comments/', { params });
       setComments(response.data.results || response.data);
+      if (response.data.count !== undefined) {
+        setPagination({
+          count: response.data.count,
+          next: response.data.next,
+          previous: response.data.previous
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch comments:', error);
     } finally {
@@ -217,9 +229,30 @@ export default function CommentsPage() {
         )}
       </div>
 
-      <div className="mt-4 text-sm text-gray-600 font-medium">
-        Showing {comments.length} comment{comments.length !== 1 ? 's' : ''}
-      </div>
+      {/* Pagination */}
+      {pagination.count > 0 && (
+        <div className="mt-6 flex items-center justify-between bg-white rounded-lg shadow-md p-4">
+          <div className="text-sm text-gray-600 font-medium">
+            Showing {((currentPage - 1) * 20) + 1} - {Math.min(currentPage * 20, pagination.count)} of {pagination.count} comments
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={!pagination.previous}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              disabled={!pagination.next}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

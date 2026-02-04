@@ -50,7 +50,6 @@ def generate_article(analysis_data, provider='groq', web_context=None):
     prompt = f"""
 {web_data_section}
 Create a professional, SEO-optimized automotive article based on the analysis below.
-Create a professional, SEO-optimized automotive article based on the analysis below.
 Output ONLY clean HTML content (use <h2>, <p>, <ul>, etc.) - NO <html>, <head>, or <body> tags.
 
 CRITICAL REQUIREMENTS:
@@ -64,6 +63,14 @@ CRITICAL REQUIREMENTS:
 4. Include specific numbers, stats, and comparisons for SEO
 5. Use natural keywords related to the car brand, model, year
 6. Write engaging, informative content (aim for 800-1200 words)
+
+⚠️ CRITICAL MODEL ACCURACY WARNING:
+- CAREFULLY verify the EXACT car model from the video title and transcript
+- DO NOT confuse similar model names (e.g., "Zeekr 7X" vs "Zeekr 007" are DIFFERENT cars)
+- Pay attention to spaces, numbers, and letters in model names
+- If the video title says "Zeekr 7X", write "Zeekr 7X" NOT "Zeekr 007"
+- If uncertain about the model, use the EXACT name from the video title
+- Double-check model names before writing - accuracy is CRITICAL
 
 NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
 - NO "Advertisement", "Ad Space", or "Sponsor" blocks

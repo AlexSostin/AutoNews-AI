@@ -13,7 +13,7 @@ import {
   Loader2,
   Mail
 } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import api from '@/lib/api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -108,11 +108,7 @@ export default function AnalyticsPage() {
 
   const fetchStats = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-      // Fetch new analytics endpoints
+      // Use api client which handles token refresh automatically
       const [
         overviewRes,
         topArticlesRes,
@@ -120,34 +116,28 @@ export default function AnalyticsPage() {
         categoriesRes,
         gscRes
       ] = await Promise.all([
-        fetch(`${apiUrl}/analytics/overview/`, { headers }),
-        fetch(`${apiUrl}/analytics/articles/top/?limit=10`, { headers }),
-        fetch(`${apiUrl}/analytics/views/timeline/?days=30`, { headers }),
-        fetch(`${apiUrl}/analytics/categories/`, { headers }),
-        fetch(`${apiUrl}/analytics/gsc/?days=30`, { headers })
+        api.get('/analytics/overview/'),
+        api.get('/analytics/articles/top/?limit=10'),
+        api.get('/analytics/views/timeline/?days=30'),
+        api.get('/analytics/categories/'),
+        api.get('/analytics/gsc/?days=30').catch(() => ({ data: null }))
       ]);
 
-      const overviewData = await overviewRes.json();
-      const topArticlesData = await topArticlesRes.json();
-      const timelineData = await timelineRes.json();
-      const categoriesData = await categoriesRes.json();
-      const gscData = gscRes.ok ? await gscRes.json() : null;
-
       setStats({
-        totalArticles: overviewData.total_articles,
-        totalViews: overviewData.total_views,
-        totalComments: overviewData.total_comments,
-        totalSubscribers: overviewData.total_subscribers,
-        articlesGrowth: overviewData.articles_growth,
-        viewsGrowth: overviewData.views_growth,
-        commentsGrowth: overviewData.comments_growth,
-        subscribersGrowth: overviewData.subscribers_growth,
-        popularArticles: topArticlesData.articles
+        totalArticles: overviewRes.data.total_articles,
+        totalViews: overviewRes.data.total_views,
+        totalComments: overviewRes.data.total_comments,
+        totalSubscribers: overviewRes.data.total_subscribers,
+        articlesGrowth: overviewRes.data.articles_growth,
+        viewsGrowth: overviewRes.data.views_growth,
+        commentsGrowth: overviewRes.data.comments_growth,
+        subscribersGrowth: overviewRes.data.subscribers_growth,
+        popularArticles: topArticlesRes.data.articles
       });
 
-      setTimeline(timelineData);
-      setCategories(categoriesData);
-      setGscStats(gscData);
+      setTimeline(timelineRes.data);
+      setCategories(categoriesRes.data);
+      setGscStats(gscRes.data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
