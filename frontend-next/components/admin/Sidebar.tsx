@@ -19,12 +19,14 @@ import {
   Youtube,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Menu,
+  Bell
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
 const menuItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/notifications', icon: Bell, label: 'Notifications' },
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/admin/articles', icon: FileText, label: 'Articles' },
   { href: '/admin/categories', icon: Folder, label: 'Categories' },

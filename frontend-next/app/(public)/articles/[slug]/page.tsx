@@ -142,7 +142,7 @@ export default async function ArticleDetailPage({
 
   const imageUrl = fixUrl(article.image);
 
-  const fullUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://autonews-ai-production.up.railway.app'}/articles/${article.slug}`;
+  const fullUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.freshmotors.net'}/articles/${article.slug}`;
 
   // Prepare article content HTML with images between paragraphs
   const articleContentHtml = article.content;
@@ -209,84 +209,86 @@ export default async function ArticleDetailPage({
         </div>
 
         <div className="container mx-auto px-4 py-8">
-          {/* Breadcrumbs */}
-          <div className="mb-6">
-            <Breadcrumbs
-              items={[
-                { label: article.category_name, href: `/categories/${article.category_slug}` },
-                { label: article.title }
-              ]}
-            />
-          </div>
-
-          {/* Article Meta */}
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600 items-center">
-              <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-indigo-600" />
-                <span>{formatDate(article.created_at)}</span>
-              </div>
-
-              {article.author && (
-                <div className="flex items-center gap-2">
-                  <User size={16} className="text-indigo-600" />
-                  <span>{article.author}</span>
-                </div>
-              )}
-
-              {/* Reading Time */}
-              <ReadingTime content={article.content} />
-
-              {(article.average_rating > 0 && article.rating_count > 0) && (
-                <ArticleRating
-                  initialRating={article.average_rating}
-                  initialCount={article.rating_count}
-                />
-              )}
-            </div>
-
-            {/* View Stats with Trending Badge */}
-            {article.views && article.views > 0 && (
-              <div className="mt-4">
-                <ViewStats
-                  views={article.views}
-                  createdAt={article.created_at}
-                  isTrending={article.views > 100}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Title Section */}
-          <div className="mb-8">
-            {article.category_name && (
-              <Link
-                href={`/categories/${article.category_slug}`}
-                className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold mb-4 hover:bg-indigo-700 transition-colors"
-              >
-                {article.category_name}
-              </Link>
-            )}
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 flex-1">
-                {article.title}
-              </h1>
-              <FavoriteButton
-                articleId={article.id}
-                initialIsFavorited={article.is_favorited}
-                size="lg"
+          <div className="max-w-4xl mx-auto">
+            {/* Breadcrumbs */}
+            <div className="mb-6">
+              <Breadcrumbs
+                items={[
+                  { label: article.category_name, href: `/categories/${article.category_slug}` },
+                  { label: article.title }
+                ]}
               />
             </div>
-            <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl">
-              {article.summary}
-            </p>
 
-            {/* Price Display with Currency Converter */}
-            {article.price_usd && (
-              <div className="mt-4">
-                <PriceConverter priceUsd={article.price_usd} />
+            {/* Article Meta */}
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600 items-center">
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-indigo-600" />
+                  <span>{formatDate(article.created_at)}</span>
+                </div>
+
+                {article.author && (
+                  <div className="flex items-center gap-2">
+                    <User size={16} className="text-indigo-600" />
+                    <span>{article.author}</span>
+                  </div>
+                )}
+
+                {/* Reading Time */}
+                <ReadingTime content={article.content} />
+
+                {(article.average_rating > 0 && article.rating_count > 0) && (
+                  <ArticleRating
+                    initialRating={article.average_rating}
+                    initialCount={article.rating_count}
+                  />
+                )}
               </div>
-            )}
+
+              {/* View Stats with Trending Badge */}
+              {article.views && article.views > 0 && (
+                <div className="mt-4">
+                  <ViewStats
+                    views={article.views}
+                    createdAt={article.created_at}
+                    isTrending={article.views > 100}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Title Section */}
+            <div className="mb-8">
+              {article.category_name && (
+                <Link
+                  href={`/categories/${article.category_slug}`}
+                  className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold mb-4 hover:bg-indigo-700 transition-colors"
+                >
+                  {article.category_name}
+                </Link>
+              )}
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 flex-1">
+                  {article.title}
+                </h1>
+                <FavoriteButton
+                  articleId={article.id}
+                  initialIsFavorited={article.is_favorited}
+                  size="lg"
+                />
+              </div>
+              <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-3xl">
+                {article.summary}
+              </p>
+
+              {/* Price Display with Currency Converter */}
+              {article.price_usd && (
+                <div className="mt-4">
+                  <PriceConverter priceUsd={article.price_usd} />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="max-w-4xl mx-auto">
