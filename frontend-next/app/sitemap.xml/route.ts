@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-const SITE_URL = 'https://freshmotors.net';
+const SITE_URL = 'https://www.freshmotors.net';
 const FETCH_TIMEOUT = 5000; // 5 seconds timeout
 
 async function fetchWithTimeout(url: string, timeout: number) {
