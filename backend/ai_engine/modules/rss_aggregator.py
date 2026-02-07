@@ -161,16 +161,111 @@ class RSSAggregator:
         logger.debug(f"Extracted {len(images)} images from entry")
         return images
     
-    def extract_content(self, entry: Dict) -> str:
+    def convert_plain_text_to_html(self, text: str) -> str:
         """
-        Extract text content from RSS entry.
+        Convert plain text to HTML with proper formatting.
+        
+        - Decodes HTML entities (e.g., &nbsp;, &#8217;)
+        - Splits text into paragraphs (double newlines)
+        - Wraps each paragraph in <p> tags
+        - Converts URLs to clickable links
+        - Preserves single newlines as <br>
+        
+        Args:
+            text: Plain text content
+            
+        Returns:
+            HTML-formatted content
+        """
+        import re
+        import html
+        
+        # Decode HTML entities first (e.g., &nbsp; -> space, &#8217; -> ')
+        text = html.unescape(text)
+        
+        # Split by double newlines to get paragraphs
+        paragraphs = re.split(r'\n\s*\n', text.strip())
+        
+        html_parts = []
+        for para in paragraphs:
+            if not para.strip():
+                continue
+            
+            # Convert URLs to links
+            para = re.sub(
+                r'(https?://[^\s<>"]+)',
+                r'<a href="\1" target="_blank" rel="noopener noreferrer">\1</a>',
+                para
+            )
+            
+            # Replace single newlines with <br>
+            para = para.replace('\n', '<br>\n')
+            
+            # Wrap in paragraph tag
+            html_parts.append(f'<p>{para}</p>')
+        
+        return '\n'.join(html_parts)
+    
+    def clean_publisher_mentions(self, text: str) -> str:
+        """
+        Remove publisher self-references from RSS content.
+        
+        Args:
+            text: Plain text content
+            
+        Returns:
+            Cleaned text without publisher mentions
+        """
+        import re
+        
+        # Common patterns for publisher mentions
+        patterns = [
+            # WordPress-style "appeared first on" pattern
+            r'The post .+ appeared first on .+\.',
+            r'The post .+ appeared first on .+',
+            
+            # Generic publisher mentions
+            r'First published by https?://[^\s]+',
+            r'Originally published (?:on|at|by) [^\n]+',
+            r'Read more at https?://[^\s]+',
+            r'Continue reading at https?://[^\s]+',
+            r'Full article at https?://[^\s]+',
+            r'\[Continue reading.*?\]',
+            
+            # Source attribution blocks (multiple variations)
+            r'Source: [^\n]+\s*View original article',
+            r'Source: [^\n]+\.\s*View original article',
+            
+            # Learn more / visit links at end
+            r'To learn more about .+, visit .+\.',
+            r'For more information, visit .+\.',
+            
+            # Standalone "View original article"
+            r'View original article',
+        ]
+        
+        cleaned = text
+        for pattern in patterns:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+        
+        # Remove multiple blank lines
+        cleaned = re.sub(r'\n\s*\n\s*\n+', '\n\n', cleaned)
+        
+        return cleaned.strip()
+    
+    def extract_plain_text(self, entry: Dict) -> str:
+        """
+        Extract plain text content from RSS entry (for excerpts).
         
         Args:
             entry: RSS feed entry
             
         Returns:
-            Cleaned text content
+            Plain text content (no HTML)
         """
+        import re
+        import html
+        
         # Try content first, then summary, then description
         for field in ['content', 'summary', 'description']:
             if hasattr(entry, field):
@@ -179,11 +274,36 @@ class RSSAggregator:
                     content = content[0].get('value', '')
                 
                 if content:
-                    # Basic HTML tag removal (can be improved)
-                    import re
+                    # Remove HTML tags
                     text = re.sub(r'<[^>]+>', '', str(content))
+                    # Decode HTML entities
+                    text = html.unescape(text)
                     text = text.strip()
+                    
+                    # Clean publisher self-references
+                    text = self.clean_publisher_mentions(text)
+                    
                     return text
+        
+        return ""
+    
+    def extract_content(self, entry: Dict) -> str:
+        """
+        Extract text content from RSS entry and convert to HTML.
+        
+        Args:
+            entry: RSS feed entry
+            
+        Returns:
+            HTML-formatted content
+        """
+        # Get plain text first
+        text = self.extract_plain_text(entry)
+        
+        if text:
+            # Convert plain text to HTML with paragraphs and links
+            html_content = self.convert_plain_text_to_html(text)
+            return html_content
         
         return ""
     
@@ -209,13 +329,84 @@ class RSSAggregator:
         
         return None
     
-    def process_feed(self, rss_feed: RSSFeed, limit: int = 10) -> int:
+    def create_pending_with_ai(self, rss_feed: RSSFeed, entry: Dict, content: str, 
+                                images: List[str], content_hash: str) -> Optional[PendingArticle]:
+        """
+        Create PendingArticle with AI-expanded content from press release.
+        
+        Args:
+            rss_feed: RSSFeed instance
+            entry: RSS entry dict
+            content: Original press release content
+            images: List of image URLs
+            content_hash: Content hash for deduplication
+            
+        Returns:
+            Created PendingArticle or None if error
+        """
+        try:
+            from ai_engine.modules.article_generator import expand_press_release
+            
+            title = entry.get('title', 'Untitled')
+            source_url = entry.get('link', '')
+            
+            logger.info(f"Expanding press release with AI: {title[:50]}")
+            
+            # Expand press release with AI
+            expanded_content = expand_press_release(
+                press_release_text=content,
+                source_url=source_url,
+                provider='groq'  # Can be made configurable
+            )
+            
+            # Extract title from AI-generated content (first <h2> tag)
+            import re
+            title_match = re.search(r'<h2>(.*?)</h2>', expanded_content)
+            if title_match:
+                ai_title = re.sub(r'<[^>]+>', '', title_match.group(1)).strip()
+            else:
+                ai_title = title
+            
+            # Convert markdown to HTML if AI returned markdown instead of HTML
+            # Check if content contains markdown headers (###) instead of HTML (<h2>)
+            if '###' in expanded_content and '<h2>' not in expanded_content:
+                try:
+                    import markdown
+                    logger.info("AI returned markdown instead of HTML, converting...")
+                    expanded_content = markdown.markdown(expanded_content, extensions=['fenced_code', 'tables'])
+                except Exception as e:
+                    logger.warning(f"Markdown conversion failed: {e}, keeping as-is")
+            
+            # Create PendingArticle with expanded content
+            pending = PendingArticle.objects.create(
+                rss_feed=rss_feed,
+                source_url=source_url,
+                content_hash=content_hash,
+                title=ai_title,
+                content=expanded_content,  # AI-expanded content
+                excerpt=content[:500] if len(content) > 500 else content,  # Original excerpt
+                images=images,
+                featured_image=images[0] if images else '',
+                suggested_category=rss_feed.default_category,
+                status='pending'
+            )
+            
+            logger.info(f"✓ Created AI-enhanced PendingArticle: {ai_title[:50]}")
+            return pending
+            
+        except Exception as e:
+            logger.error(f"Error creating AI-enhanced article: {e}")
+            logger.info("Falling back to basic article creation")
+            return None
+    
+    def process_feed(self, rss_feed: RSSFeed, limit: int = 10, use_ai: bool = True) -> int:
         """
         Process RSS feed and create PendingArticles.
         
         Args:
             rss_feed: RSSFeed model instance
             limit: Maximum number of entries to process
+            use_ai: Whether to use AI to expand press releases (default: True)
             
         Returns:
             Number of articles created
@@ -229,45 +420,100 @@ class RSSAggregator:
         for entry in feed_data.entries[:limit]:
             try:
                 title = entry.get('title', 'Untitled')
-                content = self.extract_content(entry)
-                source_url = entry.get('link', '')
                 
-                # Skip if no content
-                if not content or len(content) < 100:
-                    logger.debug(f"Skipping entry with insufficient content: {title[:50]}")
+                # Skip articles with generic/template titles
+                generic_titles = [
+                    'Performance & Specifications',
+                    'Performance &amp; Specifications',
+                    'Specifications',
+                    'Features',
+                    'Overview',
+                    'Details',
+                    'Information'
+                ]
+                if title in generic_titles or title.strip() == '':
+                    logger.debug(f"Skipping entry with generic title: {title}")
                     continue
                 
-                # Check for duplicates
-                if self.is_duplicate(title, content):
+                plain_text = self.extract_plain_text(entry)  # For excerpt
+                content = self.extract_content(entry)  # HTML version
+                source_url = entry.get('link', '')
+                
+                # Skip if no content or too short (minimum 500 chars for quality)
+                if not plain_text or len(plain_text) < 500:
+                    logger.debug(f"Skipping entry with insufficient content ({len(plain_text) if plain_text else 0} chars): {title[:50]}")
+                    continue
+                
+                # Check for duplicates (use plain text for hash)
+                if self.is_duplicate(title, plain_text):
                     logger.debug(f"Skipping duplicate: {title[:50]}")
                     continue
                 
                 # Extract images
                 images = self.extract_images(entry)
+                
+                # Fallback to Pexels if no images found
+                if not images:
+                    try:
+                        from ai_engine.modules.pexels_client import search_automotive_image
+                        from ai_engine.config import PEXELS_ENABLED
+                        
+                        if PEXELS_ENABLED:
+                            # Extract brand from feed name
+                            brand = rss_feed.name.split()[0] if rss_feed.name else ''
+                            
+                            # Search for relevant image
+                            pexels_image = search_automotive_image(title, brand=brand, content=content[:500])
+                            
+                            if pexels_image:
+                                images = [pexels_image]
+                                logger.info(f'Added Pexels image for: {title[:50]}')
+                    except Exception as e:
+                        logger.warning(f'Pexels image search failed: {e}')
+                
+                # Final fallback: use RSS feed logo if available
+                if not images and rss_feed.logo_url:
+                    images = [rss_feed.logo_url]
+                    logger.info(f'Using RSS feed logo as fallback for: {title[:50]}')
+                
                 featured_image = images[0] if images else ''
                 
-                # Calculate content hash
-                content_hash = self.calculate_content_hash(content)
+                # Calculate content hash (use plain text)
+                content_hash = self.calculate_content_hash(plain_text)
                 
                 # Get publication date
                 pub_date = self.parse_entry_date(entry)
                 
-                # Create PendingArticle (will be enhanced by AI later)
-                pending = PendingArticle.objects.create(
-                    rss_feed=rss_feed,
-                    source_url=source_url,
-                    content_hash=content_hash,
-                    title=title,
-                    content=content,  # Will be expanded by AI
-                    excerpt=content[:500] if len(content) > 500 else content,
-                    images=images,
-                    featured_image=featured_image,
-                    suggested_category=rss_feed.default_category,
-                    status='pending'
-                )
+                # Try AI enhancement if enabled
+                pending = None
+                if use_ai:
+                    pending = self.create_pending_with_ai(
+                        rss_feed, entry, plain_text, images, content_hash
+                    )
+                
+                # Fallback to basic creation if AI fails or disabled
+                if not pending:
+                    # Add source attribution to content
+                    content_with_source = content
+                    if source_url:
+                        source_name = rss_feed.name or 'Source'
+                        content_with_source += f'\n<p class="source-attribution" style="margin-top: 2rem; padding: 1rem; background: #f3f4f6; border-left: 4px solid #3b82f6; font-size: 0.875rem;">\n    <strong>Source:</strong> {source_name}. \n    <a href="{source_url}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">View original article</a>\n</p>'
+                    
+                    pending = PendingArticle.objects.create(
+                        rss_feed=rss_feed,
+                        source_url=source_url,
+                        content_hash=content_hash,
+                        title=title,
+                        content=content_with_source,
+                        excerpt=plain_text[:500] if len(plain_text) > 500 else plain_text,  # Use plain text for excerpt
+                        images=images,
+                        featured_image=featured_image,
+                        suggested_category=rss_feed.default_category,
+                        status='pending'
+                    )
+                    logger.info(f"Created basic PendingArticle: {title[:50]}")
                 
                 created_count += 1
-                logger.info(f"Created PendingArticle: {title[:50]}")
                 
                 # Update last_entry_date if this entry is newer
                 if pub_date and (not rss_feed.last_entry_date or pub_date > rss_feed.last_entry_date):
