@@ -112,21 +112,3 @@ def invalidate_article_on_comment(sender, instance, **kwargs):
     ])
     if hasattr(cache, 'delete_pattern'):
         cache.delete_pattern('article_list*')
-
-
-@receiver(m2m_changed, sender=Article.categories.through)
-def invalidate_cache_on_category_change(sender, instance, action, **kwargs):
-    """Clear category caches when article categories are changed"""
-    if action in ['post_add', 'post_remove', 'post_clear']:
-        # Clear cache for all affected categories
-        if hasattr(cache, 'delete_pattern'):
-            cache.delete_pattern('category*')
-        
-        # Clear article list caches
-        cache.delete_many([
-            f'article_{instance.id}',
-            f'article_{instance.slug}',
-        ])
-        if hasattr(cache, 'delete_pattern'):
-            cache.delete_pattern('article_list*')
-
