@@ -10,7 +10,7 @@ interface Article {
     slug: string;
     summary: string;
     image: string | null;
-    category: { name: string; slug: string };
+    categories: { name: string; slug: string }[];
     views: number;
     created_at: string;
 }
@@ -193,7 +193,7 @@ function SearchContent() {
                                     {/* Category Badge */}
                                     <div className="mb-2">
                                         <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
-                                            {article.category.name}
+                                            {article.categories?.[0]?.name || 'News'}
                                         </span>
                                     </div>
 

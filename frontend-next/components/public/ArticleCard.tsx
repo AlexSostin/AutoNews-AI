@@ -34,9 +34,9 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
             priority={priority}
             loading={priority ? "eager" : "lazy"}
           />
-          {article.category_name && (
+          {article.categories && article.categories.length > 0 && (
             <span className="absolute top-3 left-3 bg-indigo-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">
-              {article.category_name}
+              {article.categories[0].name}
             </span>
           )}
           <div className="absolute top-3 right-3" onClick={(e) => e.preventDefault()}>

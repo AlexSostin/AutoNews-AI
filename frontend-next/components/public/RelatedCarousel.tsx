@@ -100,9 +100,9 @@ export default function RelatedCarousel({ categorySlug, currentArticleSlug }: Re
                                 className="object-cover group-hover:scale-110 transition-transform duration-500"
                                 sizes="(max-width: 768px) 280px, 320px"
                             />
-                            {article.category_name && (
-                                <span className="absolute top-2 left-2 bg-indigo-600/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                                    {article.category_name}
+                            {article.categories && article.categories.length > 0 && (
+                                <span className="absolute top-2 left-2 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow">
+                                    {article.categories[0].name}
                                 </span>
                             )}
                         </div>

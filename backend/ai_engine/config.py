@@ -22,3 +22,9 @@ LOGS_DIR = os.path.join(OUTPUT_DIR, "logs")
 WHISPER_MODEL = "whisper-1"  # OpenAI Whisper (optional)
 GROQ_MODEL = "llama-3.3-70b-versatile"  # Main model (Jan 2026)
 LLM_MODEL = "gpt-4-turbo"  # OpenAI GPT (optional)
+
+# Pexels API Configuration (Free image search)
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
+PEXELS_ENABLED = bool(PEXELS_API_KEY)
+PEXELS_IMAGE_SIZE = "large"  # large, medium, small, original
+

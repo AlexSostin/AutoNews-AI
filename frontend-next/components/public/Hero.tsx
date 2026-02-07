@@ -10,8 +10,7 @@ interface Article {
     title: string;
     slug: string;
     summary: string;
-    category_name: string;
-    category_slug: string;
+    categories: { id: number; name: string; slug: string }[];
     image: string;
     created_at: string;
     is_hero: boolean;
@@ -170,7 +169,7 @@ export default function Hero({ articles, settings }: HeroProps) {
                         <div className="max-w-4xl animate-slide-up">
                             <div className="flex items-center gap-3 mb-2 md:mb-4">
                                 <span className="bg-indigo-600 text-white text-[10px] md:text-sm font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-full uppercase tracking-wider">
-                                    {article.category_name}
+                                    {article.categories?.[0]?.name || 'News'}
                                 </span>
                                 <span className="text-white/70 text-[10px] md:text-sm flex items-center gap-1 font-medium bg-black/40 backdrop-blur-md px-2 md:px-3 py-0.5 md:py-1 rounded-full">
                                     <Calendar size={12} className="md:w-3.5 md:h-3.5" />

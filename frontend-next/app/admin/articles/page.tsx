@@ -9,7 +9,7 @@ interface Article {
   id: number;
   title: string;
   slug: string;
-  category_name: string;
+  category_names: string[];
   is_published: boolean;
   is_hero: boolean;
   created_at: string;
@@ -247,7 +247,7 @@ export default function ArticlesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">
-                        {article.category_name}
+                        {article.category_names?.join(', ') || 'None'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -258,12 +258,20 @@ export default function ArticlesPage() {
                           onChange={() => handleTogglePublish(article.id, article.is_published)}
                           className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
                         />
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${article.is_published
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-amber-100 text-amber-700'
-                          }`}>
-                          {article.is_published ? 'Published' : 'Draft'}
-                        </span>
+                        {/* Show real visibility status: published + has category */}
+                        {article.is_published && article.category_names && article.category_names.length > 0 ? (
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                            Published
+                          </span>
+                        ) : article.is_published ? (
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                            No Category
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                            Draft
+                          </span>
+                        )}
                       </label>
                     </td>
                     <td className="px-6 py-4">
@@ -376,8 +384,8 @@ export default function ArticlesPage() {
                   key={pageNum}
                   onClick={() => setCurrentPage(pageNum)}
                   className={`w-10 h-10 rounded-lg font-bold transition-all ${currentPage === pageNum
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   {pageNum}

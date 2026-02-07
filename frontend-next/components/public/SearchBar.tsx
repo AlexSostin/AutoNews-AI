@@ -10,7 +10,7 @@ interface SearchResult {
   title: string;
   slug: string;
   summary: string;
-  category_name: string;
+  categories: { id: number; name: string; slug: string }[];
   image?: string;
   thumbnail_url?: string;
 }
@@ -138,20 +138,20 @@ export default function SearchBar() {
 
       {/* Search Modal */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-[100] overflow-y-auto"
           role="dialog"
           aria-modal="true"
         >
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={handleClose}
           />
 
           {/* Modal */}
           <div className="flex min-h-full items-start justify-center p-2 sm:p-4 pt-[10vh] sm:pt-[15vh]">
-            <div 
+            <div
               ref={modalRef}
               className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-2xl transition-all border border-purple-500/20"
               onClick={(e) => e.stopPropagation()}
@@ -226,11 +226,10 @@ export default function SearchBar() {
                           key={article.id}
                           href={`/articles/${article.slug}`}
                           onClick={handleClose}
-                          className={`flex items-center gap-4 p-3 rounded-xl transition-all group ${
-                            selectedIndex === index
+                          className={`flex items-center gap-4 p-3 rounded-xl transition-all group ${selectedIndex === index
                               ? 'bg-purple-600/30 border border-purple-500/50'
                               : 'hover:bg-white/5 border border-transparent'
-                          }`}
+                            }`}
                         >
                           {/* Thumbnail */}
                           <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-700">
@@ -251,25 +250,23 @@ export default function SearchBar() {
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
-                            <h4 className={`font-semibold line-clamp-1 transition-colors ${
-                              selectedIndex === index ? 'text-white' : 'text-gray-200 group-hover:text-white'
-                            }`}>
+                            <h4 className={`font-semibold line-clamp-1 transition-colors ${selectedIndex === index ? 'text-white' : 'text-gray-200 group-hover:text-white'
+                              }`}>
                               {article.title}
                             </h4>
                             <p className="text-sm text-gray-400 line-clamp-1 mt-0.5">
                               {article.summary}
                             </p>
                             <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">
-                              {article.category_name}
+                              {article.categories?.[0]?.name || 'News'}
                             </span>
                           </div>
 
                           {/* Arrow */}
-                          <ArrowRight size={18} className={`flex-shrink-0 transition-all ${
-                            selectedIndex === index 
-                              ? 'text-purple-400 translate-x-0 opacity-100' 
+                          <ArrowRight size={18} className={`flex-shrink-0 transition-all ${selectedIndex === index
+                              ? 'text-purple-400 translate-x-0 opacity-100'
                               : 'text-gray-600 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
-                          }`} />
+                            }`} />
                         </Link>
                       );
                     })}

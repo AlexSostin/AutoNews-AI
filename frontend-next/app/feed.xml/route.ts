@@ -43,7 +43,7 @@ export async function GET() {
       <content:encoded><![CDATA[${article.summary}]]></content:encoded>
       <pubDate>${new Date(article.created_at).toUTCString()}</pubDate>
       ${article.image ? `<enclosure url="${article.image}" type="image/jpeg" />` : ''}
-      ${article.category_name ? `<category>${article.category_name}</category>` : ''}
+      ${article.category_names?.length > 0 ? article.category_names.map((name: string) => `<category>${name}</category>`).join('\n      ') : ''}
       ${article.tags ? article.tags.map((tag: any) => `<category>${tag.name}</category>`).join('\n      ') : ''}
     </item>
     `).join('')}

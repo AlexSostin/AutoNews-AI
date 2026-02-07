@@ -34,7 +34,7 @@ export default function NewArticlePage() {
     slug: '',
     summary: '',
     content: '',
-    category: '',
+    category_ids: [] as number[],
     tags: [] as number[],
     published: false,
     youtube_url: '',
@@ -128,7 +128,7 @@ export default function NewArticlePage() {
       formDataToSend.append('title', formData.title);
       formDataToSend.append('summary', formData.summary);
       formDataToSend.append('content', formData.content);
-      formDataToSend.append('category_id', formData.category);
+      formData.category_ids.forEach(id => formDataToSend.append('category_ids', id.toString()));
       formDataToSend.append('tag_ids', JSON.stringify(formData.tags));
       formDataToSend.append('is_published', formData.published.toString());
 
@@ -392,22 +392,35 @@ export default function NewArticlePage() {
             />
           </div>
 
-          {/* Category */}
+          {/* Categories */}
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Category *</label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-              required
-            >
-              <option value="">Select a category</option>
+            <label className="block text-sm font-bold text-gray-900 mb-2">Categories *</label>
+            <div className="flex flex-wrap gap-2">
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    const ids = formData.category_ids.includes(cat.id)
+                      ? formData.category_ids.filter(id => id !== cat.id)
+                      : [...formData.category_ids, cat.id];
+                    setFormData({ ...formData, category_ids: ids });
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ${formData.category_ids.includes(cat.id)
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
+                    }`}
+                >
                   {cat.name}
-                </option>
+                  {formData.category_ids.includes(cat.id) && (
+                    <span className="ml-2">✓</span>
+                  )}
+                </button>
               ))}
-            </select>
+            </div>
+            {formData.category_ids.length === 0 && (
+              <p className="text-sm text-red-500 mt-1">Select at least one category</p>
+            )}
           </div>
 
           {/* Tags */}
@@ -441,8 +454,8 @@ export default function NewArticlePage() {
                         type="button"
                         onClick={() => handleTagToggle(tag.id)}
                         className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ${formData.tags.includes(tag.id)
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
-                            : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
                           }`}
                       >
                         {tag.name}

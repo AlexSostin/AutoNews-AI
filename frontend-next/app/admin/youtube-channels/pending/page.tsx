@@ -32,7 +32,7 @@ interface PendingArticle {
   content: string;
   excerpt: string;
   suggested_category: number;
-  category_name: string;
+  category_names: string[];
   images: string[];
   featured_image: string;
   status: string;
@@ -52,19 +52,23 @@ export default function PendingArticlesPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
+  const [sourceFilter, setSourceFilter] = useState<'youtube' | 'rss'>('youtube'); // New: source filter
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [processing, setProcessing] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetchData();
-  }, [filter]);
+  }, [filter, sourceFilter]); // Add sourceFilter dependency
 
   const fetchData = async () => {
     try {
+      const excludeRss = sourceFilter === 'youtube';
+      const onlyRss = sourceFilter === 'rss';
+
       const [articlesRes, statsRes] = await Promise.all([
-        api.get(`/pending-articles/?status=${filter === 'pending' ? 'pending' : ''}`),
-        api.get(`/pending-articles/stats/`)
+        api.get(`/pending-articles/?status=${filter === 'pending' ? 'pending' : ''}${excludeRss ? '&exclude_rss=true' : ''}${onlyRss ? '&only_rss=true' : ''}`),
+        api.get(`/pending-articles/stats/?${excludeRss ? 'exclude_rss=true' : ''}${onlyRss ? 'only_rss=true' : ''}`)
       ]);
 
       setArticles(Array.isArray(articlesRes.data) ? articlesRes.data : articlesRes.data.results || []);
@@ -178,6 +182,32 @@ export default function PendingArticlesPage() {
         </div>
       )}
 
+      {/* Source Filter Tabs (YouTube vs RSS) */}
+      <div className="flex gap-2 border-b border-gray-200 pb-4">
+        <button
+          onClick={() => setSourceFilter('youtube')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-t-lg text-sm font-semibold transition-all ${sourceFilter === 'youtube'
+            ? 'bg-red-600 text-white shadow-md'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+        >
+          <Youtube size={18} />
+          YouTube Articles
+          {stats && <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">{sourceFilter === 'youtube' ? stats.pending : '...'}</span>}
+        </button>
+        <button
+          onClick={() => setSourceFilter('rss')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-t-lg text-sm font-semibold transition-all ${sourceFilter === 'rss'
+            ? 'bg-indigo-600 text-white shadow-md'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+        >
+          <FileText size={18} />
+          RSS Articles
+          {stats && <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">{sourceFilter === 'rss' ? stats.pending : '...'}</span>}
+        </button>
+      </div>
+
       {/* Filter */}
       <div className="flex gap-2">
         <button
@@ -220,7 +250,10 @@ export default function PendingArticlesPage() {
                         return `${apiUrl}${url.startsWith('/') ? '' : '/'}${url}`;
                       })()}
                       alt=""
-                      className="w-full sm:w-40 h-24 object-cover rounded-lg"
+                      className="w-full sm:w-40 h-24 object-cover rounded-lg bg-gray-100"
+                      onError={(e) => {
+                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96"%3E%3Crect fill="%23f3f4f6" width="160" height="96"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" fill="%239ca3af"%3ENo Image%3C/text%3E%3C/svg%3E';
+                      }}
                     />
                   )}
 
@@ -233,9 +266,9 @@ export default function PendingArticlesPage() {
                             <Youtube size={14} className="text-red-600" />
                             {article.channel_name}
                           </span>
-                          {article.category_name && (
-                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
-                              {article.category_name}
+                          {article.category_names && article.category_names.length > 0 && (
+                            <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
+                              {article.category_names[0]}
                             </span>
                           )}
                           <span className="flex items-center gap-1 text-gray-400">

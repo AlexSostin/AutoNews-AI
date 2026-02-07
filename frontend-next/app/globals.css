@@ -149,3 +149,127 @@ textarea::placeholder {
     width: 95%;
   }
 }
+
+/* ========================================
+   Article Content Styling
+   ======================================== */
+
+.article-content-wrapper {
+  @apply max-w-none text-gray-800 leading-relaxed;
+}
+
+/* Paragraphs */
+.article-content-wrapper p {
+  @apply mb-6 text-lg leading-8 text-gray-700;
+}
+
+/* First paragraph - drop cap */
+.article-content-wrapper .article-element:first-child p:first-of-type::first-letter {
+  @apply float-left text-6xl font-bold leading-none mr-2 text-indigo-600;
+  margin-top: 0.1em;
+}
+
+/* Headings */
+.article-content-wrapper h1 {
+  @apply text-4xl font-bold mb-6 mt-12 text-gray-900 border-b-4 border-indigo-500 pb-3;
+}
+
+.article-content-wrapper h2 {
+  @apply text-3xl font-bold mb-5 mt-10 text-gray-900 border-l-4 border-indigo-500 pl-4;
+}
+
+.article-content-wrapper h3 {
+  @apply text-2xl font-semibold mb-4 mt-8 text-gray-800;
+}
+
+.article-content-wrapper h4 {
+  @apply text-xl font-semibold mb-3 mt-6 text-gray-800;
+}
+
+/* Lists */
+.article-content-wrapper ul {
+  @apply mb-6 ml-6 space-y-3;
+}
+
+.article-content-wrapper ol {
+  @apply mb-6 ml-6 space-y-3;
+}
+
+.article-content-wrapper li {
+  @apply text-lg leading-7 text-gray-700 pl-2;
+}
+
+.article-content-wrapper ul li {
+  @apply relative;
+}
+
+.article-content-wrapper ul li::before {
+  content: "▸";
+  @apply absolute -left-6 text-indigo-600 font-bold;
+}
+
+.article-content-wrapper ol li {
+  @apply list-decimal;
+}
+
+/* Blockquotes */
+.article-content-wrapper blockquote {
+  @apply border-l-4 border-indigo-500 pl-6 pr-4 py-4 my-8 bg-indigo-50 rounded-r-lg italic text-gray-700;
+}
+
+/* Links */
+.article-content-wrapper a {
+  @apply text-indigo-600 hover:text-indigo-800 underline decoration-2 underline-offset-2 transition-colors;
+}
+
+/* Strong/Bold */
+.article-content-wrapper strong,
+.article-content-wrapper b {
+  @apply font-bold text-gray-900;
+}
+
+/* Emphasis/Italic */
+.article-content-wrapper em,
+.article-content-wrapper i {
+  @apply italic text-gray-700;
+}
+
+/* Code */
+.article-content-wrapper code {
+  @apply bg-gray-100 px-2 py-1 rounded text-sm font-mono text-indigo-600;
+}
+
+.article-content-wrapper pre {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto mb-6;
+}
+
+.article-content-wrapper pre code {
+  @apply bg-transparent text-gray-100 p-0;
+}
+
+/* Tables */
+.article-content-wrapper table {
+  @apply w-full mb-6 border-collapse;
+}
+
+.article-content-wrapper th {
+  @apply bg-indigo-600 text-white font-semibold p-3 text-left;
+}
+
+.article-content-wrapper td {
+  @apply border border-gray-300 p-3;
+}
+
+.article-content-wrapper tr:nth-child(even) {
+  @apply bg-gray-50;
+}
+
+/* Horizontal Rule */
+.article-content-wrapper hr {
+  @apply my-10 border-t-2 border-gray-300;
+}
+
+/* Images in content */
+.article-content-wrapper img {
+  @apply rounded-lg shadow-lg my-6 mx-auto;
+}

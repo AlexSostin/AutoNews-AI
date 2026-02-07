@@ -10,13 +10,25 @@ from .models import Article, Category, Tag, Rating, Comment
 @receiver([post_save, post_delete], sender=Article)
 def invalidate_article_cache(sender, instance, **kwargs):
     """Clear article-related caches when article is saved or deleted"""
-    cache.delete_many([
+    cache_keys = [
         f'article_list',
         f'article_{instance.id}',
         f'article_{instance.slug}',
-        f'category_{instance.category.slug}_articles',
         f'trending_articles',
-    ])
+    ]
+    
+    # Add cache keys for all categories (ManyToMany)
+    if kwargs.get('signal') == post_delete:
+        # For delete, we can't access categories anymore, so clear all category caches
+        if hasattr(cache, 'delete_pattern'):
+            cache.delete_pattern('category_*_articles')
+    else:
+        # For save, clear cache for each category
+        for category in instance.categories.all():
+            cache_keys.append(f'category_{category.slug}_articles')
+    
+    cache.delete_many(cache_keys)
+    
     # Clear article list cache patterns (only if cache supports pattern deletion)
     if hasattr(cache, 'delete_pattern'):
         cache.delete_pattern('article_list*')
@@ -57,6 +69,26 @@ def invalidate_article_tags_cache(sender, instance, **kwargs):
         ])
         if hasattr(cache, 'delete_pattern'):
             cache.delete_pattern('article_list*')
+
+
+@receiver(m2m_changed, sender=Article.categories.through)
+def invalidate_article_categories_cache(sender, instance, **kwargs):
+    """Clear caches when article categories are changed"""
+    if isinstance(instance, Article):
+        cache_keys = [
+            f'article_{instance.id}',
+            f'article_{instance.slug}',
+        ]
+        
+        # Clear cache for affected categories
+        for category in instance.categories.all():
+            cache_keys.append(f'category_{category.slug}_articles')
+        
+        cache.delete_many(cache_keys)
+        
+        if hasattr(cache, 'delete_pattern'):
+            cache.delete_pattern('article_list*')
+
 
 
 @receiver([post_save, post_delete], sender=Rating)

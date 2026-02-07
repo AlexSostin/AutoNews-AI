@@ -37,9 +37,15 @@ class Command(BaseCommand):
             default=10,
             help='Maximum entries to process per feed (default: 10)',
         )
+        parser.add_argument(
+            '--no-ai',
+            action='store_true',
+            help='Disable AI enhancement (create basic articles from press releases)',
+        )
 
     def handle(self, *args, **options):
         aggregator = RSSAggregator()
+        use_ai = not options['no_ai']  # AI enabled by default
         
         # Determine which feeds to scan
         if options['feed_id']:
@@ -57,7 +63,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('No RSS feeds found'))
             return
         
-        self.stdout.write(f'\n📡 Scanning {feeds.count()} RSS feed(s)...\n')
+        ai_status = '🤖 AI Enhancement: ENABLED' if use_ai else '📝 AI Enhancement: DISABLED'
+        self.stdout.write(f'\n📡 Scanning {feeds.count()} RSS feed(s)...')
+        self.stdout.write(f'{ai_status}\n')
         
         total_created = 0
         
@@ -79,7 +87,7 @@ class Command(BaseCommand):
             else:
                 # Process feed and create articles
                 try:
-                    created = aggregator.process_feed(feed, limit=options['limit'])
+                    created = aggregator.process_feed(feed, limit=options['limit'], use_ai=use_ai)
                     total_created += created
                     
                     if created > 0:

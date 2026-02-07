@@ -11,7 +11,7 @@ interface TrendingArticle {
   slug: string;
   image: string | null;
   views: number;
-  category_name: string;
+  categories: { id: number; name: string; slug: string }[];
 }
 
 export default function TrendingSection() {
@@ -29,11 +29,13 @@ export default function TrendingSection() {
       return 'http://localhost:8001/api/v1';
     };
     const apiUrl = getApiUrl();
-    
+
     fetch(`${apiUrl}/articles/?is_published=true&ordering=-views&page_size=5`)
       .then(res => res.json())
       .then(data => {
-        setArticles(data.results || []);
+        // Ensure we only show exactly 5 articles
+        const results = data.results || [];
+        setArticles(results.slice(0, 5));
         setLoading(false);
       })
       .catch(err => {
@@ -79,7 +81,7 @@ export default function TrendingSection() {
         <TrendingUp className="text-white animate-bounce" size={24} />
         <h2 className="text-2xl font-bold text-white">🔥 Trending Now</h2>
       </div>
-      
+
       <div className="space-y-4">
         {articles.map((article, index) => (
           <Link
@@ -92,7 +94,7 @@ export default function TrendingSection() {
               <div className="flex-shrink-0 w-8 h-8 bg-white rounded-full flex items-center justify-center font-bold text-orange-500 text-sm">
                 {index + 1}
               </div>
-              
+
               {/* Image */}
               {article.image && (
                 <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden">
@@ -113,7 +115,7 @@ export default function TrendingSection() {
                   />
                 </div>
               )}
-              
+
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <h3 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-yellow-200 transition-colors mb-1">
@@ -121,7 +123,7 @@ export default function TrendingSection() {
                 </h3>
                 <div className="flex items-center gap-2 text-xs text-white/80">
                   <span className="px-2 py-0.5 bg-white/20 rounded-full">
-                    {article.category_name}
+                    {article.categories?.[0]?.name || 'News'}
                   </span>
                   {article.views > 0 && (
                     <div className="flex items-center gap-1">
@@ -135,8 +137,8 @@ export default function TrendingSection() {
           </Link>
         ))}
       </div>
-      
-      <Link 
+
+      <Link
         href="/trending"
         className="mt-4 block text-center bg-white/20 hover:bg-white/30 text-white font-semibold py-2 rounded-lg transition-colors"
       >

@@ -28,7 +28,8 @@ import {
   Youtube,
   Handshake,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  Rss
 } from 'lucide-react';
 import type { Metadata } from 'next';
 
@@ -224,7 +225,7 @@ export default async function ArticleDetailPage({
             <div className="mb-6">
               <Breadcrumbs
                 items={[
-                  { label: article.category_name, href: `/categories/${article.category_slug}` },
+                  ...(article.categories?.length > 0 ? [{ label: article.categories[0].name, href: `/categories/${article.categories[0].slug}` }] : []),
                   { label: article.title }
                 ]}
               />
@@ -262,6 +263,26 @@ export default async function ArticleDetailPage({
                   </div>
                 ))}
 
+                {/* RSS Source Attribution */}
+                {article.rss_feed && (
+                  <div className="flex items-center gap-2">
+                    <Rss size={16} className="text-orange-600" />
+                    <span className="font-bold">Source:</span>
+                    <span>{article.rss_feed.name}</span>
+                    {article.source_url && (
+                      <a
+                        href={article.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-600 hover:text-orange-800 transition-colors flex items-center gap-1"
+                      >
+                        <ExternalLink size={14} />
+                        Original
+                      </a>
+                    )}
+                  </div>
+                )}
+
                 {/* Reading Time */}
                 <ReadingTime content={article.content} />
 
@@ -287,13 +308,18 @@ export default async function ArticleDetailPage({
 
             {/* Title Section */}
             <div className="mb-8">
-              {article.category_name && (
-                <Link
-                  href={`/categories/${article.category_slug}`}
-                  className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold mb-4 hover:bg-indigo-700 transition-colors"
-                >
-                  {article.category_name}
-                </Link>
+              {article.categories && article.categories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {article.categories.map((cat: { id: number; name: string; slug: string }) => (
+                    <Link
+                      key={cat.id}
+                      href={`/categories/${cat.slug}`}
+                      className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-indigo-700 transition-colors"
+                    >
+                      {cat.name}
+                    </Link>
+                  ))}
+                </div>
               )}
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 flex-1">
@@ -539,9 +565,9 @@ export default async function ArticleDetailPage({
 
 
               {/* Related Articles Carousel */}
-              {article.category_slug && (
+              {article.categories?.[0]?.slug && (
                 <RelatedCarousel
-                  categorySlug={article.category_slug}
+                  categorySlug={article.categories[0].slug}
                   currentArticleSlug={article.slug}
                 />
               )}

@@ -60,8 +60,9 @@ class ArticleImageInline(admin.TabularInline):
 
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
-    list_display = ('title', 'category', 'is_published', 'is_hero', 'is_deleted', 'created_at', 'view_count')
-    list_filter = ('is_published', 'is_deleted', 'category', 'created_at', 'updated_at')
+    list_display = ('title', 'get_categories', 'is_published', 'is_hero', 'is_deleted', 'created_at', 'view_count')
+    list_filter = ('is_published', 'is_deleted', 'categories', 'created_at', 'updated_at')
+    filter_horizontal = ('categories', 'tags')
     search_fields = ('title', 'content', 'summary', 'seo_title', 'seo_description')
     prepopulated_fields = {'slug': ('title',)}
     inlines = [CarSpecificationInline, ArticleImageInline]
@@ -69,6 +70,11 @@ class ArticleAdmin(admin.ModelAdmin):
     list_editable = ('is_published', 'is_hero')
     actions = ['publish_articles', 'unpublish_articles', 'soft_delete_articles', 'restore_articles', 'hard_delete_articles']
     readonly_fields = ('created_at', 'updated_at')
+    
+    def get_categories(self, obj):
+        """Display categories as comma-separated list"""
+        return ", ".join([cat.name for cat in obj.categories.all()])
+    get_categories.short_description = 'Categories'
     
     def get_queryset(self, request):
         """Show only non-deleted articles by default"""

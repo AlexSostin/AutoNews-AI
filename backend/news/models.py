@@ -165,7 +165,8 @@ class Article(models.Model):
     # Price field (in USD, converted to other currencies on frontend)
     price_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Price in USD (AI extracts from video)")
     
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='articles')
+    # Categories and Tags (ManyToMany for flexibility)
+    categories = models.ManyToManyField(Category, blank=True, related_name='articles')
     tags = models.ManyToManyField(Tag, blank=True)
     
     # SEO Fields
@@ -185,7 +186,6 @@ class Article(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['-created_at', 'is_published'], name='article_created_published_idx'),
-            models.Index(fields=['category', '-created_at'], name='article_category_created_idx'),
             models.Index(fields=['-views'], name='article_views_idx'),
         ]
         constraints = [

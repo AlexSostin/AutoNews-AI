@@ -425,7 +425,7 @@ class TagViewSet(viewsets.ModelViewSet):
 
 
 class ArticleViewSet(viewsets.ModelViewSet):
-    queryset = Article.objects.filter(is_deleted=False).select_related('category', 'specs').prefetch_related('tags', 'gallery')
+    queryset = Article.objects.filter(is_deleted=False).select_related('specs').prefetch_related('categories', 'tags', 'gallery')
     permission_classes = [IsStaffOrReadOnly]
     lookup_field = 'slug'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -483,7 +483,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_published=True)
         
         if category:
-            queryset = queryset.filter(category__slug=category)
+            queryset = queryset.filter(categories__slug=category)
         if tag:
             queryset = queryset.filter(tags__slug=tag)
         if is_published is not None:
@@ -1205,7 +1205,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return favorites for current user"""
-        return Favorite.objects.filter(user=self.request.user).select_related('article', 'article__category')
+        return Favorite.objects.filter(user=self.request.user).select_related('article').prefetch_related('article__categories')
     
     def create(self, request, *args, **kwargs):
         """Add article to favorites"""
@@ -1792,6 +1792,26 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         return [IsAuthenticated()]
     
+    @action(detail=False, methods=['get'])
+    def with_pending_counts(self, request):
+        """Get RSS feeds with count of pending articles for each"""
+        from django.db.models import Count, Q
+        
+        feeds = RSSFeed.objects.filter(is_enabled=True).annotate(
+            pending_count=Count(
+                'pending_articles',
+                filter=Q(pending_articles__status='pending')
+            )
+        ).order_by('name')
+        
+        serializer = self.get_serializer(feeds, many=True)
+        data = serializer.data
+        
+        # Add pending_count to each feed
+        for i, feed in enumerate(feeds):
+            data[i]['pending_count'] = feed.pending_count
+        
+        return Response(data)
     @action(detail=True, methods=['post'])
     def scan_now(self, request, pk=None):
         """Manually trigger scan for a specific RSS feed (Background Process)"""
@@ -1880,9 +1900,33 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             'rss_feed',
             'suggested_category'
         ).all()
+        
+        # Filter by status
         status_filter = self.request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
+        
+        # Filter by category
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(categories__slug=category)
+        
+        # Filter by RSS feed ID
+        rss_feed_id = self.request.query_params.get('rss_feed')
+        if rss_feed_id:
+            queryset = queryset.filter(rss_feed_id=rss_feed_id)
+        
+        # Filter only RSS articles (exclude YouTube)
+        only_rss = self.request.query_params.get('only_rss')
+        if only_rss == 'true':
+            queryset = queryset.filter(rss_feed__isnull=False)
+        
+        # Filter only YouTube articles (exclude RSS)
+        only_youtube = self.request.query_params.get('only_youtube')
+        exclude_rss = self.request.query_params.get('exclude_rss')
+        if only_youtube == 'true' or exclude_rss == 'true':
+            queryset = queryset.filter(youtube_channel__isnull=False)
+        
         return queryset
     
     @action(detail=True, methods=['post'])
@@ -1892,6 +1936,8 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
         
         if pending.status != 'pending':
             return Response({'error': 'Article is not pending'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        is_published = request.data.get('publish', True)
         
         # Create the actual article
         try:
@@ -1916,12 +1962,29 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 slug=slug,
                 content=pending.content,
                 summary=pending.excerpt or pending.content[:200],
-                category=pending.suggested_category,
                 is_published=is_published,
                 youtube_url=pending.video_url,
                 author_name=author_name,
                 author_channel_url=author_channel_url
             )
+            
+            # Add category (ManyToMany field)
+            # For RSS articles, use suggested_category or fallback to "News"
+            if pending.rss_feed:
+                if pending.suggested_category:
+                    article.categories.add(pending.suggested_category)
+                else:
+                    # Fallback to "News" category for RSS articles
+                    from news.models import Category
+                    news_category, _ = Category.objects.get_or_create(
+                        slug='news',
+                        defaults={'name': 'News', 'description': 'General automotive news'}
+                    )
+                    article.categories.add(news_category)
+            elif pending.suggested_category:
+                # For non-RSS articles (YouTube), only add if exists
+                article.categories.add(pending.suggested_category)
+            
             
             # Handle Images (Upload local files or save Cloudinary URLs)
             if pending.images and isinstance(pending.images, list):
@@ -2047,12 +2110,25 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """Get statistics about pending articles"""
+        # Get base queryset
+        queryset = PendingArticle.objects.all()
+        
+        # Apply source filters
+        only_rss = request.query_params.get('only_rss')
+        if only_rss == 'true':
+            queryset = queryset.filter(rss_feed__isnull=False)
+        
+        only_youtube = request.query_params.get('only_youtube')
+        exclude_rss = request.query_params.get('exclude_rss')
+        if only_youtube == 'true' or exclude_rss == 'true':
+            queryset = queryset.filter(youtube_channel__isnull=False)
+        
         return Response({
-            'pending': PendingArticle.objects.filter(status='pending').count(),
-            'approved': PendingArticle.objects.filter(status='approved').count(),
-            'rejected': PendingArticle.objects.filter(status='rejected').count(),
-            'published': PendingArticle.objects.filter(status='published').count(),
-            'total': PendingArticle.objects.count()
+            'pending': queryset.filter(status='pending').count(),
+            'approved': queryset.filter(status='approved').count(),
+            'rejected': queryset.filter(status='rejected').count(),
+            'published': queryset.filter(status='published').count(),
+            'total': queryset.count()
         })
 
 

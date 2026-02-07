@@ -230,3 +230,133 @@ def ensure_html_only(content):
         return html_content
 
     return content
+
+
+def expand_press_release(press_release_text, source_url, provider='groq', web_context=None):
+    """
+    Expands a short press release (200-300 words) into a full automotive article (800-1200 words).
+    
+    Args:
+        press_release_text: The original press release content
+        source_url: URL of the original press release (for attribution)
+        provider: 'groq' (default) or 'gemini'
+        web_context: Optional additional context from web search
+    
+    Returns:
+        HTML article content with proper attribution
+    """
+    provider_display = "Groq" if provider == 'groq' else "Google Gemini"
+    print(f"Expanding press release with {provider_display}...")
+    
+    web_data_section = ""
+    if web_context:
+        web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to enrich the article):\n{web_context}\n"
+    
+    prompt = f"""
+{web_data_section}
+You are a professional automotive journalist. Expand the following press release into a comprehensive, SEO-optimized article.
+
+PRESS RELEASE:
+{press_release_text}
+
+SOURCE: {source_url}
+
+CRITICAL REQUIREMENTS:
+1. **Create UNIQUE content** - DO NOT copy text from the press release verbatim
+   - Rephrase all information in your own words
+   - Add context, analysis, and comparisons
+   - Expand on technical details
+   
+2. **Title MUST be descriptive and engaging**
+   - Include: YEAR, BRAND, MODEL, and key feature or price
+   - Example: "2025 BYD Seal 06 GT Review: A Powerful Electric Hatchback for $25,000"
+   - NO HTML entities in title (use plain text)
+
+3. **Article Structure** (Output ONLY clean HTML - NO <html>, <head>, or <body> tags):
+   - <h2>[Year] [Brand] [Model] [Version]: [Engaging Hook]</h2>
+   - Introduction paragraph (2-3 sentences with key specs)
+   - <h2>Performance & Specifications</h2> - Detailed specs, power, range, battery
+   - <h2>Design & Interior</h2> - Styling, materials, space, comfort
+   - <h2>Technology & Features</h2> - Infotainment, safety, innovations
+   - <h2>Driving Experience</h2> - Handling, comfort, real-world performance
+   - <h2>US Market Availability & Pricing</h2>
+     * Will it be sold in the US? (Yes/No with timeline)
+     * Expected US pricing (MSRP in USD)
+     * Import taxes/fees if applicable
+     * Federal/state EV incentives if electric/hybrid
+     * Comparison to US competitors
+   - <h2>Global Market & Regional Availability</h2>
+     * Use <h3> for regions (Asia, Europe, North America)
+     * Use <ul><li> for country-specific details
+     * Include timelines and pricing for each market
+   - <h2>Pros & Cons</h2>
+     * <h3>Pros</h3> <ul><li>Pro 1</li><li>Pro 2</li></ul>
+     * <h3>Cons</h3> <ul><li>Con 1</li><li>Con 2</li></ul>
+   - Conclusion paragraph with recommendation
+   - <p class="source-attribution" style="margin-top: 2rem; padding: 1rem; background: #f3f4f6; border-left: 4px solid #3b82f6; font-size: 0.875rem;">
+       <strong>Source:</strong> Information based on official press release. 
+       <a href="{source_url}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">View original press release</a>
+     </p>
+
+4. **Content Expansion Guidelines**:
+   - Target length: 800-1200 words
+   - Add industry context (market trends, competition)
+   - Include comparisons to similar vehicles
+   - Explain technical features in detail
+   - Discuss target audience and use cases
+   - Add expert analysis and insights
+
+5. **SEO Optimization**:
+   - Natural keyword placement (brand, model, year, EV/hybrid)
+   - Include specific numbers and stats
+   - Use descriptive headings
+   - Write engaging, informative content
+
+⚠️ CRITICAL MODEL ACCURACY WARNING:
+- CAREFULLY verify the EXACT car model from the press release
+- DO NOT confuse similar model names (e.g., "Zeekr 7X" vs "Zeekr 007")
+- Pay attention to spaces, numbers, and letters in model names
+- Use the EXACT name from the press release
+
+NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
+- NO copied text from the press release
+- NO "Advertisement" or "Sponsor" blocks
+- NO placeholder text or [Insert Image Here]
+- NO social media links
+- NO HTML <html>, <head>, or <body> tags
+
+Remember: Create ORIGINAL content based on the facts, add value through analysis and context!
+"""
+    
+    system_prompt = "You are a professional automotive journalist. Transform press releases into engaging, unique articles with proper attribution."
+    
+    try:
+        # Use AI provider factory
+        ai = get_ai_provider(provider)
+        article_content = ai.generate_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            temperature=0.8,
+            max_tokens=3500  # Longer for expanded content
+        )
+        
+        if not article_content:
+            raise Exception(f"{provider_display} returned empty article")
+            
+        print(f"✓ Press release expanded successfully with {provider_display}! Length: {len(article_content)} characters")
+        
+        # Post-processing: ensure it's HTML, not Markdown
+        article_content = ensure_html_only(article_content)
+        
+        # Validate quality
+        quality = validate_article_quality(article_content)
+        if not quality['valid']:
+            print("⚠️  Article quality issues:")
+            for issue in quality['issues']:
+                print(f"  - {issue}")
+        
+        return article_content
+        
+    except Exception as e:
+        print(f"❌ Error expanding press release with {provider_display}: {str(e)}")
+        raise

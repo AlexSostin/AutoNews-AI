@@ -25,7 +25,7 @@ interface ArticleData {
   slug: string;
   summary: string;
   content: string;
-  category: number;
+  categories: { id: number; name: string; slug: string }[];
   tags: number[];
   published: boolean;
   is_hero: boolean;
@@ -45,7 +45,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
     slug: '',
     summary: '',
     content: '',
-    category: '',
+    category_ids: [] as number[],
     tags: [] as number[],
     published: false,
     is_hero: false,
@@ -100,7 +100,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         slug: article.slug || '',
         summary: article.summary || '',
         content: article.content || '',
-        category: article.category?.id?.toString() || '',
+        category_ids: Array.isArray(article.categories) ? article.categories.map((cat: any) => cat.id) : [],
         tags: Array.isArray(article.tags) ? article.tags.map((tag: any) => tag.id) : [],
         published: article.is_published ?? false,
         is_hero: article.is_hero ?? false,
@@ -139,7 +139,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         formDataToSend.append('title', formData.title);
         formDataToSend.append('summary', formData.summary);
         formDataToSend.append('content', formData.content);
-        formDataToSend.append('category_id', formData.category);
+        formData.category_ids.forEach(id => formDataToSend.append('category_ids', id.toString()));
         formDataToSend.append('tag_ids', JSON.stringify(formData.tags));
         formDataToSend.append('is_published', formData.published.toString());
         formDataToSend.append('is_hero', formData.is_hero.toString());
@@ -174,7 +174,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           title: formData.title,
           summary: formData.summary,
           content: formData.content,
-          category_id: parseInt(formData.category),
+          category_ids: formData.category_ids,
           tag_ids: formData.tags,
           is_published: formData.published,
           is_hero: formData.is_hero,
@@ -432,22 +432,35 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          {/* Category */}
+          {/* Categories */}
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Category *</label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-              required
-            >
-              <option value="">Select a category</option>
+            <label className="block text-sm font-bold text-gray-900 mb-2">Categories *</label>
+            <div className="flex flex-wrap gap-2">
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    const ids = formData.category_ids.includes(cat.id)
+                      ? formData.category_ids.filter(id => id !== cat.id)
+                      : [...formData.category_ids, cat.id];
+                    setFormData({ ...formData, category_ids: ids });
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ${formData.category_ids.includes(cat.id)
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
+                    }`}
+                >
                   {cat.name}
-                </option>
+                  {formData.category_ids.includes(cat.id) && (
+                    <span className="ml-2">✓</span>
+                  )}
+                </button>
               ))}
-            </select>
+            </div>
+            {formData.category_ids.length === 0 && (
+              <p className="text-sm text-red-500 mt-1">Select at least one category</p>
+            )}
           </div>
 
           {/* Tags */}

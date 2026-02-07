@@ -21,14 +21,19 @@ export interface Article {
   image_3_url: string | null;
   youtube_url: string | null;
   price_usd: number | null;
-  category: number;
-  category_name: string;
-  category_slug: string;
+  categories: { id: number; name: string; slug: string }[];
+  category_names: string[];
   tags: number[];
   tag_names: string[];
   author?: string;
   author_name?: string;
   author_channel_url?: string;
+  rss_feed?: {
+    id: number;
+    name: string;
+    logo_url?: string;
+  };
+  source_url?: string;
   views?: number;
   average_rating: number;
   rating_count: number;

@@ -96,8 +96,8 @@ class ArticleImageSerializer(serializers.ModelSerializer):
 
 class ArticleListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for article lists"""
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    category_slug = serializers.CharField(source='category.slug', read_only=True)
+    categories = CategorySerializer(many=True, read_only=True)
+    category_names = serializers.SerializerMethodField()
     tag_names = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
@@ -108,11 +108,14 @@ class ArticleListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Article
-        fields = ['id', 'title', 'slug', 'summary', 'category', 'category_name', 'category_slug',
+        fields = ['id', 'title', 'slug', 'summary', 'categories', 'category_names',
                   'tag_names', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'price_usd', 'average_rating', 'views',
                   'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited', 
                   'is_hero', 'author_name', 'author_channel_url']
+    
+    def get_category_names(self, obj):
+        return [cat.name for cat in obj.categories.all()]
     
     def get_tag_names(self, obj):
         return [tag.name for tag in obj.tags.all()]
@@ -148,13 +151,13 @@ class ArticleListSerializer(serializers.ModelSerializer):
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
     """Full serializer with all relations"""
-    category = CategorySerializer(read_only=True)
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    category_slug = serializers.CharField(source='category.slug', read_only=True)
-    category_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), 
-        source='category', 
-        write_only=True
+    categories = CategorySerializer(many=True, read_only=True)
+    category_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Category.objects.all(),
+        source='categories',
+        write_only=True,
+        required=False
     )
     tags = TagSerializer(many=True, read_only=True)
     tag_ids = serializers.PrimaryKeyRelatedField(
@@ -175,8 +178,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Article
-        fields = ['id', 'title', 'slug', 'content', 'summary', 'category', 'category_id',
-                  'category_name', 'category_slug',
+        fields = ['id', 'title', 'slug', 'content', 'summary', 'categories', 'category_ids',
                   'tags', 'tag_ids', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'youtube_url', 'price_usd', 'views', 
                   'car_specification', 'images', 'average_rating', 'rating_count',
@@ -264,8 +266,8 @@ class CommentSerializer(serializers.ModelSerializer):
         return None
     
     def get_article_category(self, obj):
-        if obj.article and obj.article.category:
-            return obj.article.category.name
+        if obj.article and obj.article.categories.exists():
+            return obj.article.categories.first().name
         return None
     
     def get_parent_author(self, obj):
@@ -356,8 +358,8 @@ class RatingSerializer(serializers.ModelSerializer):
         return None
     
     def get_article_category(self, obj):
-        if obj.article and obj.article.category:
-            return obj.article.category.name
+        if obj.article and obj.article.categories.exists():
+            return obj.article.categories.first().name
         return None
 
 
@@ -380,8 +382,8 @@ class FavoriteSerializer(serializers.ModelSerializer):
         return None
     
     def get_article_category(self, obj):
-        if obj.article.category:
-            return obj.article.category.name
+        if obj.article.categories.exists():
+            return obj.article.categories.first().name
         return None
 
 

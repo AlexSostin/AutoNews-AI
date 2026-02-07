@@ -8,7 +8,9 @@ import {
     FileText,
     Mail,
     ChevronRight,
-    Info
+    Info,
+    Rss,
+    Sparkles
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -38,6 +40,16 @@ export default function ForAuthorsPage() {
             icon: <Handshake className="text-purple-600" size={32} />,
             title: "Collaboration",
             description: "We are open to collaboration! We can highlight your channel or add direct links to your social media if you'd like to work with us."
+        },
+        {
+            icon: <Rss className="text-blue-600" size={32} />,
+            title: "RSS Feed Aggregation",
+            description: "We aggregate news from official automotive press releases via RSS feeds. All articles include proper attribution and links to original sources."
+        },
+        {
+            icon: <Sparkles className="text-yellow-600" size={32} />,
+            title: "AI-Enhanced Content",
+            description: "We use AI to rewrite press releases in our own words, optimized for readers. We never copy-paste original text, ensuring unique content while respecting sources."
         }
     ];
 
@@ -50,8 +62,8 @@ export default function ForAuthorsPage() {
                         Fresh Motors — For Authors
                     </h1>
                     <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                        We are building a platform that helps creators reach new audiences
-                        while respecting intellectual property and YouTube guidelines.
+                        We are building a platform that helps automotive creators and brands reach new audiences
+                        while respecting intellectual property, copyright laws, and content guidelines.
                     </p>
                 </div>
             </div>
@@ -100,9 +112,11 @@ export default function ForAuthorsPage() {
                     </div>
                     <p className="text-gray-700 leading-relaxed mb-6 italic">
                         "We believe content aggregation should be beneficial for those who create it.
-                        Fresh Motors is not a replacement for your channel, but a bridge to it. Our
-                        automation is designed to help users quickly grasp the topic and immediately
-                        head to the original source."
+                        Fresh Motors aggregates automotive content from YouTube creators and official
+                        press releases via RSS feeds. We use AI to create unique summaries and articles,
+                        always linking back to original sources. Our goal is to be a discovery platform,
+                        not a replacement — helping users quickly grasp topics and directing them to the
+                        original source."
                     </p>
                     <div className="flex flex-wrap gap-4">
                         <Link

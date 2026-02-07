@@ -15,6 +15,7 @@ import {
     Clock,
     FileText
 } from 'lucide-react';
+import api from '@/lib/api';
 
 interface RSSFeed {
     id: number;
@@ -49,17 +50,10 @@ export default function RSSFeedsPage() {
 
     const fetchFeeds = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/rss-feeds/`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setFeeds(data);
-            }
+            const response = await api.get('/rss-feeds/');
+            // Handle both array response and paginated response
+            const feedsData = Array.isArray(response.data) ? response.data : (response.data.results || []);
+            setFeeds(feedsData);
         } catch (error) {
             console.error('Error fetching RSS feeds:', error);
         } finally {
@@ -70,24 +64,10 @@ export default function RSSFeedsPage() {
     const handleScanNow = async (feedId: number) => {
         setScanning(feedId);
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/rss-feeds/${feedId}/scan_now/`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (response.ok) {
-                const data = await response.json();
-                alert(data.message);
-                // Refresh after a delay to show updated stats
-                setTimeout(fetchFeeds, 3000);
-            }
-        } catch (error) {
+            const response = await api.post(`/rss-feeds/${feedId}/scan_now/`);
+            alert(response.data.message);
+            setTimeout(fetchFeeds, 3000);
+        } catch (error: any) {
             console.error('Error scanning feed:', error);
             alert('Failed to start scan');
         } finally {
@@ -98,23 +78,10 @@ export default function RSSFeedsPage() {
     const handleScanAll = async () => {
         setScanningAll(true);
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/rss-feeds/scan_all/`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (response.ok) {
-                const data = await response.json();
-                alert(data.message);
-                setTimeout(fetchFeeds, 3000);
-            }
-        } catch (error) {
+            const response = await api.post('/rss-feeds/scan_all/');
+            alert(response.data.message);
+            setTimeout(fetchFeeds, 3000);
+        } catch (error: any) {
             console.error('Error scanning all feeds:', error);
             alert('Failed to start scan');
         } finally {
@@ -124,23 +91,9 @@ export default function RSSFeedsPage() {
 
     const handleToggleEnabled = async (feed: RSSFeed) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/rss-feeds/${feed.id}/`,
-                {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ is_enabled: !feed.is_enabled }),
-                }
-            );
-
-            if (response.ok) {
-                fetchFeeds();
-            }
-        } catch (error) {
+            await api.patch(`/rss-feeds/${feed.id}/`, { is_enabled: !feed.is_enabled });
+            fetchFeeds();
+        } catch (error: any) {
             console.error('Error toggling feed:', error);
         }
     };
@@ -149,21 +102,9 @@ export default function RSSFeedsPage() {
         if (!confirm('Are you sure you want to delete this RSS feed?')) return;
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/rss-feeds/${feedId}/`,
-                {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (response.ok) {
-                fetchFeeds();
-            }
-        } catch (error) {
+            await api.delete(`/rss-feeds/${feedId}/`);
+            fetchFeeds();
+        } catch (error: any) {
             console.error('Error deleting feed:', error);
         }
     };

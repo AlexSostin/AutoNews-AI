@@ -10,7 +10,6 @@ import { ArticleGridSkeleton } from '@/components/public/Skeletons';
 import TagsDropdown from '@/components/public/TagsDropdown';
 import CategoriesDropdown from '@/components/public/CategoriesDropdown';
 import SearchInput from '@/components/public/SearchInput';
-import AdBanner from '@/components/public/AdBanner';
 import { Article, Category, Tag } from '@/types';
 
 // Runtime API URL detection for client components
@@ -123,13 +122,6 @@ function ArticlesContent() {
   return (
     <>
       <main className="flex-1 bg-gray-50">
-        {/* Top Ad */}
-        <div className="bg-white border-b border-gray-200 py-4">
-          <div className="container mx-auto px-4 flex justify-center">
-            <AdBanner format="leaderboard" />
-          </div>
-        </div>
-
         <div className="container mx-auto px-4 py-12">
           {/* Page Header */}
           <div className="mb-12 text-center">
@@ -214,10 +206,10 @@ function ArticlesContent() {
             )}
           </div>
 
-          {/* Main Content with Sidebar */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Main Content */}
+          <div>
             {/* Articles Grid */}
-            <div className="lg:col-span-3">
+            <div>
               {/* Articles Grid */}
               {articles.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-xl shadow-md">
@@ -233,10 +225,9 @@ function ArticlesContent() {
                 </div>
               ) : (
                 <div className="space-y-8">
-                  {/* Group articles into rows of 3, with ads between rows */}
+                  {/* Group articles into rows of 3 */}
                   {Array.from({ length: Math.ceil(articles.length / 3) }, (_, rowIndex) => {
                     const rowArticles = articles.slice(rowIndex * 3, rowIndex * 3 + 3);
-                    const showAd = (rowIndex + 1) % 2 === 0 && rowIndex < Math.ceil(articles.length / 3) - 1;
 
                     return (
                       <div key={rowIndex}>
@@ -250,13 +241,6 @@ function ArticlesContent() {
                             />
                           ))}
                         </div>
-
-                        {/* Ad after every 2nd row (6 articles) */}
-                        {showAd && (
-                          <div className="flex justify-center py-8 my-4">
-                            <AdBanner format="leaderboard" />
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -315,21 +299,6 @@ function ArticlesContent() {
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Sidebar Ads */}
-            <div className="lg:col-span-1 space-y-6">
-              <div className="sticky top-24 space-y-6">
-                <div className="bg-white rounded-xl shadow-md p-4 flex justify-center">
-                  <AdBanner format="rectangle" />
-                </div>
-                <div className="bg-white rounded-xl shadow-md p-4 flex justify-center">
-                  <AdBanner format="large-rectangle" />
-                </div>
-                <div className="bg-white rounded-xl shadow-md p-4 flex justify-center">
-                  <AdBanner format="half-page" />
-                </div>
-              </div>
             </div>
           </div>
         </div>

@@ -13,7 +13,8 @@ import {
   X,
   Check,
   Clock,
-  FileText
+  FileText,
+  Rss
 } from 'lucide-react';
 import api, { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
@@ -70,6 +71,7 @@ export default function YouTubeChannelsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rssPendingCount, setRssPendingCount] = useState(0);
 
   // Existing state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -100,14 +102,16 @@ export default function YouTubeChannelsPage() {
 
   const fetchData = async () => {
     try {
-      const [channelsRes, categoriesRes, scheduleRes] = await Promise.all([
+      const [channelsRes, categoriesRes, scheduleRes, rssStatsRes] = await Promise.all([
         api.get('/youtube-channels/'),
         api.get('/categories/'),
-        api.get('/auto-publish-schedule/')
+        api.get('/auto-publish-schedule/'),
+        api.get('/pending-articles/stats/?only_rss=true')
       ]);
 
       setChannels(Array.isArray(channelsRes.data) ? channelsRes.data : channelsRes.data.results || []);
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data.results || []);
+      setRssPendingCount(rssStatsRes.data.pending || 0);
 
       const scheduleData = scheduleRes.data;
       if (scheduleData.results && scheduleData.results.length > 0) {
@@ -422,8 +426,20 @@ export default function YouTubeChannelsPage() {
               <p className="text-orange-100">Articles waiting for your review</p>
             </div>
           </div>
-          <div className="text-4xl font-black">
-            {channels.reduce((sum, c) => sum + c.pending_count, 0)}
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-4xl font-black">
+              {channels.reduce((sum, c) => sum + c.pending_count, 0) + rssPendingCount}
+            </div>
+            <div className="flex gap-3 text-sm font-medium">
+              <div className="flex items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full">
+                <Youtube size={14} />
+                <span>{channels.reduce((sum, c) => sum + c.pending_count, 0)} YouTube</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full">
+                <Rss size={14} />
+                <span>{rssPendingCount} RSS</span>
+              </div>
+            </div>
           </div>
         </div>
       </Link>

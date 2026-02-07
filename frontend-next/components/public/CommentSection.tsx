@@ -53,10 +53,20 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     }
   }, [articleId]);
 
+  // Helper to get API URL
+  const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+
   const fetchComments = async () => {
     try {
-      const response = await api.get(`/comments/?article=${articleId}&is_approved=true`);
-      setComments(response.data.results || response.data || []);
+      // Use fetch instead of api.get to avoid sending auth token for public endpoint
+      const response = await fetch(`${getApiUrl()}/comments/?article=${articleId}&is_approved=true`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      setComments(data.results || data || []);
     } catch (error) {
       console.error('Failed to load comments:', error);
     } finally {
@@ -66,8 +76,15 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
 
   const fetchReplies = async (parentId: number) => {
     try {
-      const response = await api.get(`/comments/?article=${articleId}&is_approved=true&include_replies=true&parent=${parentId}`);
-      const replies = (response.data.results || response.data || []).filter((c: Comment) => c.parent === parentId);
+      // Use fetch instead of api.get to avoid sending auth token for public endpoint
+      const response = await fetch(`${getApiUrl()}/comments/?article=${articleId}&is_approved=true&include_replies=true&parent=${parentId}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const replies = (data.results || data || []).filter((c: Comment) => c.parent === parentId);
 
       setComments(prevComments =>
         prevComments.map(comment =>

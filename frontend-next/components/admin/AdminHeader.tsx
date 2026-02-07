@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Bell, User, Menu, MessageSquare, UserPlus, FileText, Youtube, AlertTriangle, Info, Check, CheckCheck, X, Loader2 } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import api, { getApiUrl } from '@/lib/api';
 
 interface Notification {
   id: number;
@@ -48,30 +48,46 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
+      // Get token from cookie (same as api.ts interceptor)
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('access_token='))
+        ?.split('=')[1];
+
+      if (!token) {
+        // Silently return if no token (user not logged in or token not yet set)
+        return;
+      }
 
       const apiUrl = getApiUrl();
       const response = await fetch(`${apiUrl}/notifications/?limit=10`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unread_count || 0);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
+
+      const data = await response.json();
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unread_count || 0);
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      // Silently fail - don't spam console with auth errors
+      // console.error('Failed to fetch notifications:', error);
     }
   };
 
   // Mark single notification as read
   const markAsRead = async (id: number) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('access_token='))
+        ?.split('=')[1];
+
       if (!token) return;
 
       const apiUrl = getApiUrl();
@@ -95,7 +111,11 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const markAllAsRead = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('access_token='))
+        ?.split('=')[1];
+
       if (!token) return;
 
       const apiUrl = getApiUrl();
