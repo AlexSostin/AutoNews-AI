@@ -48,32 +48,9 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      // Get token from cookie (same as api.ts interceptor)
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('access_token='))
-        ?.split('=')[1];
-
-      if (!token) {
-        // Silently return if no token (user not logged in or token not yet set)
-        return;
-      }
-
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/notifications/?limit=10`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      setNotifications(data.notifications || []);
-      setUnreadCount(data.unread_count || 0);
+      const response = await api.get('/notifications/?limit=10');
+      setNotifications(response.data.notifications || []);
+      setUnreadCount(response.data.unread_count || 0);
     } catch (error) {
       // Silently fail - don't spam console with auth errors
       // console.error('Failed to fetch notifications:', error);
@@ -83,21 +60,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   // Mark single notification as read
   const markAsRead = async (id: number) => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('access_token='))
-        ?.split('=')[1];
-
-      if (!token) return;
-
-      const apiUrl = getApiUrl();
-      await fetch(`${apiUrl}/notifications/${id}/mark_read/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
+      await api.post(`/notifications/${id}/mark_read/`);
       setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, is_read: true } : n)
       );
@@ -111,21 +74,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const markAllAsRead = async () => {
     try {
       setLoading(true);
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('access_token='))
-        ?.split('=')[1];
-
-      if (!token) return;
-
-      const apiUrl = getApiUrl();
-      await fetch(`${apiUrl}/notifications/mark_all_read/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
+      await api.post('/notifications/mark_all_read/');
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
     } catch (error) {

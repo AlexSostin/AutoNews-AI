@@ -4,6 +4,7 @@ import TrendingSection from '@/components/public/TrendingSection';
 import EmptyState from '@/components/public/EmptyState';
 import MaintenancePage from '@/components/public/MaintenancePage';
 import Hero from '@/components/public/Hero';
+import InfiniteArticleList from '@/components/public/InfiniteArticleList';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import type { Metadata } from 'next';
@@ -197,32 +198,11 @@ export default async function Home() {
               {articles.length === 0 ? (
                 <EmptyState />
               ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                    {articles.slice(0, 6).map((article: any, index: number) => (
-                      <ArticleCard
-                        key={article.id}
-                        article={article}
-                        priority={index < 3}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Mid-content Ad */}
-                  {articles.length > 6 && (
-                    <div className="flex justify-center my-12">
-                      <AdBanner format="leaderboard" />
-                    </div>
-                  )}
-
-                  {articles.length > 6 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                      {articles.slice(6).map((article: any) => (
-                        <ArticleCard key={article.id} article={article} />
-                      ))}
-                    </div>
-                  )}
-                </>
+                <InfiniteArticleList
+                  initialArticles={articles.slice(0, 18)}
+                  initialPage={1}
+                  pageSize={18}
+                />
               )}
             </div>
 

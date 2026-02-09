@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { FileText, Folder, Tag, MessageSquare, Eye, Mail, Loader2, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { getApiUrl } from '@/lib/api';
+import api from '@/lib/api';
 
 interface Stats {
   articles: number;
@@ -32,22 +33,18 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-      const [articlesRes, categoriesRes, tagsRes, commentsRes, subscribersRes] = await Promise.all([
+      const [articlesRes, categoriesRes, tagsRes, commentsData, subscribersData] = await Promise.all([
         fetch(`${apiUrl}/articles/`),
         fetch(`${apiUrl}/categories/`),
         fetch(`${apiUrl}/tags/`),
-        fetch(`${apiUrl}/comments/`, { headers }),
-        fetch(`${apiUrl}/subscribers/`, { headers }).catch(() => null)
+        api.get('/comments/').catch(() => ({ data: { results: [] } })),
+        api.get('/subscribers/').catch(() => ({ data: { results: [] } }))
       ]);
 
       const articlesData = await articlesRes.json();
       const categoriesData = await categoriesRes.json();
       const tagsData = await tagsRes.json();
-      const commentsData = commentsRes.ok ? await commentsRes.json() : { results: [] };
-      const subscribersData = subscribersRes?.ok ? await subscribersRes.json() : { results: [] };
 
       const articles = Array.isArray(articlesData) ? articlesData : articlesData.results || [];
       const totalViews = articles.reduce((sum: number, a: { views_count?: number }) => sum + (a.views_count || 0), 0);
@@ -56,9 +53,9 @@ export default function AdminDashboard() {
         articles: articlesData.count || articles.length,
         categories: categoriesData.count || (Array.isArray(categoriesData) ? categoriesData : categoriesData.results || []).length,
         tags: tagsData.count || (Array.isArray(tagsData) ? tagsData : tagsData.results || []).length,
-        comments: commentsData.count || (Array.isArray(commentsData) ? commentsData : commentsData.results || []).length,
+        comments: commentsData.data.count || commentsData.data.results.length,
         views: totalViews,
-        subscribers: subscribersData.count || (Array.isArray(subscribersData) ? subscribersData : subscribersData.results || []).length
+        subscribers: subscribersData.data.count || subscribersData.data.results.length
       });
     } catch (error) {
       console.error('Failed to fetch stats:', error);
@@ -87,7 +84,7 @@ export default function AdminDashboard() {
   return (
     <div>
       <h1 className="text-2xl sm:text-3xl font-black text-gray-950 mb-4 sm:mb-8">Dashboard</h1>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-8">
         {statCards.map((stat) => {
           const Icon = stat.icon;
