@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 // Production API URL - hardcoded for server-side rendering
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-const LOCAL_API_URL = 'http://localhost:8001/api/v1';
+const LOCAL_API_URL = 'http://localhost:8000/api/v1';
 
 // Get API URL - use production URL on Railway, localhost for local dev
 const getApiUrl = () => {

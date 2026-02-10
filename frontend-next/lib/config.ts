@@ -2,8 +2,8 @@
 // Production URLs - hardcoded to avoid build-time issues
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 const PRODUCTION_MEDIA_URL = 'https://heroic-healing-production-2365.up.railway.app';
-const LOCAL_API_URL = 'http://localhost:8001/api/v1';
-const LOCAL_MEDIA_URL = 'http://localhost:8001';
+const LOCAL_API_URL = 'http://localhost:8000/api/v1';
+const LOCAL_MEDIA_URL = 'http://localhost:8000';
 
 // Check if running in production (Railway)
 const isProduction = () => {
@@ -37,10 +37,10 @@ export const fixImageUrl = (url: string | null | undefined): string => {
   
   const mediaUrl = isProduction() ? PRODUCTION_MEDIA_URL : LOCAL_MEDIA_URL;
   
-  // Replace any backend:8001 or localhost:8001 with correct media URL
+  // Replace any backend:8000 or localhost:8000 with correct media URL
   let fixedUrl = url
-    .replace('http://backend:8001', mediaUrl)
-    .replace('http://localhost:8001', mediaUrl);
+    .replace('http://backend:8000', mediaUrl)
+    .replace('http://localhost:8000', mediaUrl);
   
   // If it's a relative URL, prepend media URL
   if (!fixedUrl.startsWith('http')) {

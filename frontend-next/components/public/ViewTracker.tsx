@@ -21,7 +21,7 @@ export default function ViewTracker({ articleSlug }: ViewTrackerProps) {
           return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
         }
       }
-      return 'http://localhost:8001/api/v1';
+      return 'http://localhost:8000/api/v1';
     };
 
     // Small delay to avoid counting quick bounces

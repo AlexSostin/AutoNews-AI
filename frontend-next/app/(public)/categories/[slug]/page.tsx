@@ -7,7 +7,7 @@ import { Metadata } from 'next';
 
 // Production API URL
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-const LOCAL_API_URL = 'http://localhost:8001/api/v1';
+const LOCAL_API_URL = 'http://localhost:8000/api/v1';
 
 const getApiUrl = () => {
   // 1. If running on server (Docker/Node), use internal Docker URL if available

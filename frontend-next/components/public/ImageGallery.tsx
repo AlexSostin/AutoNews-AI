@@ -40,12 +40,12 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
           return 'https://heroic-healing-production-2365.up.railway.app';
         }
       }
-      return 'http://localhost:8001';
+      return 'http://localhost:8000';
     };
     const mediaUrl = getMediaUrl();
     
-    if (img.image_url) return img.image_url.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
-    if (img.image.startsWith('http')) return img.image.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
+    if (img.image_url) return img.image_url.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
+    if (img.image.startsWith('http')) return img.image.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
     return `${mediaUrl}${img.image}`;
   };
 

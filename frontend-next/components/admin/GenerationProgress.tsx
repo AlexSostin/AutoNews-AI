@@ -49,7 +49,7 @@ export default function GenerationProgress({
     // Determine WebSocket URL
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'localhost:8001'
+      ? 'localhost:8000'
       : 'heroic-healing-production-2365.up.railway.app';
     
     const wsUrl = `${wsProtocol}//${wsHost}/ws/generation/${taskId}/`;

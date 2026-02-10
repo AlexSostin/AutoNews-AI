@@ -54,7 +54,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   }, [articleId]);
 
   // Helper to get API URL
-  const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+  const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
   const fetchComments = async () => {
     try {

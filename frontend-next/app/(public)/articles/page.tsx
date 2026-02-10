@@ -17,7 +17,7 @@ const getApiUrl = () => {
   if (typeof window === 'undefined') return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8001/api/v1';
+    return 'http://localhost:8000/api/v1';
   }
   return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 };

@@ -142,3 +142,27 @@ def serve_media_with_cors(request, path):
         response['Content-Type'] = content_types[ext]
     
     return response
+
+
+def robots_txt(request):
+    """Serve robots.txt for search engine crawlers"""
+    from django.http import HttpResponse
+    
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "",
+        "# Disallow admin and private areas",
+        "Disallow: /admin/",
+        "Disallow: /api/v1/admin/",
+        "",
+        "# Allow public content",
+        "Allow: /articles/",
+        "Allow: /categories/",
+        "Allow: /feed/",
+        "",
+        "# Sitemap",
+        f"Sitemap: {request.scheme}://{request.get_host()}/sitemap.xml",
+    ]
+    
+    return HttpResponse("\n".join(lines), content_type="text/plain")

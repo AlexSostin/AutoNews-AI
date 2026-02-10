@@ -1,10 +1,11 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | AutoNews Admin</title>
+    <title>Login | Fresh Motors Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         * {
@@ -12,7 +13,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -22,7 +23,7 @@
             justify-content: center;
             padding: 20px;
         }
-        
+
         .login-container {
             background: white;
             border-radius: 20px;
@@ -32,7 +33,7 @@
             width: 100%;
             display: flex;
         }
-        
+
         .login-left {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -42,45 +43,45 @@
             flex-direction: column;
             justify-content: center;
         }
-        
+
         .login-left h1 {
             font-size: 2.5rem;
             font-weight: bold;
             margin-bottom: 20px;
         }
-        
+
         .login-left p {
             font-size: 1.1rem;
             opacity: 0.9;
             line-height: 1.6;
         }
-        
+
         .login-right {
             padding: 60px 50px;
             flex: 1;
         }
-        
+
         .login-header {
             text-align: center;
             margin-bottom: 40px;
         }
-        
+
         .login-header h2 {
             color: #333;
             font-size: 1.8rem;
             font-weight: 600;
             margin-bottom: 10px;
         }
-        
+
         .login-header p {
             color: #666;
             font-size: 0.95rem;
         }
-        
+
         .form-group {
             margin-bottom: 25px;
         }
-        
+
         .form-group label {
             display: block;
             color: #333;
@@ -88,7 +89,7 @@
             margin-bottom: 8px;
             font-size: 0.95rem;
         }
-        
+
         .form-group input {
             width: 100%;
             padding: 14px 18px;
@@ -97,13 +98,13 @@
             font-size: 1rem;
             transition: all 0.3s;
         }
-        
+
         .form-group input:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-        
+
         .btn-login {
             width: 100%;
             padding: 14px;
@@ -116,16 +117,16 @@
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        
+
         .btn-login:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
         }
-        
+
         .btn-login:active {
             transform: translateY(0);
         }
-        
+
         .error-message {
             background: #fee;
             border: 1px solid #fcc;
@@ -135,95 +136,89 @@
             margin-bottom: 20px;
             font-size: 0.9rem;
         }
-        
+
         .back-link {
             text-align: center;
             margin-top: 25px;
         }
-        
+
         .back-link a {
             color: #667eea;
             text-decoration: none;
             font-weight: 500;
             transition: color 0.3s;
         }
-        
+
         .back-link a:hover {
             color: #764ba2;
         }
-        
+
         @media (max-width: 768px) {
             .login-container {
                 flex-direction: column;
             }
-            
+
             .login-left {
                 padding: 40px 30px;
             }
-            
+
             .login-right {
                 padding: 40px 30px;
             }
-            
+
             .login-left h1 {
                 font-size: 2rem;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <div class="login-left">
-            <h1>🚗 AutoNews</h1>
+            <h1>🚗 Fresh Motors</h1>
             <p>Welcome back! Log in to access your admin dashboard and manage your automotive news platform.</p>
         </div>
-        
+
         <div class="login-right">
             <div class="login-header">
                 <h2>Admin Login</h2>
                 <p>Enter your credentials to continue</p>
             </div>
-            
+
             {% if form.errors %}
             <div class="error-message">
                 <strong>⚠️ Login Failed</strong><br>
                 Please check your username and password.
             </div>
             {% endif %}
-            
+
             <form method="post" action="{% url 'admin:login' %}">
                 {% csrf_token %}
-                
+
                 <div class="form-group">
                     <label for="id_username">Username</label>
-                    <input type="text" 
-                           name="username" 
-                           id="id_username" 
-                           placeholder="Enter your username"
-                           required
-                           autofocus>
+                    <input type="text" name="username" id="id_username" placeholder="Enter your username" required
+                        autofocus>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="id_password">Password</label>
-                    <input type="password" 
-                           name="password" 
-                           id="id_password" 
-                           placeholder="Enter your password"
-                           required>
+                    <input type="password" name="password" id="id_password" placeholder="Enter your password" required>
                 </div>
-                
+
                 <input type="hidden" name="next" value="{{ next }}">
-                
+
                 <button type="submit" class="btn-login">
                     🔐 Sign In
                 </button>
             </form>
-            
+
             <div class="back-link">
                 <a href="/">← Back to Main Site</a>
             </div>
         </div>
     </div>
 </body>
+
 </html>

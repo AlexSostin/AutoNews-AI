@@ -16,7 +16,7 @@ const getApiUrl = () => {
       return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
     }
   }
-  return 'http://localhost:8001/api/v1';
+  return 'http://localhost:8000/api/v1';
 };
 
 export default function RegisterPage() {

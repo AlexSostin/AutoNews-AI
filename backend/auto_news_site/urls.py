@@ -48,8 +48,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('news.api_urls')),  # API endpoints
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
-    path('robots.txt', include('news.urls')),  # Will be handled by news.urls
-    path('', include('news.urls')),
+    path('', include('news.urls')),  # robots.txt is handled in news.urls
 ]
 
 # Serve media files with CORS headers (works on both dev and production)

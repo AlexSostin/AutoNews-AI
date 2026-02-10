@@ -31,7 +31,7 @@ export default function SearchBar() {
         return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
       }
     }
-    return 'http://localhost:8001/api/v1';
+    return 'http://localhost:8000/api/v1';
   };
 
   const getMediaUrl = () => {
@@ -41,7 +41,7 @@ export default function SearchBar() {
         return 'https://heroic-healing-production-2365.up.railway.app';
       }
     }
-    return 'http://localhost:8001';
+    return 'http://localhost:8000';
   };
 
   const handleClose = useCallback(() => {
@@ -120,7 +120,7 @@ export default function SearchBar() {
     const imgSrc = article.thumbnail_url || article.image;
     if (!imgSrc) return null;
     if (imgSrc.startsWith('http')) {
-      return imgSrc.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
+      return imgSrc.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
     }
     return `${mediaUrl}${imgSrc}`;
   };

@@ -79,7 +79,7 @@ export async function generateMetadata(
 
 // Production API URL
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-const LOCAL_API_URL = 'http://localhost:8001/api/v1';
+const LOCAL_API_URL = 'http://localhost:8000/api/v1';
 
 const getApiUrl = () => {
   // Server-side: prefer internal Docker URL
@@ -138,7 +138,7 @@ export default async function ArticleDetailPage({
 
   // Constants for URLs
   const PROD_MEDIA = 'https://heroic-healing-production-2365.up.railway.app';
-  const LOCAL_MEDIA = 'http://localhost:8001';
+  const LOCAL_MEDIA = 'http://localhost:8000';
   const isProduction = process.env.RAILWAY_ENVIRONMENT === 'production';
 
   // Helper to fix image URLs
@@ -146,7 +146,7 @@ export default async function ArticleDetailPage({
     if (!url) return 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200';
     const mediaUrl = isProduction ? PROD_MEDIA : LOCAL_MEDIA;
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
+      return url.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
     }
     return `${mediaUrl}${url}`;
   };

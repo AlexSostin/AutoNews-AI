@@ -6,6 +6,9 @@ from .api_root import api_root
 app_name = 'news'
 
 urlpatterns = [
+    # SEO - robots.txt
+    path('robots.txt', views.robots_txt, name='robots_txt'),
+    
     # API root - no HTML templates!
     path('', api_root, name='api_root'),
     

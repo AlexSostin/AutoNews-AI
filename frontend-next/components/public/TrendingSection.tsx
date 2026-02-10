@@ -26,7 +26,7 @@ export default function TrendingSection() {
           return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
         }
       }
-      return 'http://localhost:8001/api/v1';
+      return 'http://localhost:8000/api/v1';
     };
     const apiUrl = getApiUrl();
 
@@ -102,9 +102,9 @@ export default function TrendingSection() {
                     src={(() => {
                       const mediaUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
                         ? 'https://heroic-healing-production-2365.up.railway.app'
-                        : 'http://localhost:8001';
+                        : 'http://localhost:8000';
                       if (article.image.startsWith('http')) {
-                        return article.image.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
+                        return article.image.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
                       }
                       return `${mediaUrl}${article.image}`;
                     })()}

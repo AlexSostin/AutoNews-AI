@@ -88,7 +88,7 @@ export default function Hero({ articles, settings }: HeroProps) {
         if (!url) return 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200';
 
         const PROD_MEDIA = 'https://heroic-healing-production-2365.up.railway.app';
-        const LOCAL_MEDIA = 'http://localhost:8001';
+        const LOCAL_MEDIA = 'http://localhost:8000';
 
         // Check if we are in browser (client-side)
         const isProd = typeof window !== 'undefined'
@@ -98,7 +98,7 @@ export default function Hero({ articles, settings }: HeroProps) {
         const mediaUrl = isProd ? PROD_MEDIA : LOCAL_MEDIA;
 
         if (url.startsWith('http://') || url.startsWith('https://')) {
-            return url.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl);
+            return url.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
         }
         return `${mediaUrl}${url}`;
     };

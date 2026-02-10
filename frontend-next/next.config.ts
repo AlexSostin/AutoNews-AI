@@ -54,7 +54,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8001') + '/api/:path*',
+        destination: (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000') + '/api/:path*',
       },
     ];
   },
@@ -71,7 +71,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: http: blob:",
               "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://api.freshmotors.net https://*.up.railway.app wss://*.up.railway.app wss://localhost:8001 ws://localhost:8001 ws://127.0.0.1:8001 http://localhost:8001 http://127.0.0.1:8001 https://*.sentry.io https://pagead2.googlesyndication.com https://*.google.com https://*.google https://*.adtrafficquality.google https://*.google-analytics.com https://*.doubleclick.net",
+              "connect-src 'self' https://api.freshmotors.net https://*.up.railway.app wss://*.up.railway.app wss://localhost:8000 ws://localhost:8000 ws://127.0.0.1:8001 http://localhost:8000 http://127.0.0.1:8001 https://*.sentry.io https://pagead2.googlesyndication.com https://*.google.com https://*.google https://*.adtrafficquality.google https://*.google-analytics.com https://*.doubleclick.net",
               "media-src 'self' https: http:",
               "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.google.com https://*.google",
               "object-src 'none'",

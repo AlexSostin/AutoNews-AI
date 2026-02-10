@@ -136,12 +136,12 @@ export default function FavoritesPage() {
                       return 'https://heroic-healing-production-2365.up.railway.app';
                     }
                   }
-                  return 'http://localhost:8001';
+                  return 'http://localhost:8000';
                 };
                 const mediaUrl = getMediaUrl();
                 const imageUrl = favorite.article_image
                   ? (favorite.article_image.startsWith('http')
-                    ? favorite.article_image.replace('http://backend:8001', mediaUrl).replace('http://localhost:8001', mediaUrl)
+                    ? favorite.article_image.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl)
                     : `${mediaUrl}${favorite.article_image}`)
                   : 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&h=400&fit=crop';
 

@@ -86,7 +86,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             return 'https://heroic-healing-production-2365.up.railway.app';
           }
         }
-        return 'http://localhost:8001';
+        return 'http://localhost:8000';
       };
 
       const buildImageUrl = (path: string) => {
