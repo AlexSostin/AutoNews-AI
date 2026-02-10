@@ -16,6 +16,15 @@ else
     echo "   Set CLOUDINARY_URL in Railway variables."
 fi
 
+# Run branding update only once (on first deploy after this change)
+BRANDING_FLAG="/tmp/.branding_updated"
+if [ ! -f "$BRANDING_FLAG" ]; then
+    echo "🎨 Updating branding to Fresh Motors..."
+    python manage.py update_branding || echo "⚠️ Branding update failed (might not exist yet)"
+    touch "$BRANDING_FLAG"
+    echo "✅ Branding update complete"
+fi
+
 echo "Running migrations..."
 python manage.py migrate --noinput
 
