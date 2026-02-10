@@ -18,6 +18,7 @@ class Command(BaseCommand):
         # Update branding
         updates = {
             'about_page_title': 'About Fresh Motors',
+            'about_page_content': '',  # Clear custom content to show default design
             'hero_title': 'Welcome to Fresh Motors',
             'hero_subtitle': 'Your premier source for automotive news, reviews, and insights',
             'footer_text': '© 2026 Fresh Motors. All rights reserved.',
