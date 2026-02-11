@@ -27,10 +27,10 @@ fi
 
 echo "Running migrations..."
 
-# Fix: mark migration as applied if tables already exist (no SQL executed)
-# This handles the case where 0038_vehiclespecs was deleted and replaced by 0038_vehiclespecs_and_more
+# Fix: mark migrations as applied if tables already exist (no SQL executed)
 echo "🔧 Checking migration state..."
 python manage.py migrate news 0038_vehiclespecs_and_more --fake 2>&1 || true
+python manage.py migrate news 0040_articleembedding --fake 2>&1 || true
 
 python manage.py migrate --noinput
 

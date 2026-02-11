@@ -68,8 +68,8 @@ export default function TrendingSection() {
           <h2 className="text-2xl font-bold text-white">🔥 Trending Now</h2>
         </div>
         <div className="text-center py-8">
-          <p className="text-white/80 text-lg">Пока нет статей</p>
-          <p className="text-white/60 text-sm mt-2">Скоро здесь появятся популярные материалы</p>
+          <p className="text-white/80 text-lg">No articles yet</p>
+          <p className="text-white/60 text-sm mt-2">Popular articles will appear here soon</p>
         </div>
       </div>
     );

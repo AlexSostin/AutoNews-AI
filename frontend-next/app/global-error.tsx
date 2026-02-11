@@ -38,13 +38,13 @@ export default function GlobalError({
               color: '#1f2937',
               marginBottom: '1rem'
             }}>
-              Критическая ошибка
+              Critical Error
             </h1>
             <p style={{
               color: '#6b7280',
               marginBottom: '1.5rem'
             }}>
-              Произошла серьёзная ошибка. Пожалуйста, перезагрузите страницу.
+              A serious error occurred. Please reload the page.
             </p>
             <button
               onClick={() => window.location.href = '/'}
@@ -58,7 +58,7 @@ export default function GlobalError({
                 cursor: 'pointer'
               }}
             >
-              Перезагрузить
+              Reload
             </button>
           </div>
         </div>
