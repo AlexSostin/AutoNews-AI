@@ -213,7 +213,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         required=False
     )
     car_specification = CarSpecificationSerializer(read_only=True)
-    vehicle_specs = VehicleSpecsSerializer(read_only=True)
+    vehicle_specs = serializers.SerializerMethodField()
     images = ArticleImageSerializer(many=True, read_only=True, source='gallery')
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
@@ -264,6 +264,16 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         if obj.image_3 and hasattr(obj.image_3, 'url'):
             return obj.image_3.url
         return None
+    
+    def get_vehicle_specs(self, obj):
+        """Safely get vehicle specs - handles case where table may not exist"""
+        try:
+            specs = getattr(obj, 'vehicle_specs', None)
+            if specs is None:
+                return None
+            return VehicleSpecsSerializer(specs).data
+        except Exception:
+            return None
     
     def get_is_favorited(self, obj):
         """Check if current user has favorited this article"""
