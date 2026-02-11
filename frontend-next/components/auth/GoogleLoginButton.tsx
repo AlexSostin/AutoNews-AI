@@ -74,7 +74,7 @@ export default function GoogleLoginButton({ onSuccess, onError }: GoogleLoginBut
     };
 
     return (
-        <div className="google-login-wrapper">
+        <div className="google-login-wrapper flex justify-center">
             {isLoading ? (
                 <div className="flex items-center justify-center p-2">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
