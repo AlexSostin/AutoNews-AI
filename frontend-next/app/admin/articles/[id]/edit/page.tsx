@@ -352,25 +352,25 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             />
           </div>
 
-          {/* Author/Source Information */}
+          {/* Content Source Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Author/Source Name</label>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Content Source</label>
               <input
                 type="text"
                 value={formData.author_name}
                 onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
-                placeholder="e.g., Doug DeMuro, Carwow"
+                placeholder="e.g., Toyota Global, Doug DeMuro, Carwow"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Author Channel/Website URL</label>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Source URL</label>
               <input
                 type="url"
                 value={formData.author_channel_url}
                 onChange={(e) => setFormData({ ...formData, author_channel_url: e.target.value })}
-                placeholder="https://youtube.com/@channel or website URL"
+                placeholder="https://global.toyota/... or YouTube channel"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
               />
             </div>
