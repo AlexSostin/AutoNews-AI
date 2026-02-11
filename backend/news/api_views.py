@@ -519,25 +519,22 @@ class ArticleViewSet(viewsets.ModelViewSet):
         
         # If this is multipart/form-data, we need to process tag_ids specially
         if request.content_type and 'multipart/form-data' in request.content_type:
-            # Make request.data mutable if needed
-            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            # Don't use .copy() on request.data - it tries to deepcopy file objects which fails
+            # Instead, create a new QueryDict and manually copy non-file fields
+            from django.http import QueryDict
             
             # Parse tag_ids from JSON string to list
-            tag_ids_raw = data.get('tag_ids')
+            tag_ids_raw = request.data.get('tag_ids')
             if tag_ids_raw and isinstance(tag_ids_raw, str):
                 try:
                     parsed_tags = json.loads(tag_ids_raw)
                     if isinstance(parsed_tags, list):
-                        # Use actual list for serializer
-                        if hasattr(request.data, 'setlist'):
-                            if hasattr(request.data, '_mutable'):
-                                request.data._mutable = True
-                            request.data.setlist('tag_ids', [str(t) for t in parsed_tags])
-                            if hasattr(request.data, '_mutable'):
-                                request.data._mutable = False
-                        else:
-                            # Fallback for regular dict (unlikely in multipart but safe)
-                            request.data['tag_ids'] = [str(t) for t in parsed_tags]
+                        # Modify request.data directly (make it mutable first)
+                        if hasattr(request.data, '_mutable'):
+                            request.data._mutable = True
+                        request.data.setlist('tag_ids', [str(t) for t in parsed_tags])
+                        if hasattr(request.data, '_mutable'):
+                            request.data._mutable = False
                 except (json.JSONDecodeError, TypeError) as e:
                     logger.warning(f"Failed to parse tag_ids in ArticleViewSet: {e}")
                     pass
