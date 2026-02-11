@@ -26,6 +26,38 @@ if [ ! -f "$BRANDING_FLAG" ]; then
 fi
 
 echo "Running migrations..."
+
+# One-time migration fix: replace old migration records with new ones
+# The old 0038_vehiclespecs and 0039_merge were deleted and replaced by 0038_vehiclespecs_and_more.
+# Production DB already has the tables but references the old migration names.
+# This block cleans up old records and fakes the new ones.
+MIGRATION_FIX_FLAG="/tmp/.migration_fix_applied"
+if [ ! -f "$MIGRATION_FIX_FLAG" ]; then
+    echo "🔧 Checking migration state..."
+    python manage.py shell << 'MIGRATE_FIX'
+from django.db import connection
+cursor = connection.cursor()
+
+# Check if old migration records exist
+cursor.execute("SELECT name FROM django_migrations WHERE app='news' AND name IN ('0038_vehiclespecs', '0039_merge_0038_vehiclespecs_0038_vehiclespecs_and_more')")
+old_records = cursor.fetchall()
+
+if old_records:
+    print(f"Found {len(old_records)} old migration record(s) to fix...")
+    
+    # Delete old records
+    cursor.execute("DELETE FROM django_migrations WHERE app='news' AND name IN ('0038_vehiclespecs', '0039_merge_0038_vehiclespecs_0038_vehiclespecs_and_more')")
+    
+    # Insert the new migration as applied (tables already exist)
+    cursor.execute("INSERT INTO django_migrations (app, name, applied) VALUES ('news', '0038_vehiclespecs_and_more', NOW()) ON CONFLICT DO NOTHING")
+    
+    print("✅ Migration records fixed!")
+else:
+    print("✓ Migration records already clean")
+MIGRATE_FIX
+    touch "$MIGRATION_FIX_FLAG"
+fi
+
 python manage.py migrate --noinput
 
 echo "Collecting static files..."
