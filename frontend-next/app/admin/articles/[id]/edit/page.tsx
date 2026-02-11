@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 
@@ -32,6 +32,13 @@ interface ArticleData {
   youtube_url: string;
 }
 
+interface GalleryImage {
+  id: number;
+  image: string;
+  caption: string;
+  order: number;
+}
+
 export default function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [articleId, setArticleId] = useState<string | null>(null);
@@ -39,6 +46,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [newGalleryImages, setNewGalleryImages] = useState<File[]>([]);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -119,11 +129,73 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       // Handle both array and paginated response
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data.results || []);
       setTags(Array.isArray(tagsRes.data) ? tagsRes.data : tagsRes.data.results || []);
+
+      // Fetch gallery images
+      await fetchGalleryImages(id);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       alert('Failed to load article');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGalleryImages = async (articleId: string) => {
+    try {
+      const response = await api.get(`/article-images/?article=${articleId}`);
+      setGalleryImages(response.data.results || response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch gallery images:', error);
+    }
+  };
+
+  const handleGalleryImageUpload = async (files: FileList | null) => {
+    if (!files || !articleId) return;
+
+    const filesArray = Array.from(files);
+    setNewGalleryImages(prev => [...prev, ...filesArray]);
+  };
+
+  const removeNewGalleryImage = (index: number) => {
+    setNewGalleryImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const deleteGalleryImage = async (imageId: number) => {
+    if (!confirm('Delete this gallery image?')) return;
+
+    try {
+      await api.delete(`/article-images/${imageId}/`);
+      setGalleryImages(prev => prev.filter(img => img.id !== imageId));
+    } catch (error) {
+      console.error('Failed to delete gallery image:', error);
+      alert('Failed to delete image');
+    }
+  };
+
+  const uploadGalleryImages = async () => {
+    if (newGalleryImages.length === 0 || !articleId) return;
+
+    setUploadingGallery(true);
+    try {
+      for (const file of newGalleryImages) {
+        const formData = new FormData();
+        formData.append('article', articleId);
+        formData.append('image', file);
+        formData.append('order', '0');
+
+        await api.post('/article-images/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      // Refresh gallery images
+      await fetchGalleryImages(articleId);
+      setNewGalleryImages([]);
+    } catch (error) {
+      console.error('Failed to upload gallery images:', error);
+      alert('Failed to upload some images');
+    } finally {
+      setUploadingGallery(false);
     }
   };
 
@@ -183,6 +255,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
         await api.put(`/articles/${articleId}/`, payload);
       }
+
+      // Upload gallery images if any
+      await uploadGalleryImages();
 
       alert('Article updated successfully!');
       router.push('/admin/articles');
@@ -432,6 +507,81 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
+          {/* Gallery Images Section */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Gallery Images</h3>
+            <p className="text-sm text-gray-600 mb-4">Add unlimited additional images to the article gallery</p>
+
+            {/* Existing Gallery Images */}
+            {galleryImages.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Current Gallery ({galleryImages.length})</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {galleryImages.map((img) => (
+                    <div key={img.id} className="relative group">
+                      <img
+                        src={img.image.startsWith('http') ? img.image : `${typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? 'https://heroic-healing-production-2365.up.railway.app' : 'http://localhost:8000'}${img.image}`}
+                        alt={img.caption || 'Gallery image'}
+                        className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => deleteGalleryImage(img.id)}
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* New Gallery Images to Upload */}
+            {newGalleryImages.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">New Images to Upload ({newGalleryImages.length})</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {newGalleryImages.map((file, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="w-full h-32 object-cover rounded-lg border-2 border-green-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeNewGalleryImage(index)}
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        <X size={16} />
+                      </button>
+                      <span className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded">New</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add Gallery Image Button */}
+            <div>
+              <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg border-2 border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer font-semibold">
+                <Plus size={20} />
+                Add Gallery Images
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => handleGalleryImageUpload(e.target.files)}
+                  className="hidden"
+                />
+              </label>
+              {uploadingGallery && (
+                <span className="ml-3 text-sm text-gray-600">Uploading...</span>
+              )}
+            </div>
+          </div>
+
           {/* Categories */}
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-2">Categories *</label>
@@ -447,8 +597,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     setFormData({ ...formData, category_ids: ids });
                   }}
                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ${formData.category_ids.includes(cat.id)
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                    : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
                     }`}
                 >
                   {cat.name}
