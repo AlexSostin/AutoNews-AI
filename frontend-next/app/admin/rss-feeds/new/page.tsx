@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, TestTube, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { authenticatedFetch } from '@/lib/authenticatedFetch';
 
 interface Category {
     id: number;
@@ -44,12 +45,7 @@ export default function NewRSSFeedPage() {
 
     const fetchCategories = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/categories/`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
+            const response = await authenticatedFetch('/api/categories/');
 
             if (response.ok) {
                 const data = await response.json();
@@ -65,13 +61,8 @@ export default function NewRSSFeedPage() {
         setLoading(true);
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rss-feeds/`, {
+            const response = await authenticatedFetch('/rss-feeds/', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({
                     ...formData,
                     default_category: formData.default_category || null,

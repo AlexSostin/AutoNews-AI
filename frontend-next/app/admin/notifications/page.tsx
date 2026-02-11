@@ -17,6 +17,7 @@ import {
     ExternalLink
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import { authenticatedFetch } from '@/lib/authenticatedFetch';
 
 interface Notification {
     id: number;
@@ -52,15 +53,7 @@ export default function NotificationsPage() {
     const fetchNotifications = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('access_token');
-            if (!token) return;
-
-            const apiUrl = getApiUrl();
-            const response = await fetch(`${apiUrl}/notifications/?limit=100`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
+            const response = await authenticatedFetch('/notifications/?limit=100');
 
             if (response.ok) {
                 const data = await response.json();
@@ -75,15 +68,8 @@ export default function NotificationsPage() {
 
     const markAsRead = async (id: number) => {
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) return;
-
-            const apiUrl = getApiUrl();
-            await fetch(`${apiUrl}/notifications/${id}/mark_read/`, {
+            await authenticatedFetch(`/notifications/${id}/mark_read/`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
             });
 
             setNotifications(prev =>
@@ -97,15 +83,8 @@ export default function NotificationsPage() {
     const markAllAsRead = async () => {
         try {
             setMarkingAll(true);
-            const token = localStorage.getItem('access_token');
-            if (!token) return;
-
-            const apiUrl = getApiUrl();
-            await fetch(`${apiUrl}/notifications/mark_all_read/`, {
+            await authenticatedFetch('/notifications/mark_all_read/', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
             });
 
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
@@ -118,15 +97,8 @@ export default function NotificationsPage() {
 
     const deleteNotification = async (id: number) => {
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) return;
-
-            const apiUrl = getApiUrl();
-            const response = await fetch(`${apiUrl}/notifications/${id}/`, {
+            const response = await authenticatedFetch(`/notifications/${id}/`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
             });
 
             if (response.ok) {
@@ -222,8 +194,8 @@ export default function NotificationsPage() {
                 <button
                     onClick={() => setSelectedType('all')}
                     className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${selectedType === 'all'
-                            ? 'bg-gray-900 text-white border-gray-900 shadow-md'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                        ? 'bg-gray-900 text-white border-gray-900 shadow-md'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                         }`}
                 >
                     All Types ({notifications.length})
@@ -234,8 +206,8 @@ export default function NotificationsPage() {
                         key={type}
                         onClick={() => setSelectedType(type)}
                         className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${selectedType === type
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                             }`}
                     >
                         {icon}
@@ -326,8 +298,8 @@ export default function NotificationsPage() {
 
                                 <div className="hidden sm:block">
                                     <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${notification.priority === 'high' ? 'bg-red-100 text-red-600' :
-                                            notification.priority === 'normal' ? 'bg-blue-100 text-blue-600' :
-                                                'bg-gray-100 text-gray-600'
+                                        notification.priority === 'normal' ? 'bg-blue-100 text-blue-600' :
+                                            'bg-gray-100 text-gray-600'
                                         }`}>
                                         {notification.priority}
                                     </span>

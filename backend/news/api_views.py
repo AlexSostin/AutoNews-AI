@@ -1373,6 +1373,114 @@ class UserViewSet(viewsets.ViewSet):
                 {'detail': 'Registration failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
+    def google_oauth(self, request):
+        """
+        Verify Google ID token and create/login user
+        Expects: { "credential": "google_id_token" }
+        Returns: { "access": "jwt_token", "refresh": "jwt_refresh", "user": {...} }
+        """
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+        from rest_framework_simplejwt.tokens import RefreshToken
+        
+        credential = request.data.get('credential')
+        
+        if not credential:
+            return Response(
+                {'detail': 'Google credential is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Verify the Google ID token
+            # We don't need to specify CLIENT_ID - Google's public keys work without it
+            idinfo = id_token.verify_oauth2_token(
+                credential, 
+                google_requests.Request()
+            )
+            
+            # Extract user information from the token
+            email = idinfo.get('email')
+            if not email:
+                return Response(
+                    {'detail': 'Email not provided by Google'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            email = email.lower().strip()
+            name = idinfo.get('name', '')
+            given_name = idinfo.get('given_name', '')
+            family_name = idinfo.get('family_name', '')
+            picture = idinfo.get('picture', '')
+            
+            # Get or create user
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    'username': email.split('@')[0],  # Use email prefix as username
+                    'first_name': given_name,
+                    'last_name': family_name,
+                }
+            )
+            
+            # If username collision, append number
+            if created and User.objects.filter(username=user.username).exclude(id=user.id).exists():
+                base_username = user.username
+                counter = 1
+                while User.objects.filter(username=f"{base_username}{counter}").exists():
+                    counter += 1
+                user.username = f"{base_username}{counter}"
+                user.save()
+            
+            # Update user info if changed
+            if not created:
+                updated = False
+                if user.first_name != given_name:
+                    user.first_name = given_name
+                    updated = True
+                if user.last_name != family_name:
+                    user.last_name = family_name
+                    updated = True
+                if updated:
+                    user.save()
+            
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            
+            logger.info(f"Google OAuth {'registration' if created else 'login'}: {email}")
+            
+            return Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'is_staff': user.is_staff,
+                    'date_joined': user.date_joined.isoformat(),
+                },
+                'created': created,
+            }, status=status.HTTP_200_OK)
+        
+        except ValueError as e:
+            # Invalid token
+            logger.warning(f"Invalid Google token: {str(e)}")
+            return Response(
+                {'detail': 'Invalid Google credential'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        except Exception as e:
+            logger.error(f"Google OAuth failed: {str(e)}")
+            return Response(
+                {'detail': 'Authentication failed. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 
 class FavoriteViewSet(viewsets.ModelViewSet):

@@ -18,6 +18,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import { authenticatedFetch } from '@/lib/authenticatedFetch';
 
 interface Subscriber {
   id: number;
@@ -71,12 +72,7 @@ export default function SubscribersPage() {
 
   const fetchSubscribers = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/subscribers/`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/subscribers/');
 
       if (response.ok) {
         const data = await response.json();
@@ -93,12 +89,7 @@ export default function SubscribersPage() {
   const fetchHistory = async () => {
     setLoadingHistory(true);
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/subscribers/newsletter_history/`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/subscribers/newsletter_history/');
 
       if (response.ok) {
         const data = await response.json();
@@ -115,12 +106,8 @@ export default function SubscribersPage() {
     if (!confirm('Are you sure you want to remove this subscriber?')) return;
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      await fetch(`${apiUrl}/subscribers/${id}/`, {
+      await authenticatedFetch(`/subscribers/${id}/`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       setSubscribers(subscribers.filter(s => s.id !== id));
@@ -136,15 +123,8 @@ export default function SubscribersPage() {
     if (!confirm(`Are you sure you want to delete ${selectedIds.length} subscriber(s)?`)) return;
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/subscribers/bulk_delete/`, {
+      const response = await authenticatedFetch('/subscribers/bulk_delete/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({ ids: selectedIds })
       });
 
@@ -163,15 +143,8 @@ export default function SubscribersPage() {
     setAddingSubscriber(true);
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/subscribers/`, {
+      const response = await authenticatedFetch('/subscribers/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({ email: newEmail })
       });
 
@@ -197,15 +170,8 @@ export default function SubscribersPage() {
     setMessage(null);
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/subscribers/send_newsletter/`, {
+      const response = await authenticatedFetch('/subscribers/send_newsletter/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify(newsletterForm)
       });
 
@@ -227,12 +193,7 @@ export default function SubscribersPage() {
 
   const handleExportCSV = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/subscribers/export_csv/`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/subscribers/export_csv/');
 
       if (response.ok) {
         const blob = await response.blob();
@@ -256,16 +217,15 @@ export default function SubscribersPage() {
 
     setImporting(true);
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
       const formData = new FormData();
       formData.append('file', importFile);
 
-      const response = await fetch(`${apiUrl}/subscribers/import_csv/`, {
+      // Use authenticatedFetch but with FormData body — 
+      // Content-Type header is auto-set by browser for FormData
+      const response = await authenticatedFetch('/subscribers/import_csv/', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        body: formData,
+        headers: {},  // Clear Content-Type to let browser set multipart boundary
       });
 
       const data = await response.json();

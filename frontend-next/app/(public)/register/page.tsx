@@ -7,6 +7,8 @@ import './register-password.css';
 import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
+import toast from 'react-hot-toast';
 
 // Hardcoded production API URL to avoid build-time variable issues
 const getApiUrl = () => {
@@ -202,6 +204,39 @@ export default function RegisterPage() {
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
+
+          {/* Google OAuth Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or sign up with</span>
+            </div>
+          </div>
+
+          {/* Google OAuth Button */}
+          <div className="mb-6">
+            <GoogleLoginButton
+              onSuccess={() => {
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                  const user = JSON.parse(userData);
+                  toast.success(`Welcome, ${user.username}! 🎉`, {
+                    duration: 3000,
+                    icon: '✨',
+                  });
+                }
+                setTimeout(() => {
+                  router.push('/');
+                  router.refresh();
+                }, 500);
+              }}
+              onError={(error) => {
+                toast.error(error);
+              }}
+            />
+          </div>
 
           <div className="mt-6 text-center space-y-2">
             <p className="text-gray-600 text-sm">

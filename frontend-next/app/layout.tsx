@@ -60,6 +60,8 @@ export const metadata: Metadata = {
   },
 };
 
+import GoogleAuthProvider from "@/components/auth/GoogleAuthProvider";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -112,34 +114,36 @@ export default async function RootLayout({
         <AdSenseScript />
       </head>
       <body className="antialiased min-h-screen flex flex-col bg-gray-50">
-        <Toaster
-          position="top-center"
-          reverseOrder={false}
-          toastOptions={{
-            duration: 3000,
-            style: {
-              borderRadius: '12px',
-              fontSize: '16px',
-            },
-            success: {
-              iconTheme: {
-                primary: '#10B981',
-                secondary: '#fff',
+        <GoogleAuthProvider>
+          <Toaster
+            position="top-center"
+            reverseOrder={false}
+            toastOptions={{
+              duration: 3000,
+              style: {
+                borderRadius: '12px',
+                fontSize: '16px',
               },
-            },
-            error: {
-              iconTheme: {
-                primary: '#EF4444',
-                secondary: '#fff',
+              success: {
+                iconTheme: {
+                  primary: '#10B981',
+                  secondary: '#fff',
+                },
               },
-            },
-          }}
-        />
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
-        <BackToTop />
-        <CookieConsent />
+              error: {
+                iconTheme: {
+                  primary: '#EF4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+          <BackToTop />
+          <CookieConsent />
+        </GoogleAuthProvider>
       </body>
     </html>
   );

@@ -1,19 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  Save, 
-  Loader2, 
-  Eye, 
+import {
+  User,
+  Mail,
+  Lock,
+  Save,
+  Loader2,
+  Eye,
   EyeOff,
   Shield,
   Bell,
   Check
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import { authenticatedFetch } from '@/lib/authenticatedFetch';
 
 interface UserProfile {
   username: string;
@@ -52,17 +53,7 @@ export default function AccountSettingsPage() {
 
   const fetchProfile = async () => {
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-      
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${apiUrl}/auth/user/`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedFetch('/auth/user/');
 
       if (response.ok) {
         const data = await response.json();
@@ -86,15 +77,8 @@ export default function AccountSettingsPage() {
     setMessage(null);
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/auth/user/`, {
+      const response = await authenticatedFetch('/auth/user/', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           first_name: profile.first_name,
           last_name: profile.last_name,
@@ -117,7 +101,7 @@ export default function AccountSettingsPage() {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (passwords.new_password !== passwords.confirm_password) {
       setMessage({ type: 'error', text: 'New passwords do not match' });
       return;
@@ -132,15 +116,8 @@ export default function AccountSettingsPage() {
     setMessage(null);
 
     try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`${apiUrl}/auth/password/change/`, {
+      const response = await authenticatedFetch('/auth/password/change/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           old_password: passwords.current_password,
           new_password1: passwords.new_password,
@@ -176,11 +153,10 @@ export default function AccountSettingsPage() {
       <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Account Settings</h1>
 
       {message && (
-        <div className={`p-4 rounded-lg flex items-center gap-2 ${
-          message.type === 'success' 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
+        <div className={`p-4 rounded-lg flex items-center gap-2 ${message.type === 'success'
+            ? 'bg-green-50 text-green-800 border border-green-200'
             : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
+          }`}>
           {message.type === 'success' ? <Check size={20} /> : <Shield size={20} />}
           {message.text}
         </div>

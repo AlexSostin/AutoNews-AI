@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { isAuthenticated, getUserFromStorage, getToken } from '@/lib/auth';
 import { favoriteAPI } from '@/lib/favorites';
 import { getApiUrl } from '@/lib/api';
+import { authenticatedFetch } from '@/lib/authenticatedFetch';
 import { User, Mail, Calendar, Shield, BookMarked, MessageSquare, Star, ChevronRight, X, ExternalLink, Clock, Trash2 } from 'lucide-react';
 import type { User as UserType } from '@/types';
 
@@ -121,15 +122,8 @@ export default function ProfilePage() {
   };
 
   const loadCommentsCount = async () => {
-    const token = getToken();
-    if (!token) return;
-
     try {
-      const response = await fetch(`${getApiUrl()}/comments/my_comments/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authenticatedFetch('/comments/my_comments/');
       if (response.ok) {
         const data = await response.json();
         setCommentsCount(data.count || 0);
@@ -140,15 +134,8 @@ export default function ProfilePage() {
   };
 
   const loadRatingsCount = async () => {
-    const token = getToken();
-    if (!token) return;
-
     try {
-      const response = await fetch(`${getApiUrl()}/ratings/my_ratings/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authenticatedFetch('/ratings/my_ratings/');
       if (response.ok) {
         const data = await response.json();
         setRatingsCount(data.count || 0);
@@ -174,16 +161,9 @@ export default function ProfilePage() {
   };
 
   const loadComments = async () => {
-    const token = getToken();
-    if (!token) return;
-
     setModalLoading(true);
     try {
-      const response = await fetch(`${getApiUrl()}/comments/my_comments/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authenticatedFetch('/comments/my_comments/');
       if (response.ok) {
         const data = await response.json();
         setComments(data.results || []);
@@ -196,16 +176,9 @@ export default function ProfilePage() {
   };
 
   const loadRatings = async () => {
-    const token = getToken();
-    if (!token) return;
-
     setModalLoading(true);
     try {
-      const response = await fetch(`${getApiUrl()}/ratings/my_ratings/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authenticatedFetch('/ratings/my_ratings/');
       if (response.ok) {
         const data = await response.json();
         setRatings(data.results || []);
@@ -243,20 +216,13 @@ export default function ProfilePage() {
   };
 
   const saveProfile = async () => {
-    const token = getToken();
-    if (!token) return;
-
     setProfileSaving(true);
     setProfileError('');
     setProfileSuccess('');
 
     try {
-      const response = await fetch(`${getApiUrl()}/auth/user/`, {
+      const response = await authenticatedFetch('/auth/user/', {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           first_name: editFirstName,
           last_name: editLastName,
@@ -296,9 +262,6 @@ export default function ProfilePage() {
   };
 
   const changePassword = async () => {
-    const token = getToken();
-    if (!token) return;
-
     setPasswordSaving(true);
     setPasswordError('');
     setPasswordSuccess('');
@@ -316,12 +279,8 @@ export default function ProfilePage() {
     }
 
     try {
-      const response = await fetch(`${getApiUrl()}/auth/password/change/`, {
+      const response = await authenticatedFetch('/auth/password/change/', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           old_password: oldPassword,
           new_password1: newPassword1,
@@ -344,18 +303,11 @@ export default function ProfilePage() {
   };
 
   const openEmailPreferences = async () => {
-    const token = getToken();
-    if (!token) return;
-
     setActiveModal('emailPreferences');
     setPrefsSuccess('');
 
     try {
-      const response = await fetch(`${getApiUrl()}/auth/email-preferences/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authenticatedFetch('/auth/email-preferences/');
       if (response.ok) {
         const data = await response.json();
         setEmailPrefs(data);
@@ -366,19 +318,12 @@ export default function ProfilePage() {
   };
 
   const saveEmailPreferences = async () => {
-    const token = getToken();
-    if (!token) return;
-
     setPrefsSaving(true);
     setPrefsSuccess('');
 
     try {
-      const response = await fetch(`${getApiUrl()}/auth/email-preferences/`, {
+      const response = await authenticatedFetch('/auth/email-preferences/', {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(emailPrefs),
       });
 
@@ -405,9 +350,6 @@ export default function ProfilePage() {
   };
 
   const requestEmailChange = async () => {
-    const token = getToken();
-    if (!token) return;
-
     setEmailVerifSaving(true);
     setEmailVerifError('');
 
@@ -420,12 +362,8 @@ export default function ProfilePage() {
     }
 
     try {
-      const response = await fetch(`${getApiUrl()}/auth/email/request-change/`, {
+      const response = await authenticatedFetch('/auth/email/request-change/', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           new_email: newEmailAddress,
         }),
@@ -460,9 +398,6 @@ export default function ProfilePage() {
   };
 
   const verifyEmailChange = async () => {
-    const token = getToken();
-    if (!token) return;
-
     setEmailVerifSaving(true);
     setEmailVerifError('');
 
@@ -473,12 +408,8 @@ export default function ProfilePage() {
     }
 
     try {
-      const response = await fetch(`${getApiUrl()}/auth/email/verify-code/`, {
+      const response = await authenticatedFetch('/auth/email/verify-code/', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           code: verificationCode,
         }),
@@ -664,7 +595,7 @@ export default function ProfilePage() {
                     <Calendar size={20} className="text-indigo-600" />
                     <div>
                       <div className="text-xs text-gray-500 uppercase">Member Since</div>
-                      <div className="font-medium text-gray-900">{formatDate(user.date_joined)}</div>
+                      <div className="font-medium text-gray-900">{user.date_joined ? formatDate(user.date_joined) : 'N/A'}</div>
                     </div>
                   </div>
 

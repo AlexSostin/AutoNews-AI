@@ -75,6 +75,7 @@ services:
       - NEXT_PUBLIC_MEDIA_URL=http://localhost:8000
       - NEXT_PUBLIC_SITE_URL=http://localhost:3000
       - NEXT_PUBLIC_SENTRY_DSN=https://87d896ae25bc56da5e80115c2c1364da@o4510742370648064.ingest.de.sentry.io/4510742712746064
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=691854985255-jm789a08dajc3ulb94fk3nvnadu2m54d.apps.googleusercontent.com
     depends_on:
       - backend
     restart: unless-stopped
