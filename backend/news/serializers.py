@@ -14,8 +14,8 @@ def validate_image_file(image):
     if not image:
         return
     
-    # Check file size (10MB max)
-    max_size = getattr(settings, 'MAX_UPLOAD_SIZE_MB', 10) * 1024 * 1024
+    # Check file size (50MB max)
+    max_size = getattr(settings, 'MAX_UPLOAD_SIZE_MB', 50) * 1024 * 1024
     if image.size > max_size:
         raise ValidationError(f'Image file too large. Maximum size is {max_size // (1024*1024)}MB.')
     
