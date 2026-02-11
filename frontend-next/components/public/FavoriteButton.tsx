@@ -14,8 +14,8 @@ interface FavoriteButtonProps {
   className?: string;
 }
 
-export default function FavoriteButton({ 
-  articleId, 
+export default function FavoriteButton({
+  articleId,
   initialIsFavorited = false,
   showText = false,
   size = 'md',
@@ -43,8 +43,12 @@ export default function FavoriteButton({
     try {
       const result = await favoriteAPI.toggleFavorite(articleId, token);
       setIsFavorited(result.is_favorited);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to toggle favorite:', error);
+      // If session expired, redirect to login
+      if (error?.message?.includes('Session expired') || error?.message?.includes('log in')) {
+        router.push('/login');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -71,8 +75,8 @@ export default function FavoriteButton({
         flex items-center justify-center
         rounded-full
         transition-all duration-200
-        ${isFavorited 
-          ? 'bg-red-50 text-red-600 hover:bg-red-100' 
+        ${isFavorited
+          ? 'bg-red-50 text-red-600 hover:bg-red-100'
           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         }
         ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}
