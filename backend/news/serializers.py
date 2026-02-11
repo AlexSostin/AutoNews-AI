@@ -404,8 +404,8 @@ class RatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rating
         fields = ['id', 'article', 'article_title', 'article_slug', 'article_image',
-                  'article_category', 'user_ip', 'rating', 'created_at']
-        read_only_fields = ['created_at', 'user_ip', 'article_title', 'article_slug', 
+                  'article_category', 'ip_address', 'rating', 'created_at']
+        read_only_fields = ['created_at', 'ip_address', 'article_title', 'article_slug', 
                            'article_image', 'article_category']
     
     def get_article_image(self, obj):
