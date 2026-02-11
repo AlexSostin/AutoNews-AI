@@ -74,16 +74,16 @@ class ArticleTests(APITestCase):
             title='Test Article',
             slug='test-article',
             content='Test content',
-            category=self.category,
             is_published=True
         )
+        self.article.categories.add(self.category)
         self.draft_article = Article.objects.create(
             title='Draft Article',
             slug='draft-article',
             content='Draft content',
-            category=self.category,
             is_published=False
         )
+        self.draft_article.categories.add(self.category)
     
     def test_list_articles_returns_only_published(self):
         """Anonymous users should only see published articles"""
@@ -105,7 +105,7 @@ class ArticleTests(APITestCase):
         data = {
             'title': 'New Article',
             'content': 'Content',
-            'category': self.category.id
+            'category_ids': [self.category.id]
         }
         response = self.client.post('/api/v1/articles/', data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -222,8 +222,8 @@ class TagTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
     
     def test_retrieve_tag_by_slug(self):
-        """Should retrieve tag by slug"""
-        response = self.client.get('/api/v1/tags/electric/')
+        """Should retrieve tag by id"""
+        response = self.client.get(f'/api/v1/tags/{self.tag.id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['name'], 'Electric')
 
@@ -251,7 +251,7 @@ class SecurityTests(APITestCase):
         data = {
             'title': '<script>alert("xss")</script>',
             'content': 'Safe content',
-            'category': category.id,
+            'category_ids': [category.id],
             'is_published': True
         }
         response = self.client.post('/api/v1/articles/', data)
