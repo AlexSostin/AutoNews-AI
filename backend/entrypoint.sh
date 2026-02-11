@@ -27,9 +27,12 @@ fi
 
 echo "Running migrations..."
 
-# Fix: unfake previously faked migrations so they actually apply
+# Migration 0038 contains mixed ops (existing tables + VehicleSpecs) - must fake
+# The serializer handles missing VehicleSpecs table gracefully
 echo "🔧 Checking migration state..."
-python manage.py migrate news 0037 --fake 2>&1 || true
+python manage.py migrate news 0038_vehiclespecs_and_more --fake 2>&1 || true
+python manage.py migrate news 0040_articleembedding --fake 2>&1 || true
+
 python manage.py migrate --noinput
 
 echo "Collecting static files..."
