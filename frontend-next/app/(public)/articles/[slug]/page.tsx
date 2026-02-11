@@ -242,7 +242,7 @@ export default async function ArticleDetailPage({
                 {article.author_name ? (
                   <div className="flex items-center gap-2">
                     <User size={16} className="text-indigo-600" />
-                    <span className="font-bold">Author:</span>
+                    <span className="font-bold">Source:</span>
                     {article.author_channel_url ? (
                       <a
                         href={article.author_channel_url}
