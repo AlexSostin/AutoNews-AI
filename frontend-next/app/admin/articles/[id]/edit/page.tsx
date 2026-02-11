@@ -60,6 +60,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
     published: false,
     is_hero: false,
     youtube_url: '',
+    author_name: '',
+    author_channel_url: '',
     image: null as File | null,
     image_2: null as File | null,
     image_3: null as File | null,
@@ -115,6 +117,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         published: article.is_published ?? false,
         is_hero: article.is_hero ?? false,
         youtube_url: article.youtube_url || '',
+        author_name: article.author_name || '',
+        author_channel_url: article.author_channel_url || '',
         image: null,
         image_2: null,
         image_3: null,
@@ -219,6 +223,12 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         if (formData.youtube_url) {
           formDataToSend.append('youtube_url', formData.youtube_url);
         }
+        if (formData.author_name) {
+          formDataToSend.append('author_name', formData.author_name);
+        }
+        if (formData.author_channel_url) {
+          formDataToSend.append('author_channel_url', formData.author_channel_url);
+        }
 
         if (formData.image) {
           formDataToSend.append('image', formData.image);
@@ -251,6 +261,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           is_published: formData.published,
           is_hero: formData.is_hero,
           youtube_url: formData.youtube_url,
+          author_name: formData.author_name,
+          author_channel_url: formData.author_channel_url,
         };
 
         await api.put(`/articles/${articleId}/`, payload);
@@ -338,6 +350,30 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               placeholder="https://youtube.com/watch?v=..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
             />
+          </div>
+
+          {/* Author/Source Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Author/Source Name</label>
+              <input
+                type="text"
+                value={formData.author_name}
+                onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
+                placeholder="e.g., Doug DeMuro, Carwow"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Author Channel/Website URL</label>
+              <input
+                type="url"
+                value={formData.author_channel_url}
+                onChange={(e) => setFormData({ ...formData, author_channel_url: e.target.value })}
+                placeholder="https://youtube.com/@channel or website URL"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
+              />
+            </div>
           </div>
 
           {/* Summary */}
