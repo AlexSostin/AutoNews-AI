@@ -12,6 +12,13 @@ interface GoogleLoginButtonProps {
 export default function GoogleLoginButton({ onSuccess, onError }: GoogleLoginButtonProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+    // Don't render Google button if client ID is not configured
+    // This prevents crashes during SSG/prerendering in CI where the env var isn't set
+    if (!clientId) {
+        return null;
+    }
 
     const handleSuccess = async (credentialResponse: CredentialResponse) => {
         if (!credentialResponse.credential) {
