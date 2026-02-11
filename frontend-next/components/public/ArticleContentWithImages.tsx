@@ -54,7 +54,7 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
                     src={currentImage}
                     alt={`Article image ${imageIndex + 1}`}
                     fill
-                    className="object-contain"
+                    className="object-cover"
                     unoptimized
                   />
                 </div>
