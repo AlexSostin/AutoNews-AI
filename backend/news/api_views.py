@@ -14,7 +14,8 @@ from django.utils import timezone
 from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
-    YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, AdminNotification
+    YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, AdminNotification,
+    VehicleSpecs
 )
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
@@ -22,7 +23,7 @@ from .serializers import (
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
     SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer, NewsletterHistorySerializer,
     YouTubeChannelSerializer, RSSFeedSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
-    AdminNotificationSerializer
+    AdminNotificationSerializer, VehicleSpecsSerializer
 )
 import os
 import sys
@@ -680,6 +681,108 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
     
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], url_path='translate-enhance')
+    @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
+    def translate_enhance(self, request):
+        """Translate Russian text to English and generate a formatted HTML article."""
+        russian_text = request.data.get('russian_text', '').strip()
+        if not russian_text:
+            return Response(
+                {'error': 'russian_text is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(russian_text) < 20:
+            return Response(
+                {'error': 'Text is too short. Please provide at least a few sentences.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        category = request.data.get('category', 'News')
+        target_length = request.data.get('target_length', 'medium')
+        tone = request.data.get('tone', 'professional')
+        seo_keywords = request.data.get('seo_keywords', '')
+        provider = request.data.get('provider', 'gemini')
+        save_as_draft = request.data.get('save_as_draft', False)
+
+        if target_length not in ('short', 'medium', 'long'):
+            target_length = 'medium'
+        if tone not in ('professional', 'casual', 'technical'):
+            tone = 'professional'
+        if provider not in ('groq', 'gemini'):
+            provider = 'gemini'
+
+        try:
+            from ai_engine.modules.translator import translate_and_enhance
+            result = translate_and_enhance(
+                russian_text=russian_text,
+                category=category,
+                target_length=target_length,
+                tone=tone,
+                seo_keywords=seo_keywords,
+                provider=provider,
+            )
+        except Exception as e:
+            logger.error(f'Translation error: {e}')
+            return Response(
+                {'error': f'Translation failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Optionally save as draft
+        if save_as_draft and result.get('title') and result.get('content'):
+            try:
+                from django.utils.text import slugify
+                slug = slugify(result.get('suggested_slug') or result['title'])[:80]
+                
+                # Make sure slug is unique
+                base_slug = slug
+                counter = 1
+                while Article.objects.filter(slug=slug).exists():
+                    slug = f'{base_slug}-{counter}'
+                    counter += 1
+
+                article = Article.objects.create(
+                    title=result['title'],
+                    slug=slug,
+                    content=result['content'],
+                    summary=result.get('summary', ''),
+                    seo_description=result.get('meta_description', ''),
+                    meta_keywords=', '.join(result.get('seo_keywords', [])),
+                    is_published=False,
+                )
+
+                # Assign categories
+                suggested = result.get('suggested_categories', [])
+                if suggested:
+                    for cat_name in suggested:
+                        cat = Category.objects.filter(name__iexact=cat_name).first()
+                        if cat:
+                            article.categories.add(cat)
+                
+                # Fall back to the user-selected category
+                if article.categories.count() == 0:
+                    cat = Category.objects.filter(name__iexact=category).first()
+                    if cat:
+                        article.categories.add(cat)
+
+                from django.core.cache import cache
+                cache.clear()
+
+                result['article_id'] = article.id
+                result['article_slug'] = article.slug
+                result['saved'] = True
+                print(f'💾 Draft saved: {article.title} (ID: {article.id})')
+            except Exception as save_error:
+                logger.error(f'Failed to save draft: {save_error}')
+                result['saved'] = False
+                result['save_error'] = str(save_error)
+
+        return Response({
+            'success': True,
+            **result,
+        })
+
     @action(detail=True, methods=['post'])
     @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
     def rate(self, request, slug=None):
@@ -873,6 +976,82 @@ class ArticleViewSet(viewsets.ModelViewSet):
             'detail': f'Reset views to 0 for {count} articles',
             'articles_updated': count
         })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def extract_specs(self, request, slug=None):
+        """
+        Extract vehicle specifications from article using AI
+        POST /api/v1/articles/{slug}/extract-specs/
+        """
+        article = self.get_object()
+        
+        try:
+            from ai_engine.modules.specs_extractor import extract_vehicle_specs
+            
+            # Extract specs using AI
+            specs_data = extract_vehicle_specs(
+                title=article.title,
+                content=article.content,
+                summary=article.summary or ""
+            )
+            
+            # Create or update VehicleSpecs
+            vehicle_specs, created = VehicleSpecs.objects.update_or_create(
+                article=article,
+                defaults=specs_data
+            )
+            
+            serializer = VehicleSpecsSerializer(vehicle_specs)
+            
+            return Response({
+                'success': True,
+                'created': created,
+                'specs': serializer.data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error extracting specs for article {article.id}: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['get'])
+    def similar_articles(self, request, slug=None):
+        """
+        Find similar articles using vector search
+        GET /api/v1/articles/{slug}/similar-articles/
+        """
+        article = self.get_object()
+        
+        try:
+            from ai_engine.modules.vector_search import get_vector_engine
+            
+            engine = get_vector_engine()
+            similar = engine.find_similar_articles(article.id, k=15)
+            
+            # Get Article objects for similar IDs
+            similar_ids = [s['article_id'] for s in similar]
+            articles = Article.objects.filter(
+                id__in=similar_ids,
+                is_published=True,
+                is_deleted=False
+            )
+            
+            serializer = ArticleListSerializer(articles, many=True, context={'request': request})
+            
+            return Response({
+                'success': True,
+                'similar_articles': serializer.data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error finding similar articles for {article.id}: {e}")
+            return Response({
+                'success': True,
+                'similar_articles': []
+            })
+
 
 
 class CommentViewSet(viewsets.ModelViewSet):

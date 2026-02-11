@@ -5,7 +5,7 @@ from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, EmailPreferences,
-    AdminNotification
+    AdminNotification, VehicleSpecs
 )
 
 
@@ -75,6 +75,51 @@ class CarSpecificationSerializer(serializers.ModelSerializer):
         fields = ['id', 'make', 'model', 'year', 'horsepower', 'torque', 
                   'zero_to_sixty', 'top_speed', 'created_at']
         read_only_fields = ['created_at']
+
+
+class VehicleSpecsSerializer(serializers.ModelSerializer):
+    """Serializer for AI-extracted vehicle specifications"""
+    
+    # Display methods for formatted output
+    power_display = serializers.SerializerMethodField()
+    range_display = serializers.SerializerMethodField()
+    price_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = VehicleSpecs
+        fields = '__all__'
+        read_only_fields = ['article', 'extracted_at']
+    
+    def get_power_display(self, obj):
+        """Format power output"""
+        if obj.power_hp and obj.power_kw:
+            return f"{obj.power_hp} HP ({obj.power_kw} kW)"
+        elif obj.power_hp:
+            return f"{obj.power_hp} HP"
+        elif obj.power_kw:
+            return f"{obj.power_kw} kW"
+        return None
+    
+    def get_range_display(self, obj):
+        """Format range information"""
+        ranges = []
+        if obj.range_wltp:
+            ranges.append(f"WLTP: {obj.range_wltp} km")
+        if obj.range_epa:
+            ranges.append(f"EPA: {obj.range_epa} km")
+        if obj.range_km and not ranges:
+            ranges.append(f"{obj.range_km} km")
+        return ", ".join(ranges) if ranges else None
+    
+    def get_price_display(self, obj):
+        """Format price range"""
+        if obj.price_from and obj.price_to:
+            currency = obj.currency or "USD"
+            return f"{currency} {obj.price_from:,.0f} - {obj.price_to:,.0f}"
+        elif obj.price_from:
+            currency = obj.currency or "USD"
+            return f"{currency} {obj.price_from:,.0f}+"
+        return None
 
 
 class ArticleImageSerializer(serializers.ModelSerializer):
@@ -168,6 +213,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         required=False
     )
     car_specification = CarSpecificationSerializer(read_only=True)
+    vehicle_specs = VehicleSpecsSerializer(read_only=True)
     images = ArticleImageSerializer(many=True, read_only=True, source='gallery')
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
@@ -181,7 +227,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'slug', 'content', 'summary', 'categories', 'category_ids',
                   'tags', 'tag_ids', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'youtube_url', 'price_usd', 'views', 
-                  'car_specification', 'images', 'average_rating', 'rating_count',
+                  'car_specification', 'vehicle_specs', 'images', 'average_rating', 'rating_count',
                   'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero',
                   'author_name', 'author_channel_url']
         read_only_fields = ['slug', 'views', 'created_at', 'updated_at']

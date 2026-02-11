@@ -70,3 +70,10 @@ google-auth-oauthlib==1.2.0
 markdown==3.7
 sendgrid==6.11.0
 feedparser==6.0.11
+
+# Vector Database & Semantic Search
+# Using FAISS instead of ChromaDB (no C++ compiler needed)
+langchain==0.3.15
+langchain-google-genai==2.0.8
+langchain-community==0.3.15
+faiss-cpu==1.9.0.post1

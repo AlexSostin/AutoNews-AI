@@ -7,7 +7,7 @@ from datetime import timedelta
 from .models import (
     Article, Category, Tag, TagGroup, CarSpecification, SiteSettings, Comment, Rating,
     ArticleImage, Favorite, SecurityLog, EmailVerification, PasswordResetToken,
-    NewsletterSubscriber
+    NewsletterSubscriber, VehicleSpecs
 )
 import sys
 import os
@@ -58,6 +58,63 @@ class ArticleImageInline(admin.TabularInline):
     verbose_name = 'Gallery Image'
     verbose_name_plural = 'Image Gallery'
 
+class VehicleSpecsInline(admin.StackedInline):
+    model = VehicleSpecs
+    can_delete = True
+    verbose_name_plural = 'AI-Extracted Vehicle Specifications'
+    extra = 0
+    max_num = 1
+    fieldsets = (
+        ('Power & Performance', {
+            'fields': (
+                ('drivetrain', 'motor_count', 'motor_placement'),
+                ('power_hp', 'power_kw', 'torque_nm'),
+                ('acceleration_0_100', 'top_speed_kmh')
+            )
+        }),
+        ('Battery & Range', {
+            'fields': (
+                'battery_kwh',
+                ('range_km', 'range_wltp', 'range_epa')
+            )
+        }),
+        ('Charging', {
+            'fields': (
+                ('charging_time_fast', 'charging_time_slow'),
+                'charging_power_max_kw'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Transmission & Body', {
+            'fields': (
+                ('transmission', 'transmission_gears'),
+                ('body_type', 'fuel_type', 'seats')
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Dimensions & Weight', {
+            'fields': (
+                ('length_mm', 'width_mm'),
+                ('height_mm', 'wheelbase_mm'),
+                ('weight_kg', 'cargo_liters')
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Pricing', {
+            'fields': (
+                ('price_from', 'price_to', 'currency')
+            )
+        }),
+        ('Other Information', {
+            'fields': (
+                ('year', 'model_year', 'country_of_origin'),
+                ('confidence_score', 'extracted_at')
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('extracted_at',)
+
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     list_display = ('title', 'get_categories', 'is_published', 'is_hero', 'is_deleted', 'created_at', 'view_count')
@@ -65,7 +122,7 @@ class ArticleAdmin(admin.ModelAdmin):
     filter_horizontal = ('categories', 'tags')
     search_fields = ('title', 'content', 'summary', 'seo_title', 'seo_description')
     prepopulated_fields = {'slug': ('title',)}
-    inlines = [CarSpecificationInline, ArticleImageInline]
+    inlines = [CarSpecificationInline, VehicleSpecsInline, ArticleImageInline]
     date_hierarchy = 'created_at'
     list_editable = ('is_published', 'is_hero')
     actions = ['publish_articles', 'unpublish_articles', 'soft_delete_articles', 'restore_articles', 'hard_delete_articles']

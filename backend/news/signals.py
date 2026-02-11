@@ -67,3 +67,89 @@ def notify_pending_article(sender, instance, created, **kwargs):
             priority='high'
         )
 # Force rebuild 1769538478
+
+
+# ============================================================================
+# AUTO-INDEXING SIGNALS FOR VECTOR SEARCH
+# ============================================================================
+
+from django.db.models.signals import post_delete
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@receiver(post_save, sender=Article)
+def auto_index_article_vector(sender, instance, created, **kwargs):
+    """
+    Automatically index article for vector search when saved
+    Only indexes published, non-deleted articles
+    """
+    # Only index published articles
+    if not instance.is_published or instance.is_deleted:
+        # If article was unpublished/deleted, remove from index
+        if not created:
+            try:
+                from ai_engine.modules.vector_search import get_vector_engine
+                engine = get_vector_engine()
+                engine.remove_article(instance.id)
+                logger.info(f"🗑️ Removed unpublished article from vector index: {instance.title}")
+            except Exception as e:
+                logger.error(f"Failed to remove article {instance.id} from vector index: {e}")
+        return
+    
+    # Index the article
+    try:
+        from ai_engine.modules.vector_search import get_vector_engine
+        
+        engine = get_vector_engine()
+        
+        # Prepare metadata
+        metadata = {
+            'slug': instance.slug,
+            'is_published': instance.is_published,
+            'created_at': instance.created_at.isoformat() if instance.created_at else None,
+        }
+        
+        # Add categories
+        if instance.categories.exists():
+            metadata['categories'] = [cat.slug for cat in instance.categories.all()]
+        
+        # Add tags
+        if instance.tags.exists():
+            metadata['tags'] = [tag.slug for tag in instance.tags.all()]
+        
+        # Index the article
+        engine.index_article(
+            article_id=instance.id,
+            title=instance.title,
+            content=instance.content,
+            summary=instance.summary or "",
+            metadata=metadata
+        )
+        
+        action = "📊 Indexed" if created else "🔄 Re-indexed"
+        logger.info(f"{action} article for vector search: {instance.title} (ID: {instance.id})")
+        
+    except Exception as e:
+        logger.error(f"Failed to auto-index article {instance.id} for vector search: {e}")
+        # Don't raise exception - article save should succeed even if indexing fails
+
+
+@receiver(post_delete, sender=Article)
+def auto_remove_from_vector_index(sender, instance, **kwargs):
+    """
+    Automatically remove article from vector index when deleted
+    """
+    try:
+        from ai_engine.modules.vector_search import get_vector_engine
+        
+        engine = get_vector_engine()
+        engine.remove_article(instance.id)
+        
+        logger.info(f"🗑️ Removed deleted article from vector index: {instance.title} (ID: {instance.id})")
+        
+    except Exception as e:
+        logger.error(f"Failed to remove article {instance.id} from vector index: {e}")
+        # Don't raise exception - deletion should succeed even if index removal fails
+

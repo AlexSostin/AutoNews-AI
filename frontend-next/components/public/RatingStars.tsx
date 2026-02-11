@@ -27,8 +27,11 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
         if (response.data.has_rated) {
           setUserRating(response.data.user_rating);
         }
-      } catch (error) {
-        console.error('Failed to load user rating:', error);
+      } catch (error: any) {
+        // Silently ignore 401 errors - endpoint allows anonymous access
+        if (error.response?.status !== 401) {
+          console.error('Failed to load user rating:', error);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -43,17 +46,17 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
       const response = await api.post(`/articles/${articleSlug}/rate/`, {
         rating: stars
       });
-      
+
       console.log('Rating response:', response.data);
       setRating(response.data.average_rating);
       setCount(response.data.rating_count);
       setUserRating(stars);
-      
+
       // Update the article rating display at the top of the page
       if (typeof window !== 'undefined' && (window as any).updateArticleRating) {
         (window as any).updateArticleRating(response.data.average_rating, response.data.rating_count);
       }
-      
+
       setMessage('✓ Rating updated!');
       setTimeout(() => setMessage(''), 3000);
     } catch (error: any) {
@@ -80,7 +83,7 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
       <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
         ⭐ Rate this Article
       </h3>
-      
+
       {userRating > 0 && (
         <div className="text-center mb-2">
           <p className="text-sm text-indigo-600 font-medium">
@@ -88,7 +91,7 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
           </p>
         </div>
       )}
-      
+
       <div className="flex justify-center items-center gap-4 mb-4">
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
@@ -102,16 +105,15 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
             >
               <Star
                 size={40}
-                className={`${
-                  star <= (hoveredStar || userRating)
+                className={`${star <= (hoveredStar || userRating)
                     ? 'fill-amber-400 text-amber-400'
                     : 'text-gray-300'
-                } transition-colors`}
+                  } transition-colors`}
               />
             </button>
           ))}
         </div>
-        
+
         <div className="text-center">
           <div className="text-3xl font-bold text-gray-900">
             {(rating || 0).toFixed(1)}
@@ -123,9 +125,8 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
       </div>
 
       {message && (
-        <p className={`text-center text-sm font-medium ${
-          message.includes('✓') ? 'text-green-600' : 'text-red-600'
-        }`}>
+        <p className={`text-center text-sm font-medium ${message.includes('✓') ? 'text-green-600' : 'text-red-600'
+          }`}>
           {message}
         </p>
       )}

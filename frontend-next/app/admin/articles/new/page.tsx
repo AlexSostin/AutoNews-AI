@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Youtube, Sparkles, Save } from 'lucide-react';
+import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import GenerationProgress from '@/components/admin/GenerationProgress';
@@ -28,6 +28,19 @@ export default function NewArticlePage() {
   const [generating, setGenerating] = useState(false);
   const [taskId, setTaskId] = useState<string>('');
   const [provider, setProvider] = useState('groq'); // Default to groq
+  const [activeTab, setActiveTab] = useState<'youtube' | 'translate'>('youtube');
+
+  // Translate tab state
+  const [translateText, setTranslateText] = useState('');
+  const [translateLength, setTranslateLength] = useState<'short' | 'medium' | 'long'>('medium');
+  const [translateTone, setTranslateTone] = useState<'professional' | 'casual' | 'technical'>('professional');
+  const [translateCategory, setTranslateCategory] = useState('News');
+  const [translateProvider, setTranslateProvider] = useState<'gemini' | 'groq'>('gemini');
+  const [translating, setTranslating] = useState(false);
+  const [translateResult, setTranslateResult] = useState<any>(null);
+  const [showTranslatePreview, setShowTranslatePreview] = useState(false);
+  const [savingTranslation, setSavingTranslation] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -118,6 +131,84 @@ export default function NewArticlePage() {
     }
   };
 
+  const handleTranslate = async () => {
+    if (!translateText.trim() || translateText.length < 20) return;
+
+    setTranslating(true);
+    setTranslateResult(null);
+    setShowTranslatePreview(false);
+
+    try {
+      const res = await api.post('/articles/translate-enhance/', {
+        russian_text: translateText,
+        category: translateCategory,
+        target_length: translateLength,
+        tone: translateTone,
+        provider: translateProvider,
+      });
+
+      setTranslateResult(res.data);
+      setShowTranslatePreview(true);
+
+      // Auto-fill the manual form below with translated content
+      if (res.data.success) {
+        setFormData({
+          ...formData,
+          title: res.data.title || '',
+          slug: res.data.suggested_slug || '',
+          summary: res.data.summary || '',
+          content: res.data.content || '',
+          // Auto-select matching categories
+          category_ids: categories
+            .filter(cat => res.data.suggested_categories?.includes(cat.name))
+            .map(cat => cat.id),
+        });
+
+        // Scroll to form so user sees it's filled
+        setTimeout(() => {
+          const formElement = document.querySelector('form');
+          if (formElement) {
+            formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 500);
+      }
+    } catch (error: any) {
+      const msg = error.response?.data?.error || error.message || 'Translation failed';
+      setTranslateResult({
+        success: false,
+        error: msg,
+      });
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const handleSaveTranslation = async () => {
+    if (!translateResult?.title || !translateResult?.content) return;
+
+    setSavingTranslation(true);
+    try {
+      const res = await api.post('/articles/translate-enhance/', {
+        russian_text: translateText,
+        category: translateCategory,
+        target_length: translateLength,
+        tone: translateTone,
+        provider: translateProvider,
+        save_as_draft: true,
+      });
+
+      if (res.data.saved) {
+        alert('Article saved as draft!');
+        router.push('/admin/articles');
+      }
+    } catch (error: any) {
+      console.error('Save failed:', error);
+      alert('Failed to save: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setSavingTranslation(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -184,18 +275,49 @@ export default function NewArticlePage() {
         <h1 className="text-3xl font-black text-gray-950">Create New Article</h1>
       </div>
 
-      {/* AI Generation Section */}
+      {/* AI Generation Section with Tabs */}
       <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-6 mb-6">
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-4 mb-4">
           <div className="bg-indigo-600 p-3 rounded-lg">
             <Sparkles className="text-white" size={24} />
           </div>
           <div className="flex-1">
-            <h3 className="text-xl font-black text-gray-950 mb-2">AI-Powered Article Generation</h3>
-            <p className="text-gray-700 font-medium mb-4">
-              Generate a complete automotive article from a YouTube video using AI.
+            <h3 className="text-xl font-black text-gray-900 mb-2">AI-Powered Article Generation</h3>
+            <p className="text-gray-700 font-medium">
+              Generate a complete automotive article using AI from YouTube videos or Russian text.
             </p>
+          </div>
+        </div>
 
+        {/* Tabs */}
+        <div className="flex gap-2 mb-4 border-b border-indigo-200">
+          <button
+            type="button"
+            onClick={() => setActiveTab('youtube')}
+            className={`px-4 py-2 font-bold transition-all border-b-2 ${activeTab === 'youtube'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+          >
+            <Youtube className="inline mr-2" size={18} />
+            YouTube
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('translate')}
+            className={`px-4 py-2 font-bold transition-all border-b-2 ${activeTab === 'translate'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+          >
+            <Languages className="inline mr-2" size={18} />
+            Translate
+          </button>
+        </div>
+
+        {/* YouTube Tab */}
+        {activeTab === 'youtube' && (
+          <div>
             {/* Provider Selection */}
             <div className="flex items-center gap-4 mb-4">
               <label className="text-sm font-bold text-gray-700">AI Provider:</label>
@@ -269,11 +391,175 @@ export default function NewArticlePage() {
               </div>
             )}
           </div>
-        </div>
+        )}
+
+        {/* Translate Tab */}
+        {activeTab === 'translate' && (
+          <div className="space-y-4">
+            <textarea
+              value={translateText}
+              onChange={(e) => setTranslateText(e.target.value)}
+              placeholder="Напишите текст на русском... Например: Новый BYD Seal 06 GT получил мощный электромотор на 530 л.с."
+              className="w-full h-32 px-4 py-3 border-2 border-indigo-300 rounded-lg resize-y focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 text-sm leading-relaxed"
+              disabled={translating}
+            />
+            <div className="text-xs text-gray-500">
+              {translateText.length} characters · {translateText.trim() ? translateText.trim().split(/\s+/).length : 0} words
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Length</label>
+                <select
+                  value={translateLength}
+                  onChange={(e) => setTranslateLength(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                  disabled={translating}
+                >
+                  <option value="short">Short</option>
+                  <option value="medium">Medium</option>
+                  <option value="long">Long</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tone</label>
+                <select
+                  value={translateTone}
+                  onChange={(e) => setTranslateTone(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                  disabled={translating}
+                >
+                  <option value="professional">Professional</option>
+                  <option value="casual">Casual</option>
+                  <option value="technical">Technical</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  value={translateCategory}
+                  onChange={(e) => setTranslateCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                  disabled={translating}
+                >
+                  {categories.length > 0 ? (
+                    categories.map((cat) => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="News">News</option>
+                      <option value="EVs">EVs</option>
+                      <option value="Reviews">Reviews</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Provider</label>
+                <select
+                  value={translateProvider}
+                  onChange={(e) => setTranslateProvider(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
+                  disabled={translating}
+                >
+                  <option value="gemini">Gemini</option>
+                  <option value="groq">Groq</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTranslate}
+              disabled={translating || translateText.length < 20}
+              className="w-full py-3 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
+            >
+              {translating ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Translating...
+                </>
+              ) : (
+                <>
+                  <Languages size={20} />
+                  Translate & Enhance
+                </>
+              )}
+            </button>
+
+            {/* Translation Result */}
+            {translateResult && translateResult.success && (
+              <div className="mt-4 p-4 bg-white rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 text-green-600 font-bold mb-2">
+                  <Save size={18} />
+                  Translation Complete!
+                </div>
+                <h4 className="font-bold text-gray-900 mb-1">{translateResult.title}</h4>
+                <p className="text-sm text-gray-600 mb-2">{translateResult.summary}</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTranslatePreview(!showTranslatePreview)}
+                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                  >
+                    {showTranslatePreview ? 'Hide' : 'Show'} Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveTranslation}
+                    disabled={savingTranslation}
+                    className="ml-auto px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {savingTranslation ? 'Saving...' : 'Save as Draft'}
+                  </button>
+                </div>
+                {showTranslatePreview && (
+                  <div
+                    className="mt-3 p-3 bg-gray-50 rounded text-sm prose prose-sm max-w-none text-gray-900"
+                    dangerouslySetInnerHTML={{ __html: translateResult.content }}
+                  />
+                )}
+              </div>
+            )}
+
+            {translateResult && !translateResult.success && (
+              <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-red-600 text-sm font-medium">{translateResult.error}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Manual Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">
+        {/* Autofill Success Banner */}
+        {translateResult?.success && formData.title && (
+          <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2 text-green-700 font-bold">
+                <Save size={18} />
+                Form Auto-Filled from Translation!
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPreviewModal(true)}
+                className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
+              >
+                <Eye size={16} />
+                Preview
+              </button>
+            </div>
+            <p className="text-sm text-green-600">
+              Title, content, summary, and categories have been filled. You can now add images and publish directly.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-6">
           {/* Title */}
           <div>
@@ -407,8 +693,8 @@ export default function NewArticlePage() {
                     setFormData({ ...formData, category_ids: ids });
                   }}
                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ${formData.category_ids.includes(cat.id)
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                    : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
                     }`}
                 >
                   {cat.name}
@@ -512,6 +798,72 @@ export default function NewArticlePage() {
           </div>
         </div>
       </form>
+
+      {/* Preview Modal */}
+      {showPreviewModal && formData.title && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Eye size={20} className="text-indigo-600" />
+                Article Preview
+              </h3>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* Modal Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-8">
+              {/* Article Header */}
+              <div className="mb-6">
+                <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
+                  {formData.title}
+                </h1>
+
+                {formData.summary && (
+                  <p className="text-lg text-gray-600 mb-4 leading-relaxed">
+                    {formData.summary}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                  {translateResult?.reading_time && (
+                    <span className="flex items-center gap-1">
+                      📖 {translateResult.reading_time} min read
+                    </span>
+                  )}
+                  {categories.filter(cat => formData.category_ids.includes(cat.id)).map(cat => (
+                    <span key={cat.id} className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
+                      {cat.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Article Content */}
+              <div
+                className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-a:text-indigo-600 hover:prose-a:text-indigo-700"
+                dangerouslySetInnerHTML={{ __html: formData.content }}
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

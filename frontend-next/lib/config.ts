@@ -9,8 +9,8 @@ const LOCAL_MEDIA_URL = 'http://localhost:8000';
 const isProduction = () => {
   // Server-side check
   if (typeof window === 'undefined') {
-    return process.env.RAILWAY_ENVIRONMENT === 'production' || 
-           process.env.NODE_ENV === 'production';
+    return process.env.RAILWAY_ENVIRONMENT === 'production' ||
+      process.env.NODE_ENV === 'production';
   }
   // Client-side check
   const hostname = window.location.hostname;
@@ -33,20 +33,21 @@ const getRuntimeMediaUrl = () => {
 
 // Fix image URLs from backend (replace docker/localhost URLs with correct ones)
 export const fixImageUrl = (url: string | null | undefined): string => {
-  if (!url) return '/images/placeholder.jpg';
-  
+  // Return a gray placeholder data URI instead of missing file
+  if (!url) return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect width="800" height="600" fill="%23e5e7eb"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="24" fill="%239ca3af"%3ENo Image%3C/text%3E%3C/svg%3E';
+
   const mediaUrl = isProduction() ? PRODUCTION_MEDIA_URL : LOCAL_MEDIA_URL;
-  
+
   // Replace any backend:8000 or localhost:8000 with correct media URL
   let fixedUrl = url
     .replace('http://backend:8000', mediaUrl)
     .replace('http://localhost:8000', mediaUrl);
-  
+
   // If it's a relative URL, prepend media URL
   if (!fixedUrl.startsWith('http')) {
     fixedUrl = `${mediaUrl}${fixedUrl.startsWith('/') ? '' : '/'}${fixedUrl}`;
   }
-  
+
   return fixedUrl;
 };
 

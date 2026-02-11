@@ -803,3 +803,311 @@ class NewsletterSubscriber(models.Model):
     def __str__(self):
         status = "Active" if self.is_active else "Unsubscribed"
         return f"{self.email} ({status})"
+
+
+class VehicleSpecs(models.Model):
+    """
+    AI-extracted vehicle specifications from articles
+    Stores comprehensive technical details about vehicles mentioned in articles
+    """
+    article = models.OneToOneField(
+        Article,
+        on_delete=models.CASCADE,
+        related_name='vehicle_specs',
+        help_text="Article this specification belongs to"
+    )
+    
+    # Drivetrain
+    DRIVETRAIN_CHOICES = [
+        ('FWD', 'Front-Wheel Drive'),
+        ('RWD', 'Rear-Wheel Drive'),
+        ('AWD', 'All-Wheel Drive'),
+        ('4WD', 'Four-Wheel Drive'),
+    ]
+    drivetrain = models.CharField(
+        max_length=10,
+        choices=DRIVETRAIN_CHOICES,
+        null=True, blank=True,
+        help_text="Drive configuration"
+    )
+    motor_count = models.IntegerField(
+        null=True, blank=True,
+        help_text="Number of electric motors"
+    )
+    motor_placement = models.CharField(
+        max_length=50,
+        null=True, blank=True,
+        help_text="Motor location (e.g., 'front', 'rear', 'front+rear')"
+    )
+    
+    # Performance
+    power_hp = models.IntegerField(
+        null=True, blank=True,
+        help_text="Power in horsepower"
+    )
+    power_kw = models.IntegerField(
+        null=True, blank=True,
+        help_text="Power in kilowatts"
+    )
+    torque_nm = models.IntegerField(
+        null=True, blank=True,
+        help_text="Torque in Newton-meters"
+    )
+    acceleration_0_100 = models.FloatField(
+        null=True, blank=True,
+        help_text="0-100 km/h acceleration time in seconds"
+    )
+    top_speed_kmh = models.IntegerField(
+        null=True, blank=True,
+        help_text="Top speed in km/h"
+    )
+    
+    # EV Specifications
+    battery_kwh = models.FloatField(
+        null=True, blank=True,
+        help_text="Battery capacity in kWh"
+    )
+    range_km = models.IntegerField(
+        null=True, blank=True,
+        help_text="Range in kilometers (general)"
+    )
+    range_wltp = models.IntegerField(
+        null=True, blank=True,
+        help_text="WLTP range in kilometers"
+    )
+    range_epa = models.IntegerField(
+        null=True, blank=True,
+        help_text="EPA range in kilometers"
+    )
+    
+    # Charging
+    charging_time_fast = models.CharField(
+        max_length=100,
+        null=True, blank=True,
+        help_text="Fast charging time (e.g., '30 min to 80%')"
+    )
+    charging_time_slow = models.CharField(
+        max_length=100,
+        null=True, blank=True,
+        help_text="Slow/AC charging time"
+    )
+    charging_power_max_kw = models.IntegerField(
+        null=True, blank=True,
+        help_text="Maximum charging power in kW"
+    )
+    
+    # Transmission
+    TRANSMISSION_CHOICES = [
+        ('automatic', 'Automatic'),
+        ('manual', 'Manual'),
+        ('CVT', 'CVT'),
+        ('single-speed', 'Single-Speed'),
+        ('dual-clutch', 'Dual-Clutch'),
+    ]
+    transmission = models.CharField(
+        max_length=20,
+        choices=TRANSMISSION_CHOICES,
+        null=True, blank=True,
+        help_text="Transmission type"
+    )
+    transmission_gears = models.IntegerField(
+        null=True, blank=True,
+        help_text="Number of gears"
+    )
+    
+    # General Vehicle Info
+    BODY_TYPE_CHOICES = [
+        ('sedan', 'Sedan'),
+        ('SUV', 'SUV'),
+        ('hatchback', 'Hatchback'),
+        ('coupe', 'Coupe'),
+        ('truck', 'Truck'),
+        ('crossover', 'Crossover'),
+        ('wagon', 'Wagon'),
+        ('van', 'Van'),
+    ]
+    body_type = models.CharField(
+        max_length=20,
+        choices=BODY_TYPE_CHOICES,
+        null=True, blank=True,
+        help_text="Body style"
+    )
+    
+    FUEL_TYPE_CHOICES = [
+        ('EV', 'Electric Vehicle'),
+        ('Hybrid', 'Hybrid'),
+        ('PHEV', 'Plug-in Hybrid'),
+        ('Gas', 'Gasoline'),
+        ('Diesel', 'Diesel'),
+        ('Hydrogen', 'Hydrogen'),
+    ]
+    fuel_type = models.CharField(
+        max_length=20,
+        choices=FUEL_TYPE_CHOICES,
+        null=True, blank=True,
+        help_text="Fuel/power source type"
+    )
+    
+    seats = models.IntegerField(
+        null=True, blank=True,
+        help_text="Number of seats"
+    )
+    
+    # Dimensions
+    length_mm = models.IntegerField(
+        null=True, blank=True,
+        help_text="Length in millimeters"
+    )
+    width_mm = models.IntegerField(
+        null=True, blank=True,
+        help_text="Width in millimeters"
+    )
+    height_mm = models.IntegerField(
+        null=True, blank=True,
+        help_text="Height in millimeters"
+    )
+    wheelbase_mm = models.IntegerField(
+        null=True, blank=True,
+        help_text="Wheelbase in millimeters"
+    )
+    weight_kg = models.IntegerField(
+        null=True, blank=True,
+        help_text="Curb weight in kilograms"
+    )
+    cargo_liters = models.IntegerField(
+        null=True, blank=True,
+        help_text="Cargo/trunk capacity in liters"
+    )
+    
+    # Pricing
+    price_from = models.IntegerField(
+        null=True, blank=True,
+        help_text="Starting price"
+    )
+    price_to = models.IntegerField(
+        null=True, blank=True,
+        help_text="Maximum price"
+    )
+    CURRENCY_CHOICES = [
+        ('USD', 'US Dollar'),
+        ('EUR', 'Euro'),
+        ('CNY', 'Chinese Yuan'),
+        ('RUB', 'Russian Ruble'),
+        ('GBP', 'British Pound'),
+        ('JPY', 'Japanese Yen'),
+    ]
+    currency = models.CharField(
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='USD',
+        help_text="Price currency"
+    )
+    
+    # Additional Info
+    year = models.IntegerField(
+        null=True, blank=True,
+        help_text="Release year"
+    )
+    model_year = models.IntegerField(
+        null=True, blank=True,
+        help_text="Model year"
+    )
+    country_of_origin = models.CharField(
+        max_length=100,
+        null=True, blank=True,
+        help_text="Country where manufactured"
+    )
+    
+    # Metadata
+    extracted_at = models.DateTimeField(
+        auto_now=True,
+        help_text="When specs were last extracted/updated"
+    )
+    confidence_score = models.FloatField(
+        default=0.0,
+        help_text="AI extraction confidence (0.0-1.0)"
+    )
+    
+    class Meta:
+        verbose_name = "Vehicle Specification"
+        verbose_name_plural = "Vehicle Specifications"
+        ordering = ['-extracted_at']
+    
+    def __str__(self):
+        return f"Specs for: {self.article.title[:50]}"
+    
+    def get_power_display(self):
+        """Return formatted power string"""
+        if self.power_hp and self.power_kw:
+            return f"{self.power_hp} HP / {self.power_kw} kW"
+        elif self.power_hp:
+            return f"{self.power_hp} HP"
+        elif self.power_kw:
+            return f"{self.power_kw} kW"
+        return "N/A"
+    
+    def get_range_display(self):
+        """Return formatted range string"""
+        if self.range_wltp:
+            return f"{self.range_wltp} km (WLTP)"
+        elif self.range_epa:
+            return f"{self.range_epa} km (EPA)"
+        elif self.range_km:
+            return f"{self.range_km} km"
+        return "N/A"
+    
+    def get_price_display(self):
+        """Return formatted price range"""
+        if self.price_from and self.price_to:
+            return f"{self.currency} {self.price_from:,} - {self.price_to:,}"
+        elif self.price_from:
+            return f"From {self.currency} {self.price_from:,}"
+        return "N/A"
+
+
+class ArticleEmbedding(models.Model):
+    """
+    Persistent storage for article embeddings (vector representations)
+    Used for hybrid FAISS + PostgreSQL vector search
+    """
+    article = models.OneToOneField(
+        Article,
+        on_delete=models.CASCADE,
+        related_name='embedding',
+        help_text="Article this embedding belongs to"
+    )
+    embedding_vector = models.JSONField(
+        help_text="768-dimensional embedding vector from Gemini (stored as JSON array)"
+    )
+    model_name = models.CharField(
+        max_length=100,
+        default="models/gemini-embedding-001",
+        help_text="Gemini model used to generate this embedding"
+    )
+    text_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="SHA256 hash of indexed text (to detect changes)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'article_embeddings'
+        verbose_name = 'Article Embedding'
+        verbose_name_plural = 'Article Embeddings'
+        indexes = [
+            models.Index(fields=['article']),
+            models.Index(fields=['updated_at']),
+            models.Index(fields=['text_hash']),
+        ]
+    
+    def __str__(self):
+        return f"Embedding for: {self.article.title[:50]}"
+    
+    def get_vector_dimension(self):
+        """Return dimension of embedding vector"""
+        if self.embedding_vector:
+            return len(self.embedding_vector)
+        return 0
+

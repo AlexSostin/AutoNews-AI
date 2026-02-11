@@ -30,21 +30,74 @@ export default function RelatedCarousel({ categorySlug, currentArticleSlug }: Re
     useEffect(() => {
         async function fetchRelated() {
             try {
-                const res = await fetch(`${getApiUrl()}/articles/?category=${categorySlug}&page_size=10`);
-                if (res.ok) {
-                    const data = await res.json();
-                    // Filter out the current article
+                // 1️⃣ Try AI-powered similar articles first (best option)
+                const similarRes = await fetch(`${getApiUrl()}/articles/${currentArticleSlug}/similar_articles/`);
+
+                if (similarRes.ok) {
+                    const data = await similarRes.json();
+                    const similarArticles = data.similar_articles || [];
+
+                    if (similarArticles.length > 0) {
+                        console.log('✨ AI-powered similar articles:', similarArticles.length);
+                        setArticles(similarArticles.slice(0, 15));
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                // 2️⃣ Fallback: Articles from same category (good relevance)
+                if (categorySlug) {
+                    console.log('📂 Trying category-based articles...');
+                    const categoryRes = await fetch(`${getApiUrl()}/articles/?category=${categorySlug}&page_size=15`);
+
+                    if (categoryRes.ok) {
+                        const data = await categoryRes.json();
+                        const filtered = (data.results || []).filter((a: Article) => a.slug !== currentArticleSlug);
+
+                        if (filtered.length > 0) {
+                            console.log('✅ Using category-based articles:', filtered.length);
+                            setArticles(filtered);
+                            setLoading(false);
+                            return;
+                        }
+                    }
+                }
+
+                // 3️⃣ Fallback: Popular articles (most viewed)
+                console.log('🔥 Trying popular articles...');
+                const popularRes = await fetch(`${getApiUrl()}/articles/?ordering=-views&page_size=15`);
+
+                if (popularRes.ok) {
+                    const data = await popularRes.json();
                     const filtered = (data.results || []).filter((a: Article) => a.slug !== currentArticleSlug);
+
+                    if (filtered.length > 0) {
+                        console.log('✅ Using popular articles:', filtered.length);
+                        setArticles(filtered);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                // 4️⃣ Final fallback: Newest articles (always has content)
+                console.log('🆕 Using newest articles as final fallback...');
+                const newestRes = await fetch(`${getApiUrl()}/articles/?ordering=-created_at&page_size=15`);
+
+                if (newestRes.ok) {
+                    const data = await newestRes.json();
+                    const filtered = (data.results || []).filter((a: Article) => a.slug !== currentArticleSlug);
+                    console.log('✅ Using newest articles:', filtered.length);
                     setArticles(filtered);
                 }
+
             } catch (error) {
-                console.error('Error fetching related articles:', error);
+                console.error('❌ Error fetching related articles:', error);
             } finally {
                 setLoading(false);
             }
         }
 
-        if (categorySlug) {
+        if (currentArticleSlug) {
             fetchRelated();
         }
     }, [categorySlug, currentArticleSlug]);
@@ -62,7 +115,12 @@ export default function RelatedCarousel({ categorySlug, currentArticleSlug }: Re
     return (
         <div className="bg-white rounded-xl shadow-md p-6 mb-8 overflow-hidden">
             <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-gray-900">Recommended for You</h3>
+                <div className="flex items-center gap-3">
+                    <h3 className="text-2xl font-bold text-gray-900">Similar Articles</h3>
+                    <span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm">
+                        AI-POWERED
+                    </span>
+                </div>
                 <div className="flex gap-2">
                     <button
                         onClick={() => scroll('left')}

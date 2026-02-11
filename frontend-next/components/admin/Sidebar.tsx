@@ -21,7 +21,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  Bell
+  Bell,
+  Languages
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
@@ -30,6 +31,7 @@ const menuItems = [
   { href: '/admin/notifications', icon: Bell, label: 'Notifications' },
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/admin/articles', icon: FileText, label: 'Articles' },
+  { href: '/admin/translate', icon: Languages, label: 'Translate & Enhance' },
   { href: '/admin/categories', icon: Folder, label: 'Categories' },
   { href: '/admin/tags', icon: Tag, label: 'Tags' },
   { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },

@@ -48,13 +48,13 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
             const isPexelsImage = currentImage.includes('pexels.com');
 
             parts.push(
-              <div key={`img-${imageIndex}`} className="my-10 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-900 to-gray-800 transform hover:scale-[1.02] transition-transform duration-300">
-                <div className="relative w-full h-96">
+              <div key={`img-${imageIndex}`} className="my-10 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-50 to-gray-100 transform hover:scale-[1.02] transition-transform duration-300">
+                <div className="relative w-full aspect-video">
                   <Image
                     src={currentImage}
                     alt={`Article image ${imageIndex + 1}`}
                     fill
-                    className="object-cover"
+                    className="object-contain"
                     unoptimized
                   />
                 </div>
