@@ -27,11 +27,10 @@ fi
 
 echo "Running migrations..."
 
-# Migration 0038 contains mixed ops (existing tables + VehicleSpecs) - must fake
-# The serializer handles missing VehicleSpecs table gracefully
-echo "🔧 Checking migration state..."
-python manage.py migrate news 0038_vehiclespecs_and_more --fake 2>&1 || true
-python manage.py migrate news 0040_articleembedding --fake 2>&1 || true
+# Migrations 0038/0040 now use RunSQL with IF NOT EXISTS guards,
+# so they are safe to re-apply. Unfake back to 0037 so they actually run.
+echo "🔧 Ensuring migration state is correct..."
+python manage.py migrate news 0037 --fake 2>&1 || true
 
 python manage.py migrate --noinput
 
