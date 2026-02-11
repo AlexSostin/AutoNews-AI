@@ -40,6 +40,9 @@ python manage.py collectstatic --noinput
 echo "Populating tags..."
 python manage.py populate_tags || echo "Tags population skipped"
 
+echo "📊 Indexing articles for vector search..."
+python manage.py index_articles || echo "Article indexing skipped"
+
 # One-time reset of views (remove after first deploy)
 if [ "$RESET_VIEWS_ONCE" = "true" ]; then
     echo "Resetting view counts for real analytics..."
