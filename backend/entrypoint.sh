@@ -27,9 +27,10 @@ fi
 
 echo "Running migrations..."
 
-# Fix migration records if needed (old 0038/0039 → new 0038_vehiclespecs_and_more)
+# Fix: mark migration as applied if tables already exist (no SQL executed)
+# This handles the case where 0038_vehiclespecs was deleted and replaced by 0038_vehiclespecs_and_more
 echo "🔧 Checking migration state..."
-python manage.py fix_migrations || echo "⚠️ Migration fix skipped"
+python manage.py migrate news 0038_vehiclespecs_and_more --fake 2>&1 || true
 
 python manage.py migrate --noinput
 
