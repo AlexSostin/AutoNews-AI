@@ -127,8 +127,12 @@ class ArticleImageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ArticleImage
-        fields = ['id', 'image', 'image_url', 'caption', 'order', 'created_at']
+        fields = ['id', 'article', 'image', 'image_url', 'caption', 'order', 'created_at']
         read_only_fields = ['created_at']
+    
+    def validate_image(self, value):
+        """Validate gallery image"""
+        return validate_image_file(value)
     
     def get_image_url(self, obj):
         request = self.context.get('request')
