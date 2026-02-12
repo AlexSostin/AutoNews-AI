@@ -533,15 +533,23 @@ class RSSFeedSerializer(serializers.ModelSerializer):
         return obj.default_category.name if obj.default_category else None
 
 
+class PendingArticleRSSFeedSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for RSS feed info in pending articles"""
+    class Meta:
+        model = RSSFeed
+        fields = ['id', 'name', 'logo_url']
+
 class PendingArticleSerializer(serializers.ModelSerializer):
     channel_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     reviewed_by_name = serializers.SerializerMethodField()
+    rss_feed = PendingArticleRSSFeedSerializer(read_only=True)
     
     class Meta:
         model = PendingArticle
         fields = [
             'id', 'youtube_channel', 'channel_name',
+            'rss_feed', 'source_url',
             'video_url', 'video_id', 'video_title',
             'title', 'content', 'excerpt',
             'suggested_category', 'category_name',
