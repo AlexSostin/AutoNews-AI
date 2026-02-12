@@ -104,7 +104,7 @@ async function getCategories() {
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch(`${getApiUrl()}/categories/`, {
-      next: { revalidate: 3600 },
+      cache: 'no-store',
       signal: controller.signal,
     });
 
@@ -120,16 +120,15 @@ async function getCategories() {
 }
 
 export default async function Home() {
-  // Check maintenance mode first
-  const settings = await getSettings();
-  const isAdmin = await checkIsAdmin();
+  // Fetch settings and auth check in parallel (both independent)
+  const [settings, isAdmin] = await Promise.all([getSettings(), checkIsAdmin()]);
 
   if (settings?.maintenance_mode && !isAdmin) {
     return <MaintenancePage message={settings.maintenance_message} />;
   }
 
-  const articlesData = await getArticles();
-  const categories = await getCategories();
+  // Fetch articles and categories in parallel (both independent)
+  const [articlesData, categories] = await Promise.all([getArticles(), getCategories()]);
   const articles = articlesData.results || [];
 
   return (

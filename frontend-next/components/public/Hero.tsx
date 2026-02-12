@@ -177,7 +177,7 @@ export default function Hero({ articles, settings }: HeroProps) {
                                 </span>
                             </div>
 
-                            <h1 className="text-lg sm:text-3xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-tight drop-shadow-2xl">
+                            <h1 className="text-lg sm:text-3xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-tight drop-shadow-2xl line-clamp-2">
                                 {article.title}
                             </h1>
 

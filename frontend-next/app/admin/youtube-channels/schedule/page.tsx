@@ -148,13 +148,14 @@ export default function SchedulePage() {
       <div className="flex items-center gap-4">
         <Link
           href="/admin/youtube-channels"
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors font-medium"
         >
-          <ArrowLeft size={24} />
+          <ArrowLeft size={20} />
+          Back to Channels
         </Link>
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Scan Schedule</h1>
-          <p className="text-gray-500 text-sm">Настройте автоматическое сканирование YouTube каналов</p>
+          <p className="text-gray-500 text-sm">Configure automatic YouTube channel scanning</p>
         </div>
       </div>
 
@@ -186,7 +187,7 @@ export default function SchedulePage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-gray-900">Auto-Scan Enabled</h3>
-              <p className="text-sm text-gray-500">Автоматически сканировать каналы по расписанию</p>
+              <p className="text-sm text-gray-500">Automatically scan channels on schedule</p>
             </div>
             <button
               onClick={() => setSchedule({ ...schedule, is_enabled: !schedule.is_enabled })}

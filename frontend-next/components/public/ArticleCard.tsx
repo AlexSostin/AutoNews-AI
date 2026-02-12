@@ -23,7 +23,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
 
   return (
     <Link href={`/articles/${article.slug}`} className="group">
-      <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 border border-gray-100">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 border border-gray-100 h-full flex flex-col">
         <div className="relative h-48 w-full overflow-hidden">
           <Image
             src={imageUrl}
@@ -48,7 +48,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
           </div>
         </div>
 
-        <div className="p-5">
+        <div className="p-5 flex-1 flex flex-col">
           <h3 className="text-xl font-black mb-3 text-gray-950 group-hover:text-indigo-600 transition-all duration-300 line-clamp-2 leading-tight group-hover:translate-x-1">
             {article.title}
           </h3>
@@ -72,7 +72,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
           </div>
 
           {article.tag_names && article.tag_names.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mt-auto">
               {article.tag_names.slice(0, 3).map((tag) => (
                 <span key={tag} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">
                   {tag}

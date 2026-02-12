@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, filters
+from django.db.models import Avg, Count, Exists, OuterRef, Subquery
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, BasePermission, AllowAny
@@ -15,7 +16,7 @@ from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, AdminNotification,
-    VehicleSpecs
+    VehicleSpecs, NewsletterSubscriber
 )
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
@@ -387,6 +388,14 @@ class CategoryViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
     lookup_field = 'slug'
+    
+    def get_queryset(self):
+        """Filter categories by visibility for non-authenticated users"""
+        queryset = super().get_queryset()
+        # Admins see all categories, public users only see visible ones
+        if not self.request.user.is_authenticated:
+            queryset = queryset.filter(is_visible=True)
+        return queryset
 
     def get_object(self):
         """Support lookup by both slug and ID"""
@@ -426,7 +435,10 @@ class TagViewSet(viewsets.ModelViewSet):
 
 
 class ArticleViewSet(viewsets.ModelViewSet):
-    queryset = Article.objects.filter(is_deleted=False).select_related('specs').prefetch_related('categories', 'tags', 'gallery')
+    queryset = Article.objects.filter(is_deleted=False).select_related('specs').prefetch_related('categories', 'tags', 'gallery').annotate(
+        avg_rating=Avg('ratings__rating'),
+        num_ratings=Count('ratings'),
+    )
     permission_classes = [IsStaffOrReadOnly]
     lookup_field = 'slug'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -489,6 +501,17 @@ class ArticleViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(tags__slug=tag)
         if is_published is not None:
             queryset = queryset.filter(is_published=(is_published.lower() == 'true'))
+        
+        # Annotate is_favorited for authenticated users (avoids N+1 per-article query)
+        if self.request.user.is_authenticated:
+            queryset = queryset.annotate(
+                _is_favorited=Exists(
+                    Favorite.objects.filter(
+                        user=self.request.user,
+                        article=OuterRef('pk')
+                    )
+                )
+            )
             
         return queryset
     
@@ -1092,11 +1115,11 @@ class CommentViewSet(viewsets.ModelViewSet):
         if is_approved is not None:
             queryset = queryset.filter(is_approved=(str(is_approved).lower() == 'true'))
         
-        # By default, return only top-level comments (no parent)
-        # Use ?include_replies=true to get all comments including replies
-        include_replies = self.request.query_params.get('include_replies', 'false')
-        if include_replies.lower() != 'true':
-            queryset = queryset.filter(parent__isnull=True)
+        # Only filter out replies for list actions, not for detail actions (approve, delete, etc.)
+        if self.action == 'list':
+            include_replies = self.request.query_params.get('include_replies', 'false')
+            if include_replies.lower() != 'true':
+                queryset = queryset.filter(parent__isnull=True)
             
         return queryset
     
@@ -1230,10 +1253,14 @@ class ArticleImageViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        article_id = self.request.query_params.get('article', None)
+        article_param = self.request.query_params.get('article', None)
         
-        if article_id:
-            queryset = queryset.filter(article_id=article_id)
+        if article_param:
+            # Support both numeric ID and slug
+            if article_param.isdigit():
+                queryset = queryset.filter(article_id=article_param)
+            else:
+                queryset = queryset.filter(article__slug=article_param)
             
         return queryset
 
@@ -1658,8 +1685,8 @@ class SubscriberViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Show all subscribers for admins, only active for others"""
         if self.request.user.is_authenticated and self.request.user.is_staff:
-            return Subscriber.objects.all()
-        return Subscriber.objects.filter(is_active=True)
+            return NewsletterSubscriber.objects.all()
+        return NewsletterSubscriber.objects.filter(is_active=True)
     
     def get_permissions(self):
         if self.action in ['list', 'destroy', 'send_newsletter', 'export_csv', 'import_csv', 'bulk_delete', 'newsletter_history']:
@@ -1675,7 +1702,7 @@ class SubscriberViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Check if already subscribed
-        subscriber, created = Subscriber.objects.get_or_create(
+        subscriber, created = NewsletterSubscriber.objects.get_or_create(
             email=email,
             defaults={'is_active': True}
         )
@@ -1715,12 +1742,12 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         email = request.data.get('email', '').lower().strip()
         
         try:
-            subscriber = Subscriber.objects.get(email=email)
+            subscriber = NewsletterSubscriber.objects.get(email=email)
             subscriber.is_active = False
             subscriber.unsubscribed_at = timezone.now()
             subscriber.save()
             return Response({'message': 'Successfully unsubscribed'})
-        except Subscriber.DoesNotExist:
+        except NewsletterSubscriber.DoesNotExist:
             return Response({'error': 'Email not found'}, status=status.HTTP_404_NOT_FOUND)
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
@@ -1735,7 +1762,7 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         if not subject or not message:
             return Response({'error': 'Subject and message required'}, status=status.HTTP_400_BAD_REQUEST)
         
-        subscribers = Subscriber.objects.filter(is_active=True).values_list('email', flat=True)
+        subscribers = NewsletterSubscriber.objects.filter(is_active=True).values_list('email', flat=True)
         
         if not subscribers:
             return Response({'error': 'No active subscribers'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1781,12 +1808,12 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         writer = csv.writer(response)
         writer.writerow(['Email', 'Status', 'Subscribed Date', 'Unsubscribed Date'])
         
-        subscribers = Subscriber.objects.all()
+        subscribers = NewsletterSubscriber.objects.all()
         for sub in subscribers:
             writer.writerow([
                 sub.email,
                 'Active' if sub.is_active else 'Unsubscribed',
-                sub.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                sub.subscribed_at.strftime('%Y-%m-%d %H:%M:%S'),
                 sub.unsubscribed_at.strftime('%Y-%m-%d %H:%M:%S') if sub.unsubscribed_at else ''
             ])
         
@@ -1829,7 +1856,7 @@ class SubscriberViewSet(viewsets.ModelViewSet):
                     continue
                 
                 # Create or update subscriber
-                _, created = Subscriber.objects.get_or_create(
+                _, created = NewsletterSubscriber.objects.get_or_create(
                     email=email,
                     defaults={'is_active': True}
                 )
@@ -1858,7 +1885,7 @@ class SubscriberViewSet(viewsets.ModelViewSet):
         if not ids:
             return Response({'error': 'No IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
         
-        deleted_count = Subscriber.objects.filter(id__in=ids).delete()[0]
+        deleted_count = NewsletterSubscriber.objects.filter(id__in=ids).delete()[0]
         
         return Response({
             'message': f'Deleted {deleted_count} subscribers',
@@ -2221,7 +2248,6 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
         if pending.status != 'pending':
             return Response({'error': 'Article is not pending'}, status=status.HTTP_400_BAD_REQUEST)
         
-        is_published = request.data.get('publish', True)
         
         # Create the actual article
         try:
@@ -2240,6 +2266,10 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             if pending.youtube_channel:
                 author_name = pending.youtube_channel.name
                 author_channel_url = pending.youtube_channel.channel_url
+            elif pending.rss_feed:
+                # For RSS articles, use feed name and source URL
+                author_name = pending.rss_feed.name
+                author_channel_url = pending.source_url or pending.rss_feed.feed_url
 
             article = Article.objects.create(
                 title=pending.title,
@@ -2365,6 +2395,15 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             pending.reviewed_by = request.user
             pending.reviewed_at = timezone.now()
             pending.save()
+            
+            # Clear cache so the new article appears on homepage immediately
+            # The ArticleViewSet list uses @cache_page(300) for anonymous users
+            try:
+                from django.core.cache import cache
+                cache.clear()
+                logger.info(f"Cache cleared after publishing article: {article.slug}")
+            except Exception as cache_err:
+                logger.warning(f"Failed to clear cache: {cache_err}")
             
             return Response({
                 'message': 'Article approved successfully' if not is_published else 'Article published successfully',

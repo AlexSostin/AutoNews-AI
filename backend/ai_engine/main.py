@@ -2,7 +2,10 @@ import argparse
 import os
 import sys
 import re
+import logging
 import requests
+
+logger = logging.getLogger(__name__)
 
 # Add ai_engine directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -34,37 +37,126 @@ except ImportError:
     from modules.publisher import publish_article
     from modules.downloader import extract_video_screenshots
 
+# Generic section headers that AI generates as part of article structure.
+# These should NEVER be used as article titles.
+GENERIC_SECTION_HEADERS = [
+    'performance & specs', 'performance and specs',
+    'performance & specifications', 'performance and specifications',
+    'performance \u0026 specifications', 'performance \u0026amp; specifications',
+    'performance \u0026 specs', 'performance \u0026amp; specs',
+    'design & interior', 'design and interior',
+    'design \u0026 interior', 'design \u0026amp; interior',
+    'technology & features', 'technology and features',
+    'technology \u0026 features', 'technology \u0026amp; features',
+    'driving experience', 'driving impressions',
+    'pros & cons', 'pros and cons', 'pros \u0026 cons',
+    'conclusion', 'summary', 'overview', 'introduction',
+    'us market availability & pricing', 'us market availability',
+    'global market & regional availability', 'global market',
+    'market availability & pricing', 'pricing & availability',
+    'pricing and availability', 'specifications', 'features',
+    'details', 'information', 'title:', 'new car review',
+    'interior & comfort', 'safety & technology',
+    'exterior design', 'interior design',
+    'engine & performance', 'powertrain',
+    'battery & range', 'charging & range',
+]
+
+
+def _is_generic_header(text: str) -> bool:
+    """
+    Check if a text is a generic section header that shouldn't be a title.
+    Uses fuzzy matching to catch variations.
+    """
+    clean = text.strip().lower()
+    # Remove HTML entities
+    clean = clean.replace('&amp;', '&').replace('\u0026amp;', '&').replace('\u0026', '&')
+    # Remove leading/trailing punctuation
+    clean = re.sub(r'^[\s\-:]+|[\s\-:]+$', '', clean)
+    
+    # Exact or substring match against known headers
+    for header in GENERIC_SECTION_HEADERS:
+        if clean == header or (header in clean and len(clean) < 50):
+            return True
+    
+    # Regex patterns for common generic headers
+    generic_patterns = [
+        r'^(the\s+)?\d{4}\s+(performance|specs|design)',  # "2025 Performance"
+        r'^(pros|cons)\s*(\u0026|and|&)',
+        r'^(key\s+)?(features|specifications|highlights)$',
+        r'^(final\s+)?(verdict|thoughts|conclusion)s?$',
+        r'^(driving|ride|road)\s+(experience|test|review)$',
+    ]
+    for pattern in generic_patterns:
+        if re.match(pattern, clean, re.IGNORECASE):
+            return True
+    
+    return False
+
+
+def validate_title(title: str, video_title: str = None, specs: dict = None) -> str:
+    """
+    Validates and fixes article title. Returns a good title or constructs one from available data.
+    
+    Priority:
+    1. Use provided title if it's valid (not generic, long enough, contains brand/model info)
+    2. Use video_title if available
+    3. Construct from specs (Year Make Model Review)
+    4. Last resort: generic but unique-ish fallback
+    """
+    # Check if title is valid
+    if title and len(title) > 15 and not _is_generic_header(title):
+        # Additional check: title should contain at least some brand/model indicator
+        return title.strip()
+    
+    # Fallback 1: Use video title (cleaned up)
+    if video_title and len(video_title) > 10:
+        # Clean video title (remove channel name suffixes, etc.)
+        clean_vt = re.sub(r'\s*[|\-–]\s*[^|\-–]+$', '', video_title).strip()
+        if clean_vt and len(clean_vt) > 10:
+            return clean_vt
+        return video_title.strip()
+    
+    # Fallback 2: Construct from specs
+    if specs:
+        make = specs.get('make', '')
+        model = specs.get('model', '')
+        year = specs.get('year', '')
+        trim = specs.get('trim', '')
+        
+        if make and make != 'Not specified' and model and model != 'Not specified':
+            year_str = f"{year} " if year else ""
+            trim_str = f" {trim}" if trim and trim != 'Not specified' else ""
+            return f"{year_str}{make} {model}{trim_str} Review"
+    
+    # Last resort
+    return title if (title and len(title) > 5) else "New Car Review"
+
+
 def extract_title(html_content):
     """
-    Extracts the main title from the generated HTML.
-    Ignores generic section headers like 'Performance & Specs'.
+    Extracts the main article title from generated HTML.
+    Ignores generic section headers like 'Performance & Specifications'.
     """
-    # Find all h2 tags
-    h2_matches = re.findall(r'<h2>(.*?)</h2>', html_content, re.IGNORECASE)
-    
-    # List of section headers to ignore as titles
-    ignore_headers = [
-        'performance & specs', 'performance and specs', 
-        'design & interior', 'design and interior',
-        'technology & features', 'technology and features',
-        'driving experience', 'pros & cons', 'pros and cons',
-        'conclusion', 'us market availability & pricing',
-        'global market & regional availability',
-        'title:', 'introduction'
-    ]
+    # Find all h2 tags (handle attributes in tags)
+    h2_matches = re.findall(r'<h2[^>]*>(.*?)</h2>', html_content, re.IGNORECASE | re.DOTALL)
     
     for title in h2_matches:
-        clean_t = title.strip().replace('Title:', '').strip()
-        # Skip if it's too short or a common header
+        # Strip HTML tags inside the h2 (e.g., <strong>, <em>)
+        clean_t = re.sub(r'<[^>]+>', '', title).strip()
+        clean_t = clean_t.replace('Title:', '').strip()
+        
+        # Skip empty or very short
         if len(clean_t) < 10:
             continue
-        if any(header in clean_t.lower() for header in ignore_headers) and len(clean_t) < 40:
-             continue
-             
-        # If we reached here, it's likely the main title
-        return clean_t
         
-    return "New Car Review"
+        # Skip generic section headers
+        if _is_generic_header(clean_t):
+            continue
+        
+        return clean_t
+    
+    return None  # Return None instead of fallback — let validate_title handle it
 
 def main(youtube_url):
     print(f"Starting pipeline for: {youtube_url}")
@@ -230,16 +322,25 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         
         send_progress(5, 75, "✓ Статья сгенерирована")
         
-        # 4. Определяем заголовок (Title)
-        title = "New Car Review"
+        # 4. Определяем заголовок (Title) — multi-layer validation
+        title = None
         
         # Priority 1: SEO Title from Analysis
         if specs.get('seo_title') and len(specs['seo_title']) > 5:
-            title = specs['seo_title'].replace('"', '').replace("'", "")
-            print(f"📌 Using SEO Title form Analysis: {title}")
+            candidate = specs['seo_title'].replace('"', '').replace("'", "")
+            if not _is_generic_header(candidate):
+                title = candidate
+                print(f"📌 Using SEO Title from Analysis: {title}")
             
-        # Priority 2: Construct from Specs (if Make/Model exist)
-        elif specs.get('make') and specs.get('model') and specs['make'] != 'Not specified':
+        # Priority 2: Extract from HTML <h2> (first non-generic header)
+        if not title:
+            extracted = extract_title(article_html)
+            if extracted:
+                title = extracted
+                print(f"📌 Extracted Title from HTML: {title}")
+        
+        # Priority 3: Construct from Specs (if Make/Model exist)
+        if not title and specs.get('make') and specs.get('model') and specs['make'] != 'Not specified':
             year = specs.get('year', '')
             year_str = f"{year} " if year else ""
             trim = specs.get('trim', '')
@@ -247,12 +348,9 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
             title = f"{year_str}{specs['make']} {specs['model']}{trim_str} Review"
             print(f"📌 Constructed Title from Specs: {title}")
             
-        # Priority 3: Extract from HTML <h2>
-        else:
-            extracted = extract_title(article_html)
-            if extracted and len(extracted) > 5:
-                title = extracted
-                print(f"📌 Extracted Title from HTML: {title}")
+        # Final validation — catches anything that slipped through
+        title = validate_title(title, video_title=video_title, specs=specs)
+        print(f"✅ Final validated title: {title}")
         
         # 5. Извлекаем 3 скриншота из видео
         send_progress(6, 80, "📸 Извлечение скриншотов...")

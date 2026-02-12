@@ -50,7 +50,10 @@ export default function NewArticlePage() {
     category_ids: [] as number[],
     tags: [] as number[],
     published: false,
+    is_hero: false,
     youtube_url: '',
+    author_name: '',
+    author_channel_url: '',
     image: null as File | null,
     image_2: null as File | null,
     image_3: null as File | null,
@@ -222,9 +225,16 @@ export default function NewArticlePage() {
       formData.category_ids.forEach(id => formDataToSend.append('category_ids', id.toString()));
       formData.tags.forEach(id => formDataToSend.append('tag_ids', id.toString()));
       formDataToSend.append('is_published', formData.published.toString());
+      formDataToSend.append('is_hero', formData.is_hero.toString());
 
       if (formData.youtube_url) {
         formDataToSend.append('youtube_url', formData.youtube_url);
+      }
+      if (formData.author_name) {
+        formDataToSend.append('author_name', formData.author_name);
+      }
+      if (formData.author_channel_url) {
+        formDataToSend.append('author_channel_url', formData.author_channel_url);
       }
 
       // Add images if selected
@@ -585,6 +595,42 @@ export default function NewArticlePage() {
             />
           </div>
 
+          {/* YouTube URL */}
+          <div>
+            <label className="block text-sm font-bold text-gray-900 mb-2">YouTube URL</label>
+            <input
+              type="url"
+              value={formData.youtube_url}
+              onChange={(e) => setFormData({ ...formData, youtube_url: e.target.value })}
+              placeholder="https://youtube.com/watch?v=..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
+            />
+          </div>
+
+          {/* Content Source Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Content Source</label>
+              <input
+                type="text"
+                value={formData.author_name}
+                onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
+                placeholder="e.g., Toyota Global, Doug DeMuro, Carwow"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Source URL</label>
+              <input
+                type="url"
+                value={formData.author_channel_url}
+                onChange={(e) => setFormData({ ...formData, author_channel_url: e.target.value })}
+                placeholder="https://global.toyota/... or YouTube channel"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
+              />
+            </div>
+          </div>
+
           {/* Summary */}
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-2">Summary *</label>
@@ -756,18 +802,32 @@ export default function NewArticlePage() {
             </div>
           </div>
 
-          {/* Published Status */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="published"
-              checked={formData.published}
-              onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-              className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-            />
-            <label htmlFor="published" className="text-sm font-bold text-gray-900">
-              Publish immediately
-            </label>
+          {/* Published Status & Hero */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="published"
+                checked={formData.published}
+                onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <label htmlFor="published" className="text-sm font-bold text-gray-900">
+                Publish immediately
+              </label>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="is_hero"
+                checked={formData.is_hero}
+                onChange={(e) => setFormData({ ...formData, is_hero: e.target.checked })}
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <label htmlFor="is_hero" className="text-sm font-bold text-gray-900 cursor-pointer">
+                ⭐ Show in Hero Section
+              </label>
+            </div>
           </div>
 
           {/* Submit Button */}

@@ -88,7 +88,7 @@ IMPORTANT:
         analysis = ai.generate_completion(
             prompt=prompt,
             system_prompt=system_prompt,
-            temperature=0.7,
+            temperature=0.4,
             max_tokens=2000
         )
         
@@ -102,22 +102,37 @@ IMPORTANT:
         return ""
 
 
-def categorize_article(analysis):
+def _get_db_categories():
+    """Fetch category names from the database for the prompt."""
+    try:
+        import django
+        if django.apps.apps.ready:
+            from news.models import Category
+            categories = Category.objects.filter(is_visible=True).values_list('name', flat=True)
+            if categories:
+                return list(categories)
+    except Exception:
+        pass
+    # Fallback if DB not available
+    return ["News", "Reviews", "EVs", "Technology", "Industry", "Comparisons"]
+
+
+def categorize_article(analysis, provider='groq'):
     """
-    Определяет категорию и теги на основе анализа (БЕСПЛАТНО через Groq).
+    Determines category and tags based on analysis using the AI provider factory.
+    Falls back gracefully if AI is unavailable.
     """
     print("Categorizing article with AI...")
+    
+    # Fetch categories from DB instead of hardcoding
+    db_categories = _get_db_categories()
+    categories_str = "\n".join([f"- {cat}" for cat in db_categories])
     
     prompt = f"""
 Based on this automotive analysis, determine the best category and relevant tags.
 
 Categories (choose ONE):
-- News (новости, анонсы, релизы новых моделей)
-- Reviews (обзоры и тест-драйвы автомобилей)
-- EVs (электромобили и гибриды)
-- Technology (новые технологии в автомобилях)
-- Industry (автопром, производство, продажи)
-- Comparisons (сравнение моделей)
+{categories_str}
 
 Tags (choose 5-7 from these categories):
 Brand Tags: BMW, Mercedes-Benz, Audi, Tesla, Toyota, Honda, Ford, Volkswagen, Nissan, Hyundai, Kia, Porsche, Volvo, Jaguar, Land Rover, Lexus, Genesis, Rivian, Lucid
@@ -133,28 +148,37 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5]
 """
     
     try:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": "You are an expert automotive content categorizer."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,  # Низкая температура для точности
+        # Use AI provider factory (not hardcoded Groq)
+        ai = get_ai_provider(provider)
+        result = ai.generate_completion(
+            prompt=prompt,
+            system_prompt="You are an expert automotive content categorizer.",
+            temperature=0.2,  # Low temperature for deterministic categorization
             max_tokens=200
         )
         
-        result = response.choices[0].message.content if response.choices else ""
+        if not result:
+            raise Exception("Empty response from AI")
         
-        # Парсим результат
+        # Parse result
         category = "Reviews"  # Default
         tags = []
         
         for line in result.split('\n'):
             if line.startswith('Category:'):
-                category = line.split(':', 1)[1].strip()
+                cat_name = line.split(':', 1)[1].strip()
+                # Validate against DB categories (fuzzy match)
+                matched = False
+                for db_cat in db_categories:
+                    if cat_name.lower() == db_cat.lower():
+                        category = db_cat  # Use exact DB name
+                        matched = True
+                        break
+                if not matched:
+                    category = cat_name  # Use AI output as-is
             elif line.startswith('Tags:'):
                 tags_str = line.split(':', 1)[1].strip()
-                tags = [t.strip() for t in tags_str.split(',')]
+                tags = [t.strip() for t in tags_str.split(',') if t.strip()]
         
         print(f"✓ Category: {category}, Tags: {', '.join(tags)}")
         return category, tags

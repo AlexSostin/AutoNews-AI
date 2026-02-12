@@ -34,6 +34,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   });
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyContent, setReplyContent] = useState('');
   const [expandedReplies, setExpandedReplies] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -122,7 +123,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     try {
       const commentData: any = {
         article: articleId,
-        content: formData.content
+        content: parentId ? replyContent : formData.content
       };
 
       if (parentId) {
@@ -144,12 +145,16 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
       await api.post('/comments/', commentData);
 
       setMessage('✓ Comment submitted! It will appear after moderation.');
-      setFormData({
-        author_name: isUserAuthenticated ? formData.author_name : '',
-        author_email: isUserAuthenticated ? formData.author_email : '',
-        content: ''
-      });
-      setReplyingTo(null);
+      if (parentId) {
+        setReplyContent('');
+        setReplyingTo(null);
+      } else {
+        setFormData({
+          author_name: isUserAuthenticated ? formData.author_name : '',
+          author_email: isUserAuthenticated ? formData.author_email : '',
+          content: ''
+        });
+      }
       setTimeout(() => setMessage(''), 5000);
     } catch (error: any) {
       console.error('Failed to submit comment:', error);
@@ -197,7 +202,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
             type="button"
             onClick={() => {
               setReplyingTo(null);
-              setFormData(prev => ({ ...prev, content: '' }));
+              setReplyContent('');
             }}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
@@ -254,8 +259,14 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
           Comment *
         </label>
         <textarea
-          value={formData.content}
-          onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+          value={parentId ? replyContent : formData.content}
+          onChange={(e) => {
+            if (parentId) {
+              setReplyContent(e.target.value);
+            } else {
+              setFormData({ ...formData, content: e.target.value });
+            }
+          }}
           required
           rows={parentId ? 3 : 4}
           className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none bg-white text-gray-900 placeholder-gray-700"

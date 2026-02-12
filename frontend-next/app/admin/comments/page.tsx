@@ -34,7 +34,8 @@ export default function CommentsPage() {
       setLoading(true);
       const params: any = {
         page: currentPage,
-        page_size: 20  // Reduced from 100 for better performance
+        page_size: 20,  // Reduced from 100 for better performance
+        include_replies: 'true'  // Show replies in admin moderation
       };
       if (filter !== 'all') {
         params.approved = filter === 'approved' ? 'true' : 'false';
@@ -186,8 +187,8 @@ export default function CommentsPage() {
                       {comment.article_title}
                     </Link>
                     {comment.parent_author && (
-                      <span className="ml-2 text-indigo-600">
-                        • Reply to <strong>@{comment.parent_author}</strong>
+                      <span className="ml-2 inline-flex items-center gap-1 px-2.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold border border-indigo-200">
+                        ↩ Reply to @{comment.parent_author}
                       </span>
                     )}
                   </p>

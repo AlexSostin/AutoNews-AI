@@ -10,7 +10,6 @@ import {
   Eye,
   EyeOff,
   Shield,
-  Bell,
   Check
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
@@ -35,11 +34,7 @@ export default function AccountSettingsPage() {
     new_password: '',
     confirm_password: ''
   });
-  const [notifications, setNotifications] = useState({
-    email_new_comment: true,
-    email_new_subscriber: true,
-    email_weekly_report: false
-  });
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -150,12 +145,12 @@ export default function AccountSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Account Settings</h1>
+      <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Account Settings</h1>
 
       {message && (
         <div className={`p-4 rounded-lg flex items-center gap-2 ${message.type === 'success'
-            ? 'bg-green-50 text-green-800 border border-green-200'
-            : 'bg-red-50 text-red-800 border border-red-200'
+          ? 'bg-green-50 text-green-800 border border-green-200'
+          : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
           {message.type === 'success' ? <Check size={20} /> : <Shield size={20} />}
           {message.text}
@@ -199,7 +194,7 @@ export default function AccountSettingsPage() {
                   type="email"
                   value={profile.email}
                   onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 />
               </div>
             </div>
@@ -212,7 +207,7 @@ export default function AccountSettingsPage() {
                 type="text"
                 value={profile.first_name}
                 onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 placeholder="Enter first name"
               />
             </div>
@@ -225,7 +220,7 @@ export default function AccountSettingsPage() {
                 type="text"
                 value={profile.last_name}
                 onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 placeholder="Enter last name"
               />
             </div>
@@ -267,7 +262,7 @@ export default function AccountSettingsPage() {
                 type={showCurrentPassword ? 'text' : 'password'}
                 value={passwords.current_password}
                 onChange={(e) => setPasswords({ ...passwords, current_password: e.target.value })}
-                className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 placeholder="Enter current password"
               />
               <button
@@ -291,7 +286,7 @@ export default function AccountSettingsPage() {
                   type={showNewPassword ? 'text' : 'password'}
                   value={passwords.new_password}
                   onChange={(e) => setPasswords({ ...passwords, new_password: e.target.value })}
-                  className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                   placeholder="Enter new password"
                 />
                 <button
@@ -314,7 +309,7 @@ export default function AccountSettingsPage() {
                   type="password"
                   value={passwords.confirm_password}
                   onChange={(e) => setPasswords({ ...passwords, confirm_password: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                   placeholder="Confirm new password"
                 />
               </div>
@@ -334,46 +329,6 @@ export default function AccountSettingsPage() {
         </form>
       </div>
 
-      {/* Notification Preferences */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="bg-blue-100 p-3 rounded-lg">
-            <Bell className="text-blue-600" size={24} />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Notification Preferences</h2>
-            <p className="text-gray-500 text-sm">Choose what notifications you receive</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          {[
-            { key: 'email_new_comment', label: 'New Comments', desc: 'Get notified when someone comments on your articles' },
-            { key: 'email_new_subscriber', label: 'New Subscribers', desc: 'Get notified when someone subscribes to the newsletter' },
-            { key: 'email_weekly_report', label: 'Weekly Report', desc: 'Receive a weekly summary of site analytics' }
-          ].map((item) => (
-            <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900">{item.label}</p>
-                <p className="text-sm text-gray-500">{item.desc}</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={notifications[item.key as keyof typeof notifications]}
-                  onChange={(e) => setNotifications({ ...notifications, [item.key]: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-              </label>
-            </div>
-          ))}
-        </div>
-
-        <p className="text-sm text-gray-400 mt-4">
-          * Notification settings will be implemented in a future update
-        </p>
-      </div>
     </div>
   );
 }

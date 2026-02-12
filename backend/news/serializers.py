@@ -5,7 +5,7 @@ from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, EmailPreferences,
-    AdminNotification, VehicleSpecs
+    AdminNotification, VehicleSpecs, NewsletterSubscriber
 )
 
 
@@ -45,7 +45,7 @@ class CategorySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'article_count']
+        fields = ['id', 'name', 'slug', 'is_visible', 'article_count']
     
     def get_article_count(self, obj):
         return obj.articles.filter(is_published=True).count()
@@ -170,13 +170,27 @@ class ArticleListSerializer(serializers.ModelSerializer):
         return [tag.name for tag in obj.tags.all()]
     
     def get_average_rating(self, obj):
+        # Use annotated value from queryset (avoids N+1 query)
+        avg = getattr(obj, 'avg_rating', None)
+        if avg is not None:
+            return round(avg, 1)
+        # Fallback for non-annotated querysets (e.g. single object retrieval)
         return obj.average_rating()
     
     def get_rating_count(self, obj):
+        # Use annotated value from queryset (avoids N+1 query)
+        count = getattr(obj, 'num_ratings', None)
+        if count is not None:
+            return count
         return obj.rating_count()
     
     def get_is_favorited(self, obj):
         """Check if current user has favorited this article"""
+        # Use annotated value from queryset (avoids N+1 query)
+        is_fav = getattr(obj, '_is_favorited', None)
+        if is_fav is not None:
+            return is_fav
+        # Fallback for non-annotated querysets
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return Favorite.objects.filter(user=request.user, article=obj).exists()
@@ -249,9 +263,17 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         return validate_image_file(value)
     
     def get_average_rating(self, obj):
+        # Use annotated value from queryset (avoids N+1 query)
+        avg = getattr(obj, 'avg_rating', None)
+        if avg is not None:
+            return round(avg, 1)
         return obj.average_rating()
     
     def get_rating_count(self, obj):
+        # Use annotated value from queryset (avoids N+1 query)
+        count = getattr(obj, 'num_ratings', None)
+        if count is not None:
+            return count
         return obj.rating_count()
     
     def get_thumbnail_url(self, obj):
@@ -281,6 +303,10 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     
     def get_is_favorited(self, obj):
         """Check if current user has favorited this article"""
+        # Use annotated value from queryset (avoids N+1 query)
+        is_fav = getattr(obj, '_is_favorited', None)
+        if is_fav is not None:
+            return is_fav
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return Favorite.objects.filter(user=request.user, article=obj).exists()
@@ -448,8 +474,10 @@ class FavoriteSerializer(serializers.ModelSerializer):
 
 
 class SubscriberSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(source='subscribed_at', read_only=True)
+    
     class Meta:
-        model = Subscriber
+        model = NewsletterSubscriber
         fields = ['id', 'email', 'is_active', 'created_at', 'unsubscribed_at']
         read_only_fields = ['is_active', 'created_at', 'unsubscribed_at']
 

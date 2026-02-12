@@ -97,6 +97,7 @@ class SiteSettings(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=100, db_index=True)
     slug = models.SlugField(unique=True, blank=True)
+    is_visible = models.BooleanField(default=True, db_index=True, help_text="Show this category in public navigation and lists")
 
     def save(self, *args, **kwargs):
         if not self.slug:

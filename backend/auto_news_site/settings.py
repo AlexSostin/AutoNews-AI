@@ -194,6 +194,7 @@ else:
             'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
             'HOST': os.getenv('DB_HOST', '127.0.0.1'),
             'PORT': os.getenv('DB_PORT', '5433'),
+            'CONN_MAX_AGE': 600,  # Reuse DB connections for 10 minutes
         }
     }
 
@@ -615,51 +616,8 @@ if not DEBUG:
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 
-# Sentry Error Tracking
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
-
-SENTRY_DSN = os.getenv('SENTRY_DSN', '')
-if SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration()],
-        traces_sample_rate=1.0 if DEBUG else 0.1,
-        profiles_sample_rate=1.0 if DEBUG else 0.1,
-        send_default_pii=True,
-        environment='development' if DEBUG else 'production',
-    )
-
-# Logging configuration
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'news': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-    },
-}
+# Note: Sentry is already initialized at the top of this file (lines 24-33)
+# Note: LOGGING is already configured above (lines 248-331) with file handlers and rotation
 
 
 # ================================================

@@ -6,13 +6,31 @@ Fetches and processes RSS/Atom feeds from automotive sources.
 import feedparser
 import hashlib
 import logging
+import re
+import time
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from typing import Optional, List, Dict
 from django.utils import timezone
-from news.models import RSSFeed, PendingArticle
+from news.models import RSSFeed, PendingArticle, Article
 
 logger = logging.getLogger(__name__)
+
+
+def _retry_ai_call(func, *args, max_retries=3, **kwargs):
+    """
+    Retry wrapper for AI API calls with exponential backoff.
+    """
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            last_error = e
+            wait_time = (2 ** attempt) + 1  # 1s, 3s, 5s
+            logger.warning(f"AI call failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait_time}s...")
+            time.sleep(wait_time)
+    raise last_error
 
 
 class RSSAggregator:
@@ -75,13 +93,15 @@ class RSSAggregator:
         """
         return SequenceMatcher(None, title1.lower(), title2.lower()).ratio()
     
-    def is_duplicate(self, title: str, content: str, days_back: int = 30) -> bool:
+    def is_duplicate(self, title: str, content: str, source_url: str = '', days_back: int = 30) -> bool:
         """
-        Check if article is a duplicate based on title similarity or content hash.
+        Check if article is a duplicate based on title similarity, content hash,
+        or source URL. Checks BOTH PendingArticle AND published Article tables.
         
         Args:
             title: Article title
             content: Article content
+            source_url: Original source URL
             days_back: Number of days to check for duplicates
             
         Returns:
@@ -89,21 +109,46 @@ class RSSAggregator:
         """
         content_hash = self.calculate_content_hash(content)
         
-        # Check content hash first (exact match)
+        # 1. Check content hash in PendingArticle (exact content match)
         if PendingArticle.objects.filter(content_hash=content_hash).exists():
-            logger.info(f"Duplicate found by content hash: {title[:50]}")
+            logger.info(f"Duplicate found by content hash (pending): {title[:50]}")
             return True
         
-        # Check title similarity in recent articles
+        # 2. Check source URL in both tables
+        if source_url:
+            if PendingArticle.objects.filter(source_url=source_url).exists():
+                logger.info(f"Duplicate found by source URL (pending): {title[:50]}")
+                return True
+            # Article model may not have source_url field
+            try:
+                if Article.objects.filter(source_url=source_url, is_deleted=False).exists():
+                    logger.info(f"Duplicate found by source URL (published): {title[:50]}")
+                    return True
+            except Exception:
+                pass  # Article model doesn't have source_url field
+        
+        # 3. Check title similarity in recent PendingArticles
         cutoff_date = timezone.now() - timedelta(days=days_back)
-        recent_articles = PendingArticle.objects.filter(
+        recent_pending = PendingArticle.objects.filter(
             created_at__gte=cutoff_date
+        ).values_list('title', flat=True)
+        
+        for existing_title in recent_pending:
+            similarity = self.calculate_title_similarity(title, existing_title)
+            if similarity >= self.SIMILARITY_THRESHOLD:
+                logger.info(f"Duplicate found by title similarity (pending, {similarity:.2%}): {title[:50]}")
+                return True
+        
+        # 4. Check title similarity in published Articles
+        recent_articles = Article.objects.filter(
+            created_at__gte=cutoff_date,
+            is_deleted=False
         ).values_list('title', flat=True)
         
         for existing_title in recent_articles:
             similarity = self.calculate_title_similarity(title, existing_title)
             if similarity >= self.SIMILARITY_THRESHOLD:
-                logger.info(f"Duplicate found by title similarity ({similarity:.2%}): {title[:50]}")
+                logger.info(f"Duplicate found by title similarity (published, {similarity:.2%}): {title[:50]}")
                 return True
         
         return False
@@ -346,29 +391,32 @@ class RSSAggregator:
         """
         try:
             from ai_engine.modules.article_generator import expand_press_release
+            from ai_engine.main import extract_title, validate_title, _is_generic_header
             
             title = entry.get('title', 'Untitled')
             source_url = entry.get('link', '')
             
             logger.info(f"Expanding press release with AI: {title[:50]}")
             
-            # Expand press release with AI
-            expanded_content = expand_press_release(
+            # Expand press release with AI (with retry logic)
+            expanded_content = _retry_ai_call(
+                expand_press_release,
                 press_release_text=content,
                 source_url=source_url,
-                provider='groq'  # Can be made configurable
+                provider='groq'
             )
             
-            # Extract title from AI-generated content (first <h2> tag)
-            import re
-            title_match = re.search(r'<h2>(.*?)</h2>', expanded_content)
-            if title_match:
-                ai_title = re.sub(r'<[^>]+>', '', title_match.group(1)).strip()
-            else:
-                ai_title = title
+            # Extract title from AI-generated content using shared extract_title
+            ai_title = extract_title(expanded_content)
+            
+            # Validate the extracted title, fallback to RSS entry title
+            if not ai_title or _is_generic_header(ai_title):
+                ai_title = title  # Use original RSS title
+            
+            # Final validation  
+            ai_title = validate_title(ai_title)
             
             # Convert markdown to HTML if AI returned markdown instead of HTML
-            # Check if content contains markdown headers (###) instead of HTML (<h2>)
             if '###' in expanded_content and '<h2>' not in expanded_content:
                 try:
                     import markdown
@@ -377,21 +425,27 @@ class RSSAggregator:
                 except Exception as e:
                     logger.warning(f"Markdown conversion failed: {e}, keeping as-is")
             
+            # Content quality check: minimum word count
+            word_count = len(re.sub(r'<[^>]+>', '', expanded_content).split())
+            if word_count < 200:
+                logger.warning(f"AI content too short ({word_count} words), falling back to basic")
+                return None
+            
             # Create PendingArticle with expanded content
             pending = PendingArticle.objects.create(
                 rss_feed=rss_feed,
                 source_url=source_url,
                 content_hash=content_hash,
                 title=ai_title,
-                content=expanded_content,  # AI-expanded content
-                excerpt=content[:500] if len(content) > 500 else content,  # Original excerpt
+                content=expanded_content,
+                excerpt=content[:500] if len(content) > 500 else content,
                 images=images,
                 featured_image=images[0] if images else '',
                 suggested_category=rss_feed.default_category,
                 status='pending'
             )
             
-            logger.info(f"✓ Created AI-enhanced PendingArticle: {ai_title[:50]}")
+            logger.info(f"✓ Created AI-enhanced PendingArticle: {ai_title[:50]} ({word_count} words)")
             return pending
             
         except Exception as e:
@@ -420,32 +474,24 @@ class RSSAggregator:
         for entry in feed_data.entries[:limit]:
             try:
                 title = entry.get('title', 'Untitled')
+                source_url = entry.get('link', '')
                 
-                # Skip articles with generic/template titles
-                generic_titles = [
-                    'Performance & Specifications',
-                    'Performance &amp; Specifications',
-                    'Specifications',
-                    'Features',
-                    'Overview',
-                    'Details',
-                    'Information'
-                ]
-                if title in generic_titles or title.strip() == '':
+                # Skip articles with generic/template titles (use shared checker)
+                from ai_engine.main import _is_generic_header
+                if not title.strip() or _is_generic_header(title):
                     logger.debug(f"Skipping entry with generic title: {title}")
                     continue
                 
                 plain_text = self.extract_plain_text(entry)  # For excerpt
                 content = self.extract_content(entry)  # HTML version
-                source_url = entry.get('link', '')
                 
-                # Skip if no content or too short (minimum 500 chars for quality)
-                if not plain_text or len(plain_text) < 500:
+                # Skip if no content or too short (minimum 300 chars for quality)
+                if not plain_text or len(plain_text) < 300:
                     logger.debug(f"Skipping entry with insufficient content ({len(plain_text) if plain_text else 0} chars): {title[:50]}")
                     continue
                 
-                # Check for duplicates (use plain text for hash)
-                if self.is_duplicate(title, plain_text):
+                # Check for duplicates (now checks both PendingArticle AND Article)
+                if self.is_duplicate(title, plain_text, source_url=source_url):
                     logger.debug(f"Skipping duplicate: {title[:50]}")
                     continue
                 

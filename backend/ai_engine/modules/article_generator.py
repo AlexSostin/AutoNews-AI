@@ -139,7 +139,7 @@ Remember: Be creative with the title, but include all facts! Write comprehensive
         article_content = ai.generate_completion(
             prompt=prompt,
             system_prompt=system_prompt,
-            temperature=0.8,
+            temperature=0.5,
             max_tokens=3000
         )
         
@@ -336,7 +336,7 @@ Remember: Create ORIGINAL content based on the facts, add value through analysis
         article_content = ai.generate_completion(
             prompt=prompt,
             system_prompt=system_prompt,
-            temperature=0.8,
+            temperature=0.5,
             max_tokens=3500  # Longer for expanded content
         )
         

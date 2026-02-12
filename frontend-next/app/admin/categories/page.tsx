@@ -9,6 +9,7 @@ interface Category {
   name: string;
   slug: string;
   description: string;
+  is_visible: boolean;
   article_count: number;
 }
 
@@ -21,6 +22,7 @@ export default function CategoriesPage() {
     name: '',
     slug: '',
     description: '',
+    is_visible: true,
   });
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function CategoriesPage() {
 
   const handleCreate = () => {
     setEditingCategory(null);
-    setFormData({ name: '', slug: '', description: '' });
+    setFormData({ name: '', slug: '', description: '', is_visible: true });
     setShowModal(true);
   };
 
@@ -53,6 +55,7 @@ export default function CategoriesPage() {
       name: category.name,
       slug: category.slug,
       description: category.description || '',
+      is_visible: category.is_visible ?? true,
     });
     setShowModal(true);
   };
@@ -138,8 +141,8 @@ export default function CategoriesPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Slug
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
-                    Description
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-900 uppercase tracking-wider">
+                    Visible
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Articles
@@ -158,10 +161,24 @@ export default function CategoriesPage() {
                     <td className="px-6 py-4">
                       <code className="text-sm text-indigo-600 font-semibold">{category.slug}</code>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-700 font-medium line-clamp-2">
-                        {category.description || '—'}
-                      </div>
+                    <td className="px-6 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={category.is_visible ?? true}
+                        onChange={async (e) => {
+                          const newValue = e.target.checked;
+                          try {
+                            await api.put(`/categories/${category.id}/`, { ...category, is_visible: newValue });
+                            setCategories(categories.map(c => c.id === category.id ? { ...c, is_visible: newValue } : c));
+                          } catch (error) {
+                            console.error('Failed to update visibility:', error);
+                            alert('Failed to update visibility');
+                            e.target.checked = !newValue;
+                          }
+                        }}
+                        className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                        title="Toggle visibility"
+                      />
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-bold">
@@ -241,6 +258,19 @@ export default function CategoriesPage() {
                   rows={3}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
                 />
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="is_visible"
+                  checked={formData.is_visible}
+                  onChange={(e) => setFormData({ ...formData, is_visible: e.target.checked })}
+                  className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                <label htmlFor="is_visible" className="text-sm font-bold text-gray-900 cursor-pointer">
+                  Show in public navigation (header, homepage, footer)
+                </label>
               </div>
 
               <div className="flex gap-4 pt-4">

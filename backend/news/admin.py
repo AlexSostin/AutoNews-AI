@@ -466,7 +466,9 @@ class ArticleAdmin(admin.ModelAdmin):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'article_count')
+    list_display = ('name', 'slug', 'is_visible', 'article_count')
+    list_editable = ('is_visible',)
+    list_filter = ('is_visible',)
     prepopulated_fields = {'slug': ('name',)}
     search_fields = ('name',)
     
