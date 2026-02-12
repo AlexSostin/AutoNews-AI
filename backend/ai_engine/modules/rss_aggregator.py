@@ -206,6 +206,75 @@ class RSSAggregator:
         logger.debug(f"Extracted {len(images)} images from entry")
         return images
     
+    def extract_og_image(self, url: str) -> Optional[str]:
+        """
+        Scrape og:image or twitter:image from an article's source page.
+        
+        Most news sites include Open Graph meta tags with article images.
+        This provides real article images rather than stock photos.
+        
+        Args:
+            url: Source article URL
+            
+        Returns:
+            Image URL or None
+        """
+        if not url:
+            return None
+            
+        try:
+            import requests as req
+            from bs4 import BeautifulSoup
+            
+            resp = req.get(url, timeout=10, headers={
+                'User-Agent': 'Mozilla/5.0 (compatible; AutoNewsBot/1.0)'
+            })
+            
+            if resp.status_code not in (200, 404):  # Some sites return 404 but still have og:image
+                if resp.status_code >= 400:
+                    logger.debug(f"Failed to fetch {url}: status {resp.status_code}")
+                    return None
+            
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            
+            # Try og:image first (most common)
+            og = soup.find('meta', property='og:image')
+            if og and og.get('content'):
+                img_url = og['content']
+                # Skip generic/placeholder images
+                if not any(skip in img_url.lower() for skip in ['placeholder', 'default', 'logo', 'favicon', '1x1']):
+                    logger.info(f"Found og:image for {url[:60]}: {img_url[:80]}")
+                    return img_url
+            
+            # Try twitter:image
+            tw = soup.find('meta', attrs={'name': 'twitter:image'})
+            if tw and tw.get('content'):
+                img_url = tw['content']
+                if not any(skip in img_url.lower() for skip in ['placeholder', 'default', 'logo', 'favicon', '1x1']):
+                    logger.info(f"Found twitter:image for {url[:60]}: {img_url[:80]}")
+                    return img_url
+            
+            # Try first large content image
+            for img in soup.find_all('img', src=True):
+                src = img['src']
+                if src.startswith('data:') or 'logo' in src.lower() or 'icon' in src.lower():
+                    continue
+                # Make relative URLs absolute
+                if src.startswith('/'):
+                    from urllib.parse import urlparse
+                    parsed = urlparse(url)
+                    src = f"{parsed.scheme}://{parsed.netloc}{src}"
+                if src.startswith('http'):
+                    logger.info(f"Found content image for {url[:60]}: {src[:80]}")
+                    return src
+            
+            logger.debug(f"No images found on page: {url[:60]}")
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Error scraping og:image from {url[:60]}: {e}")
+            return None
+    
     def convert_plain_text_to_html(self, text: str) -> str:
         """
         Convert plain text to HTML with proper formatting.
@@ -498,17 +567,21 @@ class RSSAggregator:
                 # Extract images
                 images = self.extract_images(entry)
                 
-                # Fallback to Pexels if no images found
+                # Fallback 1: Scrape og:image from article source page
+                if not images and source_url:
+                    og_image = self.extract_og_image(source_url)
+                    if og_image:
+                        images = [og_image]
+                        logger.info(f'Added og:image for: {title[:50]}')
+                
+                # Fallback 2: Pexels stock image search
                 if not images:
                     try:
                         from ai_engine.modules.pexels_client import search_automotive_image
                         from ai_engine.config import PEXELS_ENABLED
                         
                         if PEXELS_ENABLED:
-                            # Extract brand from feed name
                             brand = rss_feed.name.split()[0] if rss_feed.name else ''
-                            
-                            # Search for relevant image
                             pexels_image = search_automotive_image(title, brand=brand, content=content[:500])
                             
                             if pexels_image:
@@ -517,7 +590,7 @@ class RSSAggregator:
                     except Exception as e:
                         logger.warning(f'Pexels image search failed: {e}')
                 
-                # Final fallback: use RSS feed logo if available
+                # Fallback 3: RSS feed logo
                 if not images and rss_feed.logo_url:
                     images = [rss_feed.logo_url]
                     logger.info(f'Using RSS feed logo as fallback for: {title[:50]}')
