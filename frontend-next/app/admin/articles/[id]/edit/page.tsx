@@ -545,70 +545,74 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
           {/* Gallery Images Section */}
           <div className="border-t pt-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Gallery Images</h3>
-            <p className="text-sm text-gray-600 mb-4">Add unlimited additional images to the article gallery</p>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Additional Gallery Images</h3>
+            <p className="text-sm text-gray-600 mb-4">Add extra images that will appear in the Vehicle Gallery alongside the 3 main images above</p>
 
-            {/* Existing Gallery Images */}
-            {galleryImages.length > 0 && (
-              <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Current Gallery ({galleryImages.length})</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {galleryImages.map((img) => (
-                    <div key={img.id} className="relative group">
-                      <img
-                        src={img.image.startsWith('http') ? img.image : `${typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? 'https://heroic-healing-production-2365.up.railway.app' : 'http://localhost:8000'}${img.image}`}
-                        alt={img.caption || 'Gallery image'}
-                        className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
-                      />
+            {/* Existing Gallery Images as individual cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              {galleryImages.map((img, index) => (
+                <div key={img.id}>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">Image {index + 4}</label>
+                  <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group">
+                    <img
+                      src={img.image.startsWith('http') ? img.image : `${typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? 'https://heroic-healing-production-2365.up.railway.app' : 'http://localhost:8000'}${img.image}`}
+                      alt={img.caption || `Gallery image ${index + 4}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-1 right-1 flex gap-1">
+                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">Current</span>
                       <button
                         type="button"
                         onClick={() => deleteGalleryImage(img.id)}
-                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
                       >
-                        <X size={16} />
+                        Remove
                       </button>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              ))}
 
-            {/* New Gallery Images to Upload */}
-            {newGalleryImages.length > 0 && (
-              <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">New Images to Upload ({newGalleryImages.length})</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {newGalleryImages.map((file, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={URL.createObjectURL(file)}
-                        alt={file.name}
-                        className="w-full h-32 object-cover rounded-lg border-2 border-green-300"
-                      />
+              {/* New gallery images to upload - individual cards */}
+              {newGalleryImages.map((file, index) => (
+                <div key={`new-${index}`}>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">Image {galleryImages.length + index + 4}</label>
+                  <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-green-300 group">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-1 right-1 flex gap-1">
+                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">New</span>
                       <button
                         type="button"
                         onClick={() => removeNewGalleryImage(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
                       >
-                        <X size={16} />
+                        Remove
                       </button>
-                      <span className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded">New</span>
                     </div>
-                  ))}
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">✓ Will upload: {file.name}</p>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
 
-            {/* Add Gallery Image Button */}
+            {/* Add Image Button */}
             <div>
-              <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg border-2 border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer font-semibold">
+              <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg border-2 border-dashed border-indigo-300 hover:bg-indigo-100 transition-colors cursor-pointer font-semibold">
                 <Plus size={20} />
-                Add Gallery Images
+                + Add More Images
                 <input
                   type="file"
                   accept="image/*"
-                  multiple
-                  onChange={(e) => handleGalleryImageUpload(e.target.files)}
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setNewGalleryImages(prev => [...prev, e.target.files![0]]);
+                      e.target.value = '';
+                    }
+                  }}
                   className="hidden"
                 />
               </label>

@@ -8,7 +8,7 @@ import RatingStars from '@/components/public/RatingStars';
 import ArticleContentWithImages from '@/components/public/ArticleContentWithImages';
 import ArticleRating from '@/components/public/ArticleRating';
 import CommentSection from '@/components/public/CommentSection';
-import ImageGallery from '@/components/public/ImageGallery';
+
 import Breadcrumbs from '@/components/public/Breadcrumbs';
 import FavoriteButton from '@/components/public/FavoriteButton';
 import ReadingProgressBar from '@/components/public/ReadingProgressBar';
@@ -362,178 +362,73 @@ export default async function ArticleDetailPage({
               {/* Mid Article Ad (Conditional - hidden for now) */}
               <AdBanner format="rectangle" />
 
-              {/* Video Screenshots Gallery */}
-              {(article.image || article.image_2 || article.image_3) && (() => {
-                const imagesToCount = [article.thumbnail_url, article.image_2_url, article.image_3_url].filter(Boolean);
-                const imageCount = imagesToCount.length;
-                if (imageCount === 0) return null;
+              {/* Unified Vehicle Gallery - combines main images + gallery images */}
+              {
+                (() => {
+                  // Build array of all images
+                  const allImages: { url: string; alt: string }[] = [];
+                  if (article.thumbnail_url) allImages.push({ url: fixUrl(article.thumbnail_url), alt: `${article.title} - View 1` });
+                  if (article.image_2_url) allImages.push({ url: fixUrl(article.image_2_url), alt: `${article.title} - View 2` });
+                  if (article.image_3_url) allImages.push({ url: fixUrl(article.image_3_url), alt: `${article.title} - View 3` });
 
-                const gridCols = imageCount === 1 ? 'md:grid-cols-1 max-w-2xl mx-auto' : imageCount === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3';
+                  // Add gallery images
+                  if (article.images && article.images.length > 0) {
+                    article.images.forEach((img: any, i: number) => {
+                      const imgUrl = img.image_url || img.image;
+                      if (imgUrl) {
+                        allImages.push({ url: fixUrl(imgUrl), alt: img.caption || `${article.title} - View ${allImages.length + 1}` });
+                      }
+                    });
+                  }
 
-                return (
-                  <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
-                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Vehicle Gallery</h3>
+                  if (allImages.length === 0) return null;
 
-                    {/* Mobile: Horizontal scroll slider */}
-                    <div className="md:hidden">
-                      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4">
-                        {article.thumbnail_url && (
-                          <div className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center">
-                            <Image
-                              src={fixUrl(article.thumbnail_url)}
-                              alt={`${article.title} - View 1`}
-                              fill
-                              className="object-cover"
-                            />
-                            <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-                              1 / {imageCount}
+                  const gridCols = allImages.length === 1 ? 'md:grid-cols-1 max-w-2xl mx-auto'
+                    : allImages.length === 2 ? 'md:grid-cols-2'
+                      : allImages.length <= 4 ? 'md:grid-cols-3'
+                        : 'md:grid-cols-3 lg:grid-cols-4';
+
+                  return (
+                    <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
+                      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Vehicle Gallery</h3>
+
+                      {/* Mobile: Horizontal scroll slider */}
+                      <div className="md:hidden">
+                        <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4">
+                          {allImages.map((img, index) => (
+                            <div key={index} className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center">
+                              <Image
+                                src={img.url}
+                                alt={img.alt}
+                                fill
+                                className="object-cover"
+                              />
+                              <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                                {index + 1} / {allImages.length}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {article.image_2_url && (
-                          <div className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center">
-                            <Image
-                              src={fixUrl(article.image_2_url)}
-                              alt={`${article.title} - View 2`}
-                              fill
-                              className="object-cover"
-                            />
-                            <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-                              2 / {imageCount}
-                            </div>
-                          </div>
-                        )}
-                        {article.image_3_url && (
-                          <div className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center">
-                            <Image
-                              src={fixUrl(article.image_3_url)}
-                              alt={`${article.title} - View 3`}
-                              fill
-                              className="object-cover"
-                            />
-                            <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-                              3 / {imageCount}
-                            </div>
-                          </div>
-                        )}
+                          ))}
+                        </div>
+                        <p className="text-center text-gray-500 text-sm mt-2">← Swipe to see more →</p>
                       </div>
-                      <p className="text-center text-gray-500 text-sm mt-2">← Swipe to see more →</p>
+
+                      {/* Desktop: Grid layout */}
+                      <div className={`hidden md:grid gap-4 ${gridCols}`}>
+                        {allImages.map((img, index) => (
+                          <div key={index} className="relative aspect-video rounded-lg overflow-hidden">
+                            <Image
+                              src={img.url}
+                              alt={img.alt}
+                              fill
+                              className="object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-
-                    {/* Desktop: Grid layout */}
-                    <div className={`hidden md:grid gap-4 ${gridCols}`}>
-                      {article.thumbnail_url && (
-                        <div className="relative aspect-video rounded-lg overflow-hidden">
-                          <Image
-                            src={fixUrl(article.thumbnail_url)}
-                            alt={`${article.title} - View 1`}
-                            fill
-                            className="object-cover hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                      )}
-                      {article.image_2_url && (
-                        <div className="relative aspect-video rounded-lg overflow-hidden">
-                          <Image
-                            src={fixUrl(article.image_2_url)}
-                            alt={`${article.title} - View 2`}
-                            fill
-                            className="object-cover hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                      )}
-                      {article.image_3_url && (
-                        <div className="relative aspect-video rounded-lg overflow-hidden">
-                          <Image
-                            src={fixUrl(article.image_3_url)}
-                            alt={`${article.title} - View 3`}
-                            fill
-                            className="object-cover hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* YouTube Video */}
-              {hasYoutubeVideo && (
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">Watch Video</h3>
-                  <div className="relative aspect-video">
-                    <iframe
-                      src={youtubeEmbedUrl}
-                      title={article.title}
-                      className="absolute inset-0 w-full h-full rounded-lg"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Car Specifications */}
-              {article.specs && (
-                <div className="bg-white rounded-xl shadow-md p-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-6">Specifications</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {article.specs.make && (
-                      <div className="border-b border-gray-200 pb-3">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">Make</span>
-                        <p className="text-lg font-bold text-gray-900 mt-1">{article.specs.make}</p>
-                      </div>
-                    )}
-                    {article.specs.model && (
-                      <div className="border-b border-gray-200 pb-3">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">Model</span>
-                        <p className="text-lg font-bold text-gray-900 mt-1">{article.specs.model}</p>
-                      </div>
-                    )}
-                    {article.specs.year && (
-                      <div className="border-b border-gray-200 pb-3">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">Year</span>
-                        <p className="text-lg font-bold text-gray-900 mt-1">{article.specs.year}</p>
-                      </div>
-                    )}
-                    {article.specs.engine && (
-                      <div className="border-b border-gray-200 pb-3">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">Engine</span>
-                        <p className="text-lg font-bold text-gray-900 mt-1">{article.specs.engine}</p>
-                      </div>
-                    )}
-                    {article.specs.horsepower && (
-                      <div className="border-b border-gray-200 pb-3">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">Horsepower</span>
-                        <p className="text-lg font-bold text-gray-900 mt-1">{article.specs.horsepower} HP</p>
-                      </div>
-                    )}
-                    {article.specs.transmission && (
-                      <div className="border-b border-gray-200 pb-3">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">Transmission</span>
-                        <p className="text-lg font-bold text-gray-900 mt-1">{article.specs.transmission}</p>
-                      </div>
-                    )}
-                    {article.specs.fuel_type && (
-                      <div className="border-b border-gray-200 pb-3">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">Fuel Type</span>
-                        <p className="text-lg font-bold text-gray-900 mt-1">{article.specs.fuel_type}</p>
-                      </div>
-                    )}
-                    {article.specs.price && (
-                      <div className="border-b border-gray-200 pb-3">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">Price</span>
-                        <p className="text-lg font-bold text-indigo-600 mt-1">${article.specs.price.toLocaleString()}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Image Gallery */}
-              {article.images && article.images.length > 0 && (
-                <ImageGallery images={article.images} />
-              )}
+                  );
+                })()
+              }
 
               {/* Share Buttons */}
               <ShareButtons url={fullUrl} title={article.title} />
