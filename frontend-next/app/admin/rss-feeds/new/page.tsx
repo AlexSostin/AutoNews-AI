@@ -3,12 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, TestTube, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, TestTube, CheckCircle, XCircle, AlertCircle, Wand2 } from 'lucide-react';
 import { authenticatedFetch } from '@/lib/authenticatedFetch';
 
 interface Category {
     id: number;
     name: string;
+}
+
+interface FeedMeta {
+    title: string;
+    link: string;
+    description: string;
 }
 
 interface FeedTestResult {
@@ -19,6 +25,7 @@ interface FeedTestResult {
         link: string;
         published?: string;
     }>;
+    feed_meta?: FeedMeta;
 }
 
 export default function NewRSSFeedPage() {
@@ -45,7 +52,7 @@ export default function NewRSSFeedPage() {
 
     const fetchCategories = async () => {
         try {
-            const response = await authenticatedFetch('/api/categories/');
+            const response = await authenticatedFetch('/categories/');
 
             if (response.ok) {
                 const data = await response.json();
@@ -105,42 +112,23 @@ export default function NewRSSFeedPage() {
         setTestResult(null);
 
         try {
-            const response = await fetch(formData.feed_url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/rss+xml, application/xml, text/xml',
-                },
+            const response = await authenticatedFetch('/rss-feeds/test_feed/', {
+                method: 'POST',
+                body: JSON.stringify({ feed_url: formData.feed_url }),
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
             }
 
-            const text = await response.text();
-
-            if (!text.includes('<rss') && !text.includes('<feed')) {
-                throw new Error('Not a valid RSS/Atom feed');
-            }
-
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(text, 'text/xml');
-
-            const parseError = xmlDoc.querySelector('parsererror');
-            if (parseError) {
-                throw new Error('Invalid XML format');
-            }
-
-            const items = xmlDoc.querySelectorAll('item, entry');
-            const entries = Array.from(items).slice(0, 3).map(item => ({
-                title: item.querySelector('title')?.textContent || 'No title',
-                link: item.querySelector('link')?.textContent || item.querySelector('link')?.getAttribute('href') || '',
-                published: item.querySelector('pubDate, published')?.textContent || '',
-            }));
+            const data = await response.json();
 
             setTestResult({
                 success: true,
-                message: `✓ Valid RSS feed! Found ${items.length} entries.`,
-                entries,
+                message: `✓ Valid RSS feed! Found ${data.entries_count} entries.`,
+                entries: data.entries,
+                feed_meta: data.feed_meta,
             });
         } catch (error: any) {
             setTestResult({
@@ -150,6 +138,17 @@ export default function NewRSSFeedPage() {
         } finally {
             setTesting(false);
         }
+    };
+
+    const autoFillFromMeta = () => {
+        if (!testResult?.feed_meta) return;
+        const meta = testResult.feed_meta;
+        setFormData(prev => ({
+            ...prev,
+            name: meta.title || prev.name,
+            website_url: meta.link || prev.website_url,
+            description: meta.description || prev.description,
+        }));
     };
 
     return (
@@ -239,6 +238,23 @@ export default function NewRSSFeedPage() {
                                                             • {entry.title}
                                                         </div>
                                                     ))}
+                                                </div>
+                                            )}
+                                            {testResult.success && testResult.feed_meta && (
+                                                <div className="mt-3 pt-3 border-t border-green-200">
+                                                    <div className="text-xs text-gray-600 space-y-0.5 mb-2">
+                                                        {testResult.feed_meta.title && <p><span className="font-medium">Name:</span> {testResult.feed_meta.title}</p>}
+                                                        {testResult.feed_meta.link && <p><span className="font-medium">Website:</span> {testResult.feed_meta.link}</p>}
+                                                        {testResult.feed_meta.description && <p><span className="font-medium">Description:</span> {testResult.feed_meta.description.substring(0, 100)}{testResult.feed_meta.description.length > 100 ? '...' : ''}</p>}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={autoFillFromMeta}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs font-medium transition-colors"
+                                                    >
+                                                        <Wand2 size={14} />
+                                                        Auto-fill fields
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>

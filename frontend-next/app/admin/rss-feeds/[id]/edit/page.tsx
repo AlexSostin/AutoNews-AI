@@ -50,7 +50,7 @@ export default function EditRSSFeedPage() {
 
     const fetchCategories = async () => {
         try {
-            const response = await authenticatedFetch('/api/categories/');
+            const response = await authenticatedFetch('/categories/');
 
             if (response.ok) {
                 const data = await response.json();

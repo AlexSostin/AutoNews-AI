@@ -2188,6 +2188,105 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
         })
 
 
+    @action(detail=False, methods=['post'])
+    def test_feed(self, request):
+        """Test an RSS feed URL by fetching and parsing it server-side"""
+        import requests as http_requests
+        import xml.etree.ElementTree as ET
+        
+        feed_url = request.data.get('feed_url', '').strip()
+        if not feed_url:
+            return Response({'error': 'feed_url is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            resp = http_requests.get(feed_url, timeout=15, headers={
+                'User-Agent': 'FreshMotors RSS Reader/1.0',
+                'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            })
+            resp.raise_for_status()
+            
+            content = resp.text.strip()
+            
+            # Check if response is HTML instead of XML/RSS
+            if content.startswith('<!DOCTYPE') or content.startswith('<html'):
+                return Response({
+                    'error': 'URL returned an HTML page, not an RSS/XML feed. Check the feed URL.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Try feedparser first (handles more formats)
+            try:
+                import feedparser
+                parsed = feedparser.parse(content)
+                if parsed.entries:
+                    feed_meta = {
+                        'title': parsed.feed.get('title', ''),
+                        'link': parsed.feed.get('link', ''),
+                        'description': parsed.feed.get('subtitle', '') or parsed.feed.get('description', ''),
+                    }
+                    entries = []
+                    for entry in parsed.entries[:5]:
+                        entries.append({
+                            'title': entry.get('title', 'No title'),
+                            'link': entry.get('link', ''),
+                            'published': entry.get('published', ''),
+                        })
+                    return Response({
+                        'success': True,
+                        'entries_count': len(parsed.entries),
+                        'entries': entries,
+                        'feed_meta': feed_meta
+                    })
+            except ImportError:
+                pass
+            
+            # Fallback to XML parsing
+            root = ET.fromstring(content)
+            
+            entries = []
+            items = root.findall('.//item')
+            if not items:
+                ns = {'atom': 'http://www.w3.org/2005/Atom'}
+                items = root.findall('.//atom:entry', ns)
+            
+            for item in items[:5]:
+                title = item.findtext('title') or item.findtext('{http://www.w3.org/2005/Atom}title') or 'No title'
+                link = item.findtext('link') or ''
+                if not link:
+                    link_el = item.find('{http://www.w3.org/2005/Atom}link')
+                    if link_el is not None:
+                        link = link_el.get('href', '')
+                published = item.findtext('pubDate') or item.findtext('{http://www.w3.org/2005/Atom}published') or ''
+                entries.append({'title': title, 'link': link, 'published': published})
+            
+            total = len(root.findall('.//item')) or len(root.findall('.//{http://www.w3.org/2005/Atom}entry'))
+            
+            # Extract feed metadata
+            channel = root.find('.//channel') or root
+            ns_atom = '{http://www.w3.org/2005/Atom}'
+            feed_meta = {
+                'title': channel.findtext('title') or root.findtext(f'{ns_atom}title') or '',
+                'link': channel.findtext('link') or '',
+                'description': channel.findtext('description') or root.findtext(f'{ns_atom}subtitle') or '',
+            }
+            if not feed_meta['link']:
+                link_el = root.find(f'{ns_atom}link')
+                if link_el is not None:
+                    feed_meta['link'] = link_el.get('href', '')
+            
+            return Response({
+                'success': True,
+                'entries_count': total,
+                'entries': entries,
+                'feed_meta': feed_meta
+            })
+        except http_requests.exceptions.Timeout:
+            return Response({'error': 'Connection timed out. The server may be slow or blocking requests.'}, status=status.HTTP_408_REQUEST_TIMEOUT)
+        except http_requests.exceptions.RequestException as e:
+            return Response({'error': f'Failed to fetch feed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+        except ET.ParseError:
+            return Response({'error': 'Response is not valid XML/RSS. The URL may not point to an RSS feed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class PendingArticleViewSet(viewsets.ModelViewSet):
     """
     Manage pending articles waiting for review.
