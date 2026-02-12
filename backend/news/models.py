@@ -150,7 +150,7 @@ class Tag(models.Model):
         return self.name
 
 class Article(models.Model):
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=500)
     slug = models.SlugField(blank=True, max_length=250, db_index=True)
     summary = models.TextField(blank=True, help_text="Short description for list view")
     content = models.TextField()
