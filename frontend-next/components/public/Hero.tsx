@@ -14,6 +14,7 @@ interface Article {
     image: string;
     created_at: string;
     is_hero: boolean;
+    views: number;
 }
 
 interface SiteSettings {
@@ -35,12 +36,23 @@ export default function Hero({ articles, settings }: HeroProps) {
     // Minimum distance for a swipe to be registered
     const minSwipeDistance = 50;
 
-    // Filter hero articles or fallback to first 3
-    const heroArticles = articles.length > 0
-        ? (articles.filter(a => a.is_hero).length > 0
-            ? articles.filter(a => a.is_hero)
-            : articles.slice(0, 3))
-        : [];
+    // Hero logic: manually marked articles first, then top by views
+    const heroArticles = (() => {
+        if (articles.length === 0) return [];
+
+        // 1. Manually marked hero articles always come first
+        const manualHeroes = articles.filter(a => a.is_hero);
+
+        if (manualHeroes.length >= 5) return manualHeroes.slice(0, 5);
+
+        // 2. Fill remaining slots with top articles by views (excluding already selected)
+        const manualIds = new Set(manualHeroes.map(a => a.id));
+        const remaining = articles
+            .filter(a => !manualIds.has(a.id) && a.image) // must have image
+            .sort((a, b) => (b.views || 0) - (a.views || 0));
+
+        return [...manualHeroes, ...remaining].slice(0, 5);
+    })();
 
     const useClassic = settings?.use_classic_hero || heroArticles.length === 0;
 
