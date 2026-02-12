@@ -45,6 +45,7 @@ export interface Article {
   seo_description: string;
   specs: CarSpecification | null;
   gallery: ArticleImage[];
+  images: ArticleImage[]; // API returns 'images' field
   comments: Comment[];
 }
 

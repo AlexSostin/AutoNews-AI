@@ -48,7 +48,7 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'article_count']
     
     def get_article_count(self, obj):
-        return obj.articles.count()
+        return obj.articles.filter(is_published=True).count()
 
 
 class TagGroupSerializer(serializers.ModelSerializer):

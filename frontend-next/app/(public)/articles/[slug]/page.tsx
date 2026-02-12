@@ -531,8 +531,8 @@ export default async function ArticleDetailPage({
               )}
 
               {/* Image Gallery */}
-              {article.gallery && article.gallery.length > 0 && (
-                <ImageGallery images={article.gallery} />
+              {article.images && article.images.length > 0 && (
+                <ImageGallery images={article.images} />
               )}
 
               {/* Share Buttons */}
