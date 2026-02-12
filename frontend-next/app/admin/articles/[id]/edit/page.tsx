@@ -440,12 +440,15 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     </button>
                   </div>
                 )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null, delete_image: false })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
-                />
+                <label className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer text-sm font-medium">
+                  📁 {formData.current_image && !formData.delete_image ? 'Replace Image' : 'Choose Image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null, delete_image: false })}
+                    className="hidden"
+                  />
+                </label>
                 {formData.image && (
                   <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image.name}</p>
                 )}
@@ -485,12 +488,15 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     </button>
                   </div>
                 )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image_2: e.target.files?.[0] || null, delete_image_2: false })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
-                />
+                <label className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer text-sm font-medium">
+                  📁 {formData.current_image_2 && !formData.delete_image_2 ? 'Replace Image' : 'Choose Image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setFormData({ ...formData, image_2: e.target.files?.[0] || null, delete_image_2: false })}
+                    className="hidden"
+                  />
+                </label>
                 {formData.image_2 && (
                   <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image_2.name}</p>
                 )}
@@ -530,12 +536,15 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     </button>
                   </div>
                 )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image_3: e.target.files?.[0] || null, delete_image_3: false })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
-                />
+                <label className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer text-sm font-medium">
+                  📁 {formData.current_image_3 && !formData.delete_image_3 ? 'Replace Image' : 'Choose Image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setFormData({ ...formData, image_3: e.target.files?.[0] || null, delete_image_3: false })}
+                    className="hidden"
+                  />
+                </label>
                 {formData.image_3 && (
                   <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image_3.name}</p>
                 )}
