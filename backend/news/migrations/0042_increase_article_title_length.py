@@ -10,19 +10,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='category',
-            name='is_visible',
-            field=models.BooleanField(db_index=True, default=True, help_text='Show this category in public navigation and lists'),
-        ),
         migrations.AlterField(
             model_name='article',
             name='title',
             field=models.CharField(max_length=500),
-        ),
-        migrations.AlterField(
-            model_name='articleembedding',
-            name='model_name',
-            field=models.CharField(default='models/gemini-embedding-001', help_text='Gemini model used to generate this embedding', max_length=100),
         ),
     ]
