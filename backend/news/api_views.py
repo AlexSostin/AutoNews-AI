@@ -2400,58 +2400,79 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             
             
             # Handle Images (Upload local files or save Cloudinary URLs)
+            logger.info(f"[APPROVE] Processing images for article '{article.title[:50]}'")
+            logger.info(f"[APPROVE] pending.images = {pending.images}")
+            logger.info(f"[APPROVE] pending.featured_image = {pending.featured_image}")
+            
+            image_sources = []
             if pending.images and isinstance(pending.images, list):
+                image_sources = pending.images[:3]
+            elif pending.featured_image:
+                image_sources = [pending.featured_image]
+            
+            if image_sources:
                 from django.core.files import File
                 from django.core.files.base import ContentFile
                 import os
-                import requests
+                import requests as img_requests
                 
-                # Try to process up to 3 images
-                for i, image_path in enumerate(pending.images[:3]):
+                for i, image_path in enumerate(image_sources):
                     if not image_path: continue
                     
                     try:
                         file_name = f"{slug}_{i+1}.jpg"
                         content_file = None
                         
-                        # Case A: It's a URL (Cloudinary)
+                        # Case A: It's a URL (Pexels, Cloudinary, or other)
                         if image_path.startswith('http'):
-                            print(f"  Downloading image from URL: {image_path}")
-                            resp = requests.get(image_path)
-                            if resp.status_code == 200:
+                            logger.info(f"[APPROVE] Downloading image {i+1} from URL: {image_path[:100]}")
+                            resp = img_requests.get(image_path, timeout=15)
+                            logger.info(f"[APPROVE] Download status: {resp.status_code}, size: {len(resp.content)} bytes")
+                            if resp.status_code == 200 and len(resp.content) > 0:
                                 content_file = ContentFile(resp.content, name=file_name)
+                            else:
+                                logger.warning(f"[APPROVE] Failed to download image: status={resp.status_code}")
                         
-                        # Case B: It's a local file relative path (from our new fix)
+                        # Case B: It's a local file relative path
                         elif image_path.startswith('/media/'):
-                             # Convert /media/screenshots/x.jpg -> .../backend/media/screenshots/x.jpg
                              from django.conf import settings
-                             # Remove leading slash for join, or handle absolute path logic
-                             # settings.BASE_DIR is Path object
                              full_path = os.path.join(settings.BASE_DIR, image_path.lstrip('/'))
-                             print(f"  Reading relative image: {full_path}")
+                             logger.info(f"[APPROVE] Reading relative image: {full_path}")
                              if os.path.exists(full_path):
                                  with open(full_path, 'rb') as f:
                                      content = f.read()
                                      content_file = ContentFile(content, name=file_name)
+                             else:
+                                 logger.warning(f"[APPROVE] Local file not found: {full_path}")
                         
                         # Case C: It's a legacy absolute local path
                         elif os.path.exists(image_path):
-                            print(f"  Reading local image: {image_path}")
+                            logger.info(f"[APPROVE] Reading local image: {image_path}")
                             with open(image_path, 'rb') as f:
                                 content = f.read()
                                 content_file = ContentFile(content, name=file_name)
+                        else:
+                            logger.warning(f"[APPROVE] Image path not recognized/found: {image_path}")
                                 
                         # Save to Article if we have content
                         if content_file:
+                            logger.info(f"[APPROVE] Saving image {i+1} ({file_name}, {len(content_file)} bytes) to article...")
                             if i == 0:
                                 article.image.save(file_name, content_file, save=True)
+                                logger.info(f"[APPROVE] ✓ Image 1 saved. article.image.url = {article.image.url if article.image else 'NONE'}")
                             elif i == 1:
                                 article.image_2.save(file_name, content_file, save=True)
+                                logger.info(f"[APPROVE] ✓ Image 2 saved. article.image_2.url = {article.image_2.url if article.image_2 else 'NONE'}")
                             elif i == 2:
                                 article.image_3.save(file_name, content_file, save=True)
+                                logger.info(f"[APPROVE] ✓ Image 3 saved. article.image_3.url = {article.image_3.url if article.image_3 else 'NONE'}")
+                        else:
+                            logger.warning(f"[APPROVE] No content_file created for image {i+1}")
                                 
                     except Exception as img_err:
-                        print(f"Error saving image {image_path}: {img_err}")
+                        logger.error(f"[APPROVE] Error saving image {image_path}: {img_err}", exc_info=True)
+            else:
+                logger.warning(f"[APPROVE] No images found in pending article")
             
             # Restore Tags from PendingArticle
             if pending.tags and isinstance(pending.tags, list):
