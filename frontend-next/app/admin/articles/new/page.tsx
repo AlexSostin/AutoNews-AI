@@ -220,7 +220,7 @@ export default function NewArticlePage() {
       formDataToSend.append('summary', formData.summary);
       formDataToSend.append('content', formData.content);
       formData.category_ids.forEach(id => formDataToSend.append('category_ids', id.toString()));
-      formDataToSend.append('tag_ids', JSON.stringify(formData.tags));
+      formData.tags.forEach(id => formDataToSend.append('tag_ids', id.toString()));
       formDataToSend.append('is_published', formData.published.toString());
 
       if (formData.youtube_url) {
