@@ -196,31 +196,31 @@ export default function ArticlesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-fixed">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  <th className="w-16 px-2 py-3 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Image
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Title
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  <th className="w-28 px-3 py-3 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Category
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  <th className="w-32 px-3 py-3 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  <th className="w-24 px-3 py-3 text-left text-xs font-bold text-gray-900 uppercase tracking-wider hidden xl:table-cell">
                     Hero
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  <th className="w-20 px-3 py-3 text-left text-xs font-bold text-gray-900 uppercase tracking-wider hidden xl:table-cell">
                     Rating
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  <th className="w-24 px-3 py-3 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  <th className="w-28 px-2 py-3 text-right text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -228,8 +228,8 @@ export default function ArticlesPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredArticles.map((article) => (
                   <tr key={article.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">
-                      <div className="w-20 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                    <td className="px-2 py-3">
+                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                         {article.image ? (
                           <img
                             src={article.image}
@@ -237,91 +237,91 @@ export default function ArticlesPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <span className="text-gray-400 text-xs">No image</span>
+                          <span className="text-gray-400 text-xs">—</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">{article.title}</div>
-                      <div className="text-sm text-gray-600 font-medium">{article.slug}</div>
+                    <td className="px-3 py-3">
+                      <div className="font-bold text-gray-900 truncate text-sm" title={article.title}>{article.title}</div>
+                      <div className="text-xs text-gray-600 font-medium truncate">{article.slug}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">
+                    <td className="px-3 py-3">
+                      <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold truncate block">
                         {article.category_names?.join(', ') || 'None'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                    <td className="px-3 py-3">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={article.is_published}
                           onChange={() => handleTogglePublish(article.id, article.is_published)}
-                          className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                          className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
                         />
                         {/* Show real visibility status: published + has category */}
                         {article.is_published && article.category_names && article.category_names.length > 0 ? (
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                            Published
+                          <span className="px-1.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                            Live
                           </span>
                         ) : article.is_published ? (
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                            No Category
+                          <span className="px-1.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                            No Cat
                           </span>
                         ) : (
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                          <span className="px-1.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
                             Draft
                           </span>
                         )}
                       </label>
                     </td>
-                    <td className="px-6 py-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                    <td className="px-3 py-3 hidden xl:table-cell">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={article.is_hero || false}
                           onChange={() => handleToggleHero(article.id, article.is_hero)}
-                          className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300"
+                          className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 border-gray-300"
                         />
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${article.is_hero
+                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold ${article.is_hero
                           ? 'bg-purple-100 text-purple-700'
                           : 'bg-gray-100 text-gray-400'
                           }`}>
-                          {article.is_hero ? 'Active' : 'No'}
+                          {article.is_hero ? 'Yes' : 'No'}
                         </span>
                       </label>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 hidden xl:table-cell">
                       <div className="flex items-center gap-1">
-                        <span className="text-amber-500">★</span>
-                        <span className="font-bold text-gray-900">{article.average_rating.toFixed(1)}</span>
+                        <span className="text-amber-500 text-sm">★</span>
+                        <span className="font-bold text-gray-900 text-sm">{article.average_rating.toFixed(1)}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700 font-medium">
+                    <td className="px-3 py-3 text-sm text-gray-700 font-medium whitespace-nowrap">
                       {new Date(article.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-2 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <Link
                           href={`/articles/${article.slug}`}
                           target="_blank"
-                          className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                           title="View"
                         >
-                          <Eye size={18} />
+                          <Eye size={16} />
                         </Link>
                         <Link
                           href={`/admin/articles/${article.id}/edit`}
-                          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Edit"
                         >
-                          <Edit size={18} />
+                          <Edit size={16} />
                         </Link>
                         <button
                           onClick={() => handleDelete(article.id)}
-                          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>

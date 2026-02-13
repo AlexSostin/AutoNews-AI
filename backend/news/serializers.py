@@ -197,18 +197,30 @@ class ArticleListSerializer(serializers.ModelSerializer):
         return False
     
     def get_thumbnail_url(self, obj):
-        if obj.image and hasattr(obj.image, 'url'):
-            return obj.image.url
+        if obj.image:
+            img_name = str(obj.image)
+            if img_name.startswith('http'):
+                return img_name
+            if hasattr(obj.image, 'url'):
+                return obj.image.url
         return None
     
     def get_image_2_url(self, obj):
-        if obj.image_2 and hasattr(obj.image_2, 'url'):
-            return obj.image_2.url
+        if obj.image_2:
+            img_name = str(obj.image_2)
+            if img_name.startswith('http'):
+                return img_name
+            if hasattr(obj.image_2, 'url'):
+                return obj.image_2.url
         return None
     
     def get_image_3_url(self, obj):
-        if obj.image_3 and hasattr(obj.image_3, 'url'):
-            return obj.image_3.url
+        if obj.image_3:
+            img_name = str(obj.image_3)
+            if img_name.startswith('http'):
+                return img_name
+            if hasattr(obj.image_3, 'url'):
+                return obj.image_3.url
         return None
 
 
@@ -277,18 +289,30 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         return obj.rating_count()
     
     def get_thumbnail_url(self, obj):
-        if obj.image and hasattr(obj.image, 'url'):
-            return obj.image.url
+        if obj.image:
+            img_name = str(obj.image)
+            if img_name.startswith('http'):
+                return img_name
+            if hasattr(obj.image, 'url'):
+                return obj.image.url
         return None
     
     def get_image_2_url(self, obj):
-        if obj.image_2 and hasattr(obj.image_2, 'url'):
-            return obj.image_2.url
+        if obj.image_2:
+            img_name = str(obj.image_2)
+            if img_name.startswith('http'):
+                return img_name
+            if hasattr(obj.image_2, 'url'):
+                return obj.image_2.url
         return None
     
     def get_image_3_url(self, obj):
-        if obj.image_3 and hasattr(obj.image_3, 'url'):
-            return obj.image_3.url
+        if obj.image_3:
+            img_name = str(obj.image_3)
+            if img_name.startswith('http'):
+                return img_name
+            if hasattr(obj.image_3, 'url'):
+                return obj.image_3.url
         return None
     
     def get_vehicle_specs(self, obj):
