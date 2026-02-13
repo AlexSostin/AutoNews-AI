@@ -89,10 +89,10 @@ export default function PendingArticlesPage() {
         const data = response.data;
 
         if (!publish && data.article_slug) {
-          setMessage({ type: 'success', text: 'Article approved as draft! Redirecting...' });
+          setMessage({ type: 'success', text: 'Article approved as draft! Waiting for images to upload...' });
           setTimeout(() => {
             window.location.href = `/admin/articles/${data.article_slug}/edit`;
-          }, 1500);
+          }, 4000); // Increased from 1500ms to 4000ms to allow Cloudinary to finish uploading images
         } else {
           setMessage({ type: 'success', text: 'Article published successfully!' });
         }
