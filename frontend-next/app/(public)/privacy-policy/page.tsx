@@ -162,6 +162,43 @@ export default function PrivacyPolicyPage() {
                   </p>
                 </section>
 
+                {/* Google Advertising */}
+                <section className="mb-10">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-yellow-100 p-2 rounded-lg">
+                      <Eye className="text-yellow-600" size={24} />
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900">Google Advertising</h2>
+                  </div>
+
+                  <p className="text-gray-700 mb-4">
+                    We use Google AdSense to display advertisements on our website. Google AdSense is an advertising
+                    service provided by Google LLC. Third-party vendors, including Google, use cookies to serve ads
+                    based on your prior visits to this website or other websites.
+                  </p>
+                  <p className="text-gray-700 mb-4">
+                    Google&apos;s use of advertising cookies enables it and its partners to serve ads to you based on
+                    your visit to our site and/or other sites on the Internet. You may opt out of personalised
+                    advertising by visiting{' '}
+                    <a href="https://www.google.com/settings/ads" className="text-purple-600 hover:text-purple-800 font-medium underline" target="_blank" rel="noopener noreferrer">
+                      Google Ads Settings
+                    </a>.
+                  </p>
+                  <p className="text-gray-700 mb-4">
+                    For more information about how Google uses data when you use our website, please visit{' '}
+                    <a href="https://policies.google.com/technologies/partner-sites" className="text-purple-600 hover:text-purple-800 font-medium underline" target="_blank" rel="noopener noreferrer">
+                      How Google uses data when you use our partners&apos; sites or apps
+                    </a>.
+                  </p>
+                  <p className="text-gray-700">
+                    Third-party ad servers or ad networks may use technologies such as cookies, JavaScript,
+                    or web beacons in their respective advertisements and links that appear on our website.
+                    These technologies are used to measure the effectiveness of their advertising campaigns
+                    and/or to personalise the advertising content that you see. Fresh Motors has no access to
+                    or control over these cookies that are used by third-party advertisers.
+                  </p>
+                </section>
+
                 {/* Disclosure of Information */}
                 <section className="mb-10">
                   <div className="flex items-center gap-3 mb-4">
