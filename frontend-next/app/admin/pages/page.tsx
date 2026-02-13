@@ -184,10 +184,11 @@ export default function PagesPage() {
       setFormData({
         ...defaultSettings,
         ...settings,
-        // Sync defaults if DB is empty
-        about_page_content: settings?.about_page_content?.trim() || defaultAboutContent,
-        privacy_page_content: settings?.privacy_page_content?.trim() || defaultPrivacyContent,
-        terms_page_content: settings?.terms_page_content?.trim() || defaultTermsContent,
+        // Only use defaults if the field is null/undefined (not saved yet)
+        // Empty string means user intentionally cleared the content
+        about_page_content: settings?.about_page_content ?? defaultAboutContent,
+        privacy_page_content: settings?.privacy_page_content ?? defaultPrivacyContent,
+        terms_page_content: settings?.terms_page_content ?? defaultTermsContent,
       });
     } catch (error) {
       console.error('Failed to fetch settings:', error);
