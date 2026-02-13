@@ -204,7 +204,13 @@ class Article(models.Model):
         # Helper for batch optimization
         def process_img(field_name):
             img = getattr(self, field_name)
-            if img and hasattr(img, 'file') and not img.name.endswith('_optimized.webp'):
+            if not img:
+                return
+            # Skip optimization for direct URLs (e.g. Cloudinary URLs assigned during approve)
+            img_name = getattr(img, 'name', str(img))
+            if img_name.startswith('http'):
+                return
+            if hasattr(img, 'file') and not img_name.endswith('_optimized.webp'):
                 try:
                     optimized_img = optimize_image(img, max_width=1920, max_height=1080, quality=85)
                     if optimized_img:
