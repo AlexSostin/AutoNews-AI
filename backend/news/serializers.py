@@ -9,6 +9,24 @@ from .models import (
 )
 
 
+def _fix_cloudinary_image_urls(representation):
+    """Fix double-prefixed Cloudinary URLs in serializer output.
+    
+    When a direct Cloudinary URL is stored in Django's ImageField,
+    the storage backend prepends its base URL during serialization,
+    creating broken URLs like: cloudinary.com/.../media/https://cloudinary.com/...
+    This extracts the real URL.
+    """
+    for field in ('image', 'image_2', 'image_3'):
+        val = representation.get(field)
+        if val and isinstance(val, str) and val.count('https://') > 1:
+            # Extract the last full URL (the real one)
+            last_https = val.rfind('https://')
+            if last_https > 0:
+                representation[field] = val[last_https:]
+    return representation
+
+
 def validate_image_file(image):
     """Validate image file size and format"""
     if not image:
@@ -223,6 +241,10 @@ class ArticleListSerializer(serializers.ModelSerializer):
                 return obj.image_3.url
         return None
 
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        return _fix_cloudinary_image_urls(rep)
+
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
     """Full serializer with all relations"""
@@ -314,6 +336,10 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
             if hasattr(obj.image_3, 'url'):
                 return obj.image_3.url
         return None
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        return _fix_cloudinary_image_urls(rep)
     
     def get_vehicle_specs(self, obj):
         """Safely get vehicle specs - handles case where table may not exist"""
