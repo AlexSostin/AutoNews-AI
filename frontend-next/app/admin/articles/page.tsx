@@ -31,6 +31,8 @@ export default function ArticlesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [pagination, setPagination] = useState<PaginationInfo>({ count: 0, next: null, previous: null });
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchArticles();
@@ -65,12 +67,17 @@ export default function ArticlesPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
 
+    setDeletingId(id);
     try {
       await api.delete(`/articles/${id}/`);
-      setArticles(articles.filter(a => a.id !== id));
+      setArticles(prev => prev.filter(a => a.id !== id));
+      setSuccessMessage('Article deleted successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Failed to delete article:', error);
       alert('Failed to delete article');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -121,6 +128,12 @@ export default function ArticlesPage() {
 
   return (
     <div>
+      {/* Success Toast */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg font-semibold flex items-center gap-2 animate-pulse">
+          ✓ {successMessage}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Articles</h1>
         <Link
@@ -227,7 +240,7 @@ export default function ArticlesPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredArticles.map((article) => (
-                  <tr key={article.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={article.id} className={`hover:bg-gray-50 transition-colors ${deletingId === article.id ? 'opacity-50' : ''}`}>
                     <td className="px-2 py-3">
                       <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                         {article.image ? (
@@ -318,10 +331,15 @@ export default function ArticlesPage() {
                         </Link>
                         <button
                           onClick={() => handleDelete(article.id)}
-                          className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          disabled={deletingId === article.id}
+                          className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           title="Delete"
                         >
-                          <Trash2 size={16} />
+                          {deletingId === article.id ? (
+                            <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
                         </button>
                       </div>
                     </td>

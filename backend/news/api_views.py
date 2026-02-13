@@ -599,13 +599,13 @@ class ArticleViewSet(viewsets.ModelViewSet):
         return super().retrieve(request, *args, **kwargs)
     
     def destroy(self, request, *args, **kwargs):
-        """Delete article and immediately invalidate cache"""
+        """Delete article and immediately clear ALL cache (delete is rare, reliability > speed)"""
         instance = self.get_object()
         article_id = instance.id
         slug = instance.slug
         instance.delete()
-        invalidate_article_cache(article_id=article_id, slug=slug)
-        logger.info(f"Article deleted and cache invalidated: id={article_id}, slug={slug}")
+        cache.clear()  # Full clear for delete - reliable, and delete is rare
+        logger.info(f"Article deleted and all cache cleared: id={article_id}, slug={slug}")
         return Response(status=status.HTTP_204_NO_CONTENT)
     
     def update(self, request, *args, **kwargs):
