@@ -68,7 +68,7 @@ export default async function CategoryPage({
   const { slug } = await params;
   const category = await getCategory(slug);
 
-  if (!category) {
+  if (!category || category.is_visible === false) {
     notFound();
   }
 

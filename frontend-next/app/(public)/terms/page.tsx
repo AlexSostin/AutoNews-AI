@@ -55,7 +55,7 @@ export default function TermsPage() {
             <FileText className="mx-auto mb-4 text-purple-300" size={48} />
             <h1 className="text-4xl md:text-5xl font-black mb-4">{pageTitle}</h1>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              Last Updated: January 17, 2026
+              Last Updated: February 13, 2026
             </p>
           </div>
         </div>

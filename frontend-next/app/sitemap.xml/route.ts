@@ -81,7 +81,7 @@ export async function GET() {
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>`).join('')}
-  ${categories.map((category: any) => `
+  ${categories.filter((category: any) => category.is_visible !== false && category.article_count > 0).map((category: any) => `
   <url>
     <loc>${SITE_URL}/categories/${category.slug}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
