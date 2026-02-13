@@ -4,7 +4,7 @@ from django.conf import settings
 from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
-    YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, EmailPreferences,
+    YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, EmailPreferences,
     AdminNotification, VehicleSpecs, NewsletterSubscriber
 )
 
@@ -531,6 +531,23 @@ class RSSFeedSerializer(serializers.ModelSerializer):
     
     def get_category_name(self, obj):
         return obj.default_category.name if obj.default_category else None
+
+
+class RSSNewsItemSerializer(serializers.ModelSerializer):
+    """Serializer for raw RSS news items (news reader)"""
+    feed_name = serializers.CharField(source='rss_feed.name', read_only=True)
+    feed_logo = serializers.URLField(source='rss_feed.logo_url', read_only=True)
+    feed_source_type = serializers.CharField(source='rss_feed.source_type', read_only=True)
+    
+    class Meta:
+        model = RSSNewsItem
+        fields = [
+            'id', 'rss_feed', 'feed_name', 'feed_logo', 'feed_source_type',
+            'title', 'content', 'excerpt', 'source_url', 'image_url',
+            'published_at', 'status', 'pending_article',
+            'created_at',
+        ]
+        read_only_fields = ['created_at']
 
 
 class PendingArticleRSSFeedSerializer(serializers.ModelSerializer):

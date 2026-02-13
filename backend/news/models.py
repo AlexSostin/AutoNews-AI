@@ -485,6 +485,57 @@ class RSSFeed(models.Model):
         return self.name
 
 
+class RSSNewsItem(models.Model):
+    """Raw RSS news items stored without AI processing.
+    
+    These are the original RSS entries that the user can browse
+    in the admin panel and selectively send to AI for article generation.
+    """
+    STATUS_CHOICES = [
+        ('new', 'New'),
+        ('read', 'Read'),
+        ('generating', 'Generating Article'),
+        ('generated', 'Article Generated'),
+        ('dismissed', 'Dismissed'),
+    ]
+    
+    rss_feed = models.ForeignKey(
+        RSSFeed, on_delete=models.CASCADE,
+        related_name='news_items'
+    )
+    title = models.CharField(max_length=500)
+    content = models.TextField(blank=True, help_text="Raw HTML content from RSS")
+    excerpt = models.TextField(blank=True, help_text="Plain text snippet for preview")
+    source_url = models.URLField(blank=True, help_text="Link to original article")
+    image_url = models.URLField(blank=True, max_length=1000, help_text="Featured image URL")
+    content_hash = models.CharField(
+        max_length=64, blank=True, db_index=True,
+        help_text="SHA256 hash for deduplication"
+    )
+    published_at = models.DateTimeField(null=True, blank=True, help_text="Original publication date")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    
+    # Link to generated article (if any)
+    pending_article = models.ForeignKey(
+        'PendingArticle', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='source_news_item'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "RSS News Item"
+        verbose_name_plural = "RSS News Items"
+        indexes = [
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['rss_feed', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"[{self.get_status_display()}] {self.title[:80]}"
+
+
 class PendingArticle(models.Model):
     """Articles waiting for review before publishing"""
     STATUS_CHOICES = [

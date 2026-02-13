@@ -87,25 +87,26 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
             try:
                 content = None
                 filename = None
+                cloudinary_url = None
                 
-                # Case A: URL (Cloudinary)
-                if img_path.startswith('http'):
+                # Case A: Already on Cloudinary - reuse directly
+                if 'cloudinary.com' in img_path:
+                    print(f"  ♻️ Reusing Cloudinary URL for image {i+1}: {img_path}")
+                    cloudinary_url = img_path
+                
+                # Case B: Non-Cloudinary URL (Pexels, etc)
+                elif img_path.startswith('http'):
                     print(f"  ⬇️ Downloading image from URL: {img_path}")
                     resp = requests.get(img_path)
                     if resp.status_code == 200:
                         content = ContentFile(resp.content)
-                        # Extract filename from URL or generate one
-                        if '/pending_articles/' in img_path:
-                             filename = img_path.split('/')[-1]
-                        else:
-                             filename = f"image_{i+1}.jpg"
+                        filename = f"image_{i+1}.jpg"
                     else:
                         print(f"  ❌ Failed to download: {resp.status_code}")
                 
-                # Case B: Local File (Relative or Absolute)
+                # Case C: Local File (Relative or Absolute)
                 elif img_path.startswith('/media/'):
                     from django.conf import settings
-                    # Convert /media/screenshots/x.jpg -> .../backend/media/screenshots/x.jpg
                     full_path = os.path.join(settings.BASE_DIR, img_path.lstrip('/'))
                     if os.path.exists(full_path):
                         print(f"  📂 Reading relative media: {full_path}")
@@ -126,8 +127,16 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
                 else:
                     print(f"  ⚠️ Image file not found: {img_path}")
                     
-                # Save if we got content
-                if content and filename:
+                # Save if we got cloudinary URL or content
+                if cloudinary_url:
+                    if i == 0:
+                        article.image = cloudinary_url
+                    elif i == 1:
+                        article.image_2 = cloudinary_url
+                    elif i == 2:
+                        article.image_3 = cloudinary_url
+                    print(f"  ✓ Image {i+1} assigned from Cloudinary")
+                elif content and filename:
                     if i == 0:
                         article.image.save(filename, content, save=False)
                     elif i == 1:

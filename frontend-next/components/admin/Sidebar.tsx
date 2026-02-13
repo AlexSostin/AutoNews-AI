@@ -38,7 +38,7 @@ const menuItems = [
   { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
   { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },
   { href: '/admin/rss-feeds', icon: Rss, label: 'RSS Feeds' },
-  { href: '/admin/rss-pending', icon: FileStack, label: 'RSS Pending' },
+  { href: '/admin/rss-pending', icon: FileStack, label: 'RSS News' },
   { href: '/admin/pages', icon: FileStack, label: 'Pages' },
   { href: '/admin/settings', icon: Settings, label: 'Site Settings' },
   { href: '/admin/account', icon: UserCog, label: 'Account Settings' },

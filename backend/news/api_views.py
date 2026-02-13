@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, filters
 from django.db.models import Avg, Count, Exists, OuterRef, Subquery
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, BasePermission, AllowAny
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, BasePermission, AllowAny, IsAdminUser
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
@@ -15,7 +15,7 @@ from django.utils import timezone
 from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
-    YouTubeChannel, RSSFeed, PendingArticle, AutoPublishSchedule, AdminNotification,
+    YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, AdminNotification,
     VehicleSpecs, NewsletterSubscriber
 )
 from .serializers import (
@@ -23,7 +23,7 @@ from .serializers import (
     CategorySerializer, TagSerializer, TagGroupSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
     SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer, NewsletterHistorySerializer,
-    YouTubeChannelSerializer, RSSFeedSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
+    YouTubeChannelSerializer, RSSFeedSerializer, RSSNewsItemSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
     AdminNotificationSerializer, VehicleSpecsSerializer
 )
 import os
@@ -32,6 +32,68 @@ import re
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def invalidate_article_cache(article_id=None, slug=None):
+    """
+    Selectively invalidate cache keys related to articles.
+    Much faster than cache.clear() which deletes EVERYTHING.
+    
+    Args:
+        article_id: Article ID to invalidate specific article cache
+        slug: Article slug to invalidate specific article cache
+    """
+    keys_to_delete = []
+    
+    # Specific article keys
+    if article_id:
+        keys_to_delete.append(f'article_{article_id}')
+    if slug:
+        keys_to_delete.append(f'article_slug_{slug}')
+    
+    # Pattern-based keys (need to scan Redis)
+    patterns_to_delete = [
+        'article_list_*',     # Article list pages
+        'articles_page_*',    # Paginated lists
+        'category_*',         # Category views (article counts changed)
+        'homepage_*',         # Homepage caches
+        'trending_*',         # Trending articles
+        'latest_*',           # Latest articles
+        'featured_*',         # Featured articles
+        'views.decorators.cache.cache_*',  # Django @cache_page keys
+        ':1:views.decorators.cache.cache_page*',  # Django cache_page with prefix
+    ]
+    
+    # Delete simple keys first
+    if keys_to_delete:
+        cache.delete_many(keys_to_delete)
+    
+    # Delete pattern-matched keys
+    try:
+        from django.core.cache.backends.redis import RedisCache
+        if isinstance(cache, RedisCache) or hasattr(cache, '_cache'):
+            # Use Redis SCAN for pattern matching (safe for large datasets)
+            redis_client = cache._cache.get_client() if hasattr(cache._cache, 'get_client') else cache._cache
+            
+            for pattern in patterns_to_delete:
+                cursor = 0
+                while True:
+                    cursor, keys = redis_client.scan(cursor, match=pattern, count=100)
+                    if keys:
+                        # Decode bytes to strings if needed
+                        str_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in keys]
+                        cache.delete_many(str_keys)
+                    if cursor == 0:
+                        break
+            
+            logger.info(f"Selectively invalidated article cache (article_id={article_id}, slug={slug})")
+        else:
+            # Fallback for non-Redis backends - still better than clearing everything
+            logger.warning("Non-Redis cache backend - pattern matching not supported")
+            cache.delete_many(keys_to_delete)
+    except Exception as e:
+        logger.warning(f"Failed to invalidate pattern cache keys: {e}")
+        # Still better to continue than fail
 
 
 class CurrentUserView(APIView):
@@ -522,7 +584,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         # Cache for anonymous users only
         return self._cached_list(request, *args, **kwargs)
     
-    @method_decorator(cache_page(60 * 5))  # Cache for 5 minutes
+    @method_decorator(cache_page(30))  # Cache for 30 seconds (was 5 min - too long for fresh content)
     def _cached_list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
     
@@ -532,7 +594,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return super().retrieve(request, *args, **kwargs)
         return self._cached_retrieve(request, *args, **kwargs)
     
-    @method_decorator(cache_page(60 * 5))  # Cache for 5 minutes
+    @method_decorator(cache_page(60))  # Cache for 1 minute (was 5 min)
     def _cached_retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
     
@@ -592,16 +654,17 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     
                 if changed:
                     instance.save()
-                    # Refresh response data with same context
                     serializer = self.get_serializer(instance)
                     response = Response(serializer.data)
                 
-                # Clear cache safely
+                # Selectively invalidate cache (MUCH faster than cache.clear())
                 try:
-                    cache.clear()
-                    logger.info(f"Cache cleared after article update: {instance.id}")
+                    invalidate_article_cache(
+                        article_id=instance.id,
+                        slug=instance.slug
+                    )
                 except Exception as cache_err:
-                    logger.warning(f"Failed to clear cache: {cache_err}")
+                    logger.warning(f"Failed to invalidate article cache: {cache_err}")
                     
             except Exception as inner_err:
                 logger.error(f"Error in ArticleViewSet.update post-processing: {inner_err}")
@@ -676,9 +739,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
             article_id = result['article_id']
             print(f"[generate_from_youtube] Draft Article created with ID: {article_id}")
             
-            # Clear cache so new article appears immediately
+            # Invalidate cache so new article appears immediately
             from django.core.cache import cache
-            cache.clear()
+            invalidate_article_cache(article_id=article_id)
             
             # Fetch the article to verify
             try:
@@ -787,7 +850,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
                         article.categories.add(cat)
 
                 from django.core.cache import cache
-                cache.clear()
+                invalidate_article_cache(article_id=article.id, slug=article.slug)
 
                 result['article_id'] = article.id
                 result['article_slug'] = article.slug
@@ -882,10 +945,10 @@ class ArticleViewSet(viewsets.ModelViewSet):
         # This fixes the bug where rating resets to 0.0 on refresh
         try:
             from django.core.cache import cache
-            cache.clear() # Simplest way to ensure all lists and details are fresh
-            logger.info(f"Cache cleared after rating article: {article.id}")
+            invalidate_article_cache(article_id=article.id, slug=article.slug)
+            logger.info(f"Cache invalidated after rating article: {article.id}")
         except Exception as e:
-            logger.error(f"Failed to clear cache: {e}")
+            logger.error(f"Failed to invalidate cache: {e}")
         
         return Response({
             'average_rating': article.average_rating(),
@@ -941,10 +1004,10 @@ class ArticleViewSet(viewsets.ModelViewSet):
             # Sync to database every 10 views (reduces DB writes)
             if new_count % 10 == 0:
                 Article.objects.filter(id=article.id).update(views=new_count)
-                # Clear cache so the new view count is visible
+                # Invalidate article cache so the new view count is visible
                 try:
                     from django.core.cache import cache
-                    cache.clear()
+                    invalidate_article_cache(article_id=article.id, slug=article.slug)
                 except Exception:
                     pass
             
@@ -2048,9 +2111,9 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             )
             
             if result.get('success'):
-                # Clear cache to ensure pending counts are updated
-                cache.clear()
-                logger.info(f"Cache cleared after manual generation for channel {channel.name}")
+                # Invalidate cache to ensure pending counts are updated
+                invalidate_article_cache()
+                logger.info(f"Cache invalidated after manual generation for channel {channel.name}")
                 return Response(result)
             else:
                 return Response(result, status=status.HTTP_400_BAD_REQUEST)
@@ -2285,6 +2348,148 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
             return Response({'error': f'Failed to fetch feed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
         except ET.ParseError:
             return Response({'error': 'Response is not valid XML/RSS. The URL may not point to an RSS feed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RSSNewsItemViewSet(viewsets.ModelViewSet):
+    """
+    Browse raw RSS news items and generate articles on demand.
+    Staff only.
+    """
+    queryset = RSSNewsItem.objects.select_related('rss_feed', 'pending_article').all()
+    serializer_class = RSSNewsItemSerializer
+    permission_classes = [IsAdminUser]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filter by feed
+        feed_id = self.request.query_params.get('feed')
+        if feed_id:
+            queryset = queryset.filter(rss_feed_id=feed_id)
+        
+        # Filter by status
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        # By default, exclude dismissed items
+        if not self.request.query_params.get('show_dismissed'):
+            queryset = queryset.exclude(status='dismissed')
+        
+        return queryset
+    
+    @action(detail=True, methods=['post'])
+    def generate(self, request, pk=None):
+        """Generate an AI article from this RSS news item."""
+        news_item = self.get_object()
+        
+        if news_item.status == 'generated':
+            return Response(
+                {'error': 'Article already generated for this news item'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        news_item.status = 'generating'
+        news_item.save(update_fields=['status'])
+        
+        try:
+            from ai_engine.modules.article_generator import expand_press_release
+            from ai_engine.main import extract_title, validate_title, _is_generic_header
+            import re
+            
+            # Strip HTML tags to get plain text for AI
+            plain_text = re.sub(r'<[^>]+>', '', news_item.content).strip()
+            if not plain_text:
+                plain_text = news_item.excerpt
+            
+            provider = request.data.get('provider', 'groq')
+            if provider not in ('groq', 'gemini'):
+                provider = 'groq'
+            
+            # Expand with AI
+            expanded_content = expand_press_release(
+                press_release_text=plain_text,
+                source_url=news_item.source_url,
+                provider=provider
+            )
+            
+            # Extract and validate title
+            ai_title = extract_title(expanded_content)
+            if not ai_title or _is_generic_header(ai_title):
+                ai_title = news_item.title
+            ai_title = validate_title(ai_title)
+            
+            # Convert markdown to HTML if needed
+            if '###' in expanded_content and '<h2>' not in expanded_content:
+                try:
+                    import markdown
+                    expanded_content = markdown.markdown(expanded_content, extensions=['fenced_code', 'tables'])
+                except Exception:
+                    pass
+            
+            # Content quality check
+            word_count = len(re.sub(r'<[^>]+>', '', expanded_content).split())
+            if word_count < 200:
+                news_item.status = 'new'
+                news_item.save(update_fields=['status'])
+                return Response(
+                    {'error': f'AI content too short ({word_count} words), try again'},
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY
+                )
+            
+            # Build images list
+            images = [news_item.image_url] if news_item.image_url else []
+            
+            # Create PendingArticle
+            pending = PendingArticle.objects.create(
+                rss_feed=news_item.rss_feed,
+                source_url=news_item.source_url,
+                content_hash=news_item.content_hash,
+                title=ai_title,
+                content=expanded_content,
+                excerpt=plain_text[:500],
+                images=images,
+                featured_image=news_item.image_url or '',
+                suggested_category=news_item.rss_feed.default_category if news_item.rss_feed else None,
+                status='pending'
+            )
+            
+            # Update news item
+            news_item.status = 'generated'
+            news_item.pending_article = pending
+            news_item.save(update_fields=['status', 'pending_article'])
+            
+            return Response({
+                'success': True,
+                'message': f'Article generated: {ai_title}',
+                'pending_article_id': pending.id
+            })
+            
+        except Exception as e:
+            logger.error(f'Error generating article from RSS news item {pk}: {e}', exc_info=True)
+            news_item.status = 'new'
+            news_item.save(update_fields=['status'])
+            return Response(
+                {'error': f'Generation failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'])
+    def dismiss(self, request, pk=None):
+        """Dismiss a news item (hide from feed)."""
+        news_item = self.get_object()
+        news_item.status = 'dismissed'
+        news_item.save(update_fields=['status'])
+        return Response({'success': True})
+    
+    @action(detail=False, methods=['post'])
+    def bulk_dismiss(self, request):
+        """Dismiss multiple news items."""
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({'error': 'No IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+        count = RSSNewsItem.objects.filter(id__in=ids).update(status='dismissed')
+        return Response({'success': True, 'count': count})
 
 
 class PendingArticleViewSet(viewsets.ModelViewSet):
@@ -2538,10 +2743,10 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             # The ArticleViewSet list uses @cache_page(300) for anonymous users
             try:
                 from django.core.cache import cache
-                cache.clear()
-                logger.info(f"Cache cleared after publishing article: {article.slug}")
+                invalidate_article_cache(article_id=article.id, slug=article.slug)
+                logger.info(f"Cache invalidated after publishing article: {article.slug}")
             except Exception as cache_err:
-                logger.warning(f"Failed to clear cache: {cache_err}")
+                logger.warning(f"Failed to invalidate cache: {cache_err}")
             
             return Response({
                 'message': 'Article approved successfully' if not is_published else 'Article published successfully',

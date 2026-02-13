@@ -96,7 +96,7 @@ class RSSAggregator:
     def is_duplicate(self, title: str, content: str, source_url: str = '', days_back: int = 30) -> bool:
         """
         Check if article is a duplicate based on title similarity, content hash,
-        or source URL. Checks BOTH PendingArticle AND published Article tables.
+        or source URL. Checks RSSNewsItem, PendingArticle AND published Article tables.
         
         Args:
             title: Article title
@@ -107,7 +107,17 @@ class RSSAggregator:
         Returns:
             True if duplicate found, False otherwise
         """
+        from news.models import RSSNewsItem
+        
         content_hash = self.calculate_content_hash(content)
+        
+        # 0. Check content hash and source URL in RSSNewsItem
+        if RSSNewsItem.objects.filter(content_hash=content_hash).exists():
+            logger.info(f"Duplicate found by content hash (news item): {title[:50]}")
+            return True
+        if source_url and RSSNewsItem.objects.filter(source_url=source_url).exists():
+            logger.info(f"Duplicate found by source URL (news item): {title[:50]}")
+            return True
         
         # 1. Check content hash in PendingArticle (exact content match)
         if PendingArticle.objects.filter(content_hash=content_hash).exists():
@@ -127,8 +137,19 @@ class RSSAggregator:
             except Exception:
                 pass  # Article model doesn't have source_url field
         
-        # 3. Check title similarity in recent PendingArticles
+        # 3. Check title similarity in recent RSSNewsItems
         cutoff_date = timezone.now() - timedelta(days=days_back)
+        recent_news_items = RSSNewsItem.objects.filter(
+            created_at__gte=cutoff_date
+        ).values_list('title', flat=True)
+        
+        for existing_title in recent_news_items:
+            similarity = self.calculate_title_similarity(title, existing_title)
+            if similarity >= self.SIMILARITY_THRESHOLD:
+                logger.info(f"Duplicate found by title similarity (news item, {similarity:.2%}): {title[:50]}")
+                return True
+        
+        # 4. Check title similarity in recent PendingArticles
         recent_pending = PendingArticle.objects.filter(
             created_at__gte=cutoff_date
         ).values_list('title', flat=True)
@@ -139,7 +160,7 @@ class RSSAggregator:
                 logger.info(f"Duplicate found by title similarity (pending, {similarity:.2%}): {title[:50]}")
                 return True
         
-        # 4. Check title similarity in published Articles
+        # 5. Check title similarity in published Articles
         recent_articles = Article.objects.filter(
             created_at__gte=cutoff_date,
             is_deleted=False
@@ -524,16 +545,21 @@ class RSSAggregator:
     
     def process_feed(self, rss_feed: RSSFeed, limit: int = 10, use_ai: bool = True) -> int:
         """
-        Process RSS feed and create PendingArticles.
+        Process RSS feed and create RSSNewsItem entries for manual review.
+        
+        No AI is called during scanning — items are saved raw.
+        AI article generation happens on-demand when user clicks "Generate Article".
         
         Args:
             rss_feed: RSSFeed model instance
             limit: Maximum number of entries to process
-            use_ai: Whether to use AI to expand press releases (default: True)
+            use_ai: Ignored (kept for API compatibility)
             
         Returns:
-            Number of articles created
+            Number of news items created
         """
+        from news.models import RSSNewsItem
+        
         feed_data = self.fetch_feed(rss_feed.feed_url)
         if not feed_data:
             return 0
@@ -554,12 +580,12 @@ class RSSAggregator:
                 plain_text = self.extract_plain_text(entry)  # For excerpt
                 content = self.extract_content(entry)  # HTML version
                 
-                # Skip if no content or too short (minimum 300 chars for quality)
-                if not plain_text or len(plain_text) < 300:
+                # Skip if no content or too short (minimum 100 chars — lowered since no AI needed)
+                if not plain_text or len(plain_text) < 100:
                     logger.debug(f"Skipping entry with insufficient content ({len(plain_text) if plain_text else 0} chars): {title[:50]}")
                     continue
                 
-                # Check for duplicates (now checks both PendingArticle AND Article)
+                # Check for duplicates (checks RSSNewsItem, PendingArticle AND Article)
                 if self.is_duplicate(title, plain_text, source_url=source_url):
                     logger.debug(f"Skipping duplicate: {title[:50]}")
                     continue
@@ -574,23 +600,7 @@ class RSSAggregator:
                         images = [og_image]
                         logger.info(f'Added og:image for: {title[:50]}')
                 
-                # Fallback 2: Pexels stock image search
-                if not images:
-                    try:
-                        from ai_engine.modules.pexels_client import search_automotive_image
-                        from ai_engine.config import PEXELS_ENABLED
-                        
-                        if PEXELS_ENABLED:
-                            brand = rss_feed.name.split()[0] if rss_feed.name else ''
-                            pexels_image = search_automotive_image(title, brand=brand, content=content[:500])
-                            
-                            if pexels_image:
-                                images = [pexels_image]
-                                logger.info(f'Added Pexels image for: {title[:50]}')
-                    except Exception as e:
-                        logger.warning(f'Pexels image search failed: {e}')
-                
-                # Fallback 3: RSS feed logo
+                # Fallback 2: RSS feed logo
                 if not images and rss_feed.logo_url:
                     images = [rss_feed.logo_url]
                     logger.info(f'Using RSS feed logo as fallback for: {title[:50]}')
@@ -603,34 +613,19 @@ class RSSAggregator:
                 # Get publication date
                 pub_date = self.parse_entry_date(entry)
                 
-                # Try AI enhancement if enabled
-                pending = None
-                if use_ai:
-                    pending = self.create_pending_with_ai(
-                        rss_feed, entry, plain_text, images, content_hash
-                    )
-                
-                # Fallback to basic creation if AI fails or disabled
-                if not pending:
-                    # Add source attribution to content
-                    content_with_source = content
-                    if source_url:
-                        source_name = rss_feed.name or 'Source'
-                        content_with_source += f'\n<p class="source-attribution" style="margin-top: 2rem; padding: 1rem; background: #f3f4f6; border-left: 4px solid #3b82f6; font-size: 0.875rem;">\n    <strong>Source:</strong> {source_name}. \n    <a href="{source_url}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">View original article</a>\n</p>'
-                    
-                    pending = PendingArticle.objects.create(
-                        rss_feed=rss_feed,
-                        source_url=source_url,
-                        content_hash=content_hash,
-                        title=title,
-                        content=content_with_source,
-                        excerpt=plain_text[:500] if len(plain_text) > 500 else plain_text,  # Use plain text for excerpt
-                        images=images,
-                        featured_image=featured_image,
-                        suggested_category=rss_feed.default_category,
-                        status='pending'
-                    )
-                    logger.info(f"Created basic PendingArticle: {title[:50]}")
+                # Create RSSNewsItem (raw, no AI processing)
+                RSSNewsItem.objects.create(
+                    rss_feed=rss_feed,
+                    title=title,
+                    content=content,
+                    excerpt=plain_text[:500] if len(plain_text) > 500 else plain_text,
+                    source_url=source_url,
+                    image_url=featured_image,
+                    content_hash=content_hash,
+                    published_at=pub_date,
+                    status='new'
+                )
+                logger.info(f"Saved RSS news item: {title[:50]}")
                 
                 created_count += 1
                 
@@ -647,5 +642,6 @@ class RSSAggregator:
         rss_feed.entries_processed += created_count
         rss_feed.save()
         
-        logger.info(f"Processed {created_count} new articles from {rss_feed.name}")
+        logger.info(f"Processed {created_count} new RSS news items from {rss_feed.name}")
         return created_count
+
