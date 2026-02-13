@@ -293,6 +293,8 @@ class GSCAnalyticsAPIView(APIView):
         current_summary = get_summary(last_7_start, last_7_end)
         previous_summary = get_summary(prev_7_start, prev_7_end)
 
+        last_report = GSCReport.objects.order_by('-updated_at').first()
+        
         return Response({
             'timeline': {
                 'labels': labels,
@@ -301,5 +303,5 @@ class GSCAnalyticsAPIView(APIView):
             },
             'summary': current_summary,
             'previous_summary': previous_summary,
-            'last_sync': GSCReport.objects.order_by('-updated_at').first().updated_at.isoformat() if reports.exists() else None
+            'last_sync': last_report.updated_at.isoformat() if last_report else None
         })

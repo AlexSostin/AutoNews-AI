@@ -239,7 +239,11 @@ export default function AnalyticsPage() {
         {gscStats && (
           <div className="bg-green-50 px-4 py-2 rounded-lg border border-green-100 hidden sm:block">
             <p className="text-xs text-green-700 font-medium">Last GSC Sync:</p>
-            <p className="text-sm text-green-800 font-bold">{new Date(gscStats.last_sync || '').toLocaleString()}</p>
+            <p className="text-sm text-green-800 font-bold">
+              {gscStats.last_sync
+                ? new Date(gscStats.last_sync).toLocaleString()
+                : 'Never synced yet'}
+            </p>
           </div>
         )}
       </div>
