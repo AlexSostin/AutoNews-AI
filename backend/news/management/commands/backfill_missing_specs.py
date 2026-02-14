@@ -99,7 +99,7 @@ class Command(BaseCommand):
                 'model': model,
                 'trim': specs.get('trim', '') if specs.get('trim') != 'Not specified' else '',
                 'engine': specs.get('engine', '') if specs.get('engine') != 'Not specified' else '',
-                'horsepower': specs.get('horsepower'),
+                'horsepower': specs.get('horsepower') or 0,
                 'torque': specs.get('torque', '') if specs.get('torque') != 'Not specified' else '',
                 'zero_to_sixty': specs.get('acceleration', '') if specs.get('acceleration') != 'Not specified' else '',
                 'top_speed': specs.get('top_speed', '') if specs.get('top_speed') != 'Not specified' else '',
