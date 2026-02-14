@@ -55,10 +55,13 @@ export default function RSSNewsPage() {
     const [selectedFeed, setSelectedFeed] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('new');
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [generatingId, setGeneratingId] = useState<number | null>(null);
     const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
     const [bulkDismissing, setBulkDismissing] = useState(false);
     const [expandedItem, setExpandedItem] = useState<number | null>(null);
+    const [nextPage, setNextPage] = useState<string | null>(null);
+    const [totalCount, setTotalCount] = useState<number>(0);
 
     useEffect(() => {
         fetchFeeds();
@@ -78,21 +81,41 @@ export default function RSSNewsPage() {
         }
     };
 
-    const fetchNewsItems = async () => {
-        setLoading(true);
+    const fetchNewsItems = async (loadMore = false) => {
+        if (loadMore) {
+            setLoadingMore(true);
+        } else {
+            setLoading(true);
+        }
         try {
-            const params: any = {};
-            if (selectedFeed) params.feed = selectedFeed;
-            if (statusFilter) params.status = statusFilter;
-            if (statusFilter === 'dismissed') params.show_dismissed = 'true';
+            let response;
+            if (loadMore && nextPage) {
+                // Load next page using the full URL from DRF
+                response = await api.get(nextPage.replace(/^.*\/api\/v1/, ''));
+            } else {
+                const params: any = {};
+                if (selectedFeed) params.feed = selectedFeed;
+                if (statusFilter) params.status = statusFilter;
+                if (statusFilter === 'dismissed') params.show_dismissed = 'true';
+                response = await api.get('/rss-news-items/', { params });
+            }
 
-            const response = await api.get('/rss-news-items/', { params });
-            const items = Array.isArray(response.data) ? response.data : (response.data.results || []);
-            setNewsItems(items);
+            const data = response.data;
+            const items = Array.isArray(data) ? data : (data.results || []);
+
+            if (loadMore) {
+                setNewsItems(prev => [...prev, ...items]);
+            } else {
+                setNewsItems(items);
+            }
+
+            setNextPage(data.next || null);
+            setTotalCount(data.count || items.length);
         } catch (error) {
             console.error('Error fetching news items:', error);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
@@ -452,6 +475,31 @@ export default function RSSNewsPage() {
                                     );
                                 })}
                             </div>
+
+                            {/* Load More Button */}
+                            {nextPage && (
+                                <div className="flex flex-col items-center gap-2 mt-6">
+                                    <p className="text-sm text-gray-500">
+                                        Showing {newsItems.length} of {totalCount} items
+                                    </p>
+                                    <button
+                                        onClick={() => fetchNewsItems(true)}
+                                        disabled={loadingMore}
+                                        className="px-8 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:from-indigo-600 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {loadingMore ? (
+                                            <>
+                                                <Loader2 size={18} className="animate-spin" />
+                                                Loading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Load More ({totalCount - newsItems.length} remaining)
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
