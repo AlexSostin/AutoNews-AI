@@ -83,11 +83,30 @@ def normalize_hp(hp_str: str) -> str:
 
 
 def extract_specs_from_content(article) -> dict | None:
-    """Use AI (Gemini) to extract car specs from article content.
+    """Extract car specs from article content.
+    Tries AI (Gemini) first, falls back to regex extraction from title/content.
     Returns dict with keys: make, model, trim, engine, horsepower, torque,
     acceleration, top_speed, drivetrain, price.
     Returns None if extraction fails or article is not about a car.
     """
+    # Try AI extraction first
+    specs = _extract_specs_ai(article)
+    if specs and specs.get('make') and specs['make'] != 'Not specified':
+        logger.info(f'AI extraction succeeded for [{article.id}]')
+        return specs
+
+    # Fallback: regex extraction from title + content
+    logger.info(f'AI extraction failed for [{article.id}], trying regex fallback')
+    specs = _extract_specs_regex(article)
+    if specs and specs.get('make'):
+        logger.info(f'Regex extraction succeeded for [{article.id}]: {specs.get("make")} {specs.get("model")}')
+        return specs
+
+    return None
+
+
+def _extract_specs_ai(article) -> dict | None:
+    """AI-based spec extraction using Gemini."""
     from ai_engine.modules.ai_provider import get_ai_provider
 
     # Strip HTML tags for cleaner text
@@ -137,6 +156,82 @@ IMPORTANT:
     except Exception as e:
         logger.error(f'AI extraction error for article {article.id}: {e}')
         return None
+
+
+# Known car brands for regex matching
+KNOWN_BRANDS = {
+    'ZEEKR', 'BYD', 'NIO', 'XPENG', 'GWM', 'Geely', 'Toyota', 'Honda',
+    'Xiaomi', 'Huawei', 'Smart', 'Avatr', 'ArcFox', 'DongFeng', 'Chery',
+    'GAC', 'SAIC', 'MG', 'Lynk', 'Polestar', 'Volvo', 'BMW', 'Mercedes',
+    'Audi', 'Volkswagen', 'Ford', 'Tesla', 'Hyundai', 'Kia', 'Li Auto',
+    'Leopard', 'Denza', 'Jetour', 'Haval', 'Tank', 'Wey', 'Hongqi', 'JAC',
+    'Changan', 'Voyah', 'IM', 'Lancia', 'Rivian', 'Lucid',
+}
+
+
+def _extract_specs_regex(article) -> dict | None:
+    """Regex-based spec extraction from title and content. No AI needed."""
+    title = article.title or ''
+    content = re.sub(r'<[^>]+>', ' ', article.content or '')
+    content = re.sub(r'\s+', ' ', content).strip()
+
+    specs = {}
+
+    # Extract make and model from title
+    # Common patterns: "2026 ZEEKR 007GT EV Review", "BYD Leopard 5 Review"
+    for brand in KNOWN_BRANDS:
+        pattern = rf'\b{re.escape(brand)}\b\s+([A-Za-z0-9][A-Za-z0-9\s\-]*?)(?:\s+(?:EV|Review|Revealed|Launch|Test|Drive|First|Look|Specs|Price|vs\b|–|-|:|\|))'
+        match = re.search(pattern, title, re.IGNORECASE)
+        if match:
+            specs['make'] = brand
+            specs['model'] = match.group(1).strip()
+            break
+
+    if not specs.get('make'):
+        # Try broader pattern: "YYYY Brand Model ..."
+        year_brand = re.match(r'(\d{4})\s+(\w+)\s+([\w\-]+)', title)
+        if year_brand:
+            year, brand_candidate, model_candidate = year_brand.groups()
+            # Check if brand is known
+            for known in KNOWN_BRANDS:
+                if brand_candidate.upper() == known.upper():
+                    specs['make'] = known
+                    specs['model'] = model_candidate
+                    break
+
+    if not specs.get('make'):
+        return None
+
+    # Extract price from content: "$29,400" or "¥169,800"
+    price_match = re.search(r'(?:starting\s+(?:price|at|from)|price[:\s]+|priced\s+(?:at|from)|MSRP[:\s]+|costs?\s+)[\s]*(\$[\d,]+(?:\.\d+)?)', content, re.IGNORECASE)
+    if not price_match:
+        price_match = re.search(r'(\$[\d,]+(?:\.\d+)?)', content)
+    if price_match:
+        specs['price'] = price_match.group(1)
+
+    # Extract horsepower from content
+    hp_match = re.search(r'(\d+)\s*(?:hp|HP|horsepower|Horse\s*Power)', content)
+    if hp_match:
+        specs['horsepower'] = hp_match.group(1)
+
+    # Extract engine type
+    if re.search(r'\b(?:electric|EV|BEV|battery\s+electric)\b', content, re.IGNORECASE):
+        specs['engine'] = 'Electric'
+    elif re.search(r'\bPHEV\b|plug.in\s+hybrid', content, re.IGNORECASE):
+        specs['engine'] = 'PHEV'
+    elif re.search(r'\bhybrid\b', content, re.IGNORECASE):
+        specs['engine'] = 'Hybrid'
+
+    # Extract drivetrain
+    dt_match = re.search(r'\b(AWD|FWD|RWD|4WD|all.wheel|front.wheel|rear.wheel)\b', content, re.IGNORECASE)
+    if dt_match:
+        dt = dt_match.group(1).upper()
+        if 'ALL' in dt: dt = 'AWD'
+        elif 'FRONT' in dt: dt = 'FWD'
+        elif 'REAR' in dt: dt = 'RWD'
+        specs['drivetrain'] = dt
+
+    return specs
 
 
 def _parse_specs(text: str) -> dict:
