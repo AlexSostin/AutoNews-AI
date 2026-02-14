@@ -36,6 +36,9 @@ fi
 echo "🚗 Backfilling car spec make/model fields..."
 python manage.py backfill_car_specs || echo "Car specs backfill skipped"
 
+echo "🎬 Fixing missing video embeds..."
+python manage.py fix_video_embeds || echo "Video embed fix skipped"
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
