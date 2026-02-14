@@ -16,15 +16,6 @@ else
     echo "   Set CLOUDINARY_URL in Railway variables."
 fi
 
-# Run branding update only once (on first deploy after this change)
-BRANDING_FLAG="/tmp/.branding_updated"
-if [ ! -f "$BRANDING_FLAG" ]; then
-    echo "🎨 Updating branding to Fresh Motors..."
-    python manage.py update_branding || echo "⚠️ Branding update failed (might not exist yet)"
-    touch "$BRANDING_FLAG"
-    echo "✅ Branding update complete"
-fi
-
 echo "Running migrations..."
 
 # Migrations 0038/0040 now use RunSQL with IF NOT EXISTS guards,
@@ -33,6 +24,15 @@ echo "🔧 Ensuring migration state is correct..."
 python manage.py migrate news 0037 --fake 2>&1 || true
 
 python manage.py migrate --noinput
+
+# Run branding update AFTER migrations (needs SiteSettings table to be current)
+BRANDING_FLAG="/tmp/.branding_updated"
+if [ ! -f "$BRANDING_FLAG" ]; then
+    echo "🎨 Updating branding to Fresh Motors..."
+    python manage.py update_branding || echo "⚠️ Branding update failed (might not exist yet)"
+    touch "$BRANDING_FLAG"
+    echo "✅ Branding update complete"
+fi
 
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
