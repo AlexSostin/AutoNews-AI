@@ -158,7 +158,9 @@ export default async function ArticleDetailPage({
   // Prepare article content HTML with images between paragraphs
   const articleContentHtml = article.content;
   const hasYoutubeVideo = Boolean(article.youtube_url);
-  const youtubeEmbedUrl = article.youtube_url ? article.youtube_url.replace('watch?v=', 'embed/') : '';
+  const youtubeEmbedUrl = article.youtube_url
+    ? `https://www.youtube.com/embed/${article.youtube_url.match(/(?:watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || ''}`
+    : '';
 
   // Get article images URLs
   const articleImages = [

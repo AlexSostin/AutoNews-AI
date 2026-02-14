@@ -48,11 +48,7 @@ class Command(BaseCommand):
                 f'frameborder="0" allowfullscreen loading="lazy"></iframe></div>\n'
             )
 
-            # Also save youtube_video_id if missing
             save_fields = ['content']
-            if not article.youtube_video_id:
-                article.youtube_video_id = video_id
-                save_fields.append('youtube_video_id')
 
             # Insert embed after first <h2> tag (title)
             content = article.content or ''
