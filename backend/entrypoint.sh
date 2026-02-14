@@ -33,6 +33,9 @@ if [ ! -f "$BRANDING_FLAG" ]; then
     echo "✅ Branding update complete"
 fi
 
+echo "🚗 Backfilling car spec make/model fields..."
+python manage.py backfill_car_specs || echo "Car specs backfill skipped"
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
