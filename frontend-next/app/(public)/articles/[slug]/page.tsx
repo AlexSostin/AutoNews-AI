@@ -158,6 +158,7 @@ export default async function ArticleDetailPage({
   // Prepare article content HTML with images between paragraphs
   const articleContentHtml = article.content;
   const hasYoutubeVideo = Boolean(article.youtube_url);
+  const contentHasVideo = (article.content || '').includes('<iframe');
   const youtubeEmbedUrl = article.youtube_url
     ? `https://www.youtube.com/embed/${article.youtube_url.match(/(?:watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || ''}`
     : '';
@@ -399,7 +400,7 @@ export default async function ArticleDetailPage({
               <AdBanner format="rectangle" />
 
               {/* YouTube Video Section */}
-              {hasYoutubeVideo && (
+              {hasYoutubeVideo && !contentHasVideo && (
                 <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
                   <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-3">
                     <Youtube className="text-red-600" size={28} />
