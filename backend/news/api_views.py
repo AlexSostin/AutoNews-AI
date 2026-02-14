@@ -1310,6 +1310,7 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
     queryset = CarSpecification.objects.select_related('article').all()
     serializer_class = CarSpecificationSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    pagination_class = None  # Return all specs (no global PAGE_SIZE limit)
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['make', 'model', 'trim', 'model_name', 'engine', 'article__title']
     ordering_fields = ['make', 'model', 'price', 'horsepower']
