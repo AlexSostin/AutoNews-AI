@@ -34,6 +34,9 @@ python manage.py collectstatic --noinput
 echo "Populating tags..."
 python manage.py populate_tags || echo "Tags population skipped"
 
+echo "📊 Backfilling missing car specs (background)..."
+(python manage.py backfill_missing_specs &) || echo "Specs backfill skipped"
+
 echo "📊 Indexing articles for vector search (background)..."
 (python manage.py index_articles &) || echo "Article indexing skipped"
 

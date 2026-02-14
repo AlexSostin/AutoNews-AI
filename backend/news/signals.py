@@ -186,20 +186,36 @@ def auto_create_car_specs(sender, instance, **kwargs):
     article_id = instance.id
 
     def _extract():
-        try:
-            from news.spec_extractor import extract_specs_from_content, save_specs_for_article
-            article = Article.objects.get(id=article_id)
-            specs = extract_specs_from_content(article)
-            if specs and specs.get('make') and specs['make'] != 'Not specified':
-                result = save_specs_for_article(article, specs)
-                if result:
-                    logger.info(f"🚗 Auto-created CarSpecification for [{article_id}] {result.make} {result.model}")
+        import time
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                from news.spec_extractor import extract_specs_from_content, save_specs_for_article
+                # Re-check in case specs were created between signal fire and thread start
+                if CarSpecification.objects.filter(article_id=article_id).exists():
+                    logger.info(f"ℹ️ Specs already exist for [{article_id}], skipping")
+                    return
+                article = Article.objects.get(id=article_id)
+                specs = extract_specs_from_content(article)
+                if specs and specs.get('make') and specs['make'] != 'Not specified':
+                    result = save_specs_for_article(article, specs)
+                    if result:
+                        logger.info(f"🚗 Auto-created CarSpecification for [{article_id}] {result.make} {result.model}")
+                    else:
+                        logger.warning(f"⚠️ Could not save specs for [{article_id}]")
                 else:
-                    logger.warning(f"⚠️ Could not save specs for [{article_id}]")
-            else:
-                logger.info(f"ℹ️ No car specs extracted for [{article_id}] (not a car article?)")
-        except Exception as e:
-            logger.error(f"❌ Auto-spec extraction failed for [{article_id}]: {e}")
+                    logger.info(f"ℹ️ No car specs extracted for [{article_id}] (not a car article?)")
+                return  # Success - exit retry loop
+            except Exception as e:
+                error_str = str(e)
+                if '429' in error_str and attempt < max_retries - 1:
+                    wait = 30 * (attempt + 1)  # 30s, 60s, 90s
+                    logger.warning(f"⏳ Gemini rate limit for [{article_id}], retry in {wait}s (attempt {attempt+1}/{max_retries})")
+                    time.sleep(wait)
+                else:
+                    logger.error(f"❌ Auto-spec extraction failed for [{article_id}]: {e}")
+                    return
 
     thread = threading.Thread(target=_extract, daemon=True)
     thread.start()
+
