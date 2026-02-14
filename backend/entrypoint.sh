@@ -42,6 +42,9 @@ python manage.py fix_video_embeds || echo "Video embed fix skipped"
 echo "📝 Backfilling article sources from YouTube..."
 python manage.py backfill_sources || echo "Source backfill skipped"
 
+echo "🤖 Backfilling missing car specs via AI + removing Qin L dupes..."
+python manage.py backfill_missing_specs --refresh-all --delete-dupes 25 26 || echo "Specs backfill skipped"
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
