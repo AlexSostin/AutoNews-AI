@@ -18,10 +18,9 @@ fi
 
 echo "Running migrations..."
 
-# Migrations 0038/0040 now use RunSQL with IF NOT EXISTS guards,
-# so they are safe to re-apply. Unfake back to 0037 so they actually run.
-echo "🔧 Ensuring migration state is correct..."
-python manage.py migrate news 0037 --fake 2>&1 || true
+# One-time fix: migration 0044 columns already exist on prod from a partial deploy
+# Fake it so migrate --noinput doesn't crash, then remove this after successful deploy
+python manage.py migrate news 0044 --fake 2>&1 || true
 
 python manage.py migrate --noinput
 
