@@ -293,6 +293,40 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         specs = extract_specs_dict(analysis)
         send_progress(4, 60, f"✓ {specs['make']} {specs['model']}")
         
+        # 2.65. DUPLICATE CHECK — skip if article already exists for same car
+        if specs.get('make') and specs['make'] != 'Not specified' and specs.get('model') and specs['model'] != 'Not specified':
+            try:
+                from news.models import CarSpecification
+                existing = CarSpecification.objects.filter(
+                    make__iexact=specs['make'],
+                    model__iexact=specs['model'],
+                    article__is_published=True,
+                )
+                # Also match trim if available
+                trim = specs.get('trim', 'Not specified')
+                if trim and trim != 'Not specified':
+                    existing_same_trim = existing.filter(trim__iexact=trim)
+                    if existing_same_trim.exists():
+                        existing_article = existing_same_trim.first().article
+                        msg = (f"⚠️ Duplicate detected: {specs['make']} {specs['model']} {trim} "
+                               f"already exists (Article #{existing_article.id}: \"{existing_article.title}\")")
+                        print(msg)
+                        send_progress(4, 100, f"⚠️ Skipped — duplicate of article #{existing_article.id}")
+                        return {'status': 'skipped', 'reason': 'duplicate', 'existing_article_id': existing_article.id,
+                                'message': msg}
+                else:
+                    # No trim info — check if any article exists for this make+model
+                    if existing.exists():
+                        existing_article = existing.first().article
+                        msg = (f"⚠️ Duplicate detected: {specs['make']} {specs['model']} "
+                               f"already exists (Article #{existing_article.id}: \"{existing_article.title}\")")
+                        print(msg)
+                        send_progress(4, 100, f"⚠️ Skipped — duplicate of article #{existing_article.id}")
+                        return {'status': 'skipped', 'reason': 'duplicate', 'existing_article_id': existing_article.id,
+                                'message': msg}
+            except Exception as e:
+                print(f"⚠️ Duplicate check failed (continuing anyway): {e}")
+        
         # 2.7 WEB SEARCH ENRICHMENT
         web_context = ""
         try:
