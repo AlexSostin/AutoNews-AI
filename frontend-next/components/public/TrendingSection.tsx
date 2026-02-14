@@ -121,8 +121,8 @@ export default function TrendingSection() {
                 <h3 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-yellow-200 transition-colors mb-1">
                   {article.title}
                 </h3>
-                <div className="flex items-center gap-2 text-xs text-white/80">
-                  <span className="px-2 py-0.5 bg-white/20 rounded-full">
+                <div className="flex items-center gap-2 text-xs text-white/80 flex-wrap">
+                  <span className="px-2 py-0.5 bg-white/20 rounded-full truncate max-w-[80px]">
                     {article.categories?.[0]?.name || 'News'}
                   </span>
                   {article.views > 0 && (
