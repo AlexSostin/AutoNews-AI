@@ -12,6 +12,7 @@ interface ModelData {
     engine: string;
     horsepower: string;
     price: string;
+    price_date: string;
     image: string | null;
 }
 
@@ -202,7 +203,7 @@ export default function BrandModelsGrid({
                                 {[
                                     { label: 'Engine', value: model.engine || '—' },
                                     { label: 'Power', value: model.horsepower ? `${model.horsepower} hp` : '—' },
-                                    { label: 'Price', value: model.price || '—', highlight: true },
+                                    { label: 'Price', value: model.price ? (model.price_date ? `${model.price} (${model.price_date})` : model.price) : '—', highlight: true },
                                     { label: 'Articles', value: String(model.article_count) },
                                 ].map((spec, i) => (
                                     <div

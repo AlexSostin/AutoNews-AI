@@ -30,6 +30,7 @@ interface ModelData {
         zero_to_sixty: string;
         top_speed: string;
         price: string;
+        price_date: string;
         release_date: string;
     };
     images: string[];
@@ -208,7 +209,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                     <SpecRow label="Torque" value={data.specs.torque} />
                                     <SpecRow label="0-60 mph" value={data.specs.zero_to_sixty} />
                                     <SpecRow label="Top Speed" value={data.specs.top_speed} />
-                                    <SpecRow label="Price" value={data.specs.price} highlight />
+                                    <SpecRow label="Price" value={data.specs.price ? (data.specs.price_date ? `${data.specs.price} (as of ${data.specs.price_date})` : data.specs.price) : ''} highlight />
                                     <SpecRow label="Release Date" value={data.specs.release_date} />
                                 </div>
                                 <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">

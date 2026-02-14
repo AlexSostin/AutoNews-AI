@@ -120,6 +120,10 @@ class CarBrandDetailView(APIView):
 
             image = _get_image_url(spec.article, request)
 
+            price_date = ''
+            if spec.price and spec.article.created_at:
+                price_date = spec.article.created_at.strftime('%b %Y')
+
             result_models.append({
                 'model': model_name,
                 'slug': slugify(model_name),
@@ -128,6 +132,7 @@ class CarBrandDetailView(APIView):
                 'engine': spec.engine or '',
                 'horsepower': spec.horsepower or '',
                 'price': spec.price or '',
+                'price_date': price_date,
                 'image': image,
             })
 
@@ -227,6 +232,9 @@ class CarModelDetailView(APIView):
 
         # Primary spec (first/newest one)
         primary = specs.first()
+        price_date = ''
+        if primary.price and primary.article.created_at:
+            price_date = primary.article.created_at.strftime('%b %Y')
 
         return Response({
             'brand': brand_name,
@@ -242,6 +250,7 @@ class CarModelDetailView(APIView):
                 'top_speed': primary.top_speed or '',
                 'drivetrain': primary.drivetrain or '',
                 'price': primary.price or '',
+                'price_date': price_date,
                 'release_date': primary.release_date or '',
             },
             'images': images,
