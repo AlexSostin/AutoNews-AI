@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 const SITE_URL = 'https://www.freshmotors.net';
-const FETCH_TIMEOUT = 5000; // 5 seconds timeout
+const FETCH_TIMEOUT = 15000; // 15 seconds timeout (was 5, too aggressive)
 
 async function fetchWithTimeout(url: string, timeout: number) {
     const controller = new AbortController();
@@ -22,20 +22,35 @@ async function fetchWithTimeout(url: string, timeout: number) {
     }
 }
 
-async function getArticles() {
-    try {
-        const res = await fetchWithTimeout(
-            `${PRODUCTION_API_URL}/articles/?is_published=true&page_size=100`,
-            FETCH_TIMEOUT
-        );
+async function getAllArticles(): Promise<any[]> {
+    const allArticles: any[] = [];
+    let page = 1;
+    const maxPages = 20; // Safety limit
 
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.results || data || [];
+    try {
+        while (page <= maxPages) {
+            const res = await fetchWithTimeout(
+                `${PRODUCTION_API_URL}/articles/?is_published=true&page=${page}`,
+                FETCH_TIMEOUT
+            );
+
+            if (!res.ok) break;
+            const data = await res.json();
+            const results = data.results || data || [];
+
+            if (results.length === 0) break;
+            allArticles.push(...results);
+
+            // If no next page, we're done
+            if (!data.next) break;
+            page++;
+        }
     } catch (e) {
-        console.error('Sitemap: Failed to fetch articles');
-        return [];
+        console.error(`Sitemap: Failed to fetch articles (page ${page}):`, e);
     }
+
+    console.log(`Sitemap: Fetched ${allArticles.length} articles across ${page} pages`);
+    return allArticles;
 }
 
 async function getCategories() {
@@ -56,24 +71,28 @@ async function getCategories() {
 
 export async function GET() {
     const [articles, categories] = await Promise.all([
-        getArticles(),
+        getAllArticles(),
         getCategories(),
     ]);
 
+    const staticPages = [
+        { loc: SITE_URL, changefreq: 'daily', priority: '1.0' },
+        { loc: `${SITE_URL}/articles`, changefreq: 'daily', priority: '0.8' },
+        { loc: `${SITE_URL}/about`, changefreq: 'monthly', priority: '0.4' },
+        { loc: `${SITE_URL}/contact`, changefreq: 'monthly', priority: '0.4' },
+        { loc: `${SITE_URL}/privacy-policy`, changefreq: 'monthly', priority: '0.3' },
+        { loc: `${SITE_URL}/terms`, changefreq: 'monthly', priority: '0.3' },
+    ];
+
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${staticPages.map(p => `
   <url>
-    <loc>${SITE_URL}</loc>
+    <loc>${p.loc}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>${SITE_URL}/articles</loc>
-    <lastmod>${new Date().toISOString()}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join('')}
   ${articles.map((article: any) => `
   <url>
     <loc>${SITE_URL}/articles/${article.slug}</loc>

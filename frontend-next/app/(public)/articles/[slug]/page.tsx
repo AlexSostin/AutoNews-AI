@@ -167,37 +167,71 @@ export default async function ArticleDetailPage({
     article.image_3_url || article.image_3
   ].filter((url): url is string => Boolean(url)).map(url => fixUrl(url));
 
+  // Extract YouTube video ID for thumbnail and schema
+  const youtubeVideoId = article.youtube_url
+    ? article.youtube_url.match(/(?:watch\?v=|embed\/|youtu\.be\/)([\w-]+)/)?.[1] || ''
+    : '';
+
   // JSON-LD data for SEO
-  const jsonLdData = {
-    "@context": "https://schema.org",
-    "@type": "NewsArticle",
-    "headline": article.title,
-    "description": article.summary,
-    "image": articleImages,
-    "datePublished": article.created_at,
-    "dateModified": article.updated_at || article.created_at,
-    "author": {
-      "@type": "Person",
-      "name": article.author || "Fresh Motors Team"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Fresh Motors",
-      "logo": {
-        "@type": "ImageObject",
-        "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.png`
-      }
-    },
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": fullUrl
+  const jsonLdData: Record<string, unknown>[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      "headline": article.title,
+      "description": article.summary,
+      "image": articleImages,
+      "datePublished": article.created_at,
+      "dateModified": article.updated_at || article.created_at,
+      "author": {
+        "@type": "Person",
+        "name": article.author || "Fresh Motors Team"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Fresh Motors",
+        "logo": {
+          "@type": "ImageObject",
+          "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.png`
+        }
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": fullUrl
+      },
+      ...(hasYoutubeVideo ? {
+        "video": {
+          "@type": "VideoObject",
+          "name": article.title,
+          "description": article.summary,
+          "thumbnailUrl": `https://img.youtube.com/vi/${youtubeVideoId}/maxresdefault.jpg`,
+          "uploadDate": article.created_at,
+          "embedUrl": youtubeEmbedUrl,
+          "contentUrl": article.youtube_url
+        }
+      } : {})
     }
-  };
+  ];
+
+  // Add standalone VideoObject for better video indexing
+  if (hasYoutubeVideo) {
+    jsonLdData.push({
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      "name": article.title,
+      "description": article.summary,
+      "thumbnailUrl": `https://img.youtube.com/vi/${youtubeVideoId}/maxresdefault.jpg`,
+      "uploadDate": article.created_at,
+      "embedUrl": youtubeEmbedUrl,
+      "contentUrl": article.youtube_url
+    });
+  }
 
   return (
     <>
       {/* JSON-LD Microdata */}
-      <JsonLd data={jsonLdData} />
+      {jsonLdData.map((data, i) => (
+        <JsonLd key={i} data={data} />
+      ))}
 
       {/* Track page view */}
       <ViewTracker articleSlug={article.slug} />
@@ -361,6 +395,26 @@ export default async function ArticleDetailPage({
 
               {/* Mid Article Ad (Conditional - hidden for now) */}
               <AdBanner format="rectangle" />
+
+              {/* YouTube Video Section */}
+              {hasYoutubeVideo && (
+                <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-3">
+                    <Youtube className="text-red-600" size={28} />
+                    Watch Video Review
+                  </h3>
+                  <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg">
+                    <iframe
+                      src={youtubeEmbedUrl}
+                      title={article.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Unified Vehicle Gallery - combines main images + gallery images */}
               {
