@@ -18,6 +18,7 @@ interface CarSpec {
     torque: string;
     zero_to_sixty: string;
     top_speed: string;
+    drivetrain: string;
     price: string;
     release_date: string;
     is_verified: boolean;
@@ -33,6 +34,7 @@ const EMPTY_FORM = {
     torque: '',
     zero_to_sixty: '',
     top_speed: '',
+    drivetrain: '',
     price: '',
     release_date: '',
 };
@@ -79,6 +81,7 @@ export default function CarSpecsPage() {
             torque: spec.torque || '',
             zero_to_sixty: spec.zero_to_sixty || '',
             top_speed: spec.top_speed || '',
+            drivetrain: spec.drivetrain || '',
             price: spec.price || '',
             release_date: spec.release_date || '',
         });
@@ -236,8 +239,8 @@ export default function CarSpecsPage() {
                             key={f}
                             onClick={() => setVerifiedFilter(f)}
                             className={`px-4 py-2.5 text-sm font-medium transition-colors ${verifiedFilter === f
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-white text-gray-600 hover:bg-gray-50'
                                 } ${f !== 'all' ? 'border-l border-gray-200' : ''}`}
                         >
                             {f === 'all' ? 'All' : f === 'verified' ? '✓ Verified' : '○ Unverified'}
@@ -286,8 +289,8 @@ export default function CarSpecsPage() {
                                                 <button
                                                     onClick={() => handleToggleVerified(spec)}
                                                     className={`p-1 rounded-lg transition-all ${spec.is_verified
-                                                            ? 'text-green-600 hover:text-green-700 hover:bg-green-100'
-                                                            : 'text-gray-300 hover:text-amber-500 hover:bg-amber-50'
+                                                        ? 'text-green-600 hover:text-green-700 hover:bg-green-100'
+                                                        : 'text-gray-300 hover:text-amber-500 hover:bg-amber-50'
                                                         }`}
                                                     title={spec.is_verified ? `Verified${spec.verified_at ? ` on ${new Date(spec.verified_at).toLocaleDateString()}` : ''}` : 'Click to mark as verified'}
                                                 >
@@ -372,8 +375,8 @@ export default function CarSpecsPage() {
                                                     key={p}
                                                     onClick={() => setPage(p)}
                                                     className={`w-9 h-9 rounded-lg text-sm font-bold transition-colors ${p === currentPage
-                                                            ? 'bg-indigo-600 text-white'
-                                                            : 'text-gray-600 hover:bg-gray-200'
+                                                        ? 'bg-indigo-600 text-white'
+                                                        : 'text-gray-600 hover:bg-gray-200'
                                                         }`}
                                                 >
                                                     {p}
@@ -502,6 +505,22 @@ export default function CarSpecsPage() {
                                         placeholder="e.g. 250 km/h"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Drivetrain */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-900 mb-1.5">Drivetrain</label>
+                                <select
+                                    value={formData.drivetrain}
+                                    onChange={(e) => setFormData({ ...formData, drivetrain: e.target.value })}
+                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium bg-white"
+                                >
+                                    <option value="">— Select —</option>
+                                    <option value="AWD">AWD (All-Wheel Drive)</option>
+                                    <option value="FWD">FWD (Front-Wheel Drive)</option>
+                                    <option value="RWD">RWD (Rear-Wheel Drive)</option>
+                                    <option value="4WD">4WD (Four-Wheel Drive)</option>
+                                </select>
                             </div>
 
                             {/* Price & Release */}

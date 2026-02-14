@@ -52,6 +52,7 @@ Horsepower: [Number with unit - e.g., "300 hp" or "220 kW". ALWAYS specify hp or
 Torque: [Torque with unit - e.g., "400 Nm" or "295 lb-ft". ALWAYS specify Nm or lb-ft]
 Acceleration: [0-60 mph or 0-100 km/h time - e.g., "5.5 seconds (0-60 mph)". ALWAYS specify which measurement]
 Top Speed: [Max speed with unit - e.g., "155 mph" or "250 km/h". ALWAYS specify mph or km/h]
+Drivetrain: [Drive type - "AWD", "FWD", "RWD", or "4WD". Write "Not specified" if not mentioned]
 Battery: [Battery capacity for EVs - e.g., "75 kWh"]
 Range: [Driving range - e.g., "400 km" or "250 miles". ALWAYS specify km or miles]
 Price: [Starting price with currency - e.g., "$45,000" or "€50,000" or "¥169,800"]
@@ -260,6 +261,7 @@ def extract_specs_dict(analysis):
         'torque': 'Not specified',
         'acceleration': 'Not specified',
         'top_speed': 'Not specified',
+        'drivetrain': 'Not specified',
         'battery': 'Not specified',
         'range': 'Not specified',
         'price': 'Not specified'
@@ -301,6 +303,8 @@ def extract_specs_dict(analysis):
             specs['acceleration'] = line.split(':', 1)[1].strip()
         elif line.startswith('Top Speed:'):
             specs['top_speed'] = line.split(':', 1)[1].strip()
+        elif line.startswith('Drivetrain:') or line.startswith('Drive:'):
+            specs['drivetrain'] = line.split(':', 1)[1].strip()
         elif line.startswith('Battery:'):
             specs['battery'] = line.split(':', 1)[1].strip()
         elif line.startswith('Range:'):

@@ -198,6 +198,7 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
                     'torque': specs.get('torque', ''),
                     'zero_to_sixty': specs.get('zero_to_sixty', specs.get('acceleration', '')),
                     'top_speed': specs.get('top_speed', ''),
+                    'drivetrain': specs.get('drivetrain', ''),
                     'price': specs.get('price', ''),
                 }
             )

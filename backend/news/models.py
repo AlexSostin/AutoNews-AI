@@ -267,6 +267,7 @@ class CarSpecification(models.Model):
     torque = models.CharField(max_length=50, blank=True)
     zero_to_sixty = models.CharField(max_length=50, blank=True, help_text="0-60 mph time")
     top_speed = models.CharField(max_length=50, blank=True)
+    drivetrain = models.CharField(max_length=50, blank=True, help_text="AWD, FWD, RWD, 4WD")
     price = models.CharField(max_length=100, blank=True)
     release_date = models.CharField(max_length=100, blank=True)
     is_verified = models.BooleanField(default=False, help_text="Manually verified by editor")
