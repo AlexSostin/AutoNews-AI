@@ -26,6 +26,7 @@ export interface ModelData {
     engine: string;
     horsepower: string;
     price: string;
+    price_date: string;
     image: string | null;
 }
 
