@@ -170,50 +170,56 @@ Remember: Be creative with the title, but include all facts! Write comprehensive
 def ensure_html_only(content):
     """
     Ensures the content is properly formatted HTML.
-    If it detects Markdown (like stars for lists or bold), it converts it to HTML.
+    Always cleans up markdown bold/italic remnants (**, ***, *).
+    If no HTML lists exist, also converts markdown lists to HTML.
     """
-    # If it already has list tags, it's likely fine
-    if "<li>" in content and "<ul>" in content:
+    has_html_lists = "<li>" in content and "<ul>" in content
+    has_html_structure = "<p>" in content or "<h2>" in content
+
+    # Step 1: Always clean markdown bold/italic remnants, even in otherwise-HTML content
+    # Order matters: handle *** before ** before *
+    # ***bold italic*** → <strong><em>...</em></strong>
+    content = re.sub(r'\*\*\*(.*?)\*\*\*', r'<strong><em>\1</em></strong>', content)
+    # **bold** → <strong>...</strong>
+    content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', content)
+    # *italic* (but NOT inside HTML tags or URLs) → <em>...</em>
+    # Only match * that is NOT preceded/followed by space (to avoid messing with list markers)
+    content = re.sub(r'(?<![<\s/])\*([^*\n]+?)\*(?![>*/])', r'<em>\1</em>', content)
+
+    # Step 2: If content already has proper HTML lists, we're done
+    if has_html_lists and has_html_structure:
         return content
 
-    # Fix "mashed" lists: "**Pros:** * Item 1 * Item 2" 
-    # and also "Pros: * Item 1 * Item 2"
-    # Convert " * " or " - " to "\n\n* " to help markdown parser identify it as a list.
-    # We use \s+ to ensure it's not part of **bolding** (which has no space between stars).
-    if "*" in content or "-" in content:
-        content = re.sub(r'\s+[\*\-]\s+', r'\n\n* ', content)
-        
-        print("🔧 Detected Markdown patterns without HTML tags. Converting to HTML...")
+    # Step 3: If there are remaining markdown patterns, convert lists too
+    needs_list_conversion = bool(re.search(r'^\s*[\*\-]\s+', content, re.MULTILINE))
+    
+    if needs_list_conversion and not has_html_lists:
+        print("🔧 Detected Markdown list patterns. Converting to HTML...")
         if markdown:
-            # Use real markdown if available
             html_content = markdown.markdown(content, extensions=['extra', 'sane_lists'])
             return html_content
         else:
-            # Enhanced fallback if library is missing
             print("⚠️ Warning: 'markdown' module not found. Using enhanced fallback conversion.")
             
-            # 1. Clean up backticks
+            # Clean up backticks
             content = re.sub(r'```[a-z]*\n?', '', content)
             content = re.sub(r'```', '', content)
             
-            # 2. Convert headings
+            # Convert headings
             content = re.sub(r'^###\s+(.*)$', r'<h3>\1</h3>', content, flags=re.MULTILINE)
             content = re.sub(r'^##\s+(.*)$', r'<h2>\1</h2>', content, flags=re.MULTILINE)
             content = re.sub(r'^#\s+(.*)$', r'<h1>\1</h1>', content, flags=re.MULTILINE)
             
-            # 3. Convert simple lists
+            # Convert simple lists
             content = re.sub(r'^\*\s+(.*)$', r'<li>\1</li>', content, flags=re.MULTILINE)
             content = re.sub(r'^\-\s+(.*)$', r'<li>\1</li>', content, flags=re.MULTILINE)
             
-            # 4. Wrap lists - very simple logic
+            # Wrap lists
             if '<li>' in content:
                  content = content.replace('<li>', '<ul><li>', 1)
                  content = content.replace('</li>\n\n', '</li></ul>\n\n')
             
-            # 5. Convert **bold**
-            content = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', content)
-            
-            # 6. Paragraphs - wrap anything not in a tag
+            # Paragraphs - wrap anything not in a tag
             if "<p>" not in content:
                 blocks = content.split('\n\n')
                 new_blocks = []
@@ -227,7 +233,6 @@ def ensure_html_only(content):
                 content = '\n\n'.join(new_blocks)
                 
             return content
-        return html_content
 
     return content
 
