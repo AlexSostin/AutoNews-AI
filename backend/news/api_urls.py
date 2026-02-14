@@ -56,6 +56,7 @@ from .search_analytics_views import (
     SearchAPIView, AnalyticsOverviewAPIView, AnalyticsTopArticlesAPIView,
     AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView, GSCAnalyticsAPIView
 )
+from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -95,6 +96,11 @@ urlpatterns = [
     path('analytics/views/timeline/', AnalyticsViewsTimelineAPIView.as_view(), name='analytics_timeline'),
     path('analytics/categories/', AnalyticsCategoriesAPIView.as_view(), name='analytics_categories'),
     path('analytics/gsc/', GSCAnalyticsAPIView.as_view(), name='analytics_gsc'),
+    
+    # Car Catalog endpoints
+    path('cars/brands/', CarBrandsListView.as_view(), name='car_brands_list'),
+    path('cars/brands/<slug:brand_slug>/', CarBrandDetailView.as_view(), name='car_brand_detail'),
+    path('cars/brands/<slug:brand_slug>/models/<slug:model_slug>/', CarModelDetailView.as_view(), name='car_model_detail'),
     
     # API endpoints
     path('', include(router.urls)),

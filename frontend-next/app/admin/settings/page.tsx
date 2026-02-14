@@ -68,6 +68,7 @@ export default function SettingsPage() {
     use_classic_hero: false,
     hero_title: '',
     hero_subtitle: '',
+    show_browse_by_brand: true,
   });
 
   useEffect(() => {
@@ -176,6 +177,37 @@ export default function SettingsPage() {
             <p className="text-xs text-gray-500 italic">
               Note: When classic mode is OFF, the section will show articles marked as "Hero" in the Articles manager.
             </p>
+          </div>
+        </div>
+
+        {/* Homepage Sections */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 rounded-lg bg-purple-600 text-white">
+              <Eye size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Homepage Sections</h2>
+              <p className="text-sm text-gray-500">Toggle sections on the homepage</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-100">
+            <div>
+              <p className="font-bold text-gray-900">Browse by Brand</p>
+              <p className="text-sm text-gray-600">
+                Show car brand cards on the homepage for navigation to the car catalog
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.show_browse_by_brand}
+                onChange={(e) => setFormData({ ...formData, show_browse_by_brand: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
           </div>
         </div>
 

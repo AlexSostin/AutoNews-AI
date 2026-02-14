@@ -1307,13 +1307,13 @@ class RatingViewSet(viewsets.ModelViewSet):
 
 
 class CarSpecificationViewSet(viewsets.ModelViewSet):
-    queryset = CarSpecification.objects.all()
+    queryset = CarSpecification.objects.select_related('article').all()
     serializer_class = CarSpecificationSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['make', 'model', 'year']
-    ordering_fields = ['make', 'model', 'year', 'created_at']
-    ordering = ['-created_at']
+    search_fields = ['make', 'model', 'trim', 'model_name', 'engine', 'article__title']
+    ordering_fields = ['make', 'model', 'price', 'horsepower']
+    ordering = ['make', 'model']
 
 
 class ArticleImageViewSet(viewsets.ModelViewSet):

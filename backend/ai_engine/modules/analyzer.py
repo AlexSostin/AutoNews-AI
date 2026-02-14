@@ -47,14 +47,14 @@ Model: [Base Model name, e.g. "SU7", "Golf"]
 Trim/Version: [Specific version or trim, e.g. "Ultra", "Performance", "GTI", "Standard"]
 Year: [Model Year]
 SEO Title: [Short, clear title - e.g. "2026 Tesla Model 3 Performance Review"]
-Engine: [Engine type/size - e.g., "1.5L Turbo" or "Electric motor"]
-Horsepower: [HP number - e.g., "300 HP"]
-Torque: [Torque - e.g., "400 Nm"]
-Acceleration: [0-60 or 0-100 time - e.g., "5.5 seconds"]
-Top Speed: [Max speed - e.g., "155 mph"]
+Engine: [Engine type/size - e.g., "1.5L Turbo" or "Electric motor" or "2.0L Turbocharged Inline-4"]
+Horsepower: [Number with unit - e.g., "300 hp" or "220 kW". ALWAYS specify hp or kW]
+Torque: [Torque with unit - e.g., "400 Nm" or "295 lb-ft". ALWAYS specify Nm or lb-ft]
+Acceleration: [0-60 mph or 0-100 km/h time - e.g., "5.5 seconds (0-60 mph)". ALWAYS specify which measurement]
+Top Speed: [Max speed with unit - e.g., "155 mph" or "250 km/h". ALWAYS specify mph or km/h]
 Battery: [Battery capacity for EVs - e.g., "75 kWh"]
-Range: [Driving range - e.g., "400 km" or "250 miles"]
-Price: [Starting price - e.g., "$45,000" or "€50,000"]
+Range: [Driving range - e.g., "400 km" or "250 miles". ALWAYS specify km or miles]
+Price: [Starting price with currency - e.g., "$45,000" or "€50,000" or "¥169,800"]
 
 Key Features:
 - [List main features]
@@ -74,13 +74,15 @@ Transcript:
 IMPORTANT: 
 1. Use EXACT labels above. 
 2. Prioritize facts from the transcript.
-3. If technical specs (HP, Battery, Price) are missing in transcript, YOU MAY USE YOUR INTERNAL KNOWLEDGE to fill them if you are confident about the exact car model.
-4. If you use internal knowledge, mark it as (estimated) or (standard spec).
-5. Be extremely precise with Make, Model, and Trim. Fix typos in transcript (e.g. "Chin L DMI" -> "BYD Qin L DM-i").
-6. IMPORTANT: Do not normalize or "correct" model names unless you are 100% sure it's a transcription error. A "YU7" is NOT an "SU7" if they are different models.
+3. ONLY include specs that are explicitly mentioned in the transcript or that you are 100% certain about for this exact model/trim.
+4. If a spec is NOT mentioned in the transcript and you are NOT 100% certain, write "Not specified" for that field. Do NOT guess or estimate.
+5. NEVER use "(estimated)", "(approximate)", "(standard spec)" or similar qualifiers. Either you know the exact spec or leave it as "Not specified".
+6. ALWAYS include units: hp or kW for power, Nm or lb-ft for torque, mph or km/h for speed, seconds for acceleration.
+7. Be extremely precise with Make, Model, and Trim. Fix typos in transcript (e.g. "Chin L DMI" -> "BYD Qin L DM-i").
+8. IMPORTANT: Do not normalize or "correct" model names unless you are 100% sure it's a transcription error. A "YU7" is NOT an "SU7" if they are different models.
 """
     
-    system_prompt = "You are an expert automotive analyst. You extract facts from transcripts but also use your vast knowledge of car specifications to fill in gaps when the video omits details. You correct obvious transcription errors (e.g. model names)."
+    system_prompt = "You are an expert automotive analyst. You extract facts from transcripts accurately. You ONLY include specifications that are explicitly stated or that you are 100% certain about. You NEVER guess or estimate — if a spec is unclear, you write 'Not specified'. You always include measurement units. You correct obvious transcription errors in model names."
     
     try:
         # Use AI provider factory

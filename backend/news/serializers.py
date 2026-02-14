@@ -88,11 +88,13 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class CarSpecificationSerializer(serializers.ModelSerializer):
+    article_title = serializers.CharField(source='article.title', read_only=True)
+    
     class Meta:
         model = CarSpecification
-        fields = ['id', 'make', 'model', 'year', 'horsepower', 'torque', 
-                  'zero_to_sixty', 'top_speed', 'created_at']
-        read_only_fields = ['created_at']
+        fields = ['id', 'article', 'article_title', 'model_name', 'make', 'model', 'trim',
+                  'engine', 'horsepower', 'torque', 'zero_to_sixty', 'top_speed',
+                  'price', 'release_date', 'is_verified', 'verified_at']
 
 
 class VehicleSpecsSerializer(serializers.ModelSerializer):

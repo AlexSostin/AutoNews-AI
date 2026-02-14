@@ -110,6 +110,7 @@ export default function Header() {
           <nav className="hidden md:flex space-x-6 items-center">
             <Link href="/" className="hover:text-purple-300 transition-colors">Home</Link>
             <Link href="/articles" className="hover:text-purple-300 transition-colors">Articles</Link>
+            <Link href="/cars" className="hover:text-purple-300 transition-colors">Cars</Link>
 
             {/* Categories Dropdown */}
             <div className="relative" ref={categoriesRef}>
@@ -247,6 +248,7 @@ export default function Header() {
           <div ref={mobileMenuRef} className="md:hidden pb-4 space-y-2">
             <Link href="/" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
             <Link href="/articles" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Articles</Link>
+            <Link href="/cars" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Cars</Link>
 
             {/* Mobile Categories */}
             <div>

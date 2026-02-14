@@ -46,6 +46,9 @@ class SiteSettings(models.Model):
     hero_title = models.CharField(max_length=200, default="Welcome to Fresh Motors", help_text="Custom title for Hero section")
     hero_subtitle = models.TextField(default="Your premier source for automotive news, reviews, and insights", help_text="Custom subtitle for Hero section")
     
+    # Homepage Sections
+    show_browse_by_brand = models.BooleanField(default=True, help_text="Show 'Browse by Brand' section on homepage")
+    
     # Footer
     footer_text = models.TextField(default="© 2026 Fresh Motors. All rights reserved.")
     
@@ -266,6 +269,8 @@ class CarSpecification(models.Model):
     top_speed = models.CharField(max_length=50, blank=True)
     price = models.CharField(max_length=100, blank=True)
     release_date = models.CharField(max_length=100, blank=True)
+    is_verified = models.BooleanField(default=False, help_text="Manually verified by editor")
+    verified_at = models.DateTimeField(null=True, blank=True, help_text="When specs were verified")
     
     def __str__(self):
         return f"Specs for {self.article.title}"

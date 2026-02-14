@@ -6,6 +6,7 @@ import MaintenancePage from '@/components/public/MaintenancePage';
 import Hero from '@/components/public/Hero';
 import InfiniteArticleList from '@/components/public/InfiniteArticleList';
 import Link from 'next/link';
+import { fixImageUrl } from '@/lib/config';
 import { cookies } from 'next/headers';
 import type { Metadata } from 'next';
 
@@ -119,6 +120,17 @@ async function getCategories() {
   }
 }
 
+async function getBrands() {
+  try {
+    const res = await fetch(`${getApiUrl()}/cars/brands/`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data.slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function Home() {
   // Fetch settings and auth check in parallel (both independent)
   const [settings, isAdmin] = await Promise.all([getSettings(), checkIsAdmin()]);
@@ -127,8 +139,8 @@ export default async function Home() {
     return <MaintenancePage message={settings.maintenance_message} />;
   }
 
-  // Fetch articles and categories in parallel (both independent)
-  const [articlesData, categories] = await Promise.all([getArticles(), getCategories()]);
+  // Fetch articles, categories, and brands in parallel
+  const [articlesData, categories, brands] = await Promise.all([getArticles(), getCategories(), getBrands()]);
   const articles = articlesData.results || [];
 
   return (
@@ -177,6 +189,55 @@ export default async function Home() {
                     </div>
                   </Link>
                 ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Browse by Brand Section */}
+        {brands.length > 0 && settings?.show_browse_by_brand !== false && (
+          <section className="py-12">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-10">
+                <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
+                  Browse by Brand
+                </h2>
+                <div className="w-20 h-1.5 bg-purple-600 mx-auto rounded-full" />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                {brands.map((brand: any) => (
+                  <Link
+                    key={brand.slug}
+                    href={`/cars/${brand.slug}`}
+                    className="group flex items-center gap-3 bg-white/70 backdrop-blur-md border border-gray-200 rounded-xl px-4 py-3 transition-all duration-300 hover:border-purple-400 hover:shadow-lg hover:-translate-y-0.5"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center text-lg group-hover:from-purple-200 group-hover:to-indigo-200 transition-all overflow-hidden flex-shrink-0">
+                      {brand.image ? (
+                        <img src={fixImageUrl(brand.image)} alt="" className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <span>🚗</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors truncate">
+                        {brand.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {brand.model_count} {brand.model_count === 1 ? 'model' : 'models'}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="text-center mt-8">
+                <Link
+                  href="/cars"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors"
+                >
+                  View All Brands →
+                </Link>
               </div>
             </div>
           </section>
