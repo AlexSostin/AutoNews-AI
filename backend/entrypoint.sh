@@ -39,6 +39,9 @@ python manage.py backfill_car_specs || echo "Car specs backfill skipped"
 echo "🎬 Fixing missing video embeds..."
 python manage.py fix_video_embeds || echo "Video embed fix skipped"
 
+echo "📝 Backfilling article sources from YouTube..."
+python manage.py backfill_sources || echo "Source backfill skipped"
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
