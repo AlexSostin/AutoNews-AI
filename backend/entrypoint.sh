@@ -45,6 +45,9 @@ python manage.py backfill_sources || echo "Source backfill skipped"
 echo "🤖 Backfilling missing car specs via AI + removing Qin L dupes..."
 python manage.py backfill_missing_specs --refresh-all --delete-dupes 25 26 || echo "Specs backfill skipped"
 
+echo "🧹 Normalizing car specs (make names + horsepower)..."
+python manage.py normalize_specs || echo "Specs normalization skipped"
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 

@@ -15,9 +15,12 @@ def _get_image_url(article, request):
     if not article.image:
         return None
     relative = article.image.url if hasattr(article.image, 'url') else str(article.image)
-    if relative:
-        return request.build_absolute_uri(relative)
-    return None
+    if not relative:
+        return None
+    # If already an absolute URL (e.g. Cloudinary), return as-is
+    if relative.startswith('http://') or relative.startswith('https://'):
+        return relative
+    return request.build_absolute_uri(relative)
 
 
 class CarBrandsListView(APIView):
