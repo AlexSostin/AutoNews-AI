@@ -157,3 +157,49 @@ def auto_remove_from_vector_index(sender, instance, **kwargs):
     _remove_from_vector_async(instance.id, instance.title)
 
 
+# ============================================================================
+# AUTO-CREATE CAR SPECIFICATIONS ON ARTICLE PUBLISH
+# ============================================================================
+
+@receiver(post_save, sender=Article)
+def auto_create_car_specs(sender, instance, **kwargs):
+    """
+    Automatically create CarSpecification when an article is published
+    and doesn't have one yet. Uses AI to extract specs from content.
+    Runs in background thread to avoid blocking the save.
+    """
+    # Only process published, non-deleted articles
+    if not instance.is_published or instance.is_deleted:
+        return
+
+    # Skip if article already has a CarSpecification
+    from news.models import CarSpecification
+    if CarSpecification.objects.filter(article=instance).exists():
+        return
+
+    # Skip known non-car articles
+    from news.spec_extractor import SKIP_ARTICLE_IDS
+    if instance.id in SKIP_ARTICLE_IDS:
+        return
+
+    # Run AI extraction in background thread
+    article_id = instance.id
+
+    def _extract():
+        try:
+            from news.spec_extractor import extract_specs_from_content, save_specs_for_article
+            article = Article.objects.get(id=article_id)
+            specs = extract_specs_from_content(article)
+            if specs and specs.get('make') and specs['make'] != 'Not specified':
+                result = save_specs_for_article(article, specs)
+                if result:
+                    logger.info(f"🚗 Auto-created CarSpecification for [{article_id}] {result.make} {result.model}")
+                else:
+                    logger.warning(f"⚠️ Could not save specs for [{article_id}]")
+            else:
+                logger.info(f"ℹ️ No car specs extracted for [{article_id}] (not a car article?)")
+        except Exception as e:
+            logger.error(f"❌ Auto-spec extraction failed for [{article_id}]: {e}")
+
+    thread = threading.Thread(target=_extract, daemon=True)
+    thread.start()

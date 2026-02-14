@@ -1,18 +1,14 @@
 """
 Backfill CarSpecification for articles that don't have one,
 or refresh ALL existing specs with AI re-analysis.
-Uses AI (Gemini) to extract specs from article content.
+Uses shared spec_extractor module for AI extraction and normalization.
 Also optionally deletes duplicate articles.
 """
-import re
 from django.core.management.base import BaseCommand
 from news.models import Article, CarSpecification
-from ai_engine.modules.ai_provider import get_ai_provider
-
-
-# Articles that are news/non-car content - skip them
-SKIP_ARTICLE_IDS = [73, 76]  # Wireless charging roads, Hongqi records
-MAX_FIELD_LENGTH = 50  # DB varchar(50) limit
+from news.spec_extractor import (
+    extract_specs_from_content, save_specs_for_article, SKIP_ARTICLE_IDS,
+)
 
 
 class Command(BaseCommand):
@@ -42,7 +38,6 @@ class Command(BaseCommand):
 
         # Step 2: Find target articles
         if refresh_all:
-            # All published articles except news
             articles = (
                 Article.objects
                 .filter(is_published=True)
@@ -51,7 +46,6 @@ class Command(BaseCommand):
             )
             self.stdout.write(f'\n🔄 REFRESH ALL mode: processing {articles.count()} articles')
         else:
-            # Only articles without CarSpecification
             articles_with_specs = set(
                 CarSpecification.objects.values_list('article_id', flat=True)
             )
@@ -69,7 +63,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('✅ Nothing to process!'))
             return
 
-        ai = get_ai_provider('gemini')
         created = 0
         updated = 0
 
@@ -77,8 +70,7 @@ class Command(BaseCommand):
             try:
                 self.stdout.write(f'\n🔍 [{article.id}] "{article.title[:60]}"')
 
-                # Extract specs from article content using AI
-                specs = self._extract_specs_from_content(ai, article)
+                specs = extract_specs_from_content(article)
                 if not specs:
                     self.stdout.write(self.style.WARNING('  ⚠️ Could not extract specs'))
                     continue
@@ -95,48 +87,18 @@ class Command(BaseCommand):
                     f'price={specs.get("price","?")}'
                 )
 
-                def _val(key, default=''):
-                    """Get spec value, skip 'Not specified', truncate to max length."""
-                    v = specs.get(key, default)
-                    if v == 'Not specified':
-                        return default
-                    return str(v)[:MAX_FIELD_LENGTH] if v else default
-
-                spec_data = {
-                    'model_name': f'{make} {model}'.strip()[:200],
-                    'make': make[:100],
-                    'model': model[:100],
-                    'trim': _val('trim'),
-                    'engine': _val('engine'),
-                    'horsepower': _val('horsepower', ''),
-                    'torque': _val('torque'),
-                    'zero_to_sixty': _val('acceleration'),
-                    'top_speed': _val('top_speed'),
-                    'drivetrain': _val('drivetrain'),
-                    'price': _val('price'),
-                }
-
                 if not dry_run:
-                    existing = CarSpecification.objects.filter(article=article).first()
-                    if existing:
-                        # Update existing - only overwrite if AI found better data
-                        changes = []
-                        for field, value in spec_data.items():
-                            if value and str(value).strip():
-                                old = str(getattr(existing, field, '') or '')
-                                if not old.strip() or (refresh_all and value != old):
-                                    setattr(existing, field, value)
-                                    changes.append(field)
-                        if changes:
-                            existing.save()
-                            self.stdout.write(f'  ✅ Updated fields: {", ".join(changes)}')
+                    existing = CarSpecification.objects.filter(article=article).exists()
+                    result = save_specs_for_article(article, specs)
+                    if result:
+                        if existing:
+                            self.stdout.write(f'  ✅ Updated spec')
                             updated += 1
                         else:
-                            self.stdout.write(f'  ℹ️ No changes needed')
+                            self.stdout.write(f'  ✅ Created new spec')
+                            created += 1
                     else:
-                        CarSpecification.objects.create(article=article, **spec_data, release_date='')
-                        self.stdout.write(f'  ✅ Created new spec')
-                        created += 1
+                        self.stdout.write(self.style.WARNING(f'  ⚠️ Could not save specs'))
                 else:
                     existing = CarSpecification.objects.filter(article=article).exists()
                     if existing:
@@ -153,81 +115,3 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f'\n✅ {action_verb} Created {created}, Updated {updated} CarSpecification records'
         ))
-
-    def _extract_specs_from_content(self, ai, article):
-        """Use AI to extract car specs from article content."""
-        # Strip HTML tags for cleaner text
-        content = re.sub(r'<[^>]+>', ' ', article.content or '')
-        content = re.sub(r'\s+', ' ', content).strip()
-
-        # Limit content length
-        content = content[:4000]
-
-        prompt = f"""Extract car specifications from this article.
-Title: {article.title}
-
-Content:
-{content}
-
-Output ONLY these fields with EXACT labels:
-Make: [Brand name, e.g. "NIO", "BYD", "Xpeng", "Toyota"]
-Model: [Model name without brand, e.g. "ET9", "Leopard 5", "Highlander"]
-Trim/Version: [Trim if mentioned, else "Not specified"]
-Engine: [Engine type, e.g. "Electric Dual Motor", "1.5L Turbo PHEV", "2.0L Inline-4"]
-Horsepower: [Number with unit, e.g. "300 hp" or "220 kW"]
-Torque: [With unit, e.g. "400 Nm"]
-Acceleration: [0-60 mph or 0-100 km/h time, e.g. "5.5 seconds (0-60 mph)"]
-Top Speed: [With unit, e.g. "155 mph" or "250 km/h"]
-Drivetrain: [AWD/FWD/RWD/4WD or "Not specified"]
-Price: [With currency symbol, e.g. "$45,000" or "¥169,800"]
-
-IMPORTANT:
-1. Only include specs EXPLICITLY mentioned in the content. 
-2. Write "Not specified" if a spec is not found in the text.
-3. NEVER guess, estimate, or use qualifiers like "(estimated)".
-4. If the article is clearly NOT about a specific car model, output Make: Not specified
-"""
-
-        system_prompt = (
-            "You are an automotive data extractor. Extract only facts explicitly "
-            "stated in the text. Never guess. Use 'Not specified' for unknown fields."
-        )
-
-        try:
-            result = ai.generate_completion(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                temperature=0.2,
-                max_tokens=500,
-            )
-            return self._parse_specs(result)
-        except Exception as e:
-            self.stderr.write(f'  AI error: {e}')
-            return None
-
-    def _parse_specs(self, text):
-        """Parse AI output into specs dict."""
-        specs = {}
-        for line in text.split('\n'):
-            line = line.strip()
-            if line.startswith('Make:'):
-                specs['make'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Model:'):
-                specs['model'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Trim/Version:'):
-                specs['trim'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Engine:'):
-                specs['engine'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Horsepower:'):
-                specs['horsepower'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Torque:'):
-                specs['torque'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Acceleration:'):
-                specs['acceleration'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Top Speed:'):
-                specs['top_speed'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Drivetrain:') or line.startswith('Drive:'):
-                specs['drivetrain'] = line.split(':', 1)[1].strip()
-            elif line.startswith('Price:'):
-                specs['price'] = line.split(':', 1)[1].strip()
-        return specs

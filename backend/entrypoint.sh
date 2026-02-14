@@ -17,11 +17,6 @@ else
 fi
 
 echo "Running migrations..."
-
-# One-time fix: migrations 0044-0046 columns already exist from partial deploys
-# Fake them so migrate --noinput doesn't crash. Remove after successful deploy.
-python manage.py migrate news 0046 --fake 2>&1 || true
-
 python manage.py migrate --noinput
 
 # Run branding update AFTER migrations (needs SiteSettings table to be current)
@@ -33,21 +28,6 @@ if [ ! -f "$BRANDING_FLAG" ]; then
     echo "✅ Branding update complete"
 fi
 
-echo "🚗 Backfilling car spec make/model fields..."
-python manage.py backfill_car_specs || echo "Car specs backfill skipped"
-
-echo "🎬 Fixing missing video embeds..."
-python manage.py fix_video_embeds || echo "Video embed fix skipped"
-
-echo "📝 Backfilling article sources from YouTube..."
-python manage.py backfill_sources || echo "Source backfill skipped"
-
-echo "🤖 Backfilling missing car specs via AI + removing Qin L dupes..."
-python manage.py backfill_missing_specs --refresh-all --delete-dupes 25 26 || echo "Specs backfill skipped"
-
-echo "🧹 Normalizing car specs (make names + horsepower)..."
-python manage.py normalize_specs || echo "Specs normalization skipped"
-
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
@@ -56,12 +36,6 @@ python manage.py populate_tags || echo "Tags population skipped"
 
 echo "📊 Indexing articles for vector search (background)..."
 (python manage.py index_articles &) || echo "Article indexing skipped"
-
-# One-time reset of views (remove after first deploy)
-if [ "$RESET_VIEWS_ONCE" = "true" ]; then
-    echo "Resetting view counts for real analytics..."
-    python manage.py reset_views || echo "Views reset skipped"
-fi
 
 echo "Creating superuser if not exists..."
 python manage.py shell << EOF
