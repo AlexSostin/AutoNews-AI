@@ -172,11 +172,11 @@ class Command(BaseCommand):
                 continue
             
             # Count articles on source
-            source_articles = source.articles.all()
+            source_articles = source.article_set.all()
             article_count = source_articles.count()
             
             self.stdout.write(
-                f'  📎 Merge: "{source.name}" ({article_count} articles) → "{target.name}" ({target.articles.count()} articles)'
+                f'  📎 Merge: "{source.name}" ({article_count} articles) → "{target.name}" ({target.article_set.count()} articles)'
             )
             
             if not dry_run:
