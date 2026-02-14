@@ -27,6 +27,7 @@ export default function ArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -36,7 +37,16 @@ export default function ArticlesPage() {
 
   useEffect(() => {
     fetchArticles();
-  }, [filter, currentPage, itemsPerPage]);
+  }, [filter, currentPage, itemsPerPage, searchTerm]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const fetchArticles = async () => {
     try {
@@ -47,6 +57,9 @@ export default function ArticlesPage() {
       };
       if (filter !== 'all') {
         params.is_published = filter === 'published' ? 'true' : 'false';
+      }
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
       }
       const response = await api.get('/articles/', { params });
       setArticles(response.data.results || response.data);
@@ -122,9 +135,7 @@ export default function ArticlesPage() {
     }
   };
 
-  const filteredArticles = articles.filter(article =>
-    article.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // All filtering is done server-side now
 
   return (
     <div>
@@ -154,8 +165,8 @@ export default function ArticlesPage() {
               <input
                 type="text"
                 placeholder="Search articles..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
               />
             </div>
@@ -199,7 +210,7 @@ export default function ArticlesPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
             <p className="text-gray-600 mt-4 font-medium">Loading articles...</p>
           </div>
-        ) : filteredArticles.length === 0 ? (
+        ) : articles.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-6xl mb-4">📝</div>
             <p className="text-gray-700 font-semibold text-lg mb-2">No articles found</p>
@@ -239,7 +250,7 @@ export default function ArticlesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredArticles.map((article) => (
+                {articles.map((article) => (
                   <tr key={article.id} className={`hover:bg-gray-50 transition-colors ${deletingId === article.id ? 'opacity-50' : ''}`}>
                     <td className="px-2 py-3">
                       <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">

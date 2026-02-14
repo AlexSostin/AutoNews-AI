@@ -212,8 +212,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
     setSaving(true);
     try {
-      // Use FormData if images are being uploaded
-      if (formData.image || formData.image_2 || formData.image_3) {
+      // Use FormData if images are being uploaded or deleted
+      if (formData.image || formData.image_2 || formData.image_3 || formData.delete_image || formData.delete_image_2 || formData.delete_image_3) {
         const formDataToSend = new FormData();
         formDataToSend.append('title', formData.title);
         formDataToSend.append('summary', formData.summary);
