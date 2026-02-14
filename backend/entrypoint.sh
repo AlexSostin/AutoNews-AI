@@ -18,9 +18,9 @@ fi
 
 echo "Running migrations..."
 
-# One-time fix: migration 0044 columns already exist on prod from a partial deploy
-# Fake it so migrate --noinput doesn't crash, then remove this after successful deploy
-python manage.py migrate news 0044 --fake 2>&1 || true
+# One-time fix: migrations 0044+0045 columns already exist from partial deploys
+# Fake them so migrate --noinput doesn't crash. Remove after successful deploy.
+python manage.py migrate news 0045 --fake 2>&1 || true
 
 python manage.py migrate --noinput
 
