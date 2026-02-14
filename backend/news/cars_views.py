@@ -14,10 +14,15 @@ def _get_image_url(article, request):
     """Get absolute image URL for an article."""
     if not article.image:
         return None
-    relative = article.image.url if hasattr(article.image, 'url') else str(article.image)
+    # Check raw DB value FIRST — if it's already an absolute URL,
+    # don't call .url which would double it via Cloudinary storage
+    raw = str(article.image)
+    if raw.startswith('http://') or raw.startswith('https://'):
+        return raw
+    # Use .url for relative paths (goes through storage backend)
+    relative = article.image.url if hasattr(article.image, 'url') else raw
     if not relative:
         return None
-    # If already an absolute URL (e.g. Cloudinary), return as-is
     if relative.startswith('http://') or relative.startswith('https://'):
         return relative
     return request.build_absolute_uri(relative)
