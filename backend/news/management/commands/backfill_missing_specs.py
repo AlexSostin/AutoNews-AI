@@ -12,6 +12,7 @@ from ai_engine.modules.ai_provider import get_ai_provider
 
 # Articles that are news/non-car content - skip them
 SKIP_ARTICLE_IDS = [73, 76]  # Wireless charging roads, Hongqi records
+MAX_FIELD_LENGTH = 50  # DB varchar(50) limit
 
 
 class Command(BaseCommand):
@@ -73,73 +74,80 @@ class Command(BaseCommand):
         updated = 0
 
         for article in articles:
-            self.stdout.write(f'\n🔍 [{article.id}] "{article.title[:60]}"')
+            try:
+                self.stdout.write(f'\n🔍 [{article.id}] "{article.title[:60]}"')
 
-            # Extract specs from article content using AI
-            specs = self._extract_specs_from_content(ai, article)
-            if not specs:
-                self.stdout.write(self.style.WARNING('  ⚠️ Could not extract specs'))
-                continue
+                # Extract specs from article content using AI
+                specs = self._extract_specs_from_content(ai, article)
+                if not specs:
+                    self.stdout.write(self.style.WARNING('  ⚠️ Could not extract specs'))
+                    continue
 
-            make = specs.get('make', '')
-            model = specs.get('model', '')
-            if not make or make == 'Not specified':
-                self.stdout.write(self.style.WARNING(f'  ⚠️ No make extracted, skipping'))
-                continue
+                make = specs.get('make', '')
+                model = specs.get('model', '')
+                if not make or make == 'Not specified':
+                    self.stdout.write(self.style.WARNING(f'  ⚠️ No make extracted, skipping'))
+                    continue
 
-            self.stdout.write(
-                f'  → {make} {model} | engine={specs.get("engine","?")} | '
-                f'hp={specs.get("horsepower","?")} | drivetrain={specs.get("drivetrain","?")} | '
-                f'price={specs.get("price","?")}'
-            )
+                self.stdout.write(
+                    f'  → {make} {model} | engine={specs.get("engine","?")} | '
+                    f'hp={specs.get("horsepower","?")} | drivetrain={specs.get("drivetrain","?")} | '
+                    f'price={specs.get("price","?")}'
+                )
 
-            spec_data = {
-                'model_name': f'{make} {model}'.strip(),
-                'make': make,
-                'model': model,
-                'trim': specs.get('trim', '') if specs.get('trim') != 'Not specified' else '',
-                'engine': specs.get('engine', '') if specs.get('engine') != 'Not specified' else '',
-                'horsepower': specs.get('horsepower') or 0,
-                'torque': specs.get('torque', '') if specs.get('torque') != 'Not specified' else '',
-                'zero_to_sixty': specs.get('acceleration', '') if specs.get('acceleration') != 'Not specified' else '',
-                'top_speed': specs.get('top_speed', '') if specs.get('top_speed') != 'Not specified' else '',
-                'drivetrain': specs.get('drivetrain', '') if specs.get('drivetrain') != 'Not specified' else '',
-                'price': specs.get('price', '') if specs.get('price') != 'Not specified' else '',
-            }
+                def _val(key, default=''):
+                    """Get spec value, skip 'Not specified', truncate to max length."""
+                    v = specs.get(key, default)
+                    if v == 'Not specified':
+                        return default
+                    return str(v)[:MAX_FIELD_LENGTH] if v else default
 
-            if not dry_run:
-                existing = CarSpecification.objects.filter(article=article).first()
-                if existing:
-                    # Update existing - only overwrite if AI found better data
-                    changes = []
-                    for field, value in spec_data.items():
-                        if field == 'horsepower':
-                            if value and (not existing.horsepower or existing.horsepower == 0):
-                                setattr(existing, field, value)
-                                changes.append(field)
-                        elif value and value.strip():
-                            old = getattr(existing, field, '') or ''
-                            if not old.strip() or (refresh_all and value != old):
-                                setattr(existing, field, value)
-                                changes.append(field)
-                    if changes:
-                        existing.save()
-                        self.stdout.write(f'  ✅ Updated fields: {", ".join(changes)}')
+                spec_data = {
+                    'model_name': f'{make} {model}'.strip()[:200],
+                    'make': make[:100],
+                    'model': model[:100],
+                    'trim': _val('trim'),
+                    'engine': _val('engine'),
+                    'horsepower': _val('horsepower', ''),
+                    'torque': _val('torque'),
+                    'zero_to_sixty': _val('acceleration'),
+                    'top_speed': _val('top_speed'),
+                    'drivetrain': _val('drivetrain'),
+                    'price': _val('price'),
+                }
+
+                if not dry_run:
+                    existing = CarSpecification.objects.filter(article=article).first()
+                    if existing:
+                        # Update existing - only overwrite if AI found better data
+                        changes = []
+                        for field, value in spec_data.items():
+                            if value and str(value).strip():
+                                old = str(getattr(existing, field, '') or '')
+                                if not old.strip() or (refresh_all and value != old):
+                                    setattr(existing, field, value)
+                                    changes.append(field)
+                        if changes:
+                            existing.save()
+                            self.stdout.write(f'  ✅ Updated fields: {", ".join(changes)}')
+                            updated += 1
+                        else:
+                            self.stdout.write(f'  ℹ️ No changes needed')
+                    else:
+                        CarSpecification.objects.create(article=article, **spec_data, release_date='')
+                        self.stdout.write(f'  ✅ Created new spec')
+                        created += 1
+                else:
+                    existing = CarSpecification.objects.filter(article=article).exists()
+                    if existing:
+                        self.stdout.write(f'  [DRY] Would update')
                         updated += 1
                     else:
-                        self.stdout.write(f'  ℹ️ No changes needed')
-                else:
-                    CarSpecification.objects.create(article=article, **spec_data, release_date='')
-                    self.stdout.write(f'  ✅ Created new spec')
-                    created += 1
-            else:
-                existing = CarSpecification.objects.filter(article=article).exists()
-                if existing:
-                    self.stdout.write(f'  [DRY] Would update')
-                    updated += 1
-                else:
-                    self.stdout.write(f'  [DRY] Would create')
-                    created += 1
+                        self.stdout.write(f'  [DRY] Would create')
+                        created += 1
+            except Exception as e:
+                self.stderr.write(self.style.ERROR(f'  ❌ Error processing [{article.id}]: {e}'))
+                continue
 
         action_verb = 'Would' if dry_run else ''
         self.stdout.write(self.style.SUCCESS(
@@ -211,9 +219,7 @@ IMPORTANT:
             elif line.startswith('Engine:'):
                 specs['engine'] = line.split(':', 1)[1].strip()
             elif line.startswith('Horsepower:'):
-                hp_str = line.split(':', 1)[1].strip()
-                match = re.search(r'(\d+)', hp_str)
-                specs['horsepower'] = int(match.group(1)) if match else None
+                specs['horsepower'] = line.split(':', 1)[1].strip()
             elif line.startswith('Torque:'):
                 specs['torque'] = line.split(':', 1)[1].strip()
             elif line.startswith('Acceleration:'):
