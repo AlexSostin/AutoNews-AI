@@ -117,10 +117,49 @@ def _get_db_categories():
     return ["News", "Reviews", "EVs", "Technology", "Industry", "Comparisons"]
 
 
+def _get_db_tags():
+    """
+    Fetch tags from the database grouped by TagGroup.
+    Returns a dict: {group_name: [tag_names]}
+    Only includes relevant groups for the AI prompt.
+    """
+    RELEVANT_GROUPS = ['Manufacturers', 'Body Types', 'Fuel Types', 'Segments', 'Drivetrain']
+    
+    try:
+        import django
+        if django.apps.apps.ready:
+            from news.models import Tag, TagGroup
+            result = {}
+            for group_name in RELEVANT_GROUPS:
+                tags = Tag.objects.filter(
+                    group__name=group_name
+                ).values_list('name', flat=True).order_by('name')
+                if tags:
+                    result[group_name] = list(tags)
+            if result:
+                return result
+    except Exception:
+        pass
+    
+    # Fallback if DB not available
+    return {
+        'Manufacturers': ['BMW', 'Mercedes', 'Audi', 'Tesla', 'Toyota', 'Honda', 'Ford',
+                          'Volkswagen', 'Nissan', 'Hyundai', 'Kia', 'Porsche', 'Volvo',
+                          'BYD', 'NIO', 'XPeng', 'Zeekr', 'Li Auto', 'Xiaomi', 'DongFeng',
+                          'Geely', 'Denza', 'VOYAH', 'HUAWEI', 'Rivian', 'Lucid'],
+        'Body Types': ['SUV', 'Sedan', 'Coupe', 'Hatchback', 'Crossover', 'Truck',
+                       'Wagon', 'MPV', 'Shooting Brake', 'Minivan', 'Pickup'],
+        'Fuel Types': ['EV', 'Hybrid', 'PHEV', 'DM-i', 'E‑REV', 'BEV', 'Diesel', 'Gasoline'],
+        'Segments': ['Luxury', 'Family', 'Budget', 'Comfort', 'Sport', 'Premium',
+                     'Off-road', 'City', 'Supercar'],
+        'Drivetrain': ['AWD', 'FWD', 'RWD', '4WD'],
+    }
+
+
 def categorize_article(analysis, provider='groq'):
     """
     Determines category and tags based on analysis using the AI provider factory.
-    Falls back gracefully if AI is unavailable.
+    Uses tags from the database when available, falls back to hardcoded list.
     """
     print("Categorizing article with AI...")
     
@@ -128,17 +167,20 @@ def categorize_article(analysis, provider='groq'):
     db_categories = _get_db_categories()
     categories_str = "\n".join([f"- {cat}" for cat in db_categories])
     
+    # Fetch tags from DB grouped by TagGroup
+    db_tags = _get_db_tags()
+    tags_section = ""
+    for group_name, tag_list in db_tags.items():
+        tags_section += f"{group_name}: {', '.join(tag_list)}\n"
+    
     prompt = f"""
 Based on this automotive analysis, determine the best category and relevant tags.
 
 Categories (choose ONE):
 {categories_str}
 
-Tags (choose 5-7 from these categories):
-Brand Tags: BMW, Mercedes-Benz, Audi, Tesla, Toyota, Honda, Ford, Volkswagen, Nissan, Hyundai, Kia, Porsche, Volvo, Jaguar, Land Rover, Lexus, Genesis, Rivian, Lucid
-Type Tags: EV, Hybrid, PHEV, SUV, Sedan, Coupe, Truck, Sports Car, Hatchback, Wagon
-Feature Tags: Electric, Autonomous, Performance, Luxury, Budget, Off-Road, Family
-
+Tags (choose 5-8 relevant tags from these groups, at least one from Manufacturers):
+{tags_section}
 Analysis:
 {analysis[:2000]}
 
@@ -152,7 +194,7 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5]
         ai = get_ai_provider(provider)
         result = ai.generate_completion(
             prompt=prompt,
-            system_prompt="You are an expert automotive content categorizer.",
+            system_prompt="You are an expert automotive content categorizer. Choose tags that exactly match the provided options.",
             temperature=0.2,  # Low temperature for deterministic categorization
             max_tokens=200
         )
@@ -163,6 +205,12 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5]
         # Parse result
         category = "Reviews"  # Default
         tags = []
+        
+        # Build a lookup of all valid tag names (lowercase → exact name)
+        all_valid_tags = {}
+        for tag_list in db_tags.values():
+            for tag_name in tag_list:
+                all_valid_tags[tag_name.lower()] = tag_name
         
         for line in result.split('\n'):
             if line.startswith('Category:'):
@@ -178,7 +226,14 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5]
                     category = cat_name  # Use AI output as-is
             elif line.startswith('Tags:'):
                 tags_str = line.split(':', 1)[1].strip()
-                tags = [t.strip() for t in tags_str.split(',') if t.strip()]
+                raw_tags = [t.strip() for t in tags_str.split(',') if t.strip()]
+                # Validate tags against DB — use exact name if matched
+                for raw_tag in raw_tags:
+                    matched_name = all_valid_tags.get(raw_tag.lower())
+                    if matched_name:
+                        tags.append(matched_name)
+                    else:
+                        tags.append(raw_tag)  # Keep AI output as fallback
         
         print(f"✓ Category: {category}, Tags: {', '.join(tags)}")
         return category, tags

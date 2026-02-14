@@ -178,6 +178,10 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
         if added_tags:
             print(f"  ✓ Tags added: {', '.join(added_tags)}")
     
+    # Smart brand/model tagging from specs
+    if specs:
+        _add_spec_based_tags(article, specs)
+    
     # Save car specifications
     if specs and specs.get('make') != 'Not specified':
         try:
@@ -235,3 +239,40 @@ def generate_seo_title(title):
     
     # Если не нашли паттерн, обрезаем title
     return title[:57] + "..."
+
+
+def _add_spec_based_tags(article, specs):
+    """
+    Add tags based on specs data (make/model).
+    Only adds tags that already exist in the database — never creates new ones.
+    This ensures the brand is always properly tagged even if the AI misses it.
+    """
+    added = []
+    
+    # Add manufacturer tag
+    make = specs.get('make', 'Not specified')
+    if make and make != 'Not specified':
+        make_slug = slugify(make)
+        try:
+            tag = Tag.objects.get(slug=make_slug)
+            if not article.tags.filter(pk=tag.pk).exists():
+                article.tags.add(tag)
+                added.append(f"make:{tag.name}")
+        except Tag.DoesNotExist:
+            pass  # Brand not in DB, skip
+    
+    # Add model tag
+    model = specs.get('model', 'Not specified')
+    if model and model != 'Not specified':
+        model_slug = slugify(model)
+        try:
+            tag = Tag.objects.get(slug=model_slug)
+            if not article.tags.filter(pk=tag.pk).exists():
+                article.tags.add(tag)
+                added.append(f"model:{tag.name}")
+        except Tag.DoesNotExist:
+            pass  # Model not in DB, skip
+    
+    if added:
+        print(f"  ✓ Spec-based tags added: {', '.join(added)}")
+
