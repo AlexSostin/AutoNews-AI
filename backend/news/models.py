@@ -293,8 +293,8 @@ class BrandAlias(models.Model):
 class CarSpecification(models.Model):
     article = models.OneToOneField(Article, on_delete=models.CASCADE, related_name='specs')
     model_name = models.CharField(max_length=200, help_text="Specific trim or model (Legacy)")
-    make = models.CharField(max_length=100, blank=True, help_text="Car Brand")
-    model = models.CharField(max_length=100, blank=True, help_text="Base Model")
+    make = models.CharField(max_length=100, blank=True, db_index=True, help_text="Car Brand")
+    model = models.CharField(max_length=100, blank=True, db_index=True, help_text="Base Model")
     trim = models.CharField(max_length=100, blank=True, help_text="Trim or Version")
     engine = models.CharField(max_length=200, blank=True)
     horsepower = models.CharField(max_length=50, blank=True)

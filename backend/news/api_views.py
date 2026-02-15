@@ -457,6 +457,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
         # Admins see all categories, public users only see visible ones
         if not self.request.user.is_authenticated:
             queryset = queryset.filter(is_visible=True)
+        # Annotate article count to avoid N+1 queries in serializer
+        if self.action == 'list':
+            from django.db.models import Q
+            queryset = queryset.annotate(
+                _article_count=Count('articles', filter=Q(articles__is_published=True))
+            )
         return queryset
 
     def get_object(self):
@@ -478,6 +484,27 @@ class CategoryViewSet(viewsets.ModelViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
+    def list(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return super().list(request, *args, **kwargs)
+        return self._cached_list(request, *args, **kwargs)
+
+    @method_decorator(cache_page(300))  # Cache for 5 minutes
+    def _cached_list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        invalidate_article_cache()  # Clear cache on write
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        invalidate_article_cache()
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        invalidate_article_cache()
+
 
 class TagGroupViewSet(viewsets.ModelViewSet):
     queryset = TagGroup.objects.all()
@@ -494,6 +521,38 @@ class TagViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'slug']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # select_related to avoid N+1 for group_name in serializer
+        queryset = queryset.select_related('group')
+        # Annotate article count to avoid N+1 queries in serializer
+        if self.action == 'list':
+            queryset = queryset.annotate(
+                _article_count=Count('article')
+            )
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return super().list(request, *args, **kwargs)
+        return self._cached_list(request, *args, **kwargs)
+
+    @method_decorator(cache_page(300))  # Cache for 5 minutes
+    def _cached_list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        invalidate_article_cache()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        invalidate_article_cache()
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        invalidate_article_cache()
 
 
 class ArticleViewSet(viewsets.ModelViewSet):

@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.db.models import Count, Q
 from django.utils.text import slugify
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from .models import CarSpecification, Article, Tag
 
 
@@ -32,6 +34,7 @@ class CarBrandsListView(APIView):
     """GET /api/v1/cars/brands/ — List all brands with model counts."""
     permission_classes = [AllowAny]
 
+    @method_decorator(cache_page(300))  # Cache for 5 minutes
     def get(self, request):
         from django.db.models.functions import Upper
         brands = (
@@ -48,16 +51,26 @@ class CarBrandsListView(APIView):
             .order_by('-article_count')
         )
 
+        # Prefetch all first specs in ONE query — no N+1!
+        all_specs = (
+            CarSpecification.objects
+            .filter(article__is_published=True)
+            .exclude(make='')
+            .exclude(make='Not specified')
+            .select_related('article')
+            .order_by('make', 'id')
+        )
+        # Build dict: uppercase_make → first spec
+        spec_by_make = {}
+        for spec in all_specs:
+            key = spec.make.upper()
+            if key not in spec_by_make:
+                spec_by_make[key] = spec
+
         result = []
         for b in brands:
             make_upper = b['make_upper']
-            # Get the original casing from first matching spec
-            first_spec = (
-                CarSpecification.objects
-                .filter(make__iexact=make_upper, article__is_published=True)
-                .select_related('article')
-                .first()
-            )
+            first_spec = spec_by_make.get(make_upper)
             if not first_spec:
                 continue
 

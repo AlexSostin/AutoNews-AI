@@ -66,6 +66,10 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'is_visible', 'article_count']
     
     def get_article_count(self, obj):
+        # Use annotated value to avoid N+1 queries
+        count = getattr(obj, '_article_count', None)
+        if count is not None:
+            return count
         return obj.articles.filter(is_published=True).count()
 
 
@@ -84,6 +88,10 @@ class TagSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'group', 'group_name', 'article_count']
     
     def get_article_count(self, obj):
+        # Use annotated value to avoid N+1 queries
+        count = getattr(obj, '_article_count', None)
+        if count is not None:
+            return count
         return obj.article_set.count()
 
 
