@@ -33,6 +33,49 @@ interface ModelData {
         price_date: string;
         release_date: string;
     };
+    vehicle_specs: {
+        drivetrain: string | null;
+        motor_count: number | null;
+        motor_placement: string | null;
+        power_hp: number | null;
+        power_kw: number | null;
+        power_display: string | null;
+        torque_nm: number | null;
+        acceleration_0_100: number | null;
+        top_speed_kmh: number | null;
+        battery_kwh: number | null;
+        range_km: number | null;
+        range_wltp: number | null;
+        range_epa: number | null;
+        range_cltc: number | null;
+        range_display: string | null;
+        charging_time_fast: string | null;
+        charging_time_slow: string | null;
+        charging_power_max_kw: number | null;
+        transmission: string | null;
+        body_type: string | null;
+        fuel_type: string | null;
+        seats: number | null;
+        length_mm: number | null;
+        width_mm: number | null;
+        height_mm: number | null;
+        wheelbase_mm: number | null;
+        weight_kg: number | null;
+        cargo_liters: number | null;
+        cargo_liters_max: number | null;
+        ground_clearance_mm: number | null;
+        towing_capacity_kg: number | null;
+        price_from: number | null;
+        price_to: number | null;
+        currency: string | null;
+        price_display: string | null;
+        year: number | null;
+        country_of_origin: string | null;
+        platform: string | null;
+        voltage_architecture: number | null;
+        suspension_type: string | null;
+        extra_specs: Record<string, unknown>;
+    } | null;
     images: string[];
     trims: {
         trim: string;
@@ -216,6 +259,67 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                     <p className="text-xs text-gray-400 leading-relaxed">
                                         ⓘ Specifications are sourced from manufacturer data and video reviews. Actual specs may vary by market, configuration, and model year. Always verify with your local dealer.
                                     </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Extended Specs from VehicleSpecs — EV & Battery */}
+                        {data.vehicle_specs && (data.vehicle_specs.battery_kwh || data.vehicle_specs.range_display !== 'N/A') && (
+                            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                                <div className="px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600">
+                                    <h2 className="text-xl font-bold text-white">🔋 EV & Battery</h2>
+                                </div>
+                                <div className="px-6 py-2">
+                                    <SpecRow label="Battery" value={data.vehicle_specs.battery_kwh ? `${data.vehicle_specs.battery_kwh} kWh` : ''} />
+                                    {data.vehicle_specs.range_wltp && <SpecRow label="Range (WLTP)" value={`${data.vehicle_specs.range_wltp} km`} highlight />}
+                                    {data.vehicle_specs.range_epa && <SpecRow label="Range (EPA)" value={`${data.vehicle_specs.range_epa} km`} highlight />}
+                                    {data.vehicle_specs.range_cltc && <SpecRow label="Range (CLTC)" value={`${data.vehicle_specs.range_cltc} km`} />}
+                                    {!data.vehicle_specs.range_wltp && !data.vehicle_specs.range_epa && !data.vehicle_specs.range_cltc && data.vehicle_specs.range_km && (
+                                        <SpecRow label="Range" value={`${data.vehicle_specs.range_km} km`} />
+                                    )}
+                                    <SpecRow label="Fast Charging" value={data.vehicle_specs.charging_time_fast || ''} />
+                                    <SpecRow label="Max Charging Power" value={data.vehicle_specs.charging_power_max_kw ? `${data.vehicle_specs.charging_power_max_kw} kW` : ''} />
+                                    <SpecRow label="Voltage Architecture" value={data.vehicle_specs.voltage_architecture ? `${data.vehicle_specs.voltage_architecture}V` : ''} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Dimensions & Weight */}
+                        {data.vehicle_specs && (data.vehicle_specs.length_mm || data.vehicle_specs.weight_kg || data.vehicle_specs.cargo_liters) && (
+                            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                                <div className="px-6 py-4 bg-gradient-to-r from-cyan-600 to-teal-600">
+                                    <h2 className="text-xl font-bold text-white">📐 Dimensions & Weight</h2>
+                                </div>
+                                <div className="px-6 py-2">
+                                    <SpecRow label="Length" value={data.vehicle_specs.length_mm ? `${data.vehicle_specs.length_mm} mm` : ''} />
+                                    <SpecRow label="Width" value={data.vehicle_specs.width_mm ? `${data.vehicle_specs.width_mm} mm` : ''} />
+                                    <SpecRow label="Height" value={data.vehicle_specs.height_mm ? `${data.vehicle_specs.height_mm} mm` : ''} />
+                                    <SpecRow label="Wheelbase" value={data.vehicle_specs.wheelbase_mm ? `${data.vehicle_specs.wheelbase_mm} mm` : ''} />
+                                    <SpecRow label="Curb Weight" value={data.vehicle_specs.weight_kg ? `${data.vehicle_specs.weight_kg} kg` : ''} />
+                                    <SpecRow label="Cargo Volume" value={data.vehicle_specs.cargo_liters ? `${data.vehicle_specs.cargo_liters} L` : ''} />
+                                    <SpecRow label="Max Cargo (seats folded)" value={data.vehicle_specs.cargo_liters_max ? `${data.vehicle_specs.cargo_liters_max} L` : ''} />
+                                    <SpecRow label="Ground Clearance" value={data.vehicle_specs.ground_clearance_mm ? `${data.vehicle_specs.ground_clearance_mm} mm` : ''} />
+                                    <SpecRow label="Towing Capacity" value={data.vehicle_specs.towing_capacity_kg ? `${data.vehicle_specs.towing_capacity_kg} kg` : ''} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Technical Details */}
+                        {data.vehicle_specs && (data.vehicle_specs.platform || data.vehicle_specs.drivetrain || data.vehicle_specs.suspension_type) && (
+                            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                                <div className="px-6 py-4 bg-gradient-to-r from-orange-500 to-amber-500">
+                                    <h2 className="text-xl font-bold text-white">🔧 Technical Details</h2>
+                                </div>
+                                <div className="px-6 py-2">
+                                    <SpecRow label="Platform" value={data.vehicle_specs.platform || ''} />
+                                    <SpecRow label="Drivetrain" value={data.vehicle_specs.drivetrain || ''} />
+                                    <SpecRow label="Motor Count" value={data.vehicle_specs.motor_count ? `${data.vehicle_specs.motor_count}` : ''} />
+                                    <SpecRow label="Motor Placement" value={data.vehicle_specs.motor_placement || ''} />
+                                    <SpecRow label="Transmission" value={data.vehicle_specs.transmission || ''} />
+                                    <SpecRow label="Suspension" value={data.vehicle_specs.suspension_type || ''} />
+                                    <SpecRow label="Body Type" value={data.vehicle_specs.body_type || ''} />
+                                    <SpecRow label="Country of Origin" value={data.vehicle_specs.country_of_origin || ''} />
+                                    <SpecRow label="Seats" value={data.vehicle_specs.seats ? `${data.vehicle_specs.seats}` : ''} />
                                 </div>
                             </div>
                         )}

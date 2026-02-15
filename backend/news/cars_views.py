@@ -236,6 +236,58 @@ class CarModelDetailView(APIView):
         if primary.price and primary.article.created_at:
             price_date = primary.article.created_at.strftime('%b %Y')
 
+        # Try to get VehicleSpecs for the primary article
+        vehicle_specs_data = None
+        try:
+            vs = getattr(primary.article, 'vehicle_specs', None)
+            if vs:
+                vehicle_specs_data = {
+                    'id': vs.id,
+                    'drivetrain': vs.get_drivetrain_display() if vs.drivetrain else None,
+                    'motor_count': vs.motor_count,
+                    'motor_placement': vs.motor_placement,
+                    'power_hp': vs.power_hp,
+                    'power_kw': vs.power_kw,
+                    'power_display': vs.get_power_display(),
+                    'torque_nm': vs.torque_nm,
+                    'acceleration_0_100': vs.acceleration_0_100,
+                    'top_speed_kmh': vs.top_speed_kmh,
+                    'battery_kwh': vs.battery_kwh,
+                    'range_km': vs.range_km,
+                    'range_wltp': vs.range_wltp,
+                    'range_epa': vs.range_epa,
+                    'range_cltc': vs.range_cltc,
+                    'range_display': vs.get_range_display(),
+                    'charging_time_fast': vs.charging_time_fast,
+                    'charging_time_slow': vs.charging_time_slow,
+                    'charging_power_max_kw': vs.charging_power_max_kw,
+                    'transmission': vs.get_transmission_display() if vs.transmission else None,
+                    'body_type': vs.get_body_type_display() if vs.body_type else None,
+                    'fuel_type': vs.get_fuel_type_display() if vs.fuel_type else None,
+                    'seats': vs.seats,
+                    'length_mm': vs.length_mm,
+                    'width_mm': vs.width_mm,
+                    'height_mm': vs.height_mm,
+                    'wheelbase_mm': vs.wheelbase_mm,
+                    'weight_kg': vs.weight_kg,
+                    'cargo_liters': vs.cargo_liters,
+                    'cargo_liters_max': vs.cargo_liters_max,
+                    'ground_clearance_mm': vs.ground_clearance_mm,
+                    'towing_capacity_kg': vs.towing_capacity_kg,
+                    'price_from': vs.price_from,
+                    'price_to': vs.price_to,
+                    'currency': vs.currency,
+                    'price_display': vs.get_price_display(),
+                    'year': vs.year,
+                    'country_of_origin': vs.country_of_origin,
+                    'platform': vs.platform,
+                    'voltage_architecture': vs.voltage_architecture,
+                    'suspension_type': vs.suspension_type,
+                    'extra_specs': vs.extra_specs or {},
+                }
+        except Exception:
+            pass
+
         return Response({
             'brand': brand_name,
             'brand_slug': brand_slug,
@@ -253,6 +305,7 @@ class CarModelDetailView(APIView):
                 'price_date': price_date,
                 'release_date': primary.release_date or '',
             },
+            'vehicle_specs': vehicle_specs_data,
             'images': images,
             'trims': trims,
             'related_articles': list(related_articles),

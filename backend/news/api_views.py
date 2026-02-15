@@ -3100,3 +3100,175 @@ class NewsletterSubscribeView(APIView):
             logger.warning(f"New newsletter subscriber: {email} - welcome email failed")
         
         return Response({'message': 'Successfully subscribed!'}, status=status.HTTP_201_CREATED)
+
+
+class VehicleSpecsViewSet(viewsets.ModelViewSet):
+    """Admin ViewSet for managing detailed vehicle specifications."""
+    queryset = VehicleSpecs.objects.select_related('article').all()
+    serializer_class = VehicleSpecsSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['article__title', 'article__car_specification__make', 'article__car_specification__model']
+    ordering = ['-extracted_at']
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def ai_fill(self, request):
+        """Extract vehicle specs from pasted text using Gemini AI.
+        POST /api/v1/vehicle-specs/ai_fill/
+        Body: { "text": "...specs text...", "article_id": 123 (optional) }
+        Returns parsed specs as JSON ready to save.
+        """
+        text = request.data.get('text', '').strip()
+        article_id = request.data.get('article_id')
+
+        if not text:
+            return Response({'success': False, 'message': 'Text is required'},
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        if len(text) < 20:
+            return Response({'success': False, 'message': 'Text too short for extraction'},
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        # Build the extraction prompt
+        system_prompt = """You are a precise vehicle specification extractor. 
+Extract ONLY factual data from the provided text. If a value is not mentioned, use null.
+Return ONLY valid JSON with no markdown, no code fences, no explanation."""
+
+        extraction_prompt = f"""Extract vehicle specifications from this text and return as JSON.
+
+TEXT:
+{text[:8000]}
+
+Return this exact JSON structure (use null for unknown values):
+{{
+    "drivetrain": "FWD" or "RWD" or "AWD" or "4WD" or null,
+    "motor_count": integer or null,
+    "motor_placement": "front" or "rear" or "front+rear" or null,
+    "power_hp": integer or null,
+    "power_kw": integer or null,
+    "torque_nm": integer or null,
+    "acceleration_0_100": float (seconds) or null,
+    "top_speed_kmh": integer or null,
+    "battery_kwh": float or null,
+    "range_km": integer or null,
+    "range_wltp": integer or null,
+    "range_epa": integer or null,
+    "range_cltc": integer or null,
+    "charging_time_fast": "string like '30 min to 80%'" or null,
+    "charging_time_slow": "string" or null,
+    "charging_power_max_kw": integer or null,
+    "transmission": "automatic" or "manual" or "CVT" or "single-speed" or "dual-clutch" or null,
+    "transmission_gears": integer or null,
+    "body_type": "sedan" or "SUV" or "hatchback" or "coupe" or "truck" or "crossover" or "wagon" or "shooting_brake" or "van" or "convertible" or "pickup" or null,
+    "fuel_type": "EV" or "Hybrid" or "PHEV" or "Gas" or "Diesel" or "Hydrogen" or null,
+    "seats": integer or null,
+    "length_mm": integer or null,
+    "width_mm": integer or null,
+    "height_mm": integer or null,
+    "wheelbase_mm": integer or null,
+    "weight_kg": integer or null,
+    "cargo_liters": integer or null,
+    "cargo_liters_max": integer (with seats folded) or null,
+    "ground_clearance_mm": integer or null,
+    "towing_capacity_kg": integer or null,
+    "price_from": integer (starting price in local currency) or null,
+    "price_to": integer or null,
+    "currency": "USD" or "EUR" or "CNY" or "RUB" or "GBP" or "JPY" or null,
+    "year": integer or null,
+    "model_year": integer or null,
+    "country_of_origin": "string" or null,
+    "platform": "string like SEA, MEB, E-GMP" or null,
+    "voltage_architecture": integer (e.g. 400, 800) or null,
+    "suspension_type": "string" or null,
+    "extra_specs": {{}} or object with any additional specs not covered above
+}}
+
+IMPORTANT: 
+- Convert all measurements to the units specified (mm, km, kg, kW, HP, Nm, etc.)
+- For prices, use the original currency 
+- Return ONLY the JSON object, nothing else"""
+
+        try:
+            from ai_engine.modules.ai_provider import get_ai_provider
+            provider = get_ai_provider('gemini')
+            result = provider.generate_completion(
+                extraction_prompt,
+                system_prompt=system_prompt,
+                temperature=0.1,
+                max_tokens=2000,
+            )
+
+            # Parse the JSON response
+            import json
+            import re
+            # Clean up potential markdown code fences
+            cleaned = result.strip()
+            cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+            cleaned = re.sub(r'\s*```$', '', cleaned)
+            cleaned = cleaned.strip()
+
+            specs_data = json.loads(cleaned)
+
+            # If article_id provided, save the specs
+            if article_id:
+                try:
+                    article = Article.objects.get(id=article_id)
+                    vehicle_spec, created = VehicleSpecs.objects.update_or_create(
+                        article=article,
+                        defaults={k: v for k, v in specs_data.items() if v is not None}
+                    )
+                    serializer = self.get_serializer(vehicle_spec)
+                    return Response({
+                        'success': True,
+                        'message': f'Specs {"created" if created else "updated"} for article #{article_id}',
+                        'specs': serializer.data,
+                        'extracted': specs_data,
+                    })
+                except Article.DoesNotExist:
+                    return Response({
+                        'success': True,
+                        'message': 'Specs extracted (article not found, not saved)',
+                        'extracted': specs_data,
+                    })
+
+            return Response({
+                'success': True,
+                'message': 'Specs extracted successfully',
+                'extracted': specs_data,
+            })
+
+        except json.JSONDecodeError as e:
+            logger.error(f'AI Fill JSON parse error: {e}, raw: {result[:500]}')
+            return Response({
+                'success': False,
+                'message': f'AI returned invalid JSON: {str(e)}',
+                'raw_response': result[:1000],
+            }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except Exception as e:
+            logger.error(f'AI Fill failed: {e}')
+            return Response({
+                'success': False,
+                'message': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def save_specs(self, request, pk=None):
+        """Save/update specific fields for a VehicleSpec.
+        POST /api/v1/vehicle-specs/{id}/save_specs/
+        Body: { field_name: value, ... }
+        """
+        vehicle_spec = self.get_object()
+        serializer = self.get_serializer(vehicle_spec, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'success': True,
+                'message': 'Specs saved successfully',
+                'specs': serializer.data,
+            })
+        return Response({
+            'success': False,
+            'message': 'Validation failed',
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)

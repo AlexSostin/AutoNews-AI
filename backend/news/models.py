@@ -943,6 +943,10 @@ class VehicleSpecs(models.Model):
         null=True, blank=True,
         help_text="EPA range in kilometers"
     )
+    range_cltc = models.IntegerField(
+        null=True, blank=True,
+        help_text="CLTC range in kilometers (Chinese standard)"
+    )
     
     # Charging
     charging_time_fast = models.CharField(
@@ -988,7 +992,10 @@ class VehicleSpecs(models.Model):
         ('truck', 'Truck'),
         ('crossover', 'Crossover'),
         ('wagon', 'Wagon'),
+        ('shooting_brake', 'Shooting Brake'),
         ('van', 'Van'),
+        ('convertible', 'Convertible'),
+        ('pickup', 'Pickup'),
     ]
     body_type = models.CharField(
         max_length=20,
@@ -1042,6 +1049,18 @@ class VehicleSpecs(models.Model):
         null=True, blank=True,
         help_text="Cargo/trunk capacity in liters"
     )
+    cargo_liters_max = models.IntegerField(
+        null=True, blank=True,
+        help_text="Max cargo with seats folded in liters"
+    )
+    ground_clearance_mm = models.IntegerField(
+        null=True, blank=True,
+        help_text="Ground clearance in millimeters"
+    )
+    towing_capacity_kg = models.IntegerField(
+        null=True, blank=True,
+        help_text="Maximum towing capacity in kg"
+    )
     
     # Pricing
     price_from = models.IntegerField(
@@ -1080,6 +1099,28 @@ class VehicleSpecs(models.Model):
         max_length=100,
         null=True, blank=True,
         help_text="Country where manufactured"
+    )
+    
+    # Technical Details
+    platform = models.CharField(
+        max_length=100,
+        null=True, blank=True,
+        help_text="Vehicle platform (e.g., SEA, MEB, E-GMP, TNGA)"
+    )
+    voltage_architecture = models.IntegerField(
+        null=True, blank=True,
+        help_text="Electrical architecture voltage (400, 800, 900)"
+    )
+    suspension_type = models.CharField(
+        max_length=200,
+        null=True, blank=True,
+        help_text="Suspension type (e.g., air suspension, adaptive, McPherson)"
+    )
+    
+    # Flexible extra specs (no migrations needed for new fields)
+    extra_specs = models.JSONField(
+        default=dict, blank=True,
+        help_text="Additional specs as key-value pairs (e.g., {'panoramic_roof': true, 'lidar': 'Hesai ATX'})"
     )
     
     # Metadata

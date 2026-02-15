@@ -9,7 +9,7 @@ from .api_views import (
     ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
     FavoriteViewSet, SubscriberViewSet,
     YouTubeChannelViewSet, RSSFeedViewSet, RSSNewsItemViewSet, PendingArticleViewSet, AutoPublishScheduleViewSet,
-    AdminNotificationViewSet
+    AdminNotificationViewSet, VehicleSpecsViewSet
 )
 from .health import health_check, health_check_detailed, readiness_check
 
@@ -47,6 +47,7 @@ router.register(r'rss-news-items', RSSNewsItemViewSet, basename='rss-news-item')
 router.register(r'pending-articles', PendingArticleViewSet, basename='pending-article')
 router.register(r'auto-publish-schedule', AutoPublishScheduleViewSet, basename='auto-publish-schedule')
 router.register(r'notifications', AdminNotificationViewSet, basename='notification')
+router.register(r'vehicle-specs', VehicleSpecsViewSet, basename='vehicle-specs')
 from .api_views import (
     CurrencyRatesView, CurrentUserView, ChangePasswordView, EmailPreferencesView,
     RequestEmailChangeView, VerifyEmailChangeView,
