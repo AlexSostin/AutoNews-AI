@@ -253,18 +253,27 @@ export default function VehicleSpecsPage() {
 
     const handleSave = async () => {
         setSaving(true);
+        // Strip read-only / computed fields that the serializer rejects
+        const readOnlyKeys = ['id', 'article_title', 'power_display', 'range_display', 'price_display', 'extracted_at', 'confidence_score'];
+        const payload: Record<string, unknown> = {};
+        Object.entries(form).forEach(([k, v]) => {
+            if (!readOnlyKeys.includes(k)) {
+                payload[k] = v;
+            }
+        });
+
         try {
             if (isCreateMode) {
-                const hasMakeModel = form.make && form.model_name;
+                const hasMakeModel = payload.make && payload.model_name;
                 if (!selectedArticle && !hasMakeModel) {
                     alert('Please select an article or fill in Make and Model.');
                     setSaving(false);
                     return;
                 }
-                await api.post('/vehicle-specs/', { ...form, ...(selectedArticle ? { article: selectedArticle.id } : {}) });
+                await api.post('/vehicle-specs/', { ...payload, ...(selectedArticle ? { article: selectedArticle.id } : {}) });
             } else {
                 if (!editingSpec) return;
-                await api.patch(`/vehicle-specs/${editingSpec.id}/`, form);
+                await api.patch(`/vehicle-specs/${editingSpec.id}/`, payload);
             }
             setShowModal(false);
             fetchSpecs();
