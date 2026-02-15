@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Edit, Trash2, X, Search, ChevronLeft, ChevronRight, Sparkles, Save, ExternalLink, Loader2 } from 'lucide-react';
+import { Edit, Trash2, X, Search, ChevronLeft, ChevronRight, Sparkles, Save, ExternalLink, Loader2, Plus } from 'lucide-react';
 import api from '@/lib/api';
 import Link from 'next/link';
+
+interface ArticleOption {
+    id: number;
+    title: string;
+    slug: string;
+}
 
 interface VehicleSpec {
     id: number;
@@ -95,6 +101,7 @@ export default function VehicleSpecsPage() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingSpec, setEditingSpec] = useState<VehicleSpec | null>(null);
+    const [isCreateMode, setIsCreateMode] = useState(false);
     const [form, setForm] = useState<Record<string, unknown>>({});
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(0);
@@ -102,6 +109,12 @@ export default function VehicleSpecsPage() {
     const [aiText, setAiText] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
     const [aiResult, setAiResult] = useState<string | null>(null);
+
+    // Create new: article search
+    const [articleSearch, setArticleSearch] = useState('');
+    const [articleResults, setArticleResults] = useState<ArticleOption[]>([]);
+    const [selectedArticle, setSelectedArticle] = useState<ArticleOption | null>(null);
+    const [articleSearching, setArticleSearching] = useState(false);
 
     const fetchSpecs = async () => {
         setLoading(true);
@@ -139,11 +152,59 @@ export default function VehicleSpecsPage() {
     const pageSpecs = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
     const openEdit = (spec: VehicleSpec) => {
+        setIsCreateMode(false);
         setEditingSpec(spec);
         setForm({ ...spec });
         setAiText('');
         setAiResult(null);
         setShowModal(true);
+    };
+
+    const openCreate = () => {
+        setIsCreateMode(true);
+        setEditingSpec(null);
+        setSelectedArticle(null);
+        setArticleSearch('');
+        setArticleResults([]);
+        setForm({
+            drivetrain: null, motor_count: null, motor_placement: null,
+            power_hp: null, power_kw: null, torque_nm: null,
+            acceleration_0_100: null, top_speed_kmh: null,
+            battery_kwh: null, range_km: null, range_wltp: null, range_epa: null, range_cltc: null,
+            charging_time_fast: null, charging_time_slow: null, charging_power_max_kw: null,
+            transmission: null, transmission_gears: null,
+            body_type: null, fuel_type: null, seats: null,
+            length_mm: null, width_mm: null, height_mm: null, wheelbase_mm: null,
+            weight_kg: null, cargo_liters: null, cargo_liters_max: null,
+            ground_clearance_mm: null, towing_capacity_kg: null,
+            price_from: null, price_to: null, currency: 'USD',
+            year: null, model_year: null, country_of_origin: null,
+            platform: null, voltage_architecture: null, suspension_type: null,
+            extra_specs: {},
+        });
+        setAiText('');
+        setAiResult(null);
+        setShowModal(true);
+    };
+
+    const searchArticles = async (q: string) => {
+        setArticleSearch(q);
+        if (q.length < 2) { setArticleResults([]); return; }
+        setArticleSearching(true);
+        try {
+            const { data } = await api.get(`/articles/?search=${encodeURIComponent(q)}&page_size=10`);
+            const articles = (data.results || data).map((a: { id: number; title: string; slug: string }) => ({
+                id: a.id, title: a.title, slug: a.slug,
+            }));
+            setArticleResults(articles);
+        } catch { setArticleResults([]); }
+        setArticleSearching(false);
+    };
+
+    const selectArticle = (article: ArticleOption) => {
+        setSelectedArticle(article);
+        setArticleSearch(article.title);
+        setArticleResults([]);
     };
 
     const updateField = (key: string, value: string) => {
@@ -164,15 +225,26 @@ export default function VehicleSpecsPage() {
     };
 
     const handleSave = async () => {
-        if (!editingSpec) return;
         setSaving(true);
         try {
-            await api.patch(`/vehicle-specs/${editingSpec.id}/`, form);
+            if (isCreateMode) {
+                if (!selectedArticle) {
+                    alert('Please select an article first.');
+                    setSaving(false);
+                    return;
+                }
+                await api.post('/vehicle-specs/', { ...form, article: selectedArticle.id });
+            } else {
+                if (!editingSpec) return;
+                await api.patch(`/vehicle-specs/${editingSpec.id}/`, form);
+            }
             setShowModal(false);
             fetchSpecs();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Save failed:', err);
-            alert('Save failed. Check console.');
+            const errDetail = (err as { response?: { data?: { detail?: string; article?: string[] } } })?.response?.data;
+            const msg = errDetail?.detail || errDetail?.article?.[0] || 'Save failed. Check console.';
+            alert(msg);
         }
         setSaving(false);
     };
@@ -192,9 +264,10 @@ export default function VehicleSpecsPage() {
         setAiLoading(true);
         setAiResult(null);
         try {
+            const articleId = isCreateMode ? selectedArticle?.id : editingSpec?.article;
             const { data } = await api.post('/vehicle-specs/ai_fill/', {
                 text: aiText,
-                article_id: editingSpec?.article,
+                article_id: articleId,
             });
             if (data.success && data.extracted) {
                 // Merge AI results into form, keeping manually set values
@@ -275,6 +348,10 @@ export default function VehicleSpecsPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button onClick={openCreate}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+                        <Plus size={16} /> New Spec
+                    </button>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
@@ -321,8 +398,8 @@ export default function VehicleSpecsPage() {
                                     </td>
                                     <td className="px-3 py-3">
                                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${spec.fuel_type === 'EV' ? 'bg-green-100 text-green-700' :
-                                                spec.fuel_type === 'Hybrid' || spec.fuel_type === 'PHEV' ? 'bg-blue-100 text-blue-700' :
-                                                    'bg-gray-100 text-gray-600'
+                                            spec.fuel_type === 'Hybrid' || spec.fuel_type === 'PHEV' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-gray-100 text-gray-600'
                                             }`}>
                                             {spec.fuel_type || '—'}
                                         </span>
@@ -364,20 +441,28 @@ export default function VehicleSpecsPage() {
             )}
 
             {/* Edit Modal */}
-            {showModal && editingSpec && (
+            {showModal && (editingSpec || isCreateMode) && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-y-auto py-8">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4">
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-2xl">
                             <div>
-                                <h2 className="text-lg font-bold text-white">Edit Vehicle Specs</h2>
-                                <p className="text-sm text-indigo-200 truncate max-w-lg">{editingSpec.article_title || `Article #${editingSpec.article}`}</p>
+                                <h2 className="text-lg font-bold text-white">
+                                    {isCreateMode ? '✨ Create Vehicle Specs' : 'Edit Vehicle Specs'}
+                                </h2>
+                                <p className="text-sm text-indigo-200 truncate max-w-lg">
+                                    {isCreateMode
+                                        ? (selectedArticle ? selectedArticle.title : 'Select an article below')
+                                        : (editingSpec?.article_title || `Article #${editingSpec?.article}`)}
+                                </p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Link href={`/articles/${editingSpec.article}`} target="_blank"
-                                    className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg">
-                                    <ExternalLink size={18} />
-                                </Link>
+                                {!isCreateMode && editingSpec && (
+                                    <Link href={`/articles/${editingSpec.article}`} target="_blank"
+                                        className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg">
+                                        <ExternalLink size={18} />
+                                    </Link>
+                                )}
                                 <button onClick={() => setShowModal(false)} className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg">
                                     <X size={20} />
                                 </button>
@@ -385,6 +470,45 @@ export default function VehicleSpecsPage() {
                         </div>
 
                         <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+                            {/* Article Selector (Create mode only) */}
+                            {isCreateMode && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                    <h3 className="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
+                                        <Search size={16} /> Select Article
+                                    </h3>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={articleSearch}
+                                            onChange={e => searchArticles(e.target.value)}
+                                            placeholder="Search articles by title..."
+                                            className="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+                                        />
+                                        {articleSearching && (
+                                            <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-blue-400" />
+                                        )}
+                                        {articleResults.length > 0 && (
+                                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                                {articleResults.map(a => (
+                                                    <button key={a.id} onClick={() => selectArticle(a)}
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 transition-colors border-b border-gray-50 last:border-0">
+                                                        <span className="font-medium text-gray-900">{a.title}</span>
+                                                        <span className="text-xs text-gray-400 ml-2">#{a.id}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {selectedArticle && (
+                                        <div className="mt-2 flex items-center gap-2 text-sm text-blue-700">
+                                            <span className="bg-blue-100 px-2 py-0.5 rounded-full font-medium">✓ {selectedArticle.title}</span>
+                                            <button onClick={() => { setSelectedArticle(null); setArticleSearch(''); }}
+                                                className="text-blue-400 hover:text-blue-600"><X size={14} /></button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* AI Fill Section */}
                             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4">
                                 <h3 className="text-sm font-bold text-purple-800 mb-2 flex items-center gap-2">
@@ -496,10 +620,10 @@ export default function VehicleSpecsPage() {
                                 className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium">
                                 Cancel
                             </button>
-                            <button onClick={handleSave} disabled={saving}
+                            <button onClick={handleSave} disabled={saving || (isCreateMode && !selectedArticle)}
                                 className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
                                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                {saving ? 'Saving...' : 'Save Changes'}
+                                {saving ? 'Saving...' : (isCreateMode ? 'Create Spec' : 'Save Changes')}
                             </button>
                         </div>
                     </div>
