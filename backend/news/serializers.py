@@ -5,7 +5,7 @@ from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, EmailPreferences,
-    AdminNotification, VehicleSpecs, NewsletterSubscriber
+    AdminNotification, VehicleSpecs, NewsletterSubscriber, BrandAlias
 )
 
 
@@ -701,3 +701,10 @@ class AdminNotificationSerializer(serializers.ModelSerializer):
             return f'{days}d ago'
         else:
             return obj.created_at.strftime('%b %d')
+
+
+class BrandAliasSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BrandAlias
+        fields = ['id', 'alias', 'canonical_name', 'created_at']
+        read_only_fields = ['created_at']

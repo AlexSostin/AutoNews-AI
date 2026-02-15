@@ -24,7 +24,8 @@ import {
   Bell,
   Languages,
   Car,
-  Wrench
+  Wrench,
+  ArrowRightLeft
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
@@ -38,6 +39,7 @@ const menuItems = [
   { href: '/admin/tags', icon: Tag, label: 'Tags' },
   { href: '/admin/car-specs', icon: Car, label: 'Car Specs' },
   { href: '/admin/vehicle-specs', icon: Wrench, label: 'Vehicle Specs' },
+  { href: '/admin/brand-aliases', icon: ArrowRightLeft, label: 'Brand Aliases' },
   { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },
   { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
   { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },

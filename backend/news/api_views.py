@@ -16,7 +16,7 @@ from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, AdminNotification,
-    VehicleSpecs, NewsletterSubscriber
+    VehicleSpecs, NewsletterSubscriber, BrandAlias
 )
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
@@ -24,7 +24,7 @@ from .serializers import (
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
     SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer, NewsletterHistorySerializer,
     YouTubeChannelSerializer, RSSFeedSerializer, RSSNewsItemSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
-    AdminNotificationSerializer, VehicleSpecsSerializer
+    AdminNotificationSerializer, VehicleSpecsSerializer, BrandAliasSerializer
 )
 import os
 import sys
@@ -3186,6 +3186,15 @@ class NewsletterSubscribeView(APIView):
             logger.warning(f"New newsletter subscriber: {email} - welcome email failed")
         
         return Response({'message': 'Successfully subscribed!'}, status=status.HTTP_201_CREATED)
+
+
+class BrandAliasViewSet(viewsets.ModelViewSet):
+    """Admin ViewSet for managing brand aliases (name normalizations)."""
+    queryset = BrandAlias.objects.all()
+    serializer_class = BrandAliasSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    ordering = ['canonical_name', 'alias']
 
 
 class VehicleSpecsViewSet(viewsets.ModelViewSet):

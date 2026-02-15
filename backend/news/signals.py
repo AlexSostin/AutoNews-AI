@@ -239,7 +239,14 @@ def sync_vehicle_specs_to_car_spec(sender, instance, **kwargs):
     updates = {}
 
     if instance.make:
-        updates['make'] = instance.make
+        # Resolve brand aliases (e.g. 'DongFeng VOYAH' → 'VOYAH')
+        from .models import BrandAlias
+        resolved = BrandAlias.resolve(instance.make)
+        updates['make'] = resolved
+        # Also normalize the VehicleSpecs make if alias was resolved
+        if resolved != instance.make:
+            VehicleSpecs.objects.filter(pk=instance.pk).update(make=resolved)
+            logger.info(f"🏷️ Resolved brand alias: '{instance.make}' → '{resolved}'")
     if instance.model_name:
         updates['model'] = instance.model_name
     if instance.trim_name:

@@ -256,6 +256,40 @@ class Article(models.Model):
     def __str__(self):
         return self.title
 
+class BrandAlias(models.Model):
+    """Maps brand name variations to a canonical name.
+    
+    When AI extracts 'DongFeng VOYAH', this table maps it → 'VOYAH'.
+    Used automatically during VehicleSpecs → CarSpecification sync.
+    """
+    alias = models.CharField(
+        max_length=100, unique=True,
+        help_text="The name variation (what AI might produce, e.g. 'DongFeng VOYAH')"
+    )
+    canonical_name = models.CharField(
+        max_length=100,
+        help_text="The correct brand name (e.g. 'VOYAH')"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "Brand Aliases"
+        ordering = ['canonical_name', 'alias']
+
+    def __str__(self):
+        return f"{self.alias} → {self.canonical_name}"
+
+    @classmethod
+    def resolve(cls, make):
+        """Resolve a make name through aliases. Returns canonical name or original."""
+        if not make:
+            return make
+        try:
+            alias = cls.objects.get(alias__iexact=make)
+            return alias.canonical_name
+        except cls.DoesNotExist:
+            return make
+
 class CarSpecification(models.Model):
     article = models.OneToOneField(Article, on_delete=models.CASCADE, related_name='specs')
     model_name = models.CharField(max_length=200, help_text="Specific trim or model (Legacy)")
