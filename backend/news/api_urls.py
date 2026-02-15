@@ -58,7 +58,7 @@ from .search_analytics_views import (
     SearchAPIView, AnalyticsOverviewAPIView, AnalyticsTopArticlesAPIView,
     AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView, GSCAnalyticsAPIView
 )
-from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView
+from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -104,6 +104,11 @@ urlpatterns = [
     path('cars/brands/<slug:brand_slug>/', CarBrandDetailView.as_view(), name='car_brand_detail'),
     path('cars/brands/<slug:brand_slug>/models/<slug:model_slug>/', CarModelDetailView.as_view(), name='car_model_detail'),
     path('cars/cleanup/', BrandCleanupView.as_view(), name='brand_cleanup'),
+    # Admin brand management
+    path('admin/brands/', BrandViewSet.as_view({'get': 'list', 'post': 'create'}), name='admin_brands_list'),
+    path('admin/brands/sync/', BrandViewSet.as_view({'post': 'sync_from_specs'}), name='admin_brands_sync'),
+    path('admin/brands/<int:pk>/', BrandViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'put': 'update', 'delete': 'destroy'}), name='admin_brands_detail'),
+    path('admin/brands/<int:pk>/merge/', BrandViewSet.as_view({'post': 'merge'}), name='admin_brands_merge'),
     
     # API endpoints
     path('', include(router.urls)),

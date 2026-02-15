@@ -5,7 +5,7 @@ from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, EmailPreferences,
-    AdminNotification, VehicleSpecs, NewsletterSubscriber, BrandAlias
+    AdminNotification, VehicleSpecs, NewsletterSubscriber, BrandAlias, Brand
 )
 
 
@@ -716,3 +716,52 @@ class BrandAliasSerializer(serializers.ModelSerializer):
         model = BrandAlias
         fields = ['id', 'alias', 'canonical_name', 'created_at']
         read_only_fields = ['created_at']
+
+
+class BrandSerializer(serializers.ModelSerializer):
+    article_count = serializers.SerializerMethodField()
+    model_count = serializers.SerializerMethodField()
+    parent_name = serializers.CharField(source='parent.name', read_only=True, default=None)
+    sub_brands = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Brand
+        fields = [
+            'id', 'name', 'slug', 'logo', 'country', 'description',
+            'sort_order', 'is_visible', 'parent', 'parent_name',
+            'sub_brands', 'article_count', 'model_count', 'image',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_article_count(self, obj):
+        if hasattr(obj, '_article_count'):
+            return obj._article_count
+        return obj.get_article_count()
+
+    def get_model_count(self, obj):
+        if hasattr(obj, '_model_count'):
+            return obj._model_count
+        return obj.get_model_count()
+
+    def get_sub_brands(self, obj):
+        subs = obj.sub_brands.filter(is_visible=True)
+        return [{'id': s.id, 'name': s.name, 'slug': s.slug} for s in subs]
+
+    def get_image(self, obj):
+        """Get image from the first article of this brand."""
+        from django.utils.text import slugify
+        spec = (
+            CarSpecification.objects
+            .filter(make__iexact=obj.name, article__is_published=True)
+            .select_related('article')
+            .first()
+        )
+        if spec and spec.article and spec.article.image:
+            raw = str(spec.article.image)
+            if raw.startswith('http://') or raw.startswith('https://'):
+                return raw
+            if hasattr(spec.article.image, 'url'):
+                return spec.article.image.url
+        return None

@@ -256,6 +256,55 @@ class Article(models.Model):
     def __str__(self):
         return self.title
 
+class Brand(models.Model):
+    """
+    Managed brand entity for the car catalog.
+    
+    Unlike the auto-aggregated brands from CarSpecification.make,
+    this model gives admins full control: rename, reorder, merge,
+    hide/show brands, upload logos, group sub-brands under parents.
+    """
+    name = models.CharField(max_length=100, unique=True, help_text="Display name")
+    slug = models.SlugField(max_length=120, unique=True, help_text="URL slug")
+    logo = models.ImageField(upload_to='brands/', blank=True, help_text="Brand logo")
+    country = models.CharField(max_length=50, blank=True, help_text="Country of origin")
+    description = models.TextField(blank=True, help_text="Short brand description")
+    sort_order = models.IntegerField(default=0, help_text="Manual sort order (0=auto by article count)")
+    is_visible = models.BooleanField(default=True, help_text="Show in public catalog")
+    parent = models.ForeignKey(
+        'self', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='sub_brands',
+        help_text="Parent brand (e.g. DongFeng for VOYAH)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-sort_order', 'name']
+        verbose_name_plural = "Brands"
+
+    def __str__(self):
+        return self.name
+
+    def get_article_count(self):
+        """Count articles for this brand (and sub-brands)."""
+        from django.db.models import Q
+        names = [self.name]
+        for sub in self.sub_brands.all():
+            names.append(sub.name)
+        return CarSpecification.objects.filter(
+            make__in=names, article__is_published=True
+        ).values('article').distinct().count()
+
+    def get_model_count(self):
+        """Count unique models for this brand (and sub-brands)."""
+        names = [self.name]
+        for sub in self.sub_brands.all():
+            names.append(sub.name)
+        return CarSpecification.objects.filter(
+            make__in=names
+        ).exclude(model='').exclude(model='Not specified').values('model').distinct().count()
+
 class BrandAlias(models.Model):
     """Maps brand name variations to a canonical name.
     

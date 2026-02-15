@@ -4,12 +4,15 @@ Data is auto-populated from CarSpecification records attached to articles.
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from django.db.models import Count, Q
 from django.utils.text import slugify
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from .models import CarSpecification, Article, Tag
+from .models import CarSpecification, Article, Tag, Brand, BrandAlias
+from .serializers import BrandSerializer
 
 
 def _get_image_url(article, request):
@@ -36,8 +39,76 @@ class CarBrandsListView(APIView):
 
     @method_decorator(cache_page(300))  # Cache for 5 minutes
     def get(self, request):
+        # Use Brand model if populated, otherwise fall back to old aggregation
+        brand_count = Brand.objects.count()
+        
+        if brand_count > 0:
+            # New path: read from managed Brand model
+            brands = (
+                Brand.objects
+                .filter(is_visible=True, parent__isnull=True)  # Top-level visible only
+                .select_related('parent')
+                .prefetch_related('sub_brands')
+            )
+            
+            # Prefetch all first specs for images in ONE query
+            all_specs = (
+                CarSpecification.objects
+                .filter(article__is_published=True)
+                .exclude(make='')
+                .exclude(make='Not specified')
+                .select_related('article')
+                .order_by('make', 'id')
+            )
+            spec_by_make = {}
+            for spec in all_specs:
+                key = spec.make.lower()
+                if key not in spec_by_make:
+                    spec_by_make[key] = spec
+            
+            result = []
+            for brand in brands:
+                # Get image from first spec (or logo if uploaded)
+                image = None
+                if brand.logo:
+                    raw = str(brand.logo)
+                    if raw.startswith('http://') or raw.startswith('https://'):
+                        image = raw
+                    elif hasattr(brand.logo, 'url'):
+                        image = request.build_absolute_uri(brand.logo.url)
+                
+                if not image:
+                    first_spec = spec_by_make.get(brand.name.lower())
+                    if first_spec:
+                        image = _get_image_url(first_spec.article, request)
+                
+                result.append({
+                    'id': brand.id,
+                    'name': brand.name,
+                    'slug': brand.slug,
+                    'model_count': brand.get_model_count(),
+                    'article_count': brand.get_article_count(),
+                    'image': image,
+                    'country': brand.country,
+                    'description': brand.description,
+                    'sub_brands': [
+                        {'name': s.name, 'slug': s.slug}
+                        for s in brand.sub_brands.filter(is_visible=True)
+                    ],
+                })
+            
+            # Sort: manual sort_order first (desc), then by article_count
+            result.sort(key=lambda x: (-x.get('article_count', 0),))
+            # Brands with sort_order > 0 go first
+            result.sort(key=lambda x: 0 if not any(
+                b.sort_order for b in brands if b.name == x['name']
+            ) else -1)
+            
+            return Response(result)
+        
+        # Fallback: old aggregation (no Brand records yet)
         from django.db.models.functions import Upper
-        brands = (
+        brands_qs = (
             CarSpecification.objects
             .exclude(make='')
             .exclude(make='Not specified')
@@ -51,7 +122,6 @@ class CarBrandsListView(APIView):
             .order_by('-article_count')
         )
 
-        # Prefetch all first specs in ONE query — no N+1!
         all_specs = (
             CarSpecification.objects
             .filter(article__is_published=True)
@@ -60,7 +130,6 @@ class CarBrandsListView(APIView):
             .select_related('article')
             .order_by('make', 'id')
         )
-        # Build dict: uppercase_make → first spec
         spec_by_make = {}
         for spec in all_specs:
             key = spec.make.upper()
@@ -68,7 +137,7 @@ class CarBrandsListView(APIView):
                 spec_by_make[key] = spec
 
         result = []
-        for b in brands:
+        for b in brands_qs:
             make_upper = b['make_upper']
             first_spec = spec_by_make.get(make_upper)
             if not first_spec:
@@ -433,3 +502,174 @@ class BrandCleanupView(APIView):
 
         return Response(report)
 
+
+class BrandViewSet(viewsets.ModelViewSet):
+    """
+    Admin CRUD for Brands + merge action.
+    
+    GET    /api/v1/admin/brands/        — List all brands (incl. hidden)
+    POST   /api/v1/admin/brands/        — Create brand
+    PATCH  /api/v1/admin/brands/{id}/   — Edit brand
+    DELETE /api/v1/admin/brands/{id}/   — Delete brand
+    POST   /api/v1/admin/brands/{id}/merge/ — Merge another brand into this one
+    """
+    serializer_class = BrandSerializer
+    permission_classes = [IsAdminUser]
+    queryset = Brand.objects.all()
+
+    def get_queryset(self):
+        qs = Brand.objects.select_related('parent').prefetch_related('sub_brands')
+        # Allow filtering
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(name__icontains=search)
+        visible = self.request.query_params.get('visible')
+        if visible is not None:
+            qs = qs.filter(is_visible=visible.lower() == 'true')
+        return qs
+
+    def perform_create(self, serializer):
+        """Auto-generate slug if not provided."""
+        name = serializer.validated_data.get('name', '')
+        slug = serializer.validated_data.get('slug')
+        if not slug:
+            slug = slugify(name)
+            # Ensure unique
+            base_slug = slug
+            counter = 1
+            while Brand.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+        serializer.save(slug=slug)
+        # Invalidate cache
+        from news.api_views import invalidate_article_cache
+        invalidate_article_cache()
+
+    def perform_update(self, serializer):
+        """Auto-update slug if name changed and slug not explicitly set."""
+        instance = serializer.instance
+        new_name = serializer.validated_data.get('name', instance.name)
+        new_slug = serializer.validated_data.get('slug')
+        
+        if new_name != instance.name and not new_slug:
+            new_slug = slugify(new_name)
+            base_slug = new_slug
+            counter = 1
+            while Brand.objects.filter(slug=new_slug).exclude(pk=instance.pk).exists():
+                new_slug = f"{base_slug}-{counter}"
+                counter += 1
+            serializer.save(slug=new_slug)
+        else:
+            serializer.save()
+        # Invalidate cache
+        from news.api_views import invalidate_article_cache
+        invalidate_article_cache()
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        from news.api_views import invalidate_article_cache
+        invalidate_article_cache()
+
+    @action(detail=True, methods=['post'], url_path='merge')
+    def merge(self, request, pk=None):
+        """
+        Merge another brand into this one.
+        
+        POST /api/v1/admin/brands/{target_id}/merge/
+        Body: { "source_brand_id": <id_of_brand_to_merge> }
+        
+        What happens:
+        1. All CarSpecification.make matching source → renamed to target
+        2. BrandAlias created: source.name → target.name
+        3. Sub-brands of source → re-parented to target
+        4. Source brand is deleted
+        """
+        target_brand = self.get_object()
+        source_id = request.data.get('source_brand_id')
+        
+        if not source_id:
+            return Response(
+                {'error': 'source_brand_id is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            source_brand = Brand.objects.get(pk=source_id)
+        except Brand.DoesNotExist:
+            return Response(
+                {'error': f'Brand with id {source_id} not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        if source_brand.pk == target_brand.pk:
+            return Response(
+                {'error': 'Cannot merge a brand into itself'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # 1. Rename CarSpecification.make from source to target
+        updated_count = CarSpecification.objects.filter(
+            make__iexact=source_brand.name
+        ).update(make=target_brand.name)
+        
+        # 2. Create BrandAlias for future reference
+        BrandAlias.objects.get_or_create(
+            alias=source_brand.name,
+            defaults={'canonical_name': target_brand.name},
+        )
+        
+        # 3. Re-parent sub-brands
+        source_brand.sub_brands.update(parent=target_brand)
+        
+        # 4. Delete source brand
+        source_name = source_brand.name
+        source_brand.delete()
+        
+        # Invalidate cache
+        from news.api_views import invalidate_article_cache
+        invalidate_article_cache()
+        
+        return Response({
+            'success': True,
+            'message': f'Merged "{source_name}" into "{target_brand.name}"',
+            'specs_updated': updated_count,
+        })
+
+    @action(detail=False, methods=['post'], url_path='sync')
+    def sync_from_specs(self, request):
+        """
+        Sync brands from CarSpecification — create missing Brand records.
+        Useful after importing new articles.
+        
+        POST /api/v1/admin/brands/sync/
+        """
+        makes = (
+            CarSpecification.objects
+            .exclude(make='')
+            .exclude(make='Not specified')
+            .values_list('make', flat=True)
+            .distinct()
+        )
+        
+        created = []
+        for make in makes:
+            # Resolve through aliases
+            canonical = BrandAlias.resolve(make)
+            if not Brand.objects.filter(name__iexact=canonical).exists():
+                slug = slugify(canonical)
+                base_slug = slug
+                counter = 1
+                while Brand.objects.filter(slug=slug).exists():
+                    slug = f"{base_slug}-{counter}"
+                    counter += 1
+                Brand.objects.create(name=canonical, slug=slug)
+                created.append(canonical)
+        
+        from news.api_views import invalidate_article_cache
+        invalidate_article_cache()
+        
+        return Response({
+            'success': True,
+            'created_brands': created,
+            'total_created': len(created),
+        })
