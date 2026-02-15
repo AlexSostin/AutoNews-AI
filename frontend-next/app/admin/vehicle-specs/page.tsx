@@ -66,7 +66,7 @@ function FieldInput({ label, value, onChange, type = 'text', placeholder }: {
 }) {
     return (
         <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">{label}</label>
+            <label className="block text-xs font-semibold text-gray-900 mb-1">{label}</label>
             <input
                 type={type}
                 value={value ?? ''}
@@ -83,7 +83,7 @@ function SelectInput({ label, value, onChange, options }: {
 }) {
     return (
         <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">{label}</label>
+            <label className="block text-xs font-semibold text-gray-900 mb-1">{label}</label>
             <select
                 value={value ?? ''}
                 onChange={e => onChange(e.target.value)}
@@ -473,7 +473,7 @@ export default function VehicleSpecsPage() {
                             {/* Article Selector (Create mode only) */}
                             {isCreateMode && (
                                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                                    <h3 className="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
+                                    <h3 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-2">
                                         <Search size={16} /> Select Article
                                     </h3>
                                     <div className="relative">
@@ -500,7 +500,7 @@ export default function VehicleSpecsPage() {
                                         )}
                                     </div>
                                     {selectedArticle && (
-                                        <div className="mt-2 flex items-center gap-2 text-sm text-blue-700">
+                                        <div className="mt-2 flex items-center gap-2 text-sm text-blue-900">
                                             <span className="bg-blue-100 px-2 py-0.5 rounded-full font-medium">✓ {selectedArticle.title}</span>
                                             <button onClick={() => { setSelectedArticle(null); setArticleSearch(''); }}
                                                 className="text-blue-400 hover:text-blue-600"><X size={14} /></button>
@@ -511,10 +511,10 @@ export default function VehicleSpecsPage() {
 
                             {/* AI Fill Section */}
                             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4">
-                                <h3 className="text-sm font-bold text-purple-800 mb-2 flex items-center gap-2">
+                                <h3 className="text-sm font-bold text-purple-900 mb-2 flex items-center gap-2">
                                     <Sparkles size={16} /> AI Fill from Text
                                 </h3>
-                                <p className="text-xs text-purple-600 mb-3">
+                                <p className="text-xs text-purple-900 mb-3">
                                     Paste car specs text below and AI will extract and fill all fields automatically.
                                 </p>
                                 <textarea
@@ -542,7 +542,7 @@ export default function VehicleSpecsPage() {
 
                             {/* General */}
                             <div>
-                                <h3 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">🚗 General</h3>
+                                <h3 className="text-sm font-bold text-gray-900 mb-3 border-b pb-1">🚗 General</h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     <SelectInput label="Body Type" value={form.body_type as string} onChange={v => updateField('body_type', v)} options={bodyOptions} />
                                     <SelectInput label="Fuel Type" value={form.fuel_type as string} onChange={v => updateField('fuel_type', v)} options={fuelOptions} />
@@ -557,7 +557,7 @@ export default function VehicleSpecsPage() {
 
                             {/* Drivetrain & Performance */}
                             <div>
-                                <h3 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">⚡ Drivetrain & Performance</h3>
+                                <h3 className="text-sm font-bold text-gray-900 mb-3 border-b pb-1">⚡ Drivetrain & Performance</h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     <SelectInput label="Drivetrain" value={form.drivetrain as string} onChange={v => updateField('drivetrain', v)} options={drivetrainOptions} />
                                     <FieldInput label="Motors" value={form.motor_count as number} onChange={v => updateField('motor_count', v)} type="number" />
@@ -574,7 +574,7 @@ export default function VehicleSpecsPage() {
 
                             {/* EV & Battery */}
                             <div>
-                                <h3 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">🔋 EV & Battery</h3>
+                                <h3 className="text-sm font-bold text-gray-900 mb-3 border-b pb-1">🔋 EV & Battery</h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     <FieldInput label="Battery (kWh)" value={form.battery_kwh as number} onChange={v => updateField('battery_kwh', v)} type="number" />
                                     <FieldInput label="Range (km)" value={form.range_km as number} onChange={v => updateField('range_km', v)} type="number" />
@@ -589,7 +589,7 @@ export default function VehicleSpecsPage() {
 
                             {/* Dimensions */}
                             <div>
-                                <h3 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">📐 Dimensions</h3>
+                                <h3 className="text-sm font-bold text-gray-900 mb-3 border-b pb-1">📐 Dimensions</h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     <FieldInput label="Length (mm)" value={form.length_mm as number} onChange={v => updateField('length_mm', v)} type="number" />
                                     <FieldInput label="Width (mm)" value={form.width_mm as number} onChange={v => updateField('width_mm', v)} type="number" />
@@ -605,7 +605,7 @@ export default function VehicleSpecsPage() {
 
                             {/* Pricing */}
                             <div>
-                                <h3 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">💰 Pricing</h3>
+                                <h3 className="text-sm font-bold text-gray-900 mb-3 border-b pb-1">💰 Pricing</h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     <FieldInput label="Price From" value={form.price_from as number} onChange={v => updateField('price_from', v)} type="number" />
                                     <FieldInput label="Price To" value={form.price_to as number} onChange={v => updateField('price_to', v)} type="number" />
