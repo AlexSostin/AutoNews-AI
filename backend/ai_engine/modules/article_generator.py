@@ -88,13 +88,16 @@ Required Structure:
 - <h2>Design & Interior</h2> - Describe styling, materials, space
 - <h2>Technology & Features</h2> - Highlight tech innovations
 - <h2>Driving Experience</h2> - Handling, comfort, real-world performance
-- <h2>US Market Availability & Pricing</h2> - IMPORTANT: Include:
-  * Will this car be sold in the United States? (Yes/No with timeline)
-  * Expected US pricing (MSRP in USD, mention trims if applicable)
-  * Import taxes and fees if applicable (federal, state, customs duties)
-  * Any federal or state EV tax credits/incentives if electric/hybrid
-  * Comparison to competitor pricing in US market
-  * Registration and ownership costs considerations
+- <h2>US Market Availability & Pricing</h2> - IMPORTANT: Write this as flowing paragraphs and HTML lists. Include:
+  <ul>
+    <li>Will this car be sold in the United States? (Yes/No with timeline)</li>
+    <li>Expected US pricing (MSRP in USD, mention trims if applicable)</li>
+    <li>Import taxes and fees if applicable (federal, state, customs duties)</li>
+    <li>Any federal or state EV tax credits/incentives if electric/hybrid</li>
+    <li>Comparison to competitor pricing in US market</li>
+    <li>Registration and ownership costs considerations</li>
+  </ul>
+  If exact US info is unknown, clearly state that and provide context. Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
 - <h2>Global Market & Regional Availability</h2> - CRITICAL: Format this section with clear structure:
   * Use <h3> sub-headings for each major region (e.g., <h3>Asia</h3>, <h3>Europe</h3>, <h3>North America</h3>)
   * Under each region, use <ul> and <li> tags to list specific countries and details
@@ -284,12 +287,15 @@ CRITICAL REQUIREMENTS:
    - <h2>Design & Interior</h2> - Styling, materials, space, comfort
    - <h2>Technology & Features</h2> - Infotainment, safety, innovations
    - <h2>Driving Experience</h2> - Handling, comfort, real-world performance
-   - <h2>US Market Availability & Pricing</h2>
-     * Will it be sold in the US? (Yes/No with timeline)
-     * Expected US pricing (MSRP in USD)
-     * Import taxes/fees if applicable
-     * Federal/state EV incentives if electric/hybrid
-     * Comparison to US competitors
+   - <h2>US Market Availability & Pricing</h2> - Write as flowing paragraphs and HTML lists:
+      <ul>
+        <li>Will it be sold in the US? (Yes/No with timeline)</li>
+        <li>Expected US pricing (MSRP in USD)</li>
+        <li>Import taxes/fees if applicable</li>
+        <li>Federal/state EV incentives if electric/hybrid</li>
+        <li>Comparison to US competitors</li>
+      </ul>
+      Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
    - <h2>Global Market & Regional Availability</h2>
      * Use <h3> for regions (Asia, Europe, North America)
      * Use <ul><li> for country-specific details
