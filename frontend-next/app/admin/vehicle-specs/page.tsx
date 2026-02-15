@@ -72,7 +72,7 @@ function FieldInput({ label, value, onChange, type = 'text', placeholder }: {
                 value={value ?? ''}
                 onChange={e => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
         </div>
     );
@@ -87,7 +87,7 @@ function SelectInput({ label, value, onChange, options }: {
             <select
                 value={value ?? ''}
                 onChange={e => onChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
             >
                 <option value="">—</option>
                 {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -482,7 +482,7 @@ export default function VehicleSpecsPage() {
                                             value={articleSearch}
                                             onChange={e => searchArticles(e.target.value)}
                                             placeholder="Search articles by title..."
-                                            className="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+                                            className="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 bg-white"
                                         />
                                         {articleSearching && (
                                             <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-blue-400" />
@@ -521,7 +521,7 @@ export default function VehicleSpecsPage() {
                                     value={aiText}
                                     onChange={e => setAiText(e.target.value)}
                                     placeholder="Paste vehicle specs text here (e.g. from press release, review, or spec sheet)..."
-                                    className="w-full h-28 px-3 py-2 border border-purple-200 rounded-lg text-sm resize-y focus:ring-2 focus:ring-purple-500 bg-white"
+                                    className="w-full h-28 px-3 py-2 border border-purple-200 rounded-lg text-sm text-gray-900 resize-y focus:ring-2 focus:ring-purple-500 bg-white"
                                 />
                                 <div className="flex items-center justify-between mt-2">
                                     <button
