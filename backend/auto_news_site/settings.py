@@ -518,8 +518,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '5000/hour',
-        'user': '20000/hour'
+        'anon': '100/minute',   # ~1.6 req/sec — enough for real users, blocks scrapers
+        'user': '1000/hour'    # Authenticated users — generous but not unlimited
     }
 }
 
