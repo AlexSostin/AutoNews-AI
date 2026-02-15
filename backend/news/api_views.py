@@ -1343,7 +1343,18 @@ class CommentViewSet(viewsets.ModelViewSet):
     
     @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
     def create(self, request, *args, **kwargs):
-        """Create comment with rate limiting (10 comments per hour per IP)"""
+        """Create comment with rate limiting and honeypot spam protection."""
+        # Honeypot: hidden 'website' field — real users never fill it,
+        # but spam bots auto-fill every field. Silently reject.
+        honeypot = request.data.get('website', '')
+        if honeypot:
+            logger.warning(
+                f"🍯 Honeypot caught spam bot: website='{honeypot}' | "
+                f"IP: {request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', 'unknown'))}"
+            )
+            # Return fake success so bot doesn't retry
+            return Response({'id': 0, 'status': 'created'}, status=status.HTTP_201_CREATED)
+        
         # If user is authenticated, save user reference
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
