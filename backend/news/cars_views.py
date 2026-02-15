@@ -33,11 +33,13 @@ class CarBrandsListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        from django.db.models.functions import Upper
         brands = (
             CarSpecification.objects
             .exclude(make='')
             .exclude(make='Not specified')
-            .values('make')
+            .annotate(make_upper=Upper('make'))
+            .values('make_upper')
             .annotate(
                 model_count=Count('model', distinct=True),
                 article_count=Count('article', distinct=True),
@@ -48,14 +50,18 @@ class CarBrandsListView(APIView):
 
         result = []
         for b in brands:
-            make = b['make']
-            # Get first article image as brand thumbnail
+            make_upper = b['make_upper']
+            # Get the original casing from first matching spec
             first_spec = (
                 CarSpecification.objects
-                .filter(make=make, article__is_published=True)
+                .filter(make__iexact=make_upper, article__is_published=True)
                 .select_related('article')
                 .first()
             )
+            if not first_spec:
+                continue
+
+            make = first_spec.make
             image = _get_image_url(first_spec.article, request)
 
             result.append({
