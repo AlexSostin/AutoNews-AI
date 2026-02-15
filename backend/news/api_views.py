@@ -3250,7 +3250,7 @@ For EACH trim/variant found, return an object with this structure (use null for 
     "charging_power_max_kw": integer or null,
     "transmission": "automatic" or "manual" or "CVT" or "single-speed" or "dual-clutch" or null,
     "transmission_gears": integer or null,
-    "body_type": "sedan" or "SUV" or "hatchback" or "coupe" or "truck" or "crossover" or "wagon" or "shooting_brake" or "van" or "convertible" or "pickup" or null,
+    "body_type": "sedan" or "SUV" or "hatchback" or "coupe" or "truck" or "crossover" or "wagon" or "shooting_brake" or "van" or "convertible" or "pickup" or "liftback" or "fastback" or "MPV" or "roadster" or "cabriolet" or "targa" or "limousine" or null,
     "fuel_type": "EV" or "Hybrid" or "PHEV" or "Gas" or "Diesel" or "Hydrogen" or null,
     "seats": integer or null,
     "length_mm": integer or null,

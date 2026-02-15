@@ -1011,6 +1011,13 @@ class VehicleSpecs(models.Model):
         ('van', 'Van'),
         ('convertible', 'Convertible'),
         ('pickup', 'Pickup'),
+        ('liftback', 'Liftback'),
+        ('fastback', 'Fastback'),
+        ('MPV', 'MPV / Minivan'),
+        ('roadster', 'Roadster'),
+        ('cabriolet', 'Cabriolet'),
+        ('targa', 'Targa'),
+        ('limousine', 'Limousine'),
     ]
     body_type = models.CharField(
         max_length=20,
