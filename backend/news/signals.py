@@ -4,7 +4,9 @@ Creates admin notifications when important events occur.
 """
 
 from django.db.models.signals import post_save
+from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from django.db import transaction
 from .models import Comment, Subscriber, Article, PendingArticle, AdminNotification
 
 
@@ -73,7 +75,6 @@ def notify_pending_article(sender, instance, created, **kwargs):
 # AUTO-INDEXING SIGNALS FOR VECTOR SEARCH
 # ============================================================================
 
-from django.db.models.signals import post_delete
 import logging
 import threading
 
@@ -92,7 +93,7 @@ def _remove_from_vector_async(article_id, title=""):
             logger.error(f"Failed to remove article {article_id} from vector index: {e}")
     
     thread = threading.Thread(target=_remove, daemon=True)
-    thread.start()
+    transaction.on_commit(lambda: thread.start())
 
 
 @receiver(post_save, sender=Article)
@@ -146,7 +147,7 @@ def auto_index_article_vector(sender, instance, created, **kwargs):
             logger.error(f"Failed to auto-index article {instance.id} for vector search: {e}")
     
     thread = threading.Thread(target=_index, daemon=True)
-    thread.start()
+    transaction.on_commit(lambda: thread.start())
 
 
 @receiver(post_delete, sender=Article)
@@ -217,5 +218,5 @@ def auto_create_car_specs(sender, instance, **kwargs):
                     return
 
     thread = threading.Thread(target=_extract, daemon=True)
-    thread.start()
+    transaction.on_commit(lambda: thread.start())
 
