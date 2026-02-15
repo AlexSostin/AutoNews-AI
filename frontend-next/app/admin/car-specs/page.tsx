@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Edit, Trash2, X, Search, ChevronLeft, ChevronRight, Filter, CheckCircle, Circle, ShieldCheck } from 'lucide-react';
+import { Edit, Trash2, X, Search, ChevronLeft, ChevronRight, Filter, CheckCircle, Circle, ShieldCheck, RefreshCw } from 'lucide-react';
 import api from '@/lib/api';
 import Link from 'next/link';
 
@@ -52,6 +52,7 @@ export default function CarSpecsPage() {
     const [page, setPage] = useState(1);
     const [formData, setFormData] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
+    const [extractingId, setExtractingId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchSpecs();
@@ -97,6 +98,25 @@ export default function CarSpecsPage() {
         } catch (error) {
             console.error('Failed to delete car spec:', error);
             alert('Failed to delete car specification');
+        }
+    };
+
+    const handleReExtract = async (spec: CarSpec) => {
+        if (!confirm(`Re-extract specs for "${spec.article_title}"?\nThis will overwrite current values with AI/regex extraction.`)) return;
+        setExtractingId(spec.id);
+        try {
+            const response = await api.post(`/car-specifications/${spec.id}/re_extract/`);
+            if (response.data.success) {
+                setSpecs(specs.map(s => s.id === spec.id ? response.data.spec : s));
+                alert(`✅ ${response.data.message}`);
+            } else {
+                alert(`⚠️ ${response.data.message}`);
+            }
+        } catch (error: any) {
+            console.error('Re-extract failed:', error);
+            alert('Failed to re-extract: ' + (error.response?.data?.message || error.message));
+        } finally {
+            setExtractingId(null);
         }
     };
 
@@ -324,6 +344,14 @@ export default function CarSpecsPage() {
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-1">
+                                                    <button
+                                                        onClick={() => handleReExtract(spec)}
+                                                        disabled={extractingId === spec.id}
+                                                        className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+                                                        title="Re-extract specs from article (AI + regex)"
+                                                    >
+                                                        <RefreshCw size={16} className={extractingId === spec.id ? 'animate-spin' : ''} />
+                                                    </button>
                                                     <button
                                                         onClick={() => handleEdit(spec)}
                                                         className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

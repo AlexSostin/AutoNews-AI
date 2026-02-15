@@ -1316,6 +1316,79 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['make', 'model', 'price', 'horsepower']
     ordering = ['make', 'model']
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def re_extract(self, request, pk=None):
+        """Re-run AI/regex spec extraction for an existing CarSpecification.
+        POST /api/v1/car-specifications/{id}/re_extract/
+        """
+        spec = self.get_object()
+        article = spec.article
+
+        try:
+            from news.spec_extractor import extract_specs_from_content, save_specs_for_article
+            specs = extract_specs_from_content(article)
+            if specs and specs.get('make') and specs['make'] != 'Not specified':
+                result = save_specs_for_article(article, specs)
+                if result:
+                    serializer = self.get_serializer(result)
+                    return Response({
+                        'success': True,
+                        'message': f'Re-extracted: {result.make} {result.model}',
+                        'spec': serializer.data,
+                    })
+            return Response({
+                'success': False,
+                'message': 'Could not extract specs from article content',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f'Re-extract failed for spec {pk}: {e}')
+            return Response({
+                'success': False,
+                'message': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def extract_for_article(self, request):
+        """Create/update CarSpecification from an article ID.
+        POST /api/v1/car-specifications/extract_for_article/
+        Body: { "article_id": 86 }
+        """
+        article_id = request.data.get('article_id')
+        if not article_id:
+            return Response({'success': False, 'message': 'article_id is required'},
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            article = Article.objects.get(id=article_id, is_published=True)
+        except Article.DoesNotExist:
+            return Response({'success': False, 'message': 'Article not found or not published'},
+                          status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            from news.spec_extractor import extract_specs_from_content, save_specs_for_article
+            specs = extract_specs_from_content(article)
+            if specs and specs.get('make') and specs['make'] != 'Not specified':
+                result = save_specs_for_article(article, specs)
+                if result:
+                    serializer = self.get_serializer(result)
+                    return Response({
+                        'success': True,
+                        'created': not CarSpecification.objects.filter(
+                            article=article).exclude(id=result.id).exists(),
+                        'message': f'Extracted: {result.make} {result.model}',
+                        'spec': serializer.data,
+                    })
+            return Response({
+                'success': False,
+                'message': 'Could not extract specs from article content',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f'Extract specs failed for article {article_id}: {e}')
+            return Response({
+                'success': False,
+                'message': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ArticleImageViewSet(viewsets.ModelViewSet):
     queryset = ArticleImage.objects.select_related('article')
