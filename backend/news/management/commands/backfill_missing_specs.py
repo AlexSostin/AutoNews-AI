@@ -18,6 +18,8 @@ class Command(BaseCommand):
         parser.add_argument('--dry-run', action='store_true', help='Show what would happen')
         parser.add_argument('--refresh-all', action='store_true',
                           help='Re-analyze ALL articles, updating existing specs')
+        parser.add_argument('--article-id', nargs='+', type=int,
+                          help='Process only specific article IDs')
         parser.add_argument('--delete-dupes', nargs='+', type=int, help='Article IDs to delete')
 
     def handle(self, *args, **options):
@@ -37,7 +39,16 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f'  Article {aid} not found'))
 
         # Step 2: Find target articles
-        if refresh_all:
+        article_ids = options.get('article_id')
+        if article_ids:
+            # Force-process specific articles (even if they already have specs)
+            articles = (
+                Article.objects
+                .filter(id__in=article_ids, is_published=True)
+                .order_by('id')
+            )
+            self.stdout.write(f'\n🎯 Processing {articles.count()} specific article(s): {article_ids}')
+        elif refresh_all:
             articles = (
                 Article.objects
                 .filter(is_published=True)
