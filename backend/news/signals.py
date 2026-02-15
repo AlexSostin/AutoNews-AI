@@ -268,9 +268,14 @@ def sync_vehicle_specs_to_car_spec(sender, instance, **kwargs):
         updates['top_speed'] = f"{instance.top_speed_kmh} km/h"
     if instance.price_from:
         currency = instance.currency or ''
-        updates['price'] = f"{instance.price_from:,} {currency}".strip()
+        price_str = f"{instance.price_from:,} {currency}".strip()
         if instance.price_to and instance.price_to != instance.price_from:
-            updates['price'] = f"{instance.price_from:,} - {instance.price_to:,} {currency}".strip()
+            price_str = f"{instance.price_from:,} - {instance.price_to:,} {currency}".strip()
+        # Add USD estimate if available and currency is not USD
+        extra = instance.extra_specs or {}
+        if currency != 'USD' and extra.get('price_usd_est'):
+            price_str = f"${extra['price_usd_est']:,} (est.) / {price_str}"
+        updates['price'] = price_str
 
     if not updates.get('make'):
         return  # No make = nothing useful to sync

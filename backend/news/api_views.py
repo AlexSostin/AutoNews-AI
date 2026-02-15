@@ -3278,9 +3278,16 @@ RULES:
 - If the text describes MULTIPLE trims/variants, return a JSON ARRAY: [ {{...}}, {{...}}, ... ]
 - If the text describes ONLY ONE car/trim, return a SINGLE JSON object: {{...}}
 - Always fill make, model_name, and trim_name from context
-- ALL text values MUST be in English. If the source text is in another language, translate field values to English (trim names, body type, suspension, etc.)
+- CRITICAL: ALL text values MUST be in English. If the source text is in Russian, Chinese, or any other language, you MUST translate ALL field values to English. Examples:
+  - "передняя — McPherson; задняя — многорычажная" → "Front: McPherson; Rear: Multi-link"
+  - "Топ с дроном" → "Top with Drone"
+  - "Базовая" → "Base"
+  - "одноступенчатая" → "single-speed"
+  - Do NOT leave ANY Cyrillic, Chinese, or other non-Latin characters in any field value
 - Convert all measurements to the units specified (mm, km, kg, kW, HP, Nm, etc.)
-- For prices, use the original currency
+- For prices: keep the original currency in price_from/price_to/currency fields. Additionally, add these estimated conversion fields:
+  - "price_usd_est": estimated price in USD (integer, approximate conversion)
+  - "price_eur_est": estimated price in EUR (integer, approximate conversion)
 - Extract ALL available fields, not just a few — be thorough
 - Return ONLY the JSON, nothing else"""
 
@@ -3330,6 +3337,14 @@ RULES:
                             specs_data.setdefault('make', cs_make)
                         if cs_model:
                             specs_data.setdefault('model_name', cs_model)
+
+                        # Move estimated prices to extra_specs (not model fields)
+                        extra = specs_data.get('extra_specs') or {}
+                        for price_key in ('price_usd_est', 'price_eur_est'):
+                            if price_key in specs_data and specs_data[price_key]:
+                                extra[price_key] = specs_data.pop(price_key)
+                        if extra:
+                            specs_data['extra_specs'] = extra
 
                         # Build lookup — use make+model+trim if available
                         defaults = {k: v for k, v in specs_data.items() if v is not None}
