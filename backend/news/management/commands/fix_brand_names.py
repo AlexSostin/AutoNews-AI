@@ -32,6 +32,11 @@ RUSSIAN_TO_ENGLISH = {
     'Базовая': 'Base',
     'Средняя': 'Mid',
     'Топовая': 'Top',
+    'мин': 'min',
+    'ч': 'h',
+    'часов': 'hours',
+    'часа': 'hours',
+    'минут': 'min',
 }
 
 
@@ -83,7 +88,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING('\\n--- Russian Text Cleanup ---'))
 
         text_fields = ['trim_name', 'suspension_type', 'motor_placement',
-                        'charging_time_fast', 'charging_time_slow', 'platform']
+                        'charging_time_fast', 'charging_time_slow', 'platform',
+                        'transmission']
 
         fixed_count = 0
         for spec in VehicleSpecs.objects.all():

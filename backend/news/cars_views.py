@@ -329,3 +329,94 @@ class CarModelDetailView(APIView):
             'trims': trims,
             'related_articles': list(related_articles),
         })
+
+
+class BrandCleanupView(APIView):
+    """POST /api/v1/cars/cleanup/ — Run brand normalization (admin only).
+    
+    Query params:
+        ?apply=true  — Apply changes (default: dry run)
+    """
+    from rest_framework.permissions import IsAdminUser
+    permission_classes = [IsAdminUser]
+
+    # Brand rename rules
+    BRAND_RENAMES = {
+        'DongFeng VOYAH': 'VOYAH',
+        'Dongfeng VOYAH': 'VOYAH',
+        'dongfeng voyah': 'VOYAH',
+        'Zeekr': 'ZEEKR',
+        'zeekr': 'ZEEKR',
+    }
+
+    RUSSIAN_TO_ENGLISH = {
+        'передняя': 'front',
+        'задняя': 'rear',
+        'многорычажная': 'multi-link',
+        'независимая': 'independent',
+        'пневматическая': 'air',
+        'подвеска': 'suspension',
+        'мин': 'min',
+        'ч': 'h',
+        'часов': 'hours',
+        'часа': 'hours',
+        'минут': 'min',
+    }
+
+    def post(self, request):
+        from .models import VehicleSpecs
+        apply = request.query_params.get('apply', '').lower() == 'true'
+        report = {'mode': 'APPLIED' if apply else 'DRY RUN', 'brand_renames': [], 'text_fixes': []}
+
+        # 1. Fix brand names
+        for old_make, new_make in self.BRAND_RENAMES.items():
+            cs_count = CarSpecification.objects.filter(make=old_make).count()
+            vs_count = VehicleSpecs.objects.filter(make=old_make).count()
+            if cs_count > 0 or vs_count > 0:
+                report['brand_renames'].append({
+                    'old': old_make, 'new': new_make,
+                    'car_specs': cs_count, 'vehicle_specs': vs_count,
+                })
+                if apply:
+                    CarSpecification.objects.filter(make=old_make).update(make=new_make)
+                    VehicleSpecs.objects.filter(make=old_make).update(make=new_make)
+
+        # 2. Fix Russian text
+        text_fields = ['trim_name', 'suspension_type', 'motor_placement',
+                       'charging_time_fast', 'charging_time_slow', 'platform', 'transmission']
+
+        for spec in VehicleSpecs.objects.all():
+            changes = {}
+            for field in text_fields:
+                value = getattr(spec, field) or ''
+                if not value:
+                    continue
+                new_value = value
+                for ru, en in self.RUSSIAN_TO_ENGLISH.items():
+                    if ru in new_value:
+                        new_value = new_value.replace(ru, en).strip()
+                new_value = ' '.join(new_value.split()).strip(' —-,;')
+                if new_value != value:
+                    changes[field] = {'old': value, 'new': new_value}
+
+            if changes:
+                report['text_fixes'].append({
+                    'id': spec.id,
+                    'car': f"{spec.make} {spec.model_name} {spec.trim_name}",
+                    'changes': changes,
+                })
+                if apply:
+                    for field, vals in changes.items():
+                        setattr(spec, field, vals['new'])
+                    spec.save(update_fields=list(changes.keys()))
+
+        # 3. Brand summary
+        brands = list(
+            CarSpecification.objects.exclude(make='')
+            .values_list('make', flat=True).distinct().order_by('make')
+        )
+        report['current_brands'] = brands
+        report['total_fixes'] = len(report['brand_renames']) + len(report['text_fixes'])
+
+        return Response(report)
+
