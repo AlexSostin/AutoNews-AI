@@ -253,12 +253,27 @@ export default function VehicleSpecsPage() {
 
     const handleSave = async () => {
         setSaving(true);
-        // Strip read-only / computed fields that the serializer rejects
-        const readOnlyKeys = ['id', 'article_title', 'power_display', 'range_display', 'price_display', 'extracted_at', 'confidence_score'];
+        // Whitelist: only send writable model fields (matches VehicleSpecs model exactly)
+        const writableKeys = [
+            'article', 'make', 'model_name', 'trim_name',
+            'drivetrain', 'motor_count', 'motor_placement',
+            'power_hp', 'power_kw', 'torque_nm',
+            'acceleration_0_100', 'top_speed_kmh',
+            'battery_kwh', 'range_km', 'range_wltp', 'range_epa', 'range_cltc',
+            'charging_time_fast', 'charging_time_slow', 'charging_power_max_kw',
+            'voltage_architecture', 'transmission', 'transmission_gears',
+            'body_type', 'fuel_type', 'seats',
+            'length_mm', 'width_mm', 'height_mm', 'wheelbase_mm',
+            'weight_kg', 'cargo_liters', 'cargo_liters_max',
+            'ground_clearance_mm', 'towing_capacity_kg',
+            'price_from', 'price_to', 'currency',
+            'year', 'model_year', 'country_of_origin',
+            'platform', 'suspension_type', 'extra_specs',
+        ];
         const payload: Record<string, unknown> = {};
-        Object.entries(form).forEach(([k, v]) => {
-            if (!readOnlyKeys.includes(k)) {
-                payload[k] = v;
+        writableKeys.forEach(k => {
+            if (k in form) {
+                payload[k] = (form as Record<string, unknown>)[k];
             }
         });
 
@@ -279,9 +294,14 @@ export default function VehicleSpecsPage() {
             fetchSpecs();
         } catch (err: unknown) {
             console.error('Save failed:', err);
-            const errDetail = (err as { response?: { data?: { detail?: string; article?: string[] } } })?.response?.data;
-            const msg = errDetail?.detail || errDetail?.article?.[0] || 'Save failed. Check console.';
-            alert(msg);
+            const errData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
+            if (errData) {
+                // Show field-level validation errors
+                const msgs = Object.entries(errData).map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : errs}`);
+                alert('Validation errors:\n' + msgs.join('\n'));
+            } else {
+                alert('Save failed. Check console.');
+            }
         }
         setSaving(false);
     };
