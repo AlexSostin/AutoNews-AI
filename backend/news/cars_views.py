@@ -91,10 +91,10 @@ class CarBrandDetailView(APIView):
         if not brand_name:
             return Response({'error': 'Brand not found'}, status=404)
 
-        # Get all unique models for this brand
+        # Get all unique models for this brand (case-insensitive make match)
         models = (
             CarSpecification.objects
-            .filter(make=brand_name, article__is_published=True)
+            .filter(make__iexact=brand_name, article__is_published=True)
             .exclude(model='')
             .exclude(model='Not specified')
             .values('model')
@@ -111,7 +111,7 @@ class CarBrandDetailView(APIView):
             # Get the "best" spec (most detailed) for display
             spec = (
                 CarSpecification.objects
-                .filter(make=brand_name, model=model_name, article__is_published=True)
+                .filter(make__iexact=brand_name, model=model_name, article__is_published=True)
                 .select_related('article')
                 .first()
             )
