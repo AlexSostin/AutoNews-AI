@@ -98,9 +98,10 @@ class CarSpecificationSerializer(serializers.ModelSerializer):
 
 
 class VehicleSpecsSerializer(serializers.ModelSerializer):
-    """Serializer for AI-extracted vehicle specifications"""
+    """Serializer for AI-extracted vehicle specifications (multi-trim)"""
     
-    # Display methods for formatted output
+    # Read-only display fields
+    article_title = serializers.SerializerMethodField()
     power_display = serializers.SerializerMethodField()
     range_display = serializers.SerializerMethodField()
     price_display = serializers.SerializerMethodField()
@@ -108,7 +109,10 @@ class VehicleSpecsSerializer(serializers.ModelSerializer):
     class Meta:
         model = VehicleSpecs
         fields = '__all__'
-        read_only_fields = ['article', 'extracted_at']
+        read_only_fields = ['extracted_at']
+    
+    def get_article_title(self, obj):
+        return obj.article.title if obj.article else None
     
     def get_power_display(self, obj):
         """Format power output"""

@@ -1108,6 +1108,92 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+            url_path='reformat-content')
+    def reformat_content(self, request, slug=None):
+        """
+        Reformat article HTML content using Gemini AI.
+        POST /api/v1/articles/{slug}/reformat_content/
+        Body: { "content": "<p>raw html...</p>" }
+        Returns cleaned, well-structured HTML.
+        """
+        content = request.data.get('content', '').strip()
+
+        if not content or len(content) < 50:
+            return Response({'success': False, 'message': 'Content too short to reformat'},
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        system_prompt = """You are a professional article HTML formatter for an automotive news website.
+Your job is to reformat the given HTML content into clean, well-structured, SEO-friendly HTML.
+Return ONLY the reformatted HTML — no markdown, no code fences, no explanation."""
+
+        format_prompt = f"""Reformat this article HTML content following these strict rules:
+
+STRUCTURE RULES:
+- Use <h2> for main section headings (max 5-7 words per heading)
+- Use <h3> for subsections if needed  
+- Use <p> for paragraphs — keep them SHORT (2-4 sentences max)
+- Use <ul><li> bullet lists for specifications, features, pricing
+- Use <strong> for key numbers, model names, and important terms
+- Wrap key statistics in <strong> tags (e.g. <strong>422 HP</strong>, <strong>650 km</strong>)
+
+CONTENT RULES:
+- Keep ALL factual information — do NOT remove real data
+- Do NOT add or invent any new information
+- Remove speculative/unconfirmed sections (e.g. "US Market Outlook", rumored pricing)
+- Remove generic filler paragraphs with no real information
+- Remove duplicate information — if the same fact appears twice, keep it once
+- Keep the article language as-is (don't translate)
+
+FORMATTING RULES:
+- No inline styles, no CSS classes
+- No <div> wrappers — use semantic tags only
+- No empty tags or extra whitespace
+- Images (<img>) should be preserved as-is
+- Ensure proper nesting of all HTML tags
+
+HTML CONTENT TO REFORMAT:
+{content[:15000]}
+
+Return ONLY the reformatted HTML."""
+
+        try:
+            from ai_engine.modules.ai_provider import get_ai_provider
+            provider = get_ai_provider('gemini')
+            result = provider.generate_completion(
+                format_prompt,
+                system_prompt=system_prompt,
+                temperature=0.2,
+                max_tokens=8000,
+            )
+
+            # Clean up potential markdown code fences
+            import re
+            cleaned = result.strip()
+            cleaned = re.sub(r'^```(?:html)?\s*', '', cleaned)
+            cleaned = re.sub(r'\s*```$', '', cleaned)
+            cleaned = cleaned.strip()
+
+            if not cleaned or len(cleaned) < 50:
+                return Response({
+                    'success': False,
+                    'message': 'AI returned empty or too short content',
+                }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+            return Response({
+                'success': True,
+                'content': cleaned,
+                'original_length': len(content),
+                'new_length': len(cleaned),
+            })
+
+        except Exception as e:
+            logger.error(f'Reformat content failed: {e}')
+            return Response({
+                'success': False,
+                'message': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['get'])
     def similar_articles(self, request, slug=None):
@@ -3103,14 +3189,14 @@ class NewsletterSubscribeView(APIView):
 
 
 class VehicleSpecsViewSet(viewsets.ModelViewSet):
-    """Admin ViewSet for managing detailed vehicle specifications."""
+    """Admin ViewSet for managing detailed vehicle specifications (multi-trim)."""
     queryset = VehicleSpecs.objects.select_related('article').all()
     serializer_class = VehicleSpecsSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = None
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['article__title', 'article__car_specification__make', 'article__car_specification__model']
-    ordering = ['-extracted_at']
+    search_fields = ['make', 'model_name', 'trim_name', 'article__title']
+    ordering = ['make', 'model_name', 'trim_name']
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def ai_fill(self, request):
@@ -3133,15 +3219,19 @@ class VehicleSpecsViewSet(viewsets.ModelViewSet):
         # Build the extraction prompt
         system_prompt = """You are a precise vehicle specification extractor. 
 Extract ONLY factual data from the provided text. If a value is not mentioned, use null.
-Return ONLY valid JSON with no markdown, no code fences, no explanation."""
+Return ONLY valid JSON with no markdown, no code fences, no explanation.
+CRITICAL: If the text contains MULTIPLE trims/variants of the same car, return a JSON ARRAY with one object per trim."""
 
         extraction_prompt = f"""Extract vehicle specifications from this text and return as JSON.
 
 TEXT:
-{text[:8000]}
+{text[:12000]}
 
-Return this exact JSON structure (use null for unknown values):
+For EACH trim/variant found, return an object with this structure (use null for unknown values):
 {{
+    "make": "brand name like Zeekr, BMW, Tesla" or null,
+    "model_name": "model like 007 GT, iX3, Model 3" or null,
+    "trim_name": "trim/variant like RWD 75 kWh, Long Range AWD, Performance" or null,
     "drivetrain": "FWD" or "RWD" or "AWD" or "4WD" or null,
     "motor_count": integer or null,
     "motor_placement": "front" or "rear" or "front+rear" or null,
@@ -3155,7 +3245,7 @@ Return this exact JSON structure (use null for unknown values):
     "range_wltp": integer or null,
     "range_epa": integer or null,
     "range_cltc": integer or null,
-    "charging_time_fast": "string like '30 min to 80%'" or null,
+    "charging_time_fast": "string like '11 min 10-80%'" or null,
     "charging_time_slow": "string" or null,
     "charging_power_max_kw": integer or null,
     "transmission": "automatic" or "manual" or "CVT" or "single-speed" or "dual-clutch" or null,
@@ -3184,10 +3274,15 @@ Return this exact JSON structure (use null for unknown values):
     "extra_specs": {{}} or object with any additional specs not covered above
 }}
 
-IMPORTANT: 
+RULES:
+- If the text describes MULTIPLE trims/variants, return a JSON ARRAY: [ {{...}}, {{...}}, ... ]
+- If the text describes ONLY ONE car/trim, return a SINGLE JSON object: {{...}}
+- Always fill make, model_name, and trim_name from context
+- ALL text values MUST be in English. If the source text is in another language, translate field values to English (trim names, body type, suspension, etc.)
 - Convert all measurements to the units specified (mm, km, kg, kW, HP, Nm, etc.)
-- For prices, use the original currency 
-- Return ONLY the JSON object, nothing else"""
+- For prices, use the original currency
+- Extract ALL available fields, not just a few — be thorough
+- Return ONLY the JSON, nothing else"""
 
         try:
             from ai_engine.modules.ai_provider import get_ai_provider
@@ -3196,7 +3291,7 @@ IMPORTANT:
                 extraction_prompt,
                 system_prompt=system_prompt,
                 temperature=0.1,
-                max_tokens=2000,
+                max_tokens=8000,
             )
 
             # Parse the JSON response
@@ -3208,34 +3303,73 @@ IMPORTANT:
             cleaned = re.sub(r'\s*```$', '', cleaned)
             cleaned = cleaned.strip()
 
-            specs_data = json.loads(cleaned)
+            parsed = json.loads(cleaned)
 
-            # If article_id provided, save the specs
+            # Normalize to list (single object → [object])
+            specs_list = parsed if isinstance(parsed, list) else [parsed]
+
+            # If article_id provided, save all trims
             if article_id:
                 try:
                     article = Article.objects.get(id=article_id)
-                    vehicle_spec, created = VehicleSpecs.objects.update_or_create(
-                        article=article,
-                        defaults={k: v for k, v in specs_data.items() if v is not None}
-                    )
-                    serializer = self.get_serializer(vehicle_spec)
+                    # Auto-populate make/model from CarSpecification
+                    from news.models import CarSpecification
+                    cs_make, cs_model = None, None
+                    try:
+                        cs = CarSpecification.objects.get(article=article)
+                        if cs.make and cs.make != 'Not specified':
+                            cs_make = cs.make
+                        if cs.model and cs.model != 'Not specified':
+                            cs_model = cs.model
+                    except CarSpecification.DoesNotExist:
+                        pass
+
+                    saved_specs = []
+                    for specs_data in specs_list:
+                        if cs_make:
+                            specs_data.setdefault('make', cs_make)
+                        if cs_model:
+                            specs_data.setdefault('model_name', cs_model)
+
+                        # Build lookup — use make+model+trim if available
+                        defaults = {k: v for k, v in specs_data.items() if v is not None}
+                        defaults['article'] = article
+                        if specs_data.get('make') and specs_data.get('model_name') and specs_data.get('trim_name'):
+                            lookup = {
+                                'make': specs_data['make'],
+                                'model_name': specs_data['model_name'],
+                                'trim_name': specs_data['trim_name'],
+                            }
+                        else:
+                            lookup = {'article': article}
+
+                        vehicle_spec, created = VehicleSpecs.objects.update_or_create(
+                            **lookup,
+                            defaults=defaults,
+                        )
+                        saved_specs.append({
+                            'id': vehicle_spec.id,
+                            'trim': specs_data.get('trim_name', ''),
+                            'created': created,
+                        })
+
                     return Response({
                         'success': True,
-                        'message': f'Specs {"created" if created else "updated"} for article #{article_id}',
-                        'specs': serializer.data,
-                        'extracted': specs_data,
+                        'message': f'Extracted {len(specs_list)} trim(s), saved to article #{article_id}',
+                        'saved': saved_specs,
+                        'extracted': specs_list,
                     })
                 except Article.DoesNotExist:
                     return Response({
                         'success': True,
-                        'message': 'Specs extracted (article not found, not saved)',
-                        'extracted': specs_data,
+                        'message': f'Extracted {len(specs_list)} trim(s) (article not found, not saved)',
+                        'extracted': specs_list,
                     })
 
             return Response({
                 'success': True,
-                'message': 'Specs extracted successfully',
-                'extracted': specs_data,
+                'message': f'Extracted {len(specs_list)} trim(s) successfully',
+                'extracted': specs_list,
             })
 
         except json.JSONDecodeError as e:

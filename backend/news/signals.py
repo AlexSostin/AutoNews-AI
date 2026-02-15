@@ -7,7 +7,7 @@ from django.db.models.signals import post_save
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.db import transaction
-from .models import Comment, Subscriber, Article, PendingArticle, AdminNotification
+from .models import Comment, Subscriber, Article, PendingArticle, AdminNotification, VehicleSpecs, CarSpecification
 
 
 @receiver(post_save, sender=Comment)
@@ -220,3 +220,75 @@ def auto_create_car_specs(sender, instance, **kwargs):
     thread = threading.Thread(target=_extract, daemon=True)
     transaction.on_commit(lambda: thread.start())
 
+
+# ============================================================================
+# SYNC VEHICLE SPECS → CAR SPECIFICATION (CATALOG)
+# ============================================================================
+
+@receiver(post_save, sender=VehicleSpecs)
+def sync_vehicle_specs_to_car_spec(sender, instance, **kwargs):
+    """
+    When VehicleSpecs is saved, auto-create/update CarSpecification
+    so the car appears in the /cars catalog.
+    Only syncs if VehicleSpecs has an article linked.
+    """
+    if not instance.article:
+        return
+
+    # Build update fields from VehicleSpecs
+    updates = {}
+
+    if instance.make:
+        updates['make'] = instance.make
+    if instance.model_name:
+        updates['model'] = instance.model_name
+    if instance.trim_name:
+        updates['trim'] = instance.trim_name
+    if instance.drivetrain:
+        updates['drivetrain'] = instance.drivetrain
+
+    # Engine description from fuel_type + battery
+    engine_parts = []
+    if instance.fuel_type:
+        engine_parts.append(instance.fuel_type)
+    if instance.battery_kwh:
+        engine_parts.append(f"{instance.battery_kwh} kWh")
+    if instance.drivetrain:
+        engine_parts.append(instance.drivetrain)
+    if engine_parts:
+        updates['engine'] = ' / '.join(engine_parts)
+
+    if instance.power_hp:
+        updates['horsepower'] = f"{instance.power_hp} HP"
+    if instance.torque_nm:
+        updates['torque'] = f"{instance.torque_nm} Nm"
+    if instance.acceleration_0_100:
+        updates['zero_to_sixty'] = f"{instance.acceleration_0_100}s"
+    if instance.top_speed_kmh:
+        updates['top_speed'] = f"{instance.top_speed_kmh} km/h"
+    if instance.price_from:
+        currency = instance.currency or ''
+        updates['price'] = f"{instance.price_from:,} {currency}".strip()
+        if instance.price_to and instance.price_to != instance.price_from:
+            updates['price'] = f"{instance.price_from:,} - {instance.price_to:,} {currency}".strip()
+
+    if not updates.get('make'):
+        return  # No make = nothing useful to sync
+
+    # model_name for CarSpec (legacy full name)
+    model_name = f"{updates.get('make', '')} {updates.get('model', '')}".strip()
+    if instance.trim_name:
+        model_name += f" {instance.trim_name}"
+
+    try:
+        car_spec, created = CarSpecification.objects.update_or_create(
+            article=instance.article,
+            defaults={
+                'model_name': model_name,
+                **updates,
+            }
+        )
+        action = "Created" if created else "Updated"
+        logger.info(f"🔄 {action} CarSpecification for article [{instance.article_id}] from VehicleSpecs: {model_name}")
+    except Exception as e:
+        logger.error(f"❌ Failed to sync VehicleSpecs → CarSpecification for article [{instance.article_id}]: {e}")

@@ -1,0 +1,81 @@
+# Vehicle Specs Template — Copy & Paste for AI Fill
+# Fill in the values you know, remove or leave blank what you don't.
+# Supports multiple trims — just copy the block below for each trim.
+
+Make (Brand): 
+Model: 
+Trim / Variant: 
+
+## Drivetrain & Performance
+- Drivetrain: (FWD / RWD / AWD / 4WD)
+- Motor Count: 
+- Motor Placement: (front / rear / front+rear)
+- Power (HP): 
+- Power (kW): 
+- Torque (Nm): 
+- 0-100 km/h (sec): 
+- Top Speed (km/h): 
+
+## Battery & Range
+- Battery (kWh): 
+- Range (km): 
+- Range WLTP (km): 
+- Range EPA (km): 
+- Range CLTC (km): 
+- Fast Charging Time: (e.g. "11 min 10-80%")
+- Slow Charging Time: 
+- Max Charging Power (kW): 
+- Voltage Architecture: (e.g. 400, 800)
+
+## Transmission
+- Transmission: (automatic / manual / CVT / single-speed / dual-clutch)
+- Transmission Gears: 
+
+## Body & Interior
+- Body Type: (sedan / SUV / hatchback / coupe / truck / crossover / wagon / shooting_brake / van / convertible / pickup)
+- Fuel Type: (EV / Hybrid / PHEV / Gas / Diesel / Hydrogen)
+- Seats: 
+
+## Dimensions & Weight
+- Length (mm): 
+- Width (mm): 
+- Height (mm): 
+- Wheelbase (mm): 
+- Curb Weight (kg): 
+- Cargo Volume (L): 
+- Max Cargo — seats folded (L): 
+- Ground Clearance (mm): 
+- Towing Capacity (kg): 
+
+## Price
+- Price From: 
+- Price To: 
+- Currency: (USD / EUR / CNY / RUB / GBP / JPY)
+
+## Other
+- Year: 
+- Model Year: 
+- Country of Origin: 
+- Platform: (e.g. SEA, MEB, E-GMP)
+- Suspension Type: 
+
+---
+# Example with 2 trims:
+#
+# Zeekr 007 GT (2025) Key Specifications
+#
+# RWD 75 kWh trim:
+# - Power: 422 HP, Torque: 440 Nm, Drivetrain: RWD
+# - 0-100 km/h: 5.3 sec, Top speed: 210 km/h
+# - Battery: 75 kWh (LFP), Range CLTC: 650 km
+# - Fast charging 10-80%: 11 min
+# - Dimensions: 4864×1900×1460 mm, Wheelbase: 2925 mm
+# - Price China: from 202,900 CNY
+#
+# AWD 100 kWh trim:
+# - Power: 646 HP, Torque: 710 Nm, Drivetrain: AWD
+# - 0-100 km/h: 2.95 sec, Top speed: 210 km/h
+# - Battery: 100 kWh (NMC), Range CLTC: 730 km
+# - Fast charging 10-80%: 15 min
+# - Dimensions: 4864×1900×1445 mm, Wheelbase: 2925 mm
+# - Price China: from 262,900 CNY

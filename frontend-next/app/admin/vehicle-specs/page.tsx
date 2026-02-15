@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Edit, Trash2, X, Search, ChevronLeft, ChevronRight, Sparkles, Save, ExternalLink, Loader2, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Edit, Trash2, X, Search, ChevronLeft, ChevronRight, ChevronDown, Sparkles, Save, ExternalLink, Loader2, Plus, Copy } from 'lucide-react';
 import api from '@/lib/api';
 import Link from 'next/link';
 
@@ -13,8 +13,11 @@ interface ArticleOption {
 
 interface VehicleSpec {
     id: number;
-    article: number;
+    article: number | null;
     article_title?: string;
+    make: string;
+    model_name: string;
+    trim_name: string;
     drivetrain: string | null;
     motor_count: number | null;
     motor_placement: string | null;
@@ -61,18 +64,21 @@ interface VehicleSpec {
 
 const PAGE_SIZE = 20;
 
-function FieldInput({ label, value, onChange, type = 'text', placeholder }: {
-    label: string; value: string | number | null; onChange: (v: string) => void; type?: string; placeholder?: string;
+function FieldInput({ label, value, onChange, type = 'text', placeholder, required }: {
+    label: string; value: string | number | null; onChange: (v: string) => void; type?: string; placeholder?: string; required?: boolean;
 }) {
     return (
         <div>
-            <label className="block text-xs font-semibold text-gray-900 mb-1">{label}</label>
+            <label className="block text-xs font-semibold text-gray-900 mb-1">
+                {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+            </label>
             <input
                 type={type}
                 value={value ?? ''}
                 onChange={e => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${required && !value ? 'border-red-300 bg-red-50/30' : 'border-gray-200'
+                    }`}
             />
         </div>
     );
@@ -109,6 +115,7 @@ export default function VehicleSpecsPage() {
     const [aiText, setAiText] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
     const [aiResult, setAiResult] = useState<string | null>(null);
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
     // Create new: article search
     const [articleSearch, setArticleSearch] = useState('');
@@ -143,13 +150,32 @@ export default function VehicleSpecsPage() {
 
     const filtered = specs.filter(s => {
         const q = search.toLowerCase();
-        return !q || (s.article_title || '').toLowerCase().includes(q)
-            || (s.platform || '').toLowerCase().includes(q)
-            || (s.country_of_origin || '').toLowerCase().includes(q);
+        return !q || (s.make || '').toLowerCase().includes(q)
+            || (s.model_name || '').toLowerCase().includes(q)
+            || (s.trim_name || '').toLowerCase().includes(q)
+            || (s.article_title || '').toLowerCase().includes(q)
+            || (s.platform || '').toLowerCase().includes(q);
     });
 
-    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-    const pageSpecs = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+    // Group filtered specs by make+model
+    const grouped = filtered.reduce<Record<string, VehicleSpec[]>>((acc, spec) => {
+        const key = (spec.make && spec.model_name) ? `${spec.make} ${spec.model_name}` : spec.article_title || `#${spec.id}`;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(spec);
+        return acc;
+    }, {});
+    const groupKeys = Object.keys(grouped);
+    const totalPages = Math.ceil(groupKeys.length / PAGE_SIZE);
+    const pageGroupKeys = groupKeys.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+    const toggleGroup = (key: string) => {
+        setExpandedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
 
     const openEdit = (spec: VehicleSpec) => {
         setIsCreateMode(false);
@@ -167,6 +193,7 @@ export default function VehicleSpecsPage() {
         setArticleSearch('');
         setArticleResults([]);
         setForm({
+            make: '', model_name: '', trim_name: '',
             drivetrain: null, motor_count: null, motor_placement: null,
             power_hp: null, power_kw: null, torque_nm: null,
             acceleration_0_100: null, top_speed_kmh: null,
@@ -228,12 +255,13 @@ export default function VehicleSpecsPage() {
         setSaving(true);
         try {
             if (isCreateMode) {
-                if (!selectedArticle) {
-                    alert('Please select an article first.');
+                const hasMakeModel = form.make && form.model_name;
+                if (!selectedArticle && !hasMakeModel) {
+                    alert('Please select an article or fill in Make and Model.');
                     setSaving(false);
                     return;
                 }
-                await api.post('/vehicle-specs/', { ...form, article: selectedArticle.id });
+                await api.post('/vehicle-specs/', { ...form, ...(selectedArticle ? { article: selectedArticle.id } : {}) });
             } else {
                 if (!editingSpec) return;
                 await api.patch(`/vehicle-specs/${editingSpec.id}/`, form);
@@ -270,16 +298,27 @@ export default function VehicleSpecsPage() {
                 article_id: articleId,
             });
             if (data.success && data.extracted) {
-                // Merge AI results into form, keeping manually set values
-                const extracted = data.extracted;
-                const merged = { ...form };
-                Object.entries(extracted).forEach(([key, value]) => {
-                    if (value !== null && value !== undefined) {
-                        merged[key] = value;
-                    }
-                });
-                setForm(merged);
-                setAiResult(`✅ Extracted ${Object.values(extracted).filter(v => v !== null).length} fields`);
+                const extractedList: Record<string, unknown>[] = Array.isArray(data.extracted) ? data.extracted : [data.extracted];
+                const trimCount = extractedList.length;
+
+                if (trimCount > 1 && articleId && data.saved) {
+                    // Multiple trims saved to DB — refresh list and close modal
+                    setAiResult(`✅ Extracted & saved ${trimCount} trims`);
+                    fetchSpecs();
+                    setTimeout(() => { setShowModal(false); }, 1200);
+                } else {
+                    // Single trim or preview — merge first into form
+                    const extracted = extractedList[0];
+                    const merged = { ...form };
+                    Object.entries(extracted).forEach(([key, value]) => {
+                        if (value !== null && value !== undefined) {
+                            merged[key] = value;
+                        }
+                    });
+                    setForm(merged);
+                    const fieldCount = Object.values(extracted).filter(v => v !== null).length;
+                    setAiResult(`✅ Extracted ${fieldCount} fields${trimCount > 1 ? ` (showing trim 1 of ${trimCount})` : ''}`);
+                }
             } else {
                 setAiResult(`❌ ${data.message || 'Extraction failed'}`);
             }
@@ -362,7 +401,7 @@ export default function VehicleSpecsPage() {
                             className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 w-64"
                         />
                     </div>
-                    <span className="text-sm text-gray-500 font-medium">{filtered.length} specs</span>
+                    <span className="text-sm text-gray-500 font-medium">{filtered.length} specs · {groupKeys.length} models</span>
                 </div>
             </div>
 
@@ -372,54 +411,90 @@ export default function VehicleSpecsPage() {
                     <table className="w-full text-sm">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th className="text-left px-4 py-3 font-semibold text-gray-600">Article</th>
+                                <th className="text-left px-4 py-3 font-semibold text-gray-600">Make / Model</th>
+                                <th className="text-left px-3 py-3 font-semibold text-gray-600">Trim</th>
                                 <th className="text-left px-3 py-3 font-semibold text-gray-600">Type</th>
                                 <th className="text-left px-3 py-3 font-semibold text-gray-600">Power</th>
                                 <th className="text-left px-3 py-3 font-semibold text-gray-600">Battery</th>
                                 <th className="text-left px-3 py-3 font-semibold text-gray-600">Range</th>
-                                <th className="text-left px-3 py-3 font-semibold text-gray-600">Platform</th>
                                 <th className="text-center px-3 py-3 font-semibold text-gray-600">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={7} className="text-center py-12 text-gray-400">Loading...</td></tr>
-                            ) : pageSpecs.length === 0 ? (
+                            ) : pageGroupKeys.length === 0 ? (
                                 <tr><td colSpan={7} className="text-center py-12 text-gray-400">No vehicle specs found</td></tr>
-                            ) : pageSpecs.map(spec => (
-                                <tr key={spec.id} className="border-b border-gray-100 hover:bg-indigo-50/30 transition-colors">
-                                    <td className="px-4 py-3 max-w-xs">
-                                        <div className="font-medium text-gray-900 truncate" title={spec.article_title}>
-                                            {spec.article_title || `Article #${spec.article}`}
-                                        </div>
-                                        <div className="text-xs text-gray-400 mt-0.5">
-                                            {spec.fuel_type || ''} {spec.body_type ? `• ${spec.body_type}` : ''}
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-3">
-                                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${spec.fuel_type === 'EV' ? 'bg-green-100 text-green-700' :
-                                            spec.fuel_type === 'Hybrid' || spec.fuel_type === 'PHEV' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-gray-100 text-gray-600'
-                                            }`}>
-                                            {spec.fuel_type || '—'}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{fmtPower(spec)}</td>
-                                    <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{fmtBattery(spec)}</td>
-                                    <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{fmtRange(spec)}</td>
-                                    <td className="px-3 py-3 text-gray-700">{spec.platform || '—'}</td>
-                                    <td className="px-3 py-3 text-center">
-                                        <div className="flex items-center justify-center gap-1">
-                                            <button onClick={() => openEdit(spec)} className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg" title="Edit">
-                                                <Edit size={16} />
-                                            </button>
-                                            <button onClick={() => handleDelete(spec.id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg" title="Delete">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            ) : pageGroupKeys.map(groupKey => {
+                                const groupSpecs = grouped[groupKey];
+                                const isMulti = groupSpecs.length > 1;
+                                const isExpanded = expandedGroups.has(groupKey) || !isMulti;
+                                return (
+                                    <React.Fragment key={groupKey}>
+                                        {/* Group header row */}
+                                        {isMulti && (
+                                            <tr
+                                                className="bg-gradient-to-r from-indigo-50/80 to-purple-50/50 border-b border-indigo-100 cursor-pointer hover:from-indigo-100/80 transition-colors"
+                                                onClick={() => toggleGroup(groupKey)}
+                                            >
+                                                <td colSpan={7} className="px-4 py-2.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <ChevronDown size={16} className={`text-indigo-500 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                                                        <span className="font-bold text-gray-900">{groupKey}</span>
+                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+                                                            {groupSpecs.length} trims
+                                                        </span>
+                                                        {groupSpecs[0].article_title && (
+                                                            <span className="text-xs text-gray-400 ml-2">📎 {groupSpecs[0].article_title}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                        {/* Trim rows */}
+                                        {isExpanded && groupSpecs.map(spec => (
+                                            <tr key={spec.id} className={`border-b border-gray-100 hover:bg-indigo-50/30 transition-colors ${isMulti ? 'bg-white' : ''}`}>
+                                                <td className="px-4 py-3 max-w-xs">
+                                                    {isMulti ? (
+                                                        <div className="pl-6 text-gray-500 text-sm">└─</div>
+                                                    ) : (
+                                                        <div>
+                                                            <div className="font-medium text-gray-900 truncate" title={groupKey}>{groupKey}</div>
+                                                            {spec.article_title && spec.make && (
+                                                                <div className="text-xs text-gray-400 mt-0.5">📎 {spec.article_title}</div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-3 text-gray-700 whitespace-nowrap font-medium">
+                                                    {spec.trim_name || <span className="text-gray-300">—</span>}
+                                                </td>
+                                                <td className="px-3 py-3">
+                                                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${spec.fuel_type === 'EV' ? 'bg-green-100 text-green-700' :
+                                                        spec.fuel_type === 'Hybrid' || spec.fuel_type === 'PHEV' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-gray-100 text-gray-600'
+                                                        }`}>
+                                                        {spec.fuel_type || '—'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{fmtPower(spec)}</td>
+                                                <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{fmtBattery(spec)}</td>
+                                                <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{fmtRange(spec)}</td>
+                                                <td className="px-3 py-3 text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button onClick={() => openEdit(spec)} className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg" title="Edit">
+                                                            <Edit size={16} />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(spec.id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg" title="Delete">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </React.Fragment>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -540,6 +615,16 @@ export default function VehicleSpecsPage() {
                                 </div>
                             </div>
 
+                            {/* Identity */}
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-900 mb-3 border-b pb-1">🏷️ Car Identity</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <FieldInput label="Make (Brand)" value={form.make as string} onChange={v => updateField('make', v)} placeholder="Zeekr, BMW, Tesla..." required />
+                                    <FieldInput label="Model" value={form.model_name as string} onChange={v => updateField('model_name', v)} placeholder="007 GT, iX3..." required />
+                                    <FieldInput label="Trim / Variant" value={form.trim_name as string} onChange={v => updateField('trim_name', v)} placeholder="AWD 100 kWh, Long Range..." />
+                                </div>
+                            </div>
+
                             {/* General */}
                             <div>
                                 <h3 className="text-sm font-bold text-gray-900 mb-3 border-b pb-1">🚗 General</h3>
@@ -615,16 +700,36 @@ export default function VehicleSpecsPage() {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
-                            <button onClick={() => setShowModal(false)}
-                                className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium">
-                                Cancel
-                            </button>
-                            <button onClick={handleSave} disabled={saving || (isCreateMode && !selectedArticle)}
-                                className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-                                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                {saving ? 'Saving...' : (isCreateMode ? 'Create Spec' : 'Save Changes')}
-                            </button>
+                        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+                            <div>
+                                {!isCreateMode && editingSpec && (
+                                    <button
+                                        onClick={() => {
+                                            // Duplicate current spec as a new trim
+                                            setIsCreateMode(true);
+                                            setEditingSpec(null);
+                                            setForm(f => ({ ...f, trim_name: '', id: undefined }));
+                                            setSelectedArticle(editingSpec.article ? { id: editingSpec.article, title: editingSpec.article_title || '', slug: '' } : null);
+                                            setArticleSearch(editingSpec.article_title || '');
+                                        }}
+                                        className="flex items-center gap-1.5 px-3 py-2 text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        <Copy size={14} />
+                                        + Duplicate as Trim
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setShowModal(false)}
+                                    className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium">
+                                    Cancel
+                                </button>
+                                <button onClick={handleSave} disabled={saving || (isCreateMode && !selectedArticle && !(form.make && form.model_name))}
+                                    className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                    {saving ? 'Saving...' : (isCreateMode ? 'Create Spec' : 'Save Changes')}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

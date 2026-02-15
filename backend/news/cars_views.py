@@ -236,13 +236,25 @@ class CarModelDetailView(APIView):
         if primary.price and primary.article.created_at:
             price_date = primary.article.created_at.strftime('%b %Y')
 
-        # Try to get VehicleSpecs for the primary article
-        vehicle_specs_data = None
+        # Get all VehicleSpecs trims for this car model
+        vehicle_specs_list = []
         try:
-            vs = getattr(primary.article, 'vehicle_specs', None)
-            if vs:
-                vehicle_specs_data = {
+            from .models import VehicleSpecs
+            all_vs = VehicleSpecs.objects.filter(
+                make__iexact=brand_name,
+                model_name__iexact=model_name,
+            ).order_by('trim_name')
+            
+            # Fallback: if no make/model match, try via primary article
+            if not all_vs.exists() and primary:
+                all_vs = VehicleSpecs.objects.filter(article=primary.article)
+            
+            for vs in all_vs:
+                vehicle_specs_list.append({
                     'id': vs.id,
+                    'trim_name': vs.trim_name or 'Standard',
+                    'make': vs.make,
+                    'model_name': vs.model_name,
                     'drivetrain': vs.get_drivetrain_display() if vs.drivetrain else None,
                     'motor_count': vs.motor_count,
                     'motor_placement': vs.motor_placement,
@@ -284,7 +296,7 @@ class CarModelDetailView(APIView):
                     'voltage_architecture': vs.voltage_architecture,
                     'suspension_type': vs.suspension_type,
                     'extra_specs': vs.extra_specs or {},
-                }
+                })
         except Exception:
             pass
 
@@ -305,7 +317,8 @@ class CarModelDetailView(APIView):
                 'price_date': price_date,
                 'release_date': primary.release_date or '',
             },
-            'vehicle_specs': vehicle_specs_data,
+            'vehicle_specs': vehicle_specs_list[0] if vehicle_specs_list else None,
+            'vehicle_specs_list': vehicle_specs_list,
             'images': images,
             'trims': trims,
             'related_articles': list(related_articles),

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Plus, X } from 'lucide-react';
+import { ArrowLeft, Save, Plus, X, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 
@@ -49,6 +49,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [newGalleryImages, setNewGalleryImages] = useState<File[]>([]);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [reformatting, setReformatting] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -393,7 +394,39 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Content (HTML) *</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-bold text-gray-900">Content (HTML) *</label>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!articleId || !formData.content.trim()) return;
+                  setReformatting(true);
+                  try {
+                    const { data } = await api.post(`/articles/${articleId}/reformat-content/`, {
+                      content: formData.content,
+                    });
+                    if (data.success && data.content) {
+                      const diff = data.original_length - data.new_length;
+                      const msg = diff > 0
+                        ? `Reformatted! Reduced by ${diff} chars (${data.original_length} → ${data.new_length})`
+                        : `Reformatted! (${data.original_length} → ${data.new_length} chars)`;
+                      setFormData({ ...formData, content: data.content });
+                      alert(`✅ ${msg}`);
+                    } else {
+                      alert(`❌ ${data.message || 'Reformat failed'}`);
+                    }
+                  } catch (err: any) {
+                    alert(`❌ Error: ${err.response?.data?.message || err.message}`);
+                  }
+                  setReformatting(false);
+                }}
+                disabled={reformatting || !formData.content.trim()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                {reformatting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {reformatting ? 'Reformatting...' : '✨ Reformat with AI'}
+              </button>
+            </div>
             <textarea
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}

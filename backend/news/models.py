@@ -871,14 +871,29 @@ class NewsletterSubscriber(models.Model):
 
 class VehicleSpecs(models.Model):
     """
-    AI-extracted vehicle specifications from articles
-    Stores comprehensive technical details about vehicles mentioned in articles
+    AI-extracted vehicle specifications from articles.
+    Supports multiple trim variants per car model.
     """
-    article = models.OneToOneField(
+    article = models.ForeignKey(
         Article,
-        on_delete=models.CASCADE,
-        related_name='vehicle_specs',
-        help_text="Article this specification belongs to"
+        on_delete=models.SET_NULL,
+        related_name='vehicle_specs_set',
+        null=True, blank=True,
+        help_text="Source article (optional)"
+    )
+    
+    # Car identification — used to group trims on /cars/ pages
+    make = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="Car brand (e.g. Zeekr, BMW, Tesla)"
+    )
+    model_name = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="Model name (e.g. 007 GT, iX3, Model 3)"
+    )
+    trim_name = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="Trim variant (e.g. AWD 100 kWh, Long Range, Performance)"
     )
     
     # Drivetrain
@@ -1136,10 +1151,15 @@ class VehicleSpecs(models.Model):
     class Meta:
         verbose_name = "Vehicle Specification"
         verbose_name_plural = "Vehicle Specifications"
-        ordering = ['-extracted_at']
+        ordering = ['make', 'model_name', 'trim_name']
+        unique_together = [('make', 'model_name', 'trim_name')]
     
     def __str__(self):
-        return f"Specs for: {self.article.title[:50]}"
+        parts = [self.make, self.model_name, self.trim_name]
+        label = ' '.join(p for p in parts if p)
+        if not label and self.article:
+            label = self.article.title[:50]
+        return f"Specs: {label or 'Unnamed'}"
     
     def get_power_display(self):
         """Return formatted power string"""
