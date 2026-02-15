@@ -174,7 +174,7 @@ class CarModelDetailView(APIView):
         # Find model name
         all_models = (
             CarSpecification.objects
-            .filter(make=brand_name)
+            .filter(make__iexact=brand_name)
             .exclude(model='')
             .values_list('model', flat=True)
             .distinct()
@@ -191,7 +191,7 @@ class CarModelDetailView(APIView):
         # Get all specs (trims) for this model
         specs = (
             CarSpecification.objects
-            .filter(make=brand_name, model=model_name, article__is_published=True)
+            .filter(make__iexact=brand_name, model=model_name, article__is_published=True)
             .select_related('article')
             .order_by('-article__created_at')
         )
