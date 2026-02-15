@@ -751,7 +751,6 @@ class BrandSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         """Get image from the first article of this brand."""
-        from django.utils.text import slugify
         spec = (
             CarSpecification.objects
             .filter(make__iexact=obj.name, article__is_published=True)
@@ -760,8 +759,22 @@ class BrandSerializer(serializers.ModelSerializer):
         )
         if spec and spec.article and spec.article.image:
             raw = str(spec.article.image)
+            # Fix Cloudinary double-prefix (storage prepends base + /media/)
+            if raw.count('https://') > 1:
+                raw = raw[raw.rfind('https://'):]
+            # Already an absolute URL (Cloudinary, etc.)
             if raw.startswith('http://') or raw.startswith('https://'):
                 return raw
+            # Relative path — build absolute URL via request
             if hasattr(spec.article.image, 'url'):
-                return spec.article.image.url
+                relative = spec.article.image.url
+                # Also fix double-prefix from .url
+                if isinstance(relative, str) and relative.count('https://') > 1:
+                    return relative[relative.rfind('https://'):]
+                if relative.startswith('http://') or relative.startswith('https://'):
+                    return relative
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(relative)
+                return relative
         return None
