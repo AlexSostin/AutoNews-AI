@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, X, Layers, Tag as TagIcon, Search, ChevronDown, Check, ArrowUpDown, Hash } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Layers, Tag as TagIcon, Search, ChevronDown, Check, ArrowUpDown, Hash, Download } from 'lucide-react';
 import api from '@/lib/api';
 
 interface TagGroup {
@@ -49,6 +49,7 @@ export default function TagsPage() {
   // Forms
   const [tagFormData, setTagFormData] = useState({ name: '', slug: '', group: '' as string | number });
   const [groupFormData, setGroupFormData] = useState({ name: '', slug: '', order: 0 });
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -249,6 +250,68 @@ export default function TagsPage() {
     }
   };
 
+  // --- Export ---
+  const handleExportData = async () => {
+    try {
+      setExporting(true);
+
+      // Fetch all articles (handle pagination)
+      let allArticles: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        try {
+          const res = await api.get('/articles/', { params: { page, page_size: 100, _t: Date.now() } });
+          const articles = Array.isArray(res.data) ? res.data : res.data.results || [];
+          allArticles = [...allArticles, ...articles];
+          hasMore = res.data.next ? true : false;
+          page++;
+        } catch {
+          hasMore = false;
+        }
+      }
+
+      const exportData = {
+        exported_at: new Date().toISOString(),
+        tags: tags.map(t => ({
+          id: t.id,
+          name: t.name,
+          slug: t.slug,
+          group_name: t.group_name,
+          article_count: t.article_count,
+        })),
+        groups: groups.map(g => ({
+          id: g.id,
+          name: g.name,
+          slug: g.slug,
+          order: g.order,
+        })),
+        articles: allArticles.map(a => ({
+          id: a.id,
+          title: a.title,
+          slug: a.slug,
+          tags: a.tags || a.tag_names || [],
+          categories: a.categories || a.category_names || [],
+        })),
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `freshmotors-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export data');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // --- Utilities ---
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -320,6 +383,14 @@ export default function TagsPage() {
           >
             <Plus size={20} />
             <span>{activeTab === 'tags' ? 'New Tag' : 'New Group'}</span>
+          </button>
+          <button
+            onClick={handleExportData}
+            disabled={exporting}
+            className="bg-white border-2 border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg font-bold hover:border-indigo-300 hover:text-indigo-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <Download size={18} />
+            <span>{exporting ? 'Exporting...' : 'Export JSON'}</span>
           </button>
         </div>
       </div>
