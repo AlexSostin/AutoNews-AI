@@ -225,15 +225,15 @@ class Command(BaseCommand):
                 ))
                 continue
 
-            source_count = source.articles.count()
-            target_count = target.articles.count()
+            source_count = source.article_set.count()
+            target_count = target.article_set.count()
 
             self.stdout.write(
                 f'  📎 "{source.name}" ({source_count} articles) → "{target.name}" ({target_count} articles)'
             )
 
             if not dry_run:
-                for article in source.articles.all():
+                for article in source.article_set.all():
                     article.tags.add(target)
                     article.tags.remove(source)
                 source.delete()
@@ -307,7 +307,7 @@ class Command(BaseCommand):
                     # Try renamed slug
                     old_tag = Tag.objects.filter(slug=slugify(old_slug)).first()
                 if old_tag and old_tag.id != new_tag.id:
-                    remaining = old_tag.articles.count()
+                    remaining = old_tag.article_set.count()
                     if remaining == 0:
                         if not dry_run:
                             old_tag.delete()
@@ -325,7 +325,7 @@ class Command(BaseCommand):
             except Tag.DoesNotExist:
                 continue
 
-            article_count = tag.articles.count()
+            article_count = tag.article_set.count()
             self.stdout.write(f'  🗑️  "{tag.name}" ({article_count} articles)')
 
             if article_count > 0:
@@ -333,7 +333,7 @@ class Command(BaseCommand):
                     f'    ⚠ Has {article_count} articles — removing tag from articles first'
                 ))
                 if not dry_run:
-                    tag.articles.clear()
+                    tag.article_set.clear()
 
             if not dry_run:
                 tag.delete()
