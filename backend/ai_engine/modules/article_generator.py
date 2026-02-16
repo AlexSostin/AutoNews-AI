@@ -1,11 +1,14 @@
 from groq import Groq
 import sys
 import os
+import logging
 try:
     import markdown
 except ImportError:
     markdown = None
 import re
+
+logger = logging.getLogger(__name__)
 
 # Import config - try multiple paths, fallback to env
 try:
@@ -97,7 +100,10 @@ Required Structure:
     <li>Comparison to competitor pricing in US market</li>
     <li>Registration and ownership costs considerations</li>
   </ul>
-  If exact US info is unknown, clearly state that and provide context. Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
+  If exact US data is unavailable, analyze the brand's current US strategy:
+  - If the brand has NO US presence (e.g., BYD, Chery), explain WHY (tariffs, regulations) and give equivalent pricing context
+  - If the brand IS in the US, estimate based on existing lineup pricing
+  Do NOT fabricate prices or dates. Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
 - <h2>Global Market & Regional Availability</h2> - CRITICAL: Format this section with clear structure:
   * Use <h3> sub-headings for each major region (e.g., <h3>Asia</h3>, <h3>Europe</h3>, <h3>North America</h3>)
   * Under each region, use <ul> and <li> tags to list specific countries and details
@@ -121,12 +127,20 @@ Required Structure:
   <ul>
 - Conclusion paragraph with recommendation and target buyer
 
+AT THE VERY END, after the conclusion, add this block:
+<div class="alt-texts" style="display:none">
+ALT_TEXT_1: [descriptive alt text for a hero/exterior image]
+ALT_TEXT_2: [descriptive alt text for an interior image]
+ALT_TEXT_3: [descriptive alt text for a detail/tech image]
+</div>
+
 Writing Style:
-- Professional automotive journalism
+- Combine technical expertise with engaging, accessible language
+- Explain what specs mean for the driver in real life (e.g., "314 hp means 0-60 in 5.9s — enough to merge confidently on any highway")
 - Include comparisons to competitors when relevant
 - Mention target audience (families, enthusiasts, eco-conscious, etc.)
-- Use descriptive language but stay factual
 - Natural keyword placement for SEO
+- Be factual — never invent specs, prices, or release dates
 
 Analysis Data:
 {analysis_data}
@@ -134,7 +148,7 @@ Analysis Data:
 Remember: Be creative with the title, but include all facts! Write comprehensive, engaging content!
 """
     
-    system_prompt = "You are a professional automotive journalist. Write engaging, SEO-optimized articles with specific data and comparisons."
+    system_prompt = "You are a senior automotive expert at FreshMotors. Combine deep technical knowledge with engaging, accessible writing. Explain specs in terms of real-world driving impact. Be factual — never fabricate data. Write SEO-optimized content with specific numbers and competitor comparisons."
     
     try:
         # Use AI provider factory
@@ -167,6 +181,8 @@ Remember: Be creative with the title, but include all facts! Write comprehensive
         
         return article_content
     except Exception as e:
+        logger.error(f"Article generation failed with {provider_display}: {e}")
+        logger.error(f"Failed analysis_data (first 500 chars): {str(analysis_data)[:500]}")
         print(f"❌ Error during article generation with {provider_display}: {e}")
         return ""
 
@@ -295,7 +311,8 @@ CRITICAL REQUIREMENTS:
         <li>Federal/state EV incentives if electric/hybrid</li>
         <li>Comparison to US competitors</li>
       </ul>
-      Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
+      If exact US data is unavailable, analyze the brand's US strategy (tariffs, regulations) and provide equivalent pricing context.
+      Do NOT fabricate prices or dates. Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
    - <h2>Global Market & Regional Availability</h2>
      * Use <h3> for regions (Asia, Europe, North America)
      * Use <ul><li> for country-specific details
@@ -304,6 +321,13 @@ CRITICAL REQUIREMENTS:
      * <h3>Pros</h3> <ul><li>Pro 1</li><li>Pro 2</li></ul>
      * <h3>Cons</h3> <ul><li>Con 1</li><li>Con 2</li></ul>
    - Conclusion paragraph with recommendation
+   
+   AT THE VERY END, after the conclusion and source attribution, add:
+   <div class="alt-texts" style="display:none">
+   ALT_TEXT_1: [descriptive alt text for hero/exterior image]
+   ALT_TEXT_2: [descriptive alt text for interior image]
+   ALT_TEXT_3: [descriptive alt text for detail/tech image]
+   </div>
    - <p class="source-attribution" style="margin-top: 2rem; padding: 1rem; background: #f3f4f6; border-left: 4px solid #3b82f6; font-size: 0.875rem;">
        <strong>Source:</strong> Information based on official press release. 
        <a href="{source_url}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">View original press release</a>
@@ -339,7 +363,7 @@ NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
 Remember: Create ORIGINAL content based on the facts, add value through analysis and context!
 """
     
-    system_prompt = "You are a professional automotive journalist. Transform press releases into engaging, unique articles with proper attribution."
+    system_prompt = "You are a senior automotive expert at FreshMotors. Transform press releases into engaging, unique articles. Combine technical depth with accessible writing — explain what specs mean in real life. Be factual, never fabricate data. Provide proper source attribution."
     
     try:
         # Use AI provider factory
@@ -369,5 +393,7 @@ Remember: Create ORIGINAL content based on the facts, add value through analysis
         return article_content
         
     except Exception as e:
+        logger.error(f"Press release expansion failed with {provider_display}: {e}")
+        logger.error(f"Failed press_release_text (first 500 chars): {str(press_release_text)[:500]}")
         print(f"❌ Error expanding press release with {provider_display}: {str(e)}")
         raise
