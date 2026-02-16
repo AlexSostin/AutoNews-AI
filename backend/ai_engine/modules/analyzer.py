@@ -230,13 +230,18 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5]
             elif line.startswith('Tags:'):
                 tags_str = line.split(':', 1)[1].strip()
                 raw_tags = [t.strip() for t in tags_str.split(',') if t.strip()]
-                # Validate tags against DB — use exact name if matched
+                # STRICT validation: only accept tags that exist in DB
+                # This prevents AI hallucinations like "Hyundai is not relevant here"
                 for raw_tag in raw_tags:
+                    # Quick sanity check — real tags are short (1-3 words max)
+                    if len(raw_tag) > 30 or len(raw_tag.split()) > 4:
+                        print(f"  ⚠️ Rejected hallucinated tag: '{raw_tag}'")
+                        continue
                     matched_name = all_valid_tags.get(raw_tag.lower())
                     if matched_name:
                         tags.append(matched_name)
                     else:
-                        tags.append(raw_tag)  # Keep AI output as fallback
+                        print(f"  ⚠️ Tag not in DB, skipped: '{raw_tag}'")
         
         print(f"✓ Category: {category}, Tags: {', '.join(tags)}")
         return category, tags

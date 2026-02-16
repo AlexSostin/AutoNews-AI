@@ -244,21 +244,22 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         send_progress(1, 5, f"🚀 Начинаем генерацию с {provider_name}...")
         print(f"🚀 Генерация контента из: {youtube_url} используя {provider_name}")
         
-        # 0. Получаем заголовок видео, если его нет
-        if not video_title:
-             try:
-                 # Quick fetch using requests (avoid full client init if possible, or use client)
-                 # Better to use YouTubeClient properly
-                 from modules.youtube_client import YouTubeClient
-                 yt = YouTubeClient()
-                 # Simple request to get title via oEmbed or scrap (oEmbed is reliable and free)
-                 oembed_url = f"https://www.youtube.com/oembed?url={youtube_url}&format=json"
-                 resp = requests.get(oembed_url, timeout=5)
-                 if resp.status_code == 200:
-                     video_title = resp.json().get('title')
-                     print(f"🎥 Fetched Video Title: {video_title}")
-             except Exception as e:
-                 print(f"⚠️ Could not fetch video title: {e}")
+        # 0. Получаем заголовок видео и информацию о канале
+        author_name = ''
+        author_channel_url = ''
+        try:
+            oembed_url = f"https://www.youtube.com/oembed?url={youtube_url}&format=json"
+            resp = requests.get(oembed_url, timeout=5)
+            if resp.status_code == 200:
+                oembed_data = resp.json()
+                if not video_title:
+                    video_title = oembed_data.get('title')
+                    print(f"🎥 Fetched Video Title: {video_title}")
+                author_name = oembed_data.get('author_name', '')
+                author_channel_url = oembed_data.get('author_url', '')
+                print(f"👤 Channel: {author_name} ({author_channel_url})")
+        except Exception as e:
+            print(f"⚠️ Could not fetch video metadata: {e}")
 
         # 1. Получаем транскрипт
         send_progress(2, 20, "📝 Получение субтитров с YouTube...")
@@ -500,7 +501,9 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
             'meta_keywords': seo_keywords,
             'image_paths': screenshot_paths,
             'analysis': analysis,
-            'video_title': video_title
+            'video_title': video_title,
+            'author_name': author_name,
+            'author_channel_url': author_channel_url
         }
         
     except Exception as e:
@@ -542,7 +545,9 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='groq', is
         tag_names=result['tag_names'],
         specs=result['specs'],
         is_published=is_published,
-        meta_keywords=result['meta_keywords']
+        meta_keywords=result['meta_keywords'],
+        author_name=result.get('author_name', ''),
+        author_channel_url=result.get('author_channel_url', '')
     )
     
     print(f"✅ Статья успешно создана! ID: {article.id}, Slug: {article.slug}")
