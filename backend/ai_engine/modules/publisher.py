@@ -57,12 +57,11 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     seo_title = generate_seo_title(title)
     seo_description = summary[:160]  # Meta description limit
     
-    # Create Article
+    # Create Article (category is M2M, added after save)
     article = Article(
         title=title,
         summary=summary,
         content=content,
-        category=category,
         youtube_url=youtube_url or '',
         is_published=is_published,
         seo_title=seo_title,
@@ -162,6 +161,10 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     
     article.save()
     print(f"  ✓ Article saved with slug: {article.slug}")
+    
+    # Add category (M2M - must be done after save)
+    article.categories.add(category)
+    print(f"  ✓ Category assigned: {category_name}")
     
     # Add tags
     if tag_names:
