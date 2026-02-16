@@ -1,119 +1,147 @@
 """
 Management command to clean up tags:
-- Merge duplicate tags (reassign articles, then delete duplicate)
-- Assign groups to ungrouped tags
-- Optionally remove zero-article tags
+- Rename model tags to include brand prefix (SEO fix)
+- Merge duplicate/redundant tags
+- Delete useless trim tags
+- Fix group assignments
+- Remove dead tags (0 articles, no group)
 """
-import re
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
+from django.db.models import Count
 from news.models import Tag, TagGroup
 
 
-# Merge map: source_slug → target_slug
-# Articles from source will be moved to target, then source deleted
-MERGE_MAP = {
-    'electric': 'ev',                  # Electric(24) → EV(24)
-    'plug-in-hybrid': 'phev',          # Plug-in Hybrid(2) → PHEV(15)
-    'plug-in': 'phev',                 # Plug-in(1) → PHEV(15)
-    'mercedes-benz': 'mercedes',       # Mercedes-Benz → Mercedes
-    'formula-1': 'f1',                 # Formula 1 → F1
-    'formula-e': 'formula-e',          # keep as is, just note
+# ============================================================
+# Phase 1: RENAMES — Add brand prefix to model tags
+# Format: old_slug → new_name (slug auto-generated)
+# ============================================================
+RENAMES = {
+    '001': 'Zeekr 001',
+    '6': 'Smart #6',
+    '7x': 'Zeekr 7X',
+    '9x': 'Zeekr 9X',
+    'd9': 'Denza D9',
+    'et9': 'NIO ET9',
+    'g6': 'XPeng G6',
+    'g7': 'XPeng G7',
+    'g9': 'XPeng G9',
+    'galaxy-m9': 'Geely Galaxy M9',
+    'han': 'BYD Han',
+    'hs6': 'Hongqi HS6',
+    'highlander': 'Toyota Highlander',
+    'ls9': 'IM LS9',
+    'n8l': 'Denza N8L',
+    'n9': 'Denza N9',
+    'onvo-l60': 'NIO ONVO L60',
+    'onvo-l90': 'NIO ONVO L90',
+    'p7': 'XPeng P7',
+    'qin-l': 'BYD Qin L',
+    'seal-05': 'BYD Seal 05',
+    'seal-06': 'BYD Seal 06',
+    'sealion-05': 'BYD Sealion 05',
+    'sealion-06': 'BYD Sealion 06',
+    'seagull': 'BYD Seagull',
+    'su7': 'Xiaomi SU7',
+    'tang': 'BYD Tang',
+    'tank-700': 'GWM Tank 700',
+    'taishan': 'VOYAH Taishan',
+    'wendao-v9': 'ArcFox Wendao V9',
+    'x9': 'XPeng X9',
+    'yu7': 'Xiaomi YU7',
+    'yuan-up': 'BYD Yuan Up',
+    'z9': 'Denza Z9',
+    'fcb': 'BYD FCB',
+    'fcb-titanium-7': 'BYD FCB Titanium 7',
+    'dreamer': 'VOYAH Dreamer',
+    'zhiyin': 'VOYAH Zhiyin',
+    'leopard-5': 'BYD Leopard 5',
+    'leopard-7': 'BYD Leopard 7',
+    'leopard-8': 'BYD Leopard 8',
+    'avatr-07': 'Avatr 07',
+    'avatr-12': 'Avatr 12',
+    'onvo': 'NIO ONVO',
+    'song': 'BYD Song',
 }
 
-# Group assignments: tag_slug → group_slug
-# These tags currently have group=NULL
-GROUP_ASSIGNMENTS = {
-    # → Body Types
-    'convertible': 'body-types',
-    'roadster': 'body-types',
-    
-    # → Tech & Features
-    'design': 'tech-features',
-    'interior': 'tech-features',
-    'head-up-display': 'tech-features',
-    'performance': 'tech-features',
-    'infotainment': 'tech-features',
-    'connected-car': 'tech-features',
-    'self-driving': 'tech-features',
-    
-    # → Segments
-    'comparison': 'segments',
-    'first-drive': 'segments',
-    'test-drive': 'segments',
-    'review': 'segments',
-    'supercar': 'segments',
-    
-    # → Events / Motorsports
-    'racing': 'events-motorsports',
-    'nascar': 'events-motorsports',
-    'le-mans': 'events-motorsports',
-    'indycar': 'events-motorsports',
+# ============================================================
+# Phase 2: MERGES — Move articles from source → target, delete source
+# Format: source_slug → target_slug
+# ============================================================
+MERGE_MAP = {
+    'electric': 'ev',                   # Electric → EV
+    'bev': 'ev',                        # BEV → EV
+    'plug-in-hybrid': 'phev',           # Plug-in Hybrid → PHEV
+    'rev': 'e-rev',                     # REV → E-REV
+    'range-extended': 'e-rev',          # Range-extended → E-REV
+    'mercedes-benz': 'mercedes',        # Mercedes-Benz → Mercedes
+    'formula-1': 'f1',                  # Formula 1 → F1
+    'battery-technology': 'battery',    # Battery Technology → Battery
+}
+
+# ============================================================
+# Phase 3: Special merges — tags that need combining
+# ZEEKR 007 GT: merge "007" into a new tag, handle "GT" article reassignment
+# BYD Song Pro: merge "Song" + "Pro" → BYD Song Pro
+# ============================================================
+SPECIAL_MERGES = [
+    # (old_slugs_to_absorb, new_name, new_group_slug)
+    # 007 + GT → ZEEKR 007 GT (for article 86 specifically)
+    {
+        'match_article_tags': ['007', 'GT'],  # article must have BOTH
+        'old_slugs': ['007'],
+        'new_name': 'ZEEKR 007 GT',
+        'remove_from_matched': ['GT'],  # remove GT tag from matched articles
+    },
+    {
+        'match_article_tags': ['Song', 'Pro'],
+        'old_slugs': ['song'],  # will already be renamed to BYD Song
+        'new_name': 'BYD Song Pro',
+        'remove_from_matched': ['Pro'],
+    },
+]
+
+# ============================================================
+# Phase 4: DELETE — Useless tags
+# ============================================================
+DELETE_TAGS = [
+    'gt',       # Generic trim, articles reassigned above
+    'max',      # Generic trim
+    'plus',     # Generic trim (0 articles)
+    'pro',      # Generic trim, articles reassigned above
+    'green',    # Vague (0 articles)
+    'factory',  # Vague (0 articles)
+    'endurance', # Vague (0 articles)
+    'towing',   # Vague (0 articles)
+]
+
+# ============================================================
+# Phase 5: GROUP REASSIGNMENTS
+# Format: tag_slug → group_slug
+# ============================================================
+GROUP_FIXES = {
+    # Motorsports tags wrongly in Segments
+    'f1': 'events-motorsports',
+    'formula-e': 'events-motorsports',
+    'motogp': 'events-motorsports',
+    'wrc': 'events-motorsports',
     'rally': 'events-motorsports',
-    'drift': 'segments',
-    'track': 'events-motorsports',
-    
-    # → Fuel Types
-    'eco': 'fuel-types',
-    
-    # → Manufacturers
-    'vinfast': 'manufacturers',
-    
-    # → Industry/Business (no group yet, assign to general)
-    'industry': 'tech-features',
-    'innovation': 'tech-features',
-    'technology': 'tech-features',
-    'sustainability': 'tech-features',
-    'environment': 'tech-features',
-    'manufacturing': 'tech-features',
-    'investment': 'tech-features',
-    'sales': 'tech-features',
-    'market': 'tech-features',
-    'policy': 'tech-features',
-    'regulation': 'tech-features',
-    'infrastructure': 'tech-features',
-    'supply-chain': 'tech-features',
-    'climate': 'tech-features',
-    'carbon-neutral': 'tech-features',
-    'zero-emission': 'fuel-types',
-    
-    # → Engine Types (currently no group)
-    'inline-4': 'tech-features',
-    'inline-6': 'tech-features',
-    'flat-4': 'tech-features',
-    'flat-6': 'tech-features',
-    'twin-turbo': 'tech-features',
-    'supercharged': 'tech-features',
-    'rotary': 'fuel-types',
-    'lithium': 'tech-features',
-    'solid-state': 'tech-features',
-    
-    # → Content types
-    'news': 'segments',
-    'update': 'segments',
-    'spy-shots': 'segments',
-    'teaser': 'segments',
-    'reveal': 'segments',
-    'debut': 'segments',
-    'launch': 'segments',
-    'facelift': 'segments',
-    'refresh': 'segments',
-    'next-generation': 'segments',
-    'concept': 'segments',
-    'production': 'segments',
-    'recall': 'segments',
-    'rumor': 'segments',
-    'limited-edition': 'segments',
-    'special-edition': 'segments',
-    'gran-turismo': 'segments',
-    
-    # Misclassified
-    'long-range': 'tech-features',  # Was in Manufacturers, should be Tech
+    'drift': 'events-motorsports',
+
+    # Range wrongly in Events
+    'range': 'tech-features',
+
+    # Fuel Economy wrongly in Segments
+    'fuel-economy': 'tech-features',
+
+    # Uncategorized tags
+    'chip-shortage': 'tech-features',
+    'e-rev': 'fuel-types',
 }
 
 
 class Command(BaseCommand):
-    help = 'Clean up tags: merge duplicates, assign groups, remove dead tags'
+    help = 'Comprehensive tag cleanup: rename, merge, delete, regroup'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -124,203 +152,264 @@ class Command(BaseCommand):
         parser.add_argument(
             '--remove-dead',
             action='store_true',
-            help='Remove tags with 0 articles and no group',
+            help='Remove tags with 0 articles (keeps grouped tags)',
         )
 
     def handle(self, *args, **options):
         dry_run = options['dry_run']
         remove_dead = options['remove_dead']
-        
+
         if dry_run:
             self.stdout.write(self.style.WARNING('[DRY RUN MODE - No changes will be made]\n'))
-        
-        # Phase 1: Merge duplicates
-        self._merge_duplicates(dry_run)
-        
-        # Phase 2: Assign groups
-        self._assign_groups(dry_run)
-        
-        # Phase 3: Fix misclassified tags
-        self._fix_misclassified(dry_run)
-        
-        # Phase 4: Remove dead tags (optional)
+
+        self._phase1_renames(dry_run)
+        self._phase2_merges(dry_run)
+        self._phase3_special_merges(dry_run)
+        self._phase4_deletes(dry_run)
+        self._phase5_group_fixes(dry_run)
+
         if remove_dead:
-            self._remove_dead_tags(dry_run)
-        
-        # Summary
+            self._phase6_remove_dead(dry_run)
+
         self._print_summary()
 
-    def _merge_duplicates(self, dry_run):
-        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 1: Merging Duplicate Tags ===\n'))
-        merged_count = 0
-        
+    def _phase1_renames(self, dry_run):
+        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 1: Renaming Model Tags (Add Brand Prefix) ===\n'))
+        count = 0
+
+        for old_slug, new_name in RENAMES.items():
+            try:
+                tag = Tag.objects.get(slug=old_slug)
+            except Tag.DoesNotExist:
+                continue
+
+            new_slug = slugify(new_name)
+
+            # Check if target slug already exists
+            if Tag.objects.filter(slug=new_slug).exclude(id=tag.id).exists():
+                self.stdout.write(self.style.WARNING(
+                    f'  ⚠ Slug "{new_slug}" already exists, skipping rename of "{tag.name}"'
+                ))
+                continue
+
+            self.stdout.write(f'  ✏️  "{tag.name}" → "{new_name}" (slug: {old_slug} → {new_slug})')
+
+            if not dry_run:
+                tag.name = new_name
+                tag.slug = new_slug
+                tag.save(update_fields=['name', 'slug'])
+                self.stdout.write(self.style.SUCCESS(f'    ✓ Renamed'))
+
+            count += 1
+
+        self.stdout.write(f'\n  Total renames: {count}\n')
+
+    def _phase2_merges(self, dry_run):
+        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 2: Merging Duplicate Tags ===\n'))
+        count = 0
+
         for source_slug, target_slug in MERGE_MAP.items():
             if source_slug == target_slug:
-                continue  # Skip identity mappings
-            
+                continue
+
             try:
                 source = Tag.objects.get(slug=source_slug)
             except Tag.DoesNotExist:
-                continue  # Source doesn't exist, skip
-            
+                continue
+
             try:
                 target = Tag.objects.get(slug=target_slug)
             except Tag.DoesNotExist:
                 self.stdout.write(self.style.WARNING(
-                    f'  ⚠ Target tag "{target_slug}" not found, skipping merge of "{source_slug}"'
+                    f'  ⚠ Target "{target_slug}" not found, skipping merge of "{source.name}"'
                 ))
                 continue
-            
-            # Count articles on source
-            source_articles = source.article_set.all()
-            article_count = source_articles.count()
-            
+
+            source_count = source.articles.count()
+            target_count = target.articles.count()
+
             self.stdout.write(
-                f'  📎 Merge: "{source.name}" ({article_count} articles) → "{target.name}" ({target.article_set.count()} articles)'
+                f'  📎 "{source.name}" ({source_count} articles) → "{target.name}" ({target_count} articles)'
             )
-            
+
             if not dry_run:
-                # Move articles from source to target
-                for article in source_articles:
+                for article in source.articles.all():
                     article.tags.add(target)
                     article.tags.remove(source)
-                
-                # Delete the source tag
                 source.delete()
-                self.stdout.write(self.style.SUCCESS(f'    ✓ Merged and deleted "{source.name}"'))
-            
-            merged_count += 1
-        
-        self.stdout.write(f'\n  Total merges: {merged_count}\n')
+                self.stdout.write(self.style.SUCCESS(f'    ✓ Merged & deleted'))
 
-    def _assign_groups(self, dry_run):
-        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 2: Assigning Groups to Ungrouped Tags ===\n'))
-        
-        # Cache tag groups by slug
-        group_cache = {}
-        for group in TagGroup.objects.all():
-            group_cache[group.slug] = group
-        
-        # Also try matching by name-derived slug
-        group_name_map = {
-            'body-types': None,
-            'tech-features': None,
-            'segments': None,
-            'events-motorsports': None,
-            'fuel-types': None,
-            'manufacturers': None,
-        }
-        
-        for group in TagGroup.objects.all():
-            slug = group.slug
-            group_cache[slug] = group
-            # Also map common name patterns
-            name_slug = slugify(group.name)
-            group_cache[name_slug] = group
-        
-        assigned_count = 0
-        
-        for tag_slug, group_slug in GROUP_ASSIGNMENTS.items():
+            count += 1
+
+        self.stdout.write(f'\n  Total merges: {count}\n')
+
+    def _phase3_special_merges(self, dry_run):
+        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 3: Special Merges (Multi-tag Combinations) ===\n'))
+
+        for spec in SPECIAL_MERGES:
+            match_names = spec['match_article_tags']
+            new_name = spec['new_name']
+            remove_names = spec.get('remove_from_matched', [])
+
+            # Find or create the new tag
+            new_slug = slugify(new_name)
+            models_group = TagGroup.objects.filter(slug='models').first()
+
+            new_tag, created = Tag.objects.get_or_create(
+                slug=new_slug,
+                defaults={
+                    'name': new_name,
+                    'group': models_group,
+                }
+            )
+
+            if created and not dry_run:
+                self.stdout.write(self.style.SUCCESS(f'  ✨ Created new tag: "{new_name}"'))
+            elif created and dry_run:
+                self.stdout.write(f'  ✨ Would create: "{new_name}"')
+                new_tag.delete()  # Don't leave behind in dry run
+                continue
+
+            # Find articles that have ALL the match tags
+            match_tags = list(Tag.objects.filter(name__in=match_names))
+            if len(match_tags) != len(match_names):
+                self.stdout.write(self.style.WARNING(
+                    f'  ⚠ Not all match tags found for "{new_name}", skipping'
+                ))
+                continue
+
+            # Get articles that have all match tags
+            from django.db.models import Q
+            from functools import reduce
+            from news.models import Article
+
+            articles = Article.objects.all()
+            for tag in match_tags:
+                articles = articles.filter(tags=tag)
+
+            article_count = articles.count()
+            self.stdout.write(f'  🔗 {match_names} → "{new_name}" (affects {article_count} articles)')
+
+            if not dry_run and article_count > 0:
+                for article in articles:
+                    article.tags.add(new_tag)
+                    # Remove the tags that should be removed
+                    for remove_name in remove_names:
+                        remove_tag = Tag.objects.filter(name=remove_name).first()
+                        if remove_tag:
+                            article.tags.remove(remove_tag)
+                self.stdout.write(self.style.SUCCESS(f'    ✓ Reassigned {article_count} articles'))
+
+            # Rename old slugs to point to new tag (handled by renames already for 'song')
+            for old_slug in spec['old_slugs']:
+                old_tag = Tag.objects.filter(slug=old_slug).first()
+                if not old_tag:
+                    # Try renamed slug
+                    old_tag = Tag.objects.filter(slug=slugify(old_slug)).first()
+                if old_tag and old_tag.id != new_tag.id:
+                    remaining = old_tag.articles.count()
+                    if remaining == 0:
+                        if not dry_run:
+                            old_tag.delete()
+                            self.stdout.write(self.style.SUCCESS(f'    ✓ Deleted empty old tag "{old_tag.name}"'))
+                    else:
+                        self.stdout.write(f'    ℹ Old tag "{old_tag.name}" still has {remaining} articles, keeping')
+
+    def _phase4_deletes(self, dry_run):
+        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 4: Deleting Useless Tags ===\n'))
+        count = 0
+
+        for slug in DELETE_TAGS:
+            try:
+                tag = Tag.objects.get(slug=slug)
+            except Tag.DoesNotExist:
+                continue
+
+            article_count = tag.articles.count()
+            self.stdout.write(f'  🗑️  "{tag.name}" ({article_count} articles)')
+
+            if article_count > 0:
+                self.stdout.write(self.style.WARNING(
+                    f'    ⚠ Has {article_count} articles — removing tag from articles first'
+                ))
+                if not dry_run:
+                    tag.articles.clear()
+
+            if not dry_run:
+                tag.delete()
+                self.stdout.write(self.style.SUCCESS(f'    ✓ Deleted'))
+
+            count += 1
+
+        self.stdout.write(f'\n  Total deletes: {count}\n')
+
+    def _phase5_group_fixes(self, dry_run):
+        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 5: Fixing Group Assignments ===\n'))
+        count = 0
+
+        group_cache = {g.slug: g for g in TagGroup.objects.all()}
+
+        for tag_slug, group_slug in GROUP_FIXES.items():
             try:
                 tag = Tag.objects.get(slug=tag_slug)
             except Tag.DoesNotExist:
-                continue
-            
-            if tag.group is not None:
-                # Already has a group, check if it needs reassignment
-                if tag_slug in ('long-range',):  # Known misclassified
-                    pass  # Will be handled in _fix_misclassified
-                else:
-                    continue  # Already grouped, skip
-            
-            # Find the target group
+                # Try with renamed slug
+                try:
+                    tag = Tag.objects.get(slug=slugify(tag_slug))
+                except Tag.DoesNotExist:
+                    continue
+
             group = group_cache.get(group_slug)
             if not group:
-                # Try partial matches
-                for g in TagGroup.objects.all():
-                    if group_slug in g.slug or group_slug in slugify(g.name):
-                        group = g
-                        group_cache[group_slug] = g
-                        break
-            
-            if not group:
-                self.stdout.write(self.style.WARNING(
-                    f'  ⚠ Group "{group_slug}" not found for tag "{tag.name}"'
-                ))
+                self.stdout.write(self.style.WARNING(f'  ⚠ Group "{group_slug}" not found'))
                 continue
-            
-            self.stdout.write(f'  🏷️  "{tag.name}" → group "{group.name}"')
-            
+
+            old_group = tag.group.name if tag.group else 'None'
+            if tag.group == group:
+                continue  # Already correct
+
+            self.stdout.write(f'  🔄 "{tag.name}": {old_group} → {group.name}')
+
             if not dry_run:
                 tag.group = group
                 tag.save(update_fields=['group'])
-                self.stdout.write(self.style.SUCCESS(f'    ✓ Assigned'))
-            
-            assigned_count += 1
-        
-        self.stdout.write(f'\n  Total assignments: {assigned_count}\n')
+                self.stdout.write(self.style.SUCCESS(f'    ✓ Fixed'))
 
-    def _fix_misclassified(self, dry_run):
-        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 3: Fixing Misclassified Tags ===\n'))
-        
-        # Long-Range is in Manufacturers but should be Tech & Features
-        try:
-            tag = Tag.objects.get(slug='long-range')
-            if tag.group and tag.group.name == 'Manufacturers':
-                target_group = TagGroup.objects.filter(
-                    slug__icontains='tech'
-                ).first()
-                
-                if target_group:
-                    self.stdout.write(
-                        f'  🔄 "{tag.name}": Manufacturers → {target_group.name}'
-                    )
-                    if not dry_run:
-                        tag.group = target_group
-                        tag.save(update_fields=['group'])
-                        self.stdout.write(self.style.SUCCESS(f'    ✓ Fixed'))
-        except Tag.DoesNotExist:
-            pass
+            count += 1
 
-    def _remove_dead_tags(self, dry_run):
-        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 4: Removing Dead Tags ===\n'))
-        
-        # Only remove tags that have 0 articles AND no group
-        dead_tags = Tag.objects.filter(group__isnull=True).annotate(
-            article_count=__import__('django.db.models', fromlist=['Count']).Count('articles')
-        ).filter(article_count=0)
-        
-        # Safer approach: query manually
-        from django.db.models import Count
+        self.stdout.write(f'\n  Total group fixes: {count}\n')
+
+    def _phase6_remove_dead(self, dry_run):
+        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 6: Removing Dead Tags (0 Articles) ===\n'))
+
         dead_tags = Tag.objects.annotate(
             article_count=Count('articles')
         ).filter(article_count=0, group__isnull=True)
-        
+
         count = dead_tags.count()
         self.stdout.write(f'  Found {count} dead tags (0 articles, no group)\n')
-        
-        for tag in dead_tags[:20]:  # Show first 20
+
+        for tag in dead_tags[:30]:
             self.stdout.write(f'    🗑️  "{tag.name}" (slug: {tag.slug})')
-        
-        if count > 20:
-            self.stdout.write(f'    ... and {count - 20} more')
-        
+
+        if count > 30:
+            self.stdout.write(f'    ... and {count - 30} more')
+
         if not dry_run and count > 0:
             dead_tags.delete()
             self.stdout.write(self.style.SUCCESS(f'\n  ✓ Deleted {count} dead tags'))
 
     def _print_summary(self):
         self.stdout.write(self.style.MIGRATE_HEADING('\n=== Summary ===\n'))
-        
+
         total = Tag.objects.count()
         grouped = Tag.objects.filter(group__isnull=False).count()
         ungrouped = Tag.objects.filter(group__isnull=True).count()
-        
+
         self.stdout.write(f'  Total tags: {total}')
         self.stdout.write(f'  With group: {grouped}')
         self.stdout.write(f'  Without group: {ungrouped}')
-        
-        # Per-group breakdown
+
         self.stdout.write(self.style.MIGRATE_HEADING('\n  Per-group breakdown:'))
         for group in TagGroup.objects.all().order_by('order', 'name'):
             count = Tag.objects.filter(group=group).count()
