@@ -135,7 +135,7 @@ def _get_db_tags():
     Returns a dict: {group_name: [tag_names]}
     Only includes relevant groups for the AI prompt.
     """
-    RELEVANT_GROUPS = ['Manufacturers', 'Body Types', 'Fuel Types', 'Segments', 'Drivetrain']
+    RELEVANT_GROUPS = ['Manufacturers', 'Body Types', 'Fuel Types', 'Segments', 'Drivetrain', 'Years', 'Models']
     
     try:
         import django
@@ -165,6 +165,7 @@ def _get_db_tags():
         'Segments': ['Luxury', 'Family', 'Budget', 'Comfort', 'Sport', 'Premium',
                      'Off-road', 'City', 'Supercar'],
         'Drivetrain': ['AWD', 'FWD', 'RWD', '4WD'],
+        'Years': ['2024', '2025', '2026', '2027'],
     }
 
 
@@ -191,7 +192,27 @@ Based on this automotive analysis, determine the best category and relevant tags
 Categories (choose ONE):
 {categories_str}
 
-Tags (choose 5-8 relevant tags from these groups, at least one from Manufacturers):
+Tags (choose 5-8 relevant tags from these groups):
+RULES:
+- ALWAYS include at least one tag from Manufacturers (the car brand)
+- ALWAYS include a Year tag if the model year is mentioned (e.g., "2026")
+- ALWAYS include the correct Body Type. Use these guidelines:
+  * "Sedan" — traditional 3-box car with separate trunk (BYD Qin, Tesla Model 3)
+  * "SUV" — larger, tall vehicles with raised ride height (BYD Tang, Tesla Model X)
+  * "Crossover" — car-based SUV, smaller/lower than traditional SUV (e.g., compact crossovers)
+  * "Hatchback" — 2-box car with rear lift gate (VW Golf, BYD Dolphin)
+  * "Coupe" — 2-door sporty vehicle or 4-door coupe-styled sedan
+  * "MPV" — multi-purpose van / people carrier (BYD D9, Zeekr 009)
+  * "Pickup" — truck with open bed
+  * Do NOT confuse Sedan with Hatchback or SUV with Crossover
+- Include the correct Fuel Type:
+  * "DM-i" — BYD's plug-in hybrid system
+  * "PHEV" — non-BYD plug-in hybrids
+  * "EV" or "BEV" — fully electric
+  * "E-REV" — extended-range EV (Li Auto, VOYAH)
+  * "Hybrid" — non-plug-in hybrid (Toyota HEV)
+- Include a Segment tag if applicable (Luxury, Budget, Sport, etc.)
+
 {tags_section}
 Analysis:
 {analysis[:2000]}

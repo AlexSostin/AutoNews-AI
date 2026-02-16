@@ -104,20 +104,22 @@ Required Structure:
   * Safety tech (collision avoidance, blind spot monitoring, etc.)
   If not in the transcript, check the web context or the model's known features. Write at least 2 full paragraphs.
 - <h2>Driving Experience</h2> - Handling, comfort, real-world performance
-- <h2>US Market Availability & Pricing</h2> - IMPORTANT: Write this as flowing paragraphs and HTML lists. Include:
+- <h2>US Market Availability & Pricing</h2> - Write as factual paragraphs and HTML lists covering these topics:
   <ul>
-    <li>Will this car be sold in the United States? (Yes/No with timeline)</li>
-    <li>Expected US pricing (MSRP in USD, mention trims if applicable)</li>
-    <li>Import taxes and fees if applicable (federal, state, customs duties)</li>
-    <li>Any federal or state EV tax credits/incentives if electric/hybrid</li>
-    <li>Comparison to competitor pricing in US market</li>
-    <li>Registration and ownership costs considerations</li>
+    <li>US availability status and timeline</li>
+    <li>Estimated US MSRP in USD (by trim if applicable)</li>
+    <li>Import duties, tariffs, and customs fees</li>
+    <li>Applicable EV/PHEV federal and state tax credits</li>
+    <li>Price comparison with US-market competitors</li>
+    <li>Registration and ownership cost overview</li>
   </ul>
-  If exact US data is unavailable, analyze the brand's current US strategy:
-  - If the brand has NO US presence (e.g., BYD, Chery), explain WHY (tariffs, regulations) and give equivalent pricing context
-  - If the brand IS in the US, estimate based on existing lineup pricing
-  IMPORTANT: Write each bullet as a direct factual statement. Do NOT repeat the questions from this prompt.
-  Do NOT fabricate prices or dates. Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
+  If brand has NO US presence (e.g., BYD, Chery): explain WHY (tariffs, regulations, 27.5% duty) and estimate what pricing WOULD be.
+  If brand IS in the US: estimate based on existing lineup.
+  CRITICAL FORMATTING RULES:
+  - Write each bullet as a DIRECT FACTUAL STATEMENT (e.g., "The BYD Qin Plus is not currently available...")
+  - Do NOT start bullets with questions like "Will this car be..." or "Expected US pricing..."
+  - Do NOT fabricate prices or dates
+  - Use ONLY <ul><li> HTML tags, never asterisks (*) or markdown
 - <h2>Global Market & Regional Availability</h2> - CRITICAL: Format this section with clear structure:
   * Use <h3> sub-headings for each major region (e.g., <h3>Asia</h3>, <h3>Europe</h3>, <h3>North America</h3>)
   * Under each region, use <ul> and <li> tags to list specific countries and details

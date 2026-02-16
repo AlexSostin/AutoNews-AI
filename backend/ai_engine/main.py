@@ -294,6 +294,16 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         specs = extract_specs_dict(analysis)
         send_progress(4, 60, f"✓ {specs['make']} {specs['model']}")
         
+        # 2.6.1 AUTO-ADD YEAR TAG if not already present
+        year = specs.get('year')
+        if year:
+            year_str = str(year)
+            # Check if any year tag is already present
+            has_year_tag = any(t.isdigit() and len(t) == 4 for t in tag_names)
+            if not has_year_tag:
+                tag_names.append(year_str)
+                print(f"🏷️ Auto-added year tag: {year_str}")
+        
         # 2.65. DUPLICATE CHECK — skip if article already exists for same car
         if specs.get('make') and specs['make'] != 'Not specified' and specs.get('model') and specs['model'] != 'Not specified':
             try:
