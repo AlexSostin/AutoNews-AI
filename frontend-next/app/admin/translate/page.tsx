@@ -169,7 +169,7 @@ export default function TranslateEnhancePage() {
                         <textarea
                             value={russianText}
                             onChange={(e) => setRussianText(e.target.value)}
-                            placeholder="Напишите ваш текст на русском здесь... Например: Новый BYD Seal 06 GT получил электромотор на 530 л.с. Разгон до 100 за 3.2 секунды. Батарея 82 кВт*ч даёт 620 км запаса хода."
+                            placeholder="Write your text in Russian here... For example: Новый BYD Seal 06 GT got a 530 HP electric motor. 0-100 in 3.2 seconds. 82 kWh battery provides 620 km range."
                             className="w-full h-48 px-4 py-3 border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 placeholder:text-gray-400 text-sm leading-relaxed"
                             disabled={loading}
                         />

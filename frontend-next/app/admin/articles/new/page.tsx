@@ -409,7 +409,7 @@ export default function NewArticlePage() {
             <textarea
               value={translateText}
               onChange={(e) => setTranslateText(e.target.value)}
-              placeholder="Напишите текст на русском... Например: Новый BYD Seal 06 GT получил мощный электромотор на 530 л.с."
+              placeholder="Write text in Russian... For example: Новый BYD Seal 06 GT получил мощный электромотор на 530 л.с. (The AI will translate and enhance it into a full English article)"
               className="w-full h-32 px-4 py-3 border-2 border-indigo-300 rounded-lg resize-y focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 text-sm leading-relaxed"
               disabled={translating}
             />

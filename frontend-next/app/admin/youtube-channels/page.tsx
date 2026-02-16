@@ -324,7 +324,7 @@ export default function YouTubeChannelsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-950">YouTube Channels</h1>
-          <p className="text-gray-500 text-sm mt-1">Мониторинг каналов для автоматической генерации статей</p>
+          <p className="text-gray-500 text-sm mt-1">Channel monitoring for automatic article generation</p>
         </div>
 
         <div className="flex gap-2">

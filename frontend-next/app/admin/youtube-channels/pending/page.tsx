@@ -149,7 +149,7 @@ export default function PendingArticlesPage() {
         </Link>
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Pending Articles</h1>
-          <p className="text-gray-500 text-sm">Статьи ожидающие проверки и публикации</p>
+          <p className="text-gray-500 text-sm">Articles awaiting review and publication</p>
         </div>
       </div>
 

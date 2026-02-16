@@ -19,26 +19,26 @@ interface GenerationProgressProps {
 }
 
 const STEPS = [
-  { id: 1, name: 'Инициализация', icon: '🚀' },
-  { id: 2, name: 'Получение субтитров', icon: '📝' },
-  { id: 3, name: 'Анализ контента', icon: '🔍' },
-  { id: 4, name: 'Категоризация', icon: '🏷️' },
-  { id: 5, name: 'Генерация статьи', icon: '✍️' },
-  { id: 6, name: 'Скриншоты', icon: '📸' },
-  { id: 7, name: 'Описание', icon: '📝' },
-  { id: 8, name: 'Сохранение', icon: '📤' },
-  { id: 9, name: 'Готово!', icon: '✅' },
+  { id: 1, name: 'Initializing', icon: '🚀' },
+  { id: 2, name: 'Fetching subtitles', icon: '📝' },
+  { id: 3, name: 'Analyzing content', icon: '🔍' },
+  { id: 4, name: 'Categorizing', icon: '🏷️' },
+  { id: 5, name: 'Generating article', icon: '✍️' },
+  { id: 6, name: 'Screenshots', icon: '📸' },
+  { id: 7, name: 'Description', icon: '📝' },
+  { id: 8, name: 'Saving', icon: '📤' },
+  { id: 9, name: 'Done!', icon: '✅' },
 ];
 
-export default function GenerationProgress({ 
-  taskId, 
+export default function GenerationProgress({
+  taskId,
   isGenerating,
   onComplete,
-  onError 
+  onError
 }: GenerationProgressProps) {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
-  const [message, setMessage] = useState('Подготовка к генерации...');
+  const [message, setMessage] = useState('Preparing for generation...');
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -51,11 +51,11 @@ export default function GenerationProgress({
     const wsHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'localhost:8000'
       : 'heroic-healing-production-2365.up.railway.app';
-    
+
     const wsUrl = `${wsProtocol}//${wsHost}/ws/generation/${taskId}/`;
-    
+
     console.log('Connecting to WebSocket:', wsUrl);
-    
+
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -68,7 +68,7 @@ export default function GenerationProgress({
       try {
         const data = JSON.parse(event.data);
         console.log('Progress update:', data);
-        
+
         setCurrentStep(data.step);
         setProgress(data.progress);
         setMessage(data.message);
@@ -77,7 +77,7 @@ export default function GenerationProgress({
           // Completed successfully - callback is handled by parent
           onComplete?.(true, data.article_id);
         }
-        
+
         if (data.error) {
           setError(data.message || data.error);
           onComplete?.(false);
@@ -89,7 +89,7 @@ export default function GenerationProgress({
 
     ws.onerror = (event) => {
       console.error('WebSocket error:', event);
-      setError('Ошибка подключения к серверу');
+      setError('Server connection error');
       onError?.('WebSocket connection failed');
     };
 
@@ -116,8 +116,8 @@ export default function GenerationProgress({
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-gray-900">Генерация статьи</h3>
-            <p className="text-sm text-gray-500">AI создаёт контент для вас</p>
+            <h3 className="text-xl font-bold text-gray-900">Article Generation</h3>
+            <p className="text-sm text-gray-500">AI is creating content for you</p>
           </div>
         </div>
 
@@ -128,7 +128,7 @@ export default function GenerationProgress({
             <span className="font-bold text-indigo-600">{progress}%</span>
           </div>
           <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             />
@@ -142,20 +142,18 @@ export default function GenerationProgress({
             const isCompleted = currentStep > step.id;
 
             return (
-              <div 
+              <div
                 key={step.id}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                  isActive 
-                    ? 'bg-indigo-50 border border-indigo-200' 
-                    : isCompleted 
-                    ? 'bg-green-50' 
-                    : 'bg-gray-50'
-                }`}
+                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${isActive
+                    ? 'bg-indigo-50 border border-indigo-200'
+                    : isCompleted
+                      ? 'bg-green-50'
+                      : 'bg-gray-50'
+                  }`}
               >
                 <span className="text-xl">{step.icon}</span>
-                <span className={`flex-1 font-medium ${
-                  isActive ? 'text-indigo-700' : isCompleted ? 'text-green-700' : 'text-gray-400'
-                }`}>
+                <span className={`flex-1 font-medium ${isActive ? 'text-indigo-700' : isCompleted ? 'text-green-700' : 'text-gray-400'
+                  }`}>
                   {step.name}
                 </span>
                 {isActive && (
@@ -180,7 +178,7 @@ export default function GenerationProgress({
         {/* Connection Status */}
         <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} />
-          {isConnected ? 'Подключено' : 'Подключение...'}
+          {isConnected ? 'Connected' : 'Connecting...'}
         </div>
       </div>
     </div>
