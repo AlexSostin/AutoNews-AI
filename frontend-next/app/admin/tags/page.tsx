@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, X, Layers, Tag as TagIcon, Filter, ChevronDown, Check } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, X, Layers, Tag as TagIcon, Search, ChevronDown, Check, ArrowUpDown, Hash } from 'lucide-react';
 import api from '@/lib/api';
 
 interface TagGroup {
@@ -20,6 +20,8 @@ interface Tag {
   article_count: number;
 }
 
+type SortMode = 'alpha' | 'articles';
+
 export default function TagsPage() {
   const [activeTab, setActiveTab] = useState<'tags' | 'groups'>('tags');
 
@@ -28,9 +30,10 @@ export default function TagsPage() {
   const [groups, setGroups] = useState<TagGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | 'all' | 'ungrouped'>('all');
+  // Search & Sort
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('alpha');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // Modal State
   const [showTagModal, setShowTagModal] = useState(false);
@@ -38,6 +41,10 @@ export default function TagsPage() {
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [editingGroup, setEditingGroup] = useState<TagGroup | null>(null);
   const [activeTagMenuId, setActiveTagMenuId] = useState<number | null>(null);
+
+  // Inline edit
+  const [inlineEditId, setInlineEditId] = useState<number | null>(null);
+  const [inlineEditName, setInlineEditName] = useState('');
 
   // Forms
   const [tagFormData, setTagFormData] = useState({ name: '', slug: '', group: '' as string | number });
@@ -65,6 +72,41 @@ export default function TagsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // --- Grouped & Filtered Tags ---
+  const groupedTags = useMemo(() => {
+    const searchLower = searchQuery.toLowerCase();
+    const filtered = searchQuery
+      ? tags.filter(t => t.name.toLowerCase().includes(searchLower))
+      : tags;
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortMode === 'articles') return (b.article_count || 0) - (a.article_count || 0);
+      return a.name.localeCompare(b.name);
+    });
+
+    const grouped: Record<string, Tag[]> = {};
+    sorted.forEach(tag => {
+      const group = tag.group_name || 'Uncategorized';
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(tag);
+    });
+
+    return Object.entries(grouped).sort(([a], [b]) => {
+      if (a === 'Uncategorized') return 1;
+      if (b === 'Uncategorized') return -1;
+      return a.localeCompare(b);
+    });
+  }, [tags, searchQuery, sortMode]);
+
+  const toggleGroup = (groupName: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupName)) next.delete(groupName);
+      else next.add(groupName);
+      return next;
+    });
   };
 
   // --- Tag Operations ---
@@ -105,7 +147,6 @@ export default function TagsPage() {
     try {
       if (editingTag) {
         const response = await api.put(`/tags/${editingTag.id}/`, payload);
-        // Refresh to get updated group_name
         setTags(tags.map(t => t.id === editingTag.id ? { ...t, ...response.data, group_name: groups.find(g => g.id === payload.group)?.name || null } : t));
       } else {
         const response = await api.post('/tags/', payload);
@@ -118,12 +159,35 @@ export default function TagsPage() {
     }
   };
 
+  const handleInlineEdit = async (tagId: number) => {
+    if (!inlineEditName.trim()) {
+      setInlineEditId(null);
+      return;
+    }
+    const tag = tags.find(t => t.id === tagId);
+    if (!tag || tag.name === inlineEditName) {
+      setInlineEditId(null);
+      return;
+    }
+    try {
+      await api.put(`/tags/${tagId}/`, {
+        name: inlineEditName,
+        slug: tag.slug,
+        group: tag.group
+      });
+      setTags(tags.map(t => t.id === tagId ? { ...t, name: inlineEditName } : t));
+    } catch (error) {
+      alert('Failed to update tag name');
+    }
+    setInlineEditId(null);
+  };
+
   const handleQuickGroupAssign = async (tagId: number, groupId: number | null) => {
     try {
       const tag = tags.find(t => t.id === tagId);
       if (!tag) return;
 
-      const response = await api.put(`/tags/${tagId}/`, {
+      await api.put(`/tags/${tagId}/`, {
         name: tag.name,
         slug: tag.slug,
         group: groupId
@@ -163,7 +227,6 @@ export default function TagsPage() {
     try {
       await api.delete(`/tag-groups/${id}/`);
       setGroups(groups.filter(g => g.id !== id));
-      // Update local tags state to remove group link
       setTags(tags.map(t => t.group === id ? { ...t, group: null, group_name: null } : t));
     } catch (error) {
       alert('Failed to delete group');
@@ -207,65 +270,58 @@ export default function TagsPage() {
     });
   };
 
-  // Filtered Tags
-  const filteredTags = tags.filter(t => {
-    // Search filter
-    if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-
-    // Group filter
-    if (selectedGroupFilter === 'all') return true;
-    if (selectedGroupFilter === 'ungrouped') return t.group === null;
-    return t.group === selectedGroupFilter;
-  });
-
   return (
     <div className="p-6 max-w-6xl mx-auto min-h-screen bg-gray-50 relative">
-      {/* Menu Background Overlay for Quick Select */}
+      {/* Menu Background Overlay */}
       {activeTagMenuId && (
         <div
           className="fixed inset-0 z-40 bg-transparent"
           onClick={() => setActiveTagMenuId(null)}
         />
       )}
+
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl font-black text-gray-950">
           {activeTab === 'tags' ? 'Tags Manager' : 'Tag Groups'}
         </h1>
 
-        <div className="flex bg-gray-100 p-1 rounded-lg">
+        <div className="flex items-center gap-3">
+          <div className="flex bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('tags')}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'tags'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+                }`}
+            >
+              <div className="flex items-center gap-2">
+                <TagIcon size={16} />
+                <span>Tags ({tags.length})</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('groups')}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'groups'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+                }`}
+            >
+              <div className="flex items-center gap-2">
+                <Layers size={16} />
+                <span>Groups ({groups.length})</span>
+              </div>
+            </button>
+          </div>
+
           <button
-            onClick={() => setActiveTab('tags')}
-            className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'tags'
-              ? 'bg-white text-indigo-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-              }`}
+            onClick={activeTab === 'tags' ? handleCreateTag : handleCreateGroup}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2.5 rounded-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 shadow-md"
           >
-            <div className="flex items-center gap-2">
-              <TagIcon size={16} />
-              <span>Tags ({tags.length})</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('groups')}
-            className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'groups'
-              ? 'bg-white text-indigo-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-              }`}
-          >
-            <div className="flex items-center gap-2">
-              <Layers size={16} />
-              <span>Groups ({groups.length})</span>
-            </div>
+            <Plus size={20} />
+            <span>{activeTab === 'tags' ? 'New Tag' : 'New Group'}</span>
           </button>
         </div>
-
-        <button
-          onClick={activeTab === 'tags' ? handleCreateTag : handleCreateGroup}
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2.5 rounded-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 shadow-md"
-        >
-          <Plus size={20} />
-          <span>{activeTab === 'tags' ? 'New Tag' : 'New Group'}</span>
-        </button>
       </div>
 
       {loading ? (
@@ -275,54 +331,18 @@ export default function TagsPage() {
         </div>
       ) : activeTab === 'tags' ? (
         // --- TAGS VIEW ---
-        <div className="space-y-6">
-          {/* Filter & Search Bar */}
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            {groups.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 flex-1 min-w-0">
-                <Filter size={16} className="text-gray-400 min-w-[16px]" />
-                <button
-                  onClick={() => setSelectedGroupFilter('all')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroupFilter === 'all'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                >
-                  All Tags
-                </button>
-                <button
-                  onClick={() => setSelectedGroupFilter('ungrouped')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroupFilter === 'ungrouped'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                >
-                  Uncategorized
-                </button>
-                {groups.map(group => (
-                  <button
-                    key={group.id}
-                    onClick={() => setSelectedGroupFilter(group.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroupFilter === group.id
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                      }`}
-                  >
-                    {group.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="relative w-full md:w-64">
+        <div className="space-y-4">
+          {/* Search & Sort Bar */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search tags..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-white border-2 border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-gray-900 placeholder:text-gray-400"
               />
-              <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
@@ -332,48 +352,147 @@ export default function TagsPage() {
                 </button>
               )}
             </div>
+
+            {/* Sort Toggle */}
+            <div className="flex bg-white border-2 border-gray-200 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setSortMode('alpha')}
+                className={`px-3 py-2 text-xs font-bold flex items-center gap-1.5 transition-colors ${sortMode === 'alpha'
+                  ? 'bg-indigo-50 text-indigo-700 border-r-2 border-indigo-200'
+                  : 'text-gray-500 hover:bg-gray-50 border-r border-gray-200'
+                  }`}
+              >
+                <ArrowUpDown size={12} />
+                A–Z
+              </button>
+              <button
+                onClick={() => setSortMode('articles')}
+                className={`px-3 py-2 text-xs font-bold flex items-center gap-1.5 transition-colors ${sortMode === 'articles'
+                  ? 'bg-indigo-50 text-indigo-700'
+                  : 'text-gray-500 hover:bg-gray-50'
+                  }`}
+              >
+                <Hash size={12} />
+                By Articles
+              </button>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md overflow-hidden p-6 pb-80">
-            {filteredTags.length === 0 ? (
-              <div className="text-center py-12">
+          {/* Stats Bar */}
+          <div className="flex items-center gap-4 text-xs text-gray-500 font-medium px-1">
+            <span>{tags.length} total tags</span>
+            <span>·</span>
+            <span>{groups.length} groups</span>
+            <span>·</span>
+            <span>{tags.filter(t => !t.group).length} uncategorized</span>
+            {searchQuery && (
+              <>
+                <span>·</span>
+                <span className="text-indigo-600">{groupedTags.reduce((sum, [, t]) => sum + t.length, 0)} matching</span>
+              </>
+            )}
+          </div>
+
+          {/* Grouped Tags */}
+          <div className="space-y-2">
+            {groupedTags.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center">
                 <p className="text-gray-500">No tags found.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredTags.map((tag) => (
-                  <div
-                    key={tag.id}
-                    className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 hover:shadow-lg transition-all group relative"
-                  >
-                    <div className="flex items-start justify-between gap-4 mb-2">
-                      <div>
-                        <h3 className="text-lg font-black text-gray-900">{tag.name}</h3>
-                        <div className="flex flex-col gap-1">
-                          <code className="text-xs text-indigo-600 font-semibold">{tag.slug}</code>
+              groupedTags.map(([groupName, groupTags]) => {
+                const isCollapsed = collapsedGroups.has(groupName) && !searchQuery;
+                const totalArticles = groupTags.reduce((sum, t) => sum + (t.article_count || 0), 0);
 
-                          <div className="relative mt-1">
-                            {tag.group_name ? (
-                              <button
-                                onClick={() => setActiveTagMenuId(tag.id)}
-                                className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-white bg-indigo-500 px-2 py-1 rounded-full w-fit hover:bg-indigo-600 transition-colors shadow-sm"
-                              >
-                                {tag.group_name}
-                                <ChevronDown size={10} />
-                              </button>
+                return (
+                  <div key={groupName} className="bg-white rounded-xl shadow-sm border border-gray-100">
+                    {/* Group Header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(groupName)}
+                      className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-2.5 h-2.5 rounded-full ${groupName === 'Uncategorized' ? 'bg-gray-400' : 'bg-indigo-600'}`}></span>
+                        <span className="text-sm font-black text-gray-900 uppercase tracking-wider">
+                          {groupName}
+                        </span>
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[11px] font-bold rounded-full">
+                          {groupTags.length}
+                        </span>
+                        <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
+                          {totalArticles} articles
+                        </span>
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} />
+                    </button>
+
+                    {/* Tags Grid */}
+                    {!isCollapsed && (
+                      <div className="px-5 pb-4 flex flex-wrap gap-2">
+                        {groupTags.map(tag => (
+                          <div
+                            key={tag.id}
+                            className="group relative flex items-center gap-1 bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 hover:border-indigo-300 hover:from-indigo-50 hover:to-purple-50 transition-all"
+                          >
+                            {inlineEditId === tag.id ? (
+                              <input
+                                type="text"
+                                value={inlineEditName}
+                                onChange={(e) => setInlineEditName(e.target.value)}
+                                onBlur={() => handleInlineEdit(tag.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleInlineEdit(tag.id);
+                                  if (e.key === 'Escape') setInlineEditId(null);
+                                }}
+                                autoFocus
+                                className="text-sm font-semibold text-gray-900 bg-transparent outline-none border-b-2 border-indigo-400 w-24"
+                              />
                             ) : (
-                              <button
-                                onClick={() => setActiveTagMenuId(tag.id)}
-                                className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-gray-400 bg-gray-100 border border-dashed border-gray-300 px-2 py-1 rounded-full w-fit hover:bg-gray-200 hover:text-gray-600 hover:border-gray-400 transition-all"
+                              <span
+                                className="text-sm font-semibold text-gray-800 cursor-text"
+                                onDoubleClick={() => {
+                                  setInlineEditId(tag.id);
+                                  setInlineEditName(tag.name);
+                                }}
+                                title="Double-click to edit"
                               >
-                                <Plus size={10} />
-                                Add to Group
-                              </button>
+                                {tag.name}
+                              </span>
                             )}
 
-                            {/* Quick Select Menu Popover */}
+                            {tag.article_count > 0 && (
+                              <span className="text-[10px] text-gray-400 font-semibold ml-0.5">{tag.article_count}</span>
+                            )}
+
+                            {/* Actions */}
+                            <div className={`items-center gap-0.5 ml-1 ${activeTagMenuId === tag.id ? 'flex' : 'hidden group-hover:flex'}`}>
+                              <button
+                                onClick={() => setActiveTagMenuId(activeTagMenuId === tag.id ? null : tag.id)}
+                                className="p-0.5 text-gray-400 hover:text-indigo-600 transition-colors"
+                                title="Change group"
+                              >
+                                <Layers size={11} />
+                              </button>
+                              <button
+                                onClick={() => handleEditTag(tag)}
+                                className="p-0.5 text-gray-400 hover:text-blue-600 transition-colors"
+                                title="Edit tag"
+                              >
+                                <Edit size={11} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTag(tag.id)}
+                                className="p-0.5 text-gray-400 hover:text-red-600 transition-colors"
+                                title="Delete tag"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+
+                            {/* Quick Group Assign Popover */}
                             {activeTagMenuId === tag.id && (
-                              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-2 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-2 max-h-48 overflow-y-auto">
                                 <div className="px-3 py-1 text-[10px] uppercase tracking-widest font-black text-gray-400 border-b border-gray-50 mb-1">
                                   Assign Group
                                 </div>
@@ -397,29 +516,26 @@ export default function TagsPage() {
                               </div>
                             )}
                           </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 bg-white/80 p-1 rounded-lg backdrop-blur-sm shadow-sm">
+                        ))}
+
+                        {/* Quick add button inside group */}
                         <button
-                          onClick={() => handleEditTag(tag)}
-                          className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          onClick={() => {
+                            const group = groups.find(g => g.name === groupName);
+                            setEditingTag(null);
+                            setTagFormData({ name: '', slug: '', group: group?.id || '' });
+                            setShowTagModal(true);
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 border-2 border-dashed border-gray-300 rounded-lg text-sm font-semibold text-gray-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
                         >
-                          <Edit size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTag(tag.id)}
-                          className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={14} />
+                          <Plus size={12} />
+                          Add
                         </button>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-indigo-100">
-                      <span className="text-xs text-gray-600 font-medium">{tag.article_count} articles</span>
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })
             )}
           </div>
         </div>
@@ -439,30 +555,37 @@ export default function TagsPage() {
                   <tr>
                     <th className="px-6 py-4 font-bold text-gray-900 text-sm">Order</th>
                     <th className="px-6 py-4 font-bold text-gray-900 text-sm">Name</th>
+                    <th className="px-6 py-4 font-bold text-gray-900 text-sm">Tags</th>
                     <th className="px-6 py-4 font-bold text-gray-900 text-sm">Slug</th>
                     <th className="px-6 py-4 font-bold text-gray-900 text-sm text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {groups.sort((a, b) => a.order - b.order).map((group) => (
-                    <tr key={group.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-gray-600 text-sm font-mono">{group.order}</td>
-                      <td className="px-6 py-4">
-                        <span className="font-bold text-gray-900">{group.name}</span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 text-sm font-mono">{group.slug}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleEditGroup(group)} className="text-indigo-600 hover:text-indigo-800 p-1">
-                            <Edit size={16} />
-                          </button>
-                          <button onClick={() => handleDeleteGroup(group.id)} className="text-red-500 hover:text-red-700 p-1">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {groups.sort((a, b) => a.order - b.order).map((group) => {
+                    const tagCount = tags.filter(t => t.group === group.id).length;
+                    return (
+                      <tr key={group.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 text-gray-600 text-sm font-mono">{group.order}</td>
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-gray-900">{group.name}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full">{tagCount}</span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 text-sm font-mono">{group.slug}</td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => handleEditGroup(group)} className="text-indigo-600 hover:text-indigo-800 p-1">
+                              <Edit size={16} />
+                            </button>
+                            <button onClick={() => handleDeleteGroup(group.id)} className="text-red-500 hover:text-red-700 p-1">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

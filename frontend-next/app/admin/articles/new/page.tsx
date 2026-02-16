@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X } from 'lucide-react';
+import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Search, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import GenerationProgress from '@/components/admin/GenerationProgress';
@@ -41,6 +41,8 @@ export default function NewArticlePage() {
   const [showTranslatePreview, setShowTranslatePreview] = useState(false);
   const [savingTranslation, setSavingTranslation] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [tagSearch, setTagSearch] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const [formData, setFormData] = useState({
     title: '',
@@ -757,48 +759,129 @@ export default function NewArticlePage() {
 
           {/* Tags */}
           <div className="border-t pt-6">
-            <label className="block text-lg font-bold text-gray-900 mb-4">Tags & Categories</label>
-            <p className="text-sm text-gray-600 mb-6">Select relevant tags grouped by category</p>
+            <label className="block text-lg font-bold text-gray-900 mb-2">Tags & Categories</label>
+            <p className="text-sm text-gray-600 mb-4">Select relevant tags grouped by category</p>
 
-            <div className="space-y-8">
-              {Object.entries(
-                tags.reduce((acc, tag) => {
+            {/* Search Filter */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={tagSearch}
+                onChange={(e) => setTagSearch(e.target.value)}
+                placeholder="Search tags..."
+                className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-gray-900 placeholder:text-gray-400"
+              />
+              {tagSearch && (
+                <button
+                  onClick={() => setTagSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Selected tags summary */}
+            {formData.tags.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-1.5">
+                {tags.filter(t => formData.tags.includes(t.id)).map(tag => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold"
+                  >
+                    {tag.name}
+                    <button
+                      type="button"
+                      onClick={() => handleTagToggle(tag.id)}
+                      className="hover:text-indigo-950"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {(() => {
+                const searchLower = tagSearch.toLowerCase();
+                const grouped = tags.reduce((acc, tag) => {
                   const group = tag.group_name || 'General';
                   if (!acc[group]) acc[group] = [];
                   acc[group].push(tag);
                   return acc;
-                }, {} as Record<string, Tag[]>)
-              ).sort(([a], [b]) => {
-                // Keep 'General' at the bottom
-                if (a === 'General') return 1;
-                if (b === 'General') return -1;
-                return a.localeCompare(b);
-              }).map(([groupName, groupTags]) => (
-                <div key={groupName} className="bg-gray-50/50 rounded-xl p-4 sm:p-5 border border-gray-100">
-                  <h4 className="text-sm font-black text-indigo-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-                    {groupName}
-                  </h4>
-                  <div className="flex flex-wrap gap-2 sm:gap-3">
-                    {groupTags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => handleTagToggle(tag.id)}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ${formData.tags.includes(tag.id)
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
-                          : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
-                          }`}
-                      >
-                        {tag.name}
-                        {formData.tags.includes(tag.id) && (
-                          <span className="ml-2 inline-flex items-center justify-center w-4 h-4 bg-white/20 rounded-full text-[10px]">✓</span>
+                }, {} as Record<string, Tag[]>);
+
+                return Object.entries(grouped)
+                  .sort(([a], [b]) => {
+                    if (a === 'General') return 1;
+                    if (b === 'General') return -1;
+                    return a.localeCompare(b);
+                  })
+                  .map(([groupName, groupTags]) => {
+                    const filteredTags = tagSearch
+                      ? groupTags.filter(t => t.name.toLowerCase().includes(searchLower))
+                      : groupTags;
+
+                    if (tagSearch && filteredTags.length === 0) return null;
+
+                    const selectedCount = groupTags.filter(t => formData.tags.includes(t.id)).length;
+                    const isCollapsed = collapsedGroups.has(groupName) && !tagSearch;
+
+                    const toggleCollapse = () => {
+                      setCollapsedGroups(prev => {
+                        const next = new Set(prev);
+                        if (next.has(groupName)) next.delete(groupName);
+                        else next.add(groupName);
+                        return next;
+                      });
+                    };
+
+                    return (
+                      <div key={groupName} className="bg-gray-50/50 rounded-xl border border-gray-100 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={toggleCollapse}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100/50 transition-colors"
+                        >
+                          <span className="flex items-center gap-2 text-sm font-black text-indigo-900 uppercase tracking-wider">
+                            <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
+                            {groupName}
+                            {selectedCount > 0 && (
+                              <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-bold rounded-full normal-case tracking-normal">
+                                {selectedCount}
+                              </span>
+                            )}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
+                        </button>
+
+                        {!isCollapsed && (
+                          <div className="px-4 pb-4 flex flex-wrap gap-2">
+                            {filteredTags.map((tag) => (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                onClick={() => handleTagToggle(tag.id)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all border-2 ${formData.tags.includes(tag.id)
+                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
+                                  : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
+                                  }`}
+                              >
+                                {tag.name}
+                                {formData.tags.includes(tag.id) && (
+                                  <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 bg-white/20 rounded-full text-[10px]">✓</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
                         )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                      </div>
+                    );
+                  })
+                  .filter(Boolean);
+              })()}
             </div>
           </div>
 
