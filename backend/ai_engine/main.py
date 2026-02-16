@@ -344,6 +344,29 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
         except Exception as e:
             print(f"⚠️ Web search failed: {e}")
         
+        # 2.8 SPECS ENRICHMENT — fill gaps using web data
+        if web_context:
+            try:
+                from ai_engine.modules.specs_enricher import enrich_specs_from_web
+                send_progress(4, 63, "🔍 Cross-referencing specs...")
+                specs = enrich_specs_from_web(specs, web_context)
+                
+                # Build enriched analysis to give the generator better data
+                enriched_lines = []
+                for key in ['make', 'model', 'trim', 'year', 'engine', 'torque', 
+                           'acceleration', 'top_speed', 'drivetrain', 'battery', 'range', 'price']:
+                    val = specs.get(key, 'Not specified')
+                    if val and val != 'Not specified':
+                        enriched_lines.append(f"{key.replace('_', ' ').title()}: {val}")
+                hp = specs.get('horsepower')
+                if hp:
+                    enriched_lines.append(f"Horsepower: {hp} hp")
+                
+                if enriched_lines:
+                    analysis += f"\n\n[ENRICHED SPECS FROM WEB]:\n" + '\n'.join(enriched_lines)
+            except Exception as e:
+                print(f"⚠️ Specs enrichment failed (continuing): {e}")
+        
         # 3. Generate Article
         send_progress(5, 65, f"✍️ Generating article with {provider_name}...")
         print(f"✍️  Generating article...")

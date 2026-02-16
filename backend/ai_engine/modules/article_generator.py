@@ -93,8 +93,16 @@ Required Structure:
 - <h2>[Year] [Brand] [Model] [Version] Review: [Hook/Description]</h2>
 - Introduction paragraph (2-3 sentences with key specs)
 - <h2>Performance & Specs</h2> - Include specific numbers (HP, torque, 0-60, range, battery, price)
-- <h2>Design & Interior</h2> - Describe styling, materials, space
-- <h2>Technology & Features</h2> - Highlight tech innovations
+- <h2>Design & Interior</h2> - Describe styling, materials, space, cargo volume
+- <h2>Technology & Features</h2> - This section MUST include at least 4-5 specific items from this list:
+  * Infotainment screen size and system name
+  * ADAS / driver assistance features (lane keeping, adaptive cruise, etc.)
+  * Connectivity (Apple CarPlay, Android Auto, wireless charging)
+  * OTA update capability
+  * Digital instrument cluster details
+  * Sound system (brand, speakers count)
+  * Safety tech (collision avoidance, blind spot monitoring, etc.)
+  If not in the transcript, check the web context or the model's known features. Write at least 2 full paragraphs.
 - <h2>Driving Experience</h2> - Handling, comfort, real-world performance
 - <h2>US Market Availability & Pricing</h2> - IMPORTANT: Write this as flowing paragraphs and HTML lists. Include:
   <ul>
@@ -108,6 +116,7 @@ Required Structure:
   If exact US data is unavailable, analyze the brand's current US strategy:
   - If the brand has NO US presence (e.g., BYD, Chery), explain WHY (tariffs, regulations) and give equivalent pricing context
   - If the brand IS in the US, estimate based on existing lineup pricing
+  IMPORTANT: Write each bullet as a direct factual statement. Do NOT repeat the questions from this prompt.
   Do NOT fabricate prices or dates. Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
 - <h2>Global Market & Regional Availability</h2> - CRITICAL: Format this section with clear structure:
   * Use <h3> sub-headings for each major region (e.g., <h3>Asia</h3>, <h3>Europe</h3>, <h3>North America</h3>)
@@ -189,6 +198,26 @@ Remember: Be creative with the title, but include all facts! Write comprehensive
         logger.error(f"Article generation failed with {provider_display}: {e}")
         logger.error(f"Failed analysis_data (first 500 chars): {str(analysis_data)[:500]}")
         print(f"❌ Error during article generation with {provider_display}: {e}")
+        
+        # Provider fallback: try alternate provider
+        fallback = 'gemini' if provider == 'groq' else 'groq'
+        fallback_display = 'Google Gemini' if fallback == 'gemini' else 'Groq'
+        try:
+            print(f"🔄 Retrying with fallback provider: {fallback_display}...")
+            ai_fallback = get_ai_provider(fallback)
+            article_content = ai_fallback.generate_completion(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                temperature=0.5,
+                max_tokens=3000
+            )
+            if article_content:
+                print(f"✓ Fallback successful with {fallback_display}!")
+                article_content = ensure_html_only(article_content)
+                return article_content
+        except Exception as fallback_err:
+            logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
+        
         return ""
 
 def ensure_html_only(content):
@@ -405,4 +434,25 @@ Remember: Create ORIGINAL content based on the facts, add value through analysis
         logger.error(f"Press release expansion failed with {provider_display}: {e}")
         logger.error(f"Failed press_release_text (first 500 chars): {str(press_release_text)[:500]}")
         print(f"❌ Error expanding press release with {provider_display}: {str(e)}")
+        
+        # Provider fallback
+        fallback = 'gemini' if provider == 'groq' else 'groq'
+        fallback_display = 'Google Gemini' if fallback == 'gemini' else 'Groq'
+        try:
+            print(f"🔄 Retrying with fallback provider: {fallback_display}...")
+            ai_fallback = get_ai_provider(fallback)
+            article_content = ai_fallback.generate_completion(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                temperature=0.5,
+                max_tokens=3500
+            )
+            if article_content:
+                print(f"✓ Fallback successful with {fallback_display}!")
+                article_content = ensure_html_only(article_content)
+                return article_content
+        except Exception as fallback_err:
+            logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
+        
         raise
+

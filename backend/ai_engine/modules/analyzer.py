@@ -1,6 +1,10 @@
 from groq import Groq
 import sys
 import os
+import logging
+import re
+
+logger = logging.getLogger(__name__)
 
 # Import config - try multiple paths, fallback to env
 try:
@@ -56,6 +60,9 @@ Drivetrain: [Drive type - "AWD", "FWD", "RWD", or "4WD". Write "Not specified" i
 Battery: [Battery capacity for EVs - e.g., "75 kWh"]
 Range: [Driving range - e.g., "400 km" or "250 miles". ALWAYS specify km or miles]
 Price: [Starting price with currency - e.g., "$45,000" or "€50,000" or "¥169,800"]
+  ⚠️ CHINESE PRICE FORMAT: Chinese prices often use 万 (wàn) = 10,000.
+  So "11.5万" = ¥115,000 (NOT ¥11,500). "19万" = ¥190,000. "7.98万" = ¥79,800.
+  ALWAYS convert 万 to the full number. Output price as: ¥115,000 (not ¥11.5万)
 
 Key Features:
 - [List main features]
@@ -101,6 +108,8 @@ IMPORTANT:
         print(f"Analysis complete with {provider_name}. Length: {len(analysis)} characters")
         return analysis
     except Exception as e:
+        logger.error(f"Analysis failed with {provider_name}: {e}")
+        logger.error(f"Transcript (first 300 chars): {str(transcript_text)[:300]}")
         print(f"Error during analysis with {provider_name}: {e}")
         return ""
 
@@ -323,10 +332,8 @@ def extract_specs_dict(analysis):
 def extract_price_usd(analysis):
     """
     Extracts price from analysis and converts to USD number.
-    Handles formats: $45,000, €50,000, ¥320,000, 45000 USD, etc.
+    Handles formats: $45,000, €50,000, ¥320,000, ¥11.5万, 45000 USD, etc.
     """
-    import re
-    
     price_str = None
     
     # Find Price line in analysis
@@ -338,12 +345,22 @@ def extract_price_usd(analysis):
     if not price_str or price_str.lower() == 'not specified':
         return None
     
+    # Handle Chinese 万 (wàn = 10,000) format FIRST
+    # Matches: ¥11.5万, 11.5万元, ¥7.98万
+    wan_match = re.search(r'[¥]?(\d+\.?\d*)\s*万', price_str)
+    if wan_match:
+        amount_wan = float(wan_match.group(1))
+        amount_cny = amount_wan * 10000  # 11.5万 = 115,000
+        amount_usd = amount_cny / 7.25
+        logger.info(f"Converted Chinese 万 price: {price_str} → ¥{amount_cny:,.0f} → ${amount_usd:,.0f}")
+        return round(amount_usd, 2)
+    
     # Extract number from price string
     # Remove commas and spaces
     clean_price = price_str.replace(',', '').replace(' ', '')
     
-    # Find the number
-    match = re.search(r'[\$€¥£]?(\d+(?:\.\d{2})?)', clean_price)
+    # Find the number (support decimals like 115000.00)
+    match = re.search(r'[\$€¥£]?(\d+(?:\.\d+)?)', clean_price)
     if not match:
         return None
     
@@ -351,21 +368,22 @@ def extract_price_usd(analysis):
     
     # Detect currency and convert to USD
     if '€' in price_str or 'EUR' in price_str.upper():
-        # EUR to USD (approximate)
         amount = amount * 1.09
     elif '¥' in price_str or 'CNY' in price_str.upper() or 'RMB' in price_str.upper():
-        # CNY to USD
-        amount = amount / 7.25
-    elif '¥' in price_str and amount > 1000000:
-        # Likely JPY (Japanese Yen) - very high numbers
-        amount = amount / 148.5
+        # Could be CNY or JPY
+        if amount > 1000000:
+            # Likely JPY (Japanese Yen) — very high numbers
+            amount = amount / 148.5
+        else:
+            # CNY to USD
+            amount = amount / 7.25
     elif '£' in price_str or 'GBP' in price_str.upper():
-        # GBP to USD
         amount = amount * 1.27
     # USD is default ($ or no symbol)
     
-    # Sanity check: car prices should be reasonable
+    # Sanity check: car prices should be reasonable ($1,000 - $10M)
     if amount < 1000 or amount > 10000000:
+        logger.warning(f"Price out of range after conversion: {price_str} → ${amount:,.0f}")
         return None
     
     return round(amount, 2)
