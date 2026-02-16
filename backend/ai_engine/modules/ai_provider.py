@@ -1,20 +1,21 @@
 """
 AI Provider Factory - supports both Groq and Gemini
+Uses google-genai (new SDK) instead of deprecated google-generativeai
 """
 import os
 from groq import Groq
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 # Get API keys from environment
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-pro')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
 
 # Initialize clients
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 
 class AIProvider:
@@ -49,21 +50,20 @@ class GroqProvider(AIProvider):
 
 
 class GeminiProvider(AIProvider):
-    """Google Gemini AI Provider - Multimodal capabilities"""
+    """Google Gemini AI Provider - using google-genai SDK"""
     
     @staticmethod
     def generate_completion(prompt, system_prompt=None, temperature=0.8, max_tokens=3000):
-        if not GEMINI_API_KEY:
+        if not gemini_client:
             raise Exception("Gemini API key not configured")
         
-        # Combine system prompt and user prompt for Gemini
+        # Combine system prompt and user prompt
         full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
         
         # Try different model name formats
         model_names_to_try = [
-            'gemini-2.0-flash',      # Available for user
-            'gemini-2.5-flash',      # Available for user
-            'gemini-flash-latest',   # Fallback alias
+            'gemini-2.0-flash',
+            'gemini-2.5-flash',
             'gemini-1.5-flash',
             'gemini-pro',
         ]
@@ -71,16 +71,13 @@ class GeminiProvider(AIProvider):
         last_error = None
         for model_name in model_names_to_try:
             try:
-                model = genai.GenerativeModel(model_name)
-                
-                generation_config = {
-                    "temperature": temperature,
-                    "max_output_tokens": max_tokens,
-                }
-                
-                response = model.generate_content(
-                    full_prompt,
-                    generation_config=generation_config
+                response = gemini_client.models.generate_content(
+                    model=model_name,
+                    contents=full_prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=temperature,
+                        max_output_tokens=max_tokens,
+                    )
                 )
                 
                 return response.text if response and response.text else ""
@@ -134,7 +131,7 @@ def get_available_providers():
     if GEMINI_API_KEY:
         providers.append({
             'name': 'gemini',
-            'display_name': 'Google Gemini Pro',
+            'display_name': 'Google Gemini',
             'model': GEMINI_MODEL,
             'available': True
         })
