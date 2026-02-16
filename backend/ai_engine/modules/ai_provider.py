@@ -3,14 +3,7 @@ AI Provider Factory - supports both Groq and Gemini
 """
 import os
 from groq import Groq
-
-# Lazy import for google.generativeai to avoid model_types errors in newer versions
-genai = None
-try:
-    import google.generativeai as _genai
-    genai = _genai
-except Exception as e:
-    print(f"Warning: Could not import google.generativeai: {e}")
+import google.generativeai as genai
 
 # Get API keys from environment
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
@@ -20,11 +13,8 @@ GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-pro')
 
 # Initialize clients
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-if GEMINI_API_KEY and genai:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-    except Exception as e:
-        print(f"Warning: Could not configure Gemini: {e}")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 
 class AIProvider:
@@ -65,8 +55,6 @@ class GeminiProvider(AIProvider):
     def generate_completion(prompt, system_prompt=None, temperature=0.8, max_tokens=3000):
         if not GEMINI_API_KEY:
             raise Exception("Gemini API key not configured")
-        if not genai:
-            raise Exception("google-generativeai library not available")
         
         # Combine system prompt and user prompt for Gemini
         full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
