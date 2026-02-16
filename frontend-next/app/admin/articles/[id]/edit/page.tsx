@@ -52,6 +52,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [reformatting, setReformatting] = useState(false);
   const [tagSearch, setTagSearch] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [letterFilter, setLetterFilter] = useState<Record<string, string | null>>({});
 
   const [formData, setFormData] = useState({
     title: '',
@@ -748,6 +749,18 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
             <div className="space-y-2">
               {(() => {
+                const LETTER_COLORS: Record<string, string> = {
+                  A: 'bg-blue-500', B: 'bg-emerald-500', C: 'bg-violet-500', D: 'bg-amber-500',
+                  E: 'bg-rose-500', F: 'bg-cyan-500', G: 'bg-indigo-500', H: 'bg-orange-500',
+                  I: 'bg-teal-500', J: 'bg-pink-500', K: 'bg-lime-600', L: 'bg-purple-500',
+                  M: 'bg-sky-500', N: 'bg-red-500', O: 'bg-green-500', P: 'bg-fuchsia-500',
+                  Q: 'bg-yellow-600', R: 'bg-blue-600', S: 'bg-emerald-600', T: 'bg-violet-600',
+                  U: 'bg-amber-600', V: 'bg-rose-600', W: 'bg-cyan-600', X: 'bg-indigo-600',
+                  Y: 'bg-orange-600', Z: 'bg-teal-600',
+                };
+                const getLetterColor = (letter: string) => LETTER_COLORS[letter.toUpperCase()] || 'bg-gray-500';
+                const ALPHA_GROUPED = ['Manufacturers', 'Models'];
+
                 const searchLower = tagSearch.toLowerCase();
                 const grouped = tags.reduce((acc, tag) => {
                   const group = tag.group_name || 'General';
@@ -781,6 +794,23 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                       });
                     };
 
+                    const renderTagButton = (tag: Tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => handleTagToggle(tag.id)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all border-2 ${formData.tags.includes(tag.id)
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
+                          }`}
+                      >
+                        {tag.name}
+                        {formData.tags.includes(tag.id) && (
+                          <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 bg-white/20 rounded-full text-[10px]">✓</span>
+                        )}
+                      </button>
+                    );
+
                     return (
                       <div key={groupName} className="bg-gray-50/50 rounded-xl border border-gray-100 overflow-hidden">
                         <button
@@ -801,23 +831,59 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                         </button>
 
                         {!isCollapsed && (
-                          <div className="px-4 pb-4 flex flex-wrap gap-2">
-                            {filteredTags.map((tag) => (
-                              <button
-                                key={tag.id}
-                                type="button"
-                                onClick={() => handleTagToggle(tag.id)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all border-2 ${formData.tags.includes(tag.id)
-                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
-                                  : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
-                                  }`}
-                              >
-                                {tag.name}
-                                {formData.tags.includes(tag.id) && (
-                                  <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 bg-white/20 rounded-full text-[10px]">✓</span>
-                                )}
-                              </button>
-                            ))}
+                          <div className="px-4 pb-4">
+                            {/* Alphabet quick-filter for Manufacturers & Models */}
+                            {ALPHA_GROUPED.includes(groupName) && (() => {
+                              const existingLetters = new Set(filteredTags.map(t => (t.name[0] || '').toUpperCase()));
+                              const activeLetter = letterFilter[groupName] || null;
+                              return (
+                                <div className="flex flex-wrap gap-1 mb-3 pb-3 border-b border-gray-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => setLetterFilter(prev => ({ ...prev, [groupName]: null }))}
+                                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${!activeLetter
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                      }`}
+                                  >
+                                    All
+                                  </button>
+                                  {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => {
+                                    const hasItems = existingLetters.has(letter);
+                                    const isActive = activeLetter === letter;
+                                    return (
+                                      <button
+                                        key={letter}
+                                        type="button"
+                                        onClick={() => hasItems && setLetterFilter(prev => ({
+                                          ...prev,
+                                          [groupName]: isActive ? null : letter
+                                        }))}
+                                        className={`w-6 h-6 rounded text-[11px] font-bold transition-all flex items-center justify-center ${isActive
+                                            ? `${getLetterColor(letter)} text-white shadow-sm`
+                                            : hasItems
+                                              ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                              : 'text-gray-200 cursor-default'
+                                          }`}
+                                      >
+                                        {letter}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Tag pills */}
+                            <div className="flex flex-wrap gap-2">
+                              {(() => {
+                                const activeLetter = letterFilter[groupName] || null;
+                                const visibleTags = ALPHA_GROUPED.includes(groupName) && activeLetter
+                                  ? filteredTags.filter(t => (t.name[0] || '').toUpperCase() === activeLetter)
+                                  : filteredTags;
+                                return visibleTags.map(renderTagButton);
+                              })()}
+                            </div>
                           </div>
                         )}
                       </div>
