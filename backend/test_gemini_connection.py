@@ -1,6 +1,6 @@
 
 import os
-from google import genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 # Load env variables
@@ -13,31 +13,28 @@ if not api_key:
     print("❌ API Key not found in .env")
     exit(1)
 
-client = genai.Client(api_key=api_key)
+genai.configure(api_key=api_key)
 
 print("\nListing available models...")
 try:
-    for m in client.models.list():
-        print(f" - {m.name}")
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            print(f" - {m.name}")
 except Exception as e:
     print(f"❌ Failed to list models: {e}")
 
 print("\nAttempting generation with 'gemini-2.0-flash'...")
 try:
-    response = client.models.generate_content(
-        model='gemini-2.0-flash',
-        contents="Hello, can you hear me?"
-    )
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    response = model.generate_content("Hello, can you hear me?")
     print(f"✅ Success! Response: {response.text}")
 except Exception as e:
     print(f"❌ Failed 'gemini-2.0-flash': {e}")
     
 print("\nAttempting generation with 'gemini-1.5-flash'...")
 try:
-    response = client.models.generate_content(
-        model='gemini-1.5-flash',
-        contents="Hello, can you hear me?"
-    )
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    response = model.generate_content("Hello, can you hear me?")
     print(f"✅ Success! Response: {response.text}")
 except Exception as e:
     print(f"❌ Failed 'gemini-1.5-flash': {e}")

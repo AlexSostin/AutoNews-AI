@@ -797,12 +797,21 @@ class ArticleViewSet(viewsets.ModelViewSet):
             
         # Generate article with task_id for WebSocket progress and selected provider
         # Now supporting Draft Safety: is_published=False
-        result = generate_article_from_youtube(
-            youtube_url, 
-            task_id=task_id, 
-            provider=provider,
-            is_published=False  # Save as Draft!
-        )
+        try:
+            result = generate_article_from_youtube(
+                youtube_url, 
+                task_id=task_id, 
+                provider=provider,
+                is_published=False  # Save as Draft!
+            )
+        except Exception as gen_error:
+            import traceback
+            print(f"Generation error: {gen_error}")
+            print(traceback.format_exc())
+            return Response(
+                {'error': f'Article generation failed: {str(gen_error)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         if result.get('success'):
             article_id = result['article_id']
