@@ -2,6 +2,7 @@ from groq import Groq
 import sys
 import os
 import logging
+from datetime import datetime
 try:
     import markdown
 except ImportError:
@@ -50,8 +51,12 @@ def generate_article(analysis_data, provider='groq', web_context=None):
     if web_context:
         web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to fill missing specs/facts):\n{web_context}\n"
     
+    current_date = datetime.now().strftime("%B %Y")
+    
     prompt = f"""
 {web_data_section}
+TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
+
 Create a professional, SEO-optimized automotive article based on the analysis below.
 Output ONLY clean HTML content (use <h2>, <p>, <ul>, etc.) - NO <html>, <head>, or <body> tags.
 
@@ -276,8 +281,12 @@ def expand_press_release(press_release_text, source_url, provider='groq', web_co
     if web_context:
         web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to enrich the article):\n{web_context}\n"
     
+    current_date = datetime.now().strftime("%B %Y")
+    
     prompt = f"""
 {web_data_section}
+TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
+
 You are a professional automotive journalist. Expand the following press release into a comprehensive, SEO-optimized article.
 
 PRESS RELEASE:
