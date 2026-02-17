@@ -63,9 +63,9 @@ Return a JSON object with the fields below. You MUST fill in as many fields as p
   "trim_name": "{trim or ''}",
   "year": {year or 'null'},
   
-  "drivetrain": "FWD|RWD|AWD|4WD",
+  "drivetrain": "RWD",
   "motor_count": 1,
-  "motor_placement": "front|rear|front+rear",
+  "motor_placement": "rear",
   
   "power_hp": 200,
   "power_kw": 150,
@@ -83,11 +83,11 @@ Return a JSON object with the fields below. You MUST fill in as many fields as p
   "charging_time_slow": "8 hours",
   "charging_power_max_kw": 150,
   
-  "transmission": "automatic|manual|CVT|single-speed|dual-clutch",
+  "transmission": "single-speed",
   "transmission_gears": null,
   
-  "body_type": "sedan|SUV|hatchback|coupe|truck|crossover|wagon|shooting_brake|van|convertible|pickup|liftback|fastback|MPV|roadster|cabriolet|targa|limousine",
-  "fuel_type": "EV|Hybrid|PHEV|Gas|Diesel|Hydrogen",
+  "body_type": "SUV",
+  "fuel_type": "EV",
   "seats": 5,
   
   "length_mm": 4500,
@@ -102,7 +102,7 @@ Return a JSON object with the fields below. You MUST fill in as many fields as p
   
   "price_from": 25000,
   "price_to": 35000,
-  "currency": "USD|EUR|CNY|GBP|JPY",
+  "currency": "CNY",
   
   "model_year": 2026,
   "country_of_origin": "China",
@@ -116,6 +116,12 @@ CRITICAL RULES:
 - Use actual INTEGER values (not strings like "200 hp", just 200)
 - The example values above are PLACEHOLDERS — replace them with the REAL specifications for {vehicle_id}
 - You know this car. Fill in power_hp, torque_nm, battery_kwh, range_km, dimensions, weight, and price
+- drivetrain must be exactly one of: FWD, RWD, AWD, 4WD
+- body_type must be one of: sedan, SUV, hatchback, coupe, truck, crossover, wagon, shooting_brake, van, convertible, pickup, liftback, fastback, MPV, roadster, cabriolet, targa, limousine
+- fuel_type must be one of: EV, Hybrid, PHEV, Gas, Diesel, Hydrogen
+- transmission must be one of: automatic, manual, CVT, single-speed, dual-clutch
+- currency must be one of: USD, EUR, CNY, RUB, GBP, JPY
+- motor_placement is a single string: "front", "rear", or "front+rear" (NOT multiple values)
 - For Chinese EVs, always include range_cltc. For European, range_wltp. For US, range_epa
 - price_from/price_to should be in CNY for Chinese-market vehicles, USD for US-market
 - DO NOT return all nulls — that is a failure. You must provide at least power, range, and dimensions"""
@@ -146,6 +152,29 @@ def _validate_choice(value, valid_set):
     if value and str(value) in valid_set:
         return str(value)
     return None
+
+
+# Garbage values for trim_name that should be treated as empty
+_GARBAGE_TRIM_VALUES = {'None', 'null', 'none', 'N/A', 'n/a', 'Not specified', 'not specified', 'Standard', '-'}
+
+
+def _sanitize_trim(value):
+    """Clean up trim_name — return '' for garbage/null-like values."""
+    if value is None:
+        return ''
+    s = str(value).strip()
+    if s in _GARBAGE_TRIM_VALUES:
+        return ''
+    return s
+
+
+def _clean_pipe_value(value):
+    """If AI returned 'option1|option2', take the first option."""
+    if not value or not isinstance(value, str):
+        return value
+    if '|' in value:
+        return value.split('|')[0].strip()
+    return value
 
 
 def _parse_ai_response(response_text):
@@ -217,11 +246,21 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         except ImportError:
             pass
         
-        # Derive trim_name from specs or default to ''
-        trim = trim or ''
+        # Sanitize and normalize trim_name
+        trim = _sanitize_trim(trim)
         
-        # Clean up duplicate VehicleSpecs with different casing
-        # Keep the best-populated one, delete empty duplicates
+        # Clean up ghost records with garbage trim_name (e.g., 'None', 'null')
+        ghost_records = VehicleSpecs.objects.filter(
+            make__iexact=make,
+            model_name__iexact=model_name,
+            trim_name__in=list(_GARBAGE_TRIM_VALUES),
+        )
+        if ghost_records.exists():
+            ghost_count = ghost_records.count()
+            ghost_records.delete()
+            print(f"🧹 Deleted {ghost_count} ghost VehicleSpecs with garbage trim_name for {make} {model_name}")
+        
+        # Find existing records — clean up duplicates, keep best
         existing_all = list(VehicleSpecs.objects.filter(
             make__iexact=make,
             model_name__iexact=model_name,
@@ -239,17 +278,28 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
                     print(f"🧹 Deleting duplicate VehicleSpecs #{dup.id} ({dup.make}/{dup.model_name})")
                     dup.delete()
             existing = best
-            # Normalize the casing on the best record
-            if existing.make != make or existing.model_name != model_name:
-                existing.make = make
-                existing.model_name = model_name
-                existing.save(update_fields=['make', 'model_name'])
-        elif len(existing_all) == 1:
-            existing = existing_all[0]
-            # Normalize casing if needed
+            # Normalize casing on the best record
+            update_fields = []
             if existing.make != make:
                 existing.make = make
-                existing.save(update_fields=['make'])
+                update_fields.append('make')
+            if existing.model_name != model_name:
+                existing.model_name = model_name
+                update_fields.append('model_name')
+            if update_fields:
+                existing.save(update_fields=update_fields)
+        elif len(existing_all) == 1:
+            existing = existing_all[0]
+            # Normalize casing if needed — both make AND model_name
+            update_fields = []
+            if existing.make != make:
+                existing.make = make
+                update_fields.append('make')
+            if existing.model_name != model_name:
+                existing.model_name = model_name
+                update_fields.append('model_name')
+            if update_fields:
+                existing.save(update_fields=update_fields)
         else:
             existing = None
         
@@ -283,12 +333,12 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         # Build validated defaults dict
         defaults = {
             'article': article,
-            'trim_name': (str(data.get('trim_name') or trim or '') if data.get('trim_name') is not None else (trim or ''))[:100],
+            'trim_name': _sanitize_trim(data.get('trim_name') or trim)[:100],
             
             # Drivetrain
-            'drivetrain': _validate_choice(data.get('drivetrain'), VALID_DRIVETRAINS),
+            'drivetrain': _validate_choice(_clean_pipe_value(data.get('drivetrain')), VALID_DRIVETRAINS),
             'motor_count': _safe_int(data.get('motor_count')),
-            'motor_placement': str(data.get('motor_placement', '') or '')[:50] or None,
+            'motor_placement': _clean_pipe_value(str(data.get('motor_placement', '') or '')[:50]) or None,
             
             # Performance
             'power_hp': _safe_int(data.get('power_hp')),
@@ -310,12 +360,12 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
             'charging_power_max_kw': _safe_int(data.get('charging_power_max_kw')),
             
             # Transmission
-            'transmission': _validate_choice(data.get('transmission'), VALID_TRANSMISSIONS),
+            'transmission': _validate_choice(_clean_pipe_value(data.get('transmission')), VALID_TRANSMISSIONS),
             'transmission_gears': _safe_int(data.get('transmission_gears')),
             
             # General
-            'body_type': _validate_choice(data.get('body_type'), VALID_BODY_TYPES),
-            'fuel_type': _validate_choice(data.get('fuel_type'), VALID_FUEL_TYPES),
+            'body_type': _validate_choice(_clean_pipe_value(data.get('body_type')), VALID_BODY_TYPES),
+            'fuel_type': _validate_choice(_clean_pipe_value(data.get('fuel_type')), VALID_FUEL_TYPES),
             'seats': _safe_int(data.get('seats')),
             
             # Dimensions
@@ -332,7 +382,7 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
             # Pricing
             'price_from': _safe_int(data.get('price_from')),
             'price_to': _safe_int(data.get('price_to')),
-            'currency': _validate_choice(data.get('currency'), VALID_CURRENCIES) or 'USD',
+            'currency': _validate_choice(_clean_pipe_value(data.get('currency')), VALID_CURRENCIES) or 'USD',
             
             # Additional
             'year': year or _safe_int(data.get('year')),
@@ -350,7 +400,7 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         defaults['article'] = article
         
         # Derive trim_name for DB lookup (must match unique_together)
-        trim_for_lookup = (str(data.get('trim_name') or trim or '') if data.get('trim_name') is not None else (trim or ''))[:100]
+        trim_for_lookup = _sanitize_trim(data.get('trim_name') or trim)[:100]
         
         # Create or update — use SAME fields as unique_together: (make, model_name, trim_name)
         vehicle_specs, created = VehicleSpecs.objects.update_or_create(
