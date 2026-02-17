@@ -304,6 +304,39 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 tag_names.append(year_str)
                 print(f"🏷️ Auto-added year tag: {year_str}")
         
+        # 2.6.2 AUTO-ADD DRIVETRAIN TAG from enriched specs
+        drivetrain = specs.get('drivetrain')
+        if drivetrain and drivetrain not in ('Not specified', '', None):
+            dt_upper = drivetrain.upper()
+            has_dt_tag = any(t.upper() in ('AWD', 'FWD', 'RWD', '4WD') for t in tag_names)
+            if not has_dt_tag and dt_upper in ('AWD', 'FWD', 'RWD', '4WD'):
+                tag_names.append(dt_upper)
+                print(f"🏷️ Auto-added drivetrain tag: {dt_upper}")
+        
+        # 2.6.3 AUTO-ADD MODEL TAG from DB if not already present
+        try:
+            from news.models import Tag
+            model_name = specs.get('model')
+            make_name = specs.get('make')
+            if model_name and model_name != 'Not specified':
+                # Check if any Models-group tag matches
+                has_model_tag = False
+                model_tags = Tag.objects.filter(group__name='Models').values_list('name', flat=True)
+                tag_names_lower = [t.lower() for t in tag_names]
+                for mt in model_tags:
+                    if mt.lower() in tag_names_lower:
+                        has_model_tag = True
+                        break
+                if not has_model_tag:
+                    # Try to find a matching Model tag in DB
+                    for mt in model_tags:
+                        if model_name.lower() in mt.lower() or mt.lower() in model_name.lower():
+                            tag_names.append(mt)
+                            print(f"🏷️ Auto-added model tag: {mt}")
+                            break
+        except Exception as e:
+            print(f"⚠️ Model tag auto-add failed: {e}")
+        
         # 2.65. DUPLICATE CHECK — skip if article already exists for same car
         if specs.get('make') and specs['make'] != 'Not specified' and specs.get('model') and specs['model'] != 'Not specified':
             try:
@@ -376,6 +409,15 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                     analysis += f"\n\n[ENRICHED SPECS FROM WEB]:\n" + '\n'.join(enriched_lines)
             except Exception as e:
                 print(f"⚠️ Specs enrichment failed (continuing): {e}")
+        
+        # 2.9 POST-ENRICHMENT: auto-add drivetrain tag if enricher found it
+        drivetrain = specs.get('drivetrain')
+        if drivetrain and drivetrain not in ('Not specified', '', None):
+            dt_upper = drivetrain.upper()
+            has_dt_tag = any(t.upper() in ('AWD', 'FWD', 'RWD', '4WD') for t in tag_names)
+            if not has_dt_tag and dt_upper in ('AWD', 'FWD', 'RWD', '4WD'):
+                tag_names.append(dt_upper)
+                print(f"🏷️ Auto-added drivetrain tag (post-enrichment): {dt_upper}")
         
         # 3. Generate Article
         send_progress(5, 65, f"✍️ Generating article with {provider_name}...")

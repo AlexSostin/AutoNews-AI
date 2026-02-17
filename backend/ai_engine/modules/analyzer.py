@@ -169,7 +169,7 @@ def _get_db_tags():
     }
 
 
-def categorize_article(analysis, provider='groq'):
+def categorize_article(analysis, provider='gemini'):
     """
     Determines category and tags based on analysis using the AI provider factory.
     Uses tags from the database when available, falls back to hardcoded list.
@@ -192,9 +192,10 @@ Based on this automotive analysis, determine the best category and relevant tags
 Categories (choose ONE):
 {categories_str}
 
-Tags (choose 5-8 relevant tags from these groups):
+Tags (choose 6-10 relevant tags from these groups):
 RULES:
 - ALWAYS include at least one tag from Manufacturers (the car brand)
+- ALWAYS include a Model tag if the car model is in the Models list (e.g., "Zeekr X EV", "Seal 06")
 - ALWAYS include a Year tag if the model year is mentioned (e.g., "2026")
 - ALWAYS include the correct Body Type. Use these guidelines:
   * "Sedan" — traditional 3-box car with separate trunk (BYD Qin, Tesla Model 3)
@@ -211,6 +212,7 @@ RULES:
   * "EV" or "BEV" — fully electric
   * "E-REV" — extended-range EV (Li Auto, VOYAH)
   * "Hybrid" — non-plug-in hybrid (Toyota HEV)
+- ALWAYS include a Drivetrain tag if known (AWD, FWD, RWD, 4WD)
 - Include a Segment tag if applicable (Luxury, Budget, Sport, etc.)
 
 {tags_section}
@@ -219,7 +221,7 @@ Analysis:
 
 Output ONLY in this format (no extra text):
 Category: [category_name]
-Tags: [tag1], [tag2], [tag3], [tag4], [tag5]
+Tags: [tag1], [tag2], [tag3], [tag4], [tag5], [tag6]
 """
     
     try:
