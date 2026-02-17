@@ -2058,6 +2058,37 @@ Return ONLY the reformatted HTML."""
             return Response({'error': 'Task not found or expired'}, status=404)
 
         return Response(state)
+
+    @action(detail=False, methods=['get'], url_path='debug-vehicle-specs')
+    def debug_vehicle_specs(self, request):
+        """
+        Debug endpoint — dump all VehicleSpecs (admin only).
+        GET /api/v1/articles/debug-vehicle-specs/?make=ZEEKR&model=X EV
+        """
+        from news.models import VehicleSpecs
+
+        make = request.query_params.get('make', '')
+        model = request.query_params.get('model', '')
+
+        qs = VehicleSpecs.objects.all()
+        if make:
+            qs = qs.filter(make__iexact=make)
+        if model:
+            qs = qs.filter(model_name__iexact=model)
+
+        results = []
+        for vs in qs.order_by('make', 'model_name')[:50]:
+            fields = {}
+            for f in vs._meta.fields:
+                val = getattr(vs, f.name)
+                if val is not None and f.name not in ('id',):
+                    fields[f.name] = str(val) if not isinstance(val, (int, float, bool, type(None))) else val
+            results.append(fields)
+
+        return Response({
+            'count': qs.count(),
+            'results': results,
+        })
     
     @action(detail=True, methods=['get'])
     def similar_articles(self, request, slug=None):
