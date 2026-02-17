@@ -252,20 +252,92 @@ export default function ArticlesPage() {
                           typeof val === 'number' ? 'bg-blue-100 text-blue-700' :
                             'bg-red-100 text-red-700'
                         }`}>
-                        {key.replace('_', ' ')}: {val === true ? '✅' : val === 'skipped' ? '⏭️' : typeof val === 'number' ? `+${val}` : '❌'}
+                        {key.replace('_', ' ')}: {val === true ? '✅' : val === 'skipped' ? '⏭️' : typeof val === 'number' ? `+${val}` : val === 'no_specs' ? '⚠️' : '❌'}
                       </span>
                     ))}
                   </div>
+                  {r.deep_specs_detail && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      🔧 {r.deep_specs_detail.make} {r.deep_specs_detail.model} — {r.deep_specs_detail.fields_filled} fields
+                      {r.deep_specs_detail.key?.power_hp && ` • ${r.deep_specs_detail.key.power_hp}hp`}
+                      {r.deep_specs_detail.key?.battery_kwh && ` • ${r.deep_specs_detail.key.battery_kwh}kWh`}
+                      {r.deep_specs_detail.key?.range_km && ` • ${r.deep_specs_detail.key.range_km}km`}
+                    </p>
+                  )}
                   {r.errors?.length > 0 && (
                     <p className="text-xs text-red-600 mt-1.5 font-medium">{r.errors.join(', ')}</p>
                   )}
                 </div>
               ))}
+
+              {/* Summary section */}
+              {bulkResults.summary && !enrichProgress && (
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <h4 className="font-black text-gray-900 text-sm mb-3">📊 Summary</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="bg-green-50 rounded-lg p-2 text-center">
+                      <p className="text-lg font-black text-green-700">{bulkResults.summary.deep_specs?.generated || 0}</p>
+                      <p className="text-[10px] font-semibold text-green-600">Specs Generated</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2 text-center">
+                      <p className="text-lg font-black text-gray-600">{bulkResults.summary.deep_specs?.skipped || 0}</p>
+                      <p className="text-[10px] font-semibold text-gray-500">Specs Skipped</p>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-2 text-center">
+                      <p className="text-lg font-black text-red-700">{(bulkResults.summary.deep_specs?.failed || 0) + (bulkResults.summary.deep_specs?.no_data || 0)}</p>
+                      <p className="text-[10px] font-semibold text-red-600">Specs Failed</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-2 text-center">
+                      <p className="text-lg font-black text-blue-700">{bulkResults.summary.deep_specs?.total_fields_filled || 0}</p>
+                      <p className="text-[10px] font-semibold text-blue-600">Total Fields</p>
+                    </div>
+                  </div>
+                  {bulkResults.summary.tags_added > 0 && (
+                    <p className="text-xs text-gray-500 mt-2">🏷️ {bulkResults.summary.tags_added} tags added</p>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="p-4 border-t border-gray-100 flex justify-end">
+            <div className="p-4 border-t border-gray-100 flex justify-between gap-2">
+              {!enrichProgress && (
+                <button
+                  onClick={() => {
+                    // Generate plain-text report
+                    const lines: string[] = [];
+                    lines.push(`=== Bulk Enrichment Report ===`);
+                    lines.push(`${bulkResults.message}`);
+                    lines.push(`Success: ${bulkResults.success_count} | Errors: ${bulkResults.error_count} | Duration: ${bulkResults.elapsed_seconds}s`);
+                    if (bulkResults.summary) {
+                      const ds = bulkResults.summary.deep_specs;
+                      lines.push(`\nDeep Specs: ${ds?.generated || 0} generated, ${ds?.skipped || 0} skipped, ${ds?.failed || 0} failed, ${ds?.no_data || 0} no data`);
+                      lines.push(`Total fields filled: ${ds?.total_fields_filled || 0}`);
+                      if (bulkResults.summary.tags_added) lines.push(`Tags added: ${bulkResults.summary.tags_added}`);
+                    }
+                    lines.push(`\n--- Per Article ---`);
+                    bulkResults.results?.forEach((r: any) => {
+                      const steps = Object.entries(r.steps || {}).map(([k, v]: [string, any]) =>
+                        `${k}: ${v === true ? '✅' : v === 'skipped' ? '⏭️' : typeof v === 'number' ? `+${v}` : v === 'no_specs' ? '⚠️' : '❌'}`
+                      ).join(' | ');
+                      let line = `#${r.id} ${r.title}\n  ${steps}`;
+                      if (r.deep_specs_detail) {
+                        const d = r.deep_specs_detail;
+                        const keyStr = Object.entries(d.key || {}).map(([k, v]) => `${k}=${v}`).join(', ');
+                        line += `\n  🔧 ${d.make} ${d.model} (${d.fields_filled} fields) ${keyStr}`;
+                      }
+                      if (r.errors?.length) line += `\n  ❌ ${r.errors.join(', ')}`;
+                      lines.push(line);
+                    });
+                    navigator.clipboard.writeText(lines.join('\n'));
+                    alert('Report copied to clipboard!');
+                  }}
+                  className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200 transition-colors text-sm"
+                >
+                  📋 Copy Report
+                </button>
+              )}
               <button
                 onClick={() => setBulkResults(null)}
-                className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-bold hover:bg-gray-800 transition-colors"
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-bold hover:bg-gray-800 transition-colors ml-auto"
               >
                 Close
               </button>

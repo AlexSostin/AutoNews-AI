@@ -1960,12 +1960,41 @@ Return ONLY the reformatted HTML."""
                         vehicle_specs = generate_deep_vehicle_specs(
                             article, specs=specs_dict, web_context=web_context, provider='gemini'
                         )
-                        article_result['steps']['deep_specs'] = bool(vehicle_specs)
+                        if vehicle_specs:
+                            # Count filled fields for the report
+                            key_fields = {}
+                            for fn in ['power_hp', 'torque_nm', 'battery_kwh', 'range_km', 'range_cltc', 'length_mm', 'weight_kg', 'price_from']:
+                                val = getattr(vehicle_specs, fn, None)
+                                if val is not None:
+                                    key_fields[fn] = val
+                            total_filled = sum(1 for f in vehicle_specs._meta.fields if getattr(vehicle_specs, f.name) is not None and f.name not in ('id',))
+                            article_result['steps']['deep_specs'] = True
+                            article_result['deep_specs_detail'] = {
+                                'make': vehicle_specs.make,
+                                'model': vehicle_specs.model_name,
+                                'fields_filled': total_filled,
+                                'key': key_fields,
+                            }
+                        else:
+                            article_result['steps']['deep_specs'] = False
                     except Exception as e:
                         article_result['errors'].append(f'Deep specs: {e}')
                         article_result['steps']['deep_specs'] = False
                 elif has_populated_specs:
                     article_result['steps']['deep_specs'] = 'skipped'
+                    # Still include detail for skipped
+                    vs = existing_vs
+                    key_fields = {}
+                    for fn in ['power_hp', 'torque_nm', 'battery_kwh', 'range_km', 'range_cltc', 'length_mm', 'weight_kg', 'price_from']:
+                        val = getattr(vs, fn, None)
+                        if val is not None:
+                            key_fields[fn] = val
+                    article_result['deep_specs_detail'] = {
+                        'make': vs.make,
+                        'model': vs.model_name,
+                        'fields_filled': sum(1 for f in vs._meta.fields if getattr(vs, f.name) is not None and f.name not in ('id',)),
+                        'key': key_fields,
+                    }
                 else:
                     article_result['steps']['deep_specs'] = 'no_specs'
 
@@ -2015,8 +2044,29 @@ Return ONLY the reformatted HTML."""
                     'elapsed_seconds': elapsed,
                 }, timeout=3600)
 
-            # Final state
+            # Final state — build summary
             elapsed = round(_time.time() - start_time, 1)
+
+            # Build deep specs summary
+            ds_generated = sum(1 for r in all_results if r.get('steps', {}).get('deep_specs') is True)
+            ds_skipped = sum(1 for r in all_results if r.get('steps', {}).get('deep_specs') == 'skipped')
+            ds_failed = sum(1 for r in all_results if r.get('steps', {}).get('deep_specs') is False)
+            ds_no_specs = sum(1 for r in all_results if r.get('steps', {}).get('deep_specs') == 'no_specs')
+            total_fields = sum(r.get('deep_specs_detail', {}).get('fields_filled', 0) for r in all_results)
+            tags_added = sum(r.get('steps', {}).get('smart_tags', 0) for r in all_results if isinstance(r.get('steps', {}).get('smart_tags'), int))
+
+            summary = {
+                'deep_specs': {
+                    'generated': ds_generated,
+                    'skipped': ds_skipped,
+                    'failed': ds_failed,
+                    'no_data': ds_no_specs,
+                    'total_fields_filled': total_fields,
+                },
+                'tags_added': tags_added,
+                'duration': elapsed,
+            }
+
             _cache.set(f'bulk_enrich_{task_id}', {
                 'status': 'done',
                 'current': total_articles,
@@ -2026,6 +2076,7 @@ Return ONLY the reformatted HTML."""
                 'error_count': errors_total,
                 'message': f'Bulk enrichment completed: {success_total}/{total_articles} articles processed in {elapsed}s',
                 'elapsed_seconds': elapsed,
+                'summary': summary,
             }, timeout=3600)
 
             # Close DB connection for this thread
