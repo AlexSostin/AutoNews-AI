@@ -92,7 +92,10 @@ NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
 Required Structure:
 - <h2>[Year] [Brand] [Model] [Version] Review: [Hook/Description]</h2>
 - Introduction paragraph (2-3 sentences with key specs)
-- <h2>Performance & Specs</h2> - Include specific numbers (HP, torque, 0-60, range, battery, price)
+- <h2>Performance & Specs</h2> - MUST include specific HP/kW, torque, 0-60, range, battery, price.
+  CRITICAL: If horsepower data is provided in the analysis/specs below, you MUST include it.
+  If HP is given in kW, convert: 1 kW = 1.34 hp. NEVER write "the exact horsepower is not specified".
+  If HP is truly not in data, research the model and provide the known figure.
 - <h2>Design & Interior</h2> - Describe styling, materials, space, cargo volume
 - <h2>Technology & Features</h2> - This section MUST include at least 4-5 specific items from this list:
   * Infotainment screen size and system name

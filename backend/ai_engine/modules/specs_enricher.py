@@ -11,9 +11,14 @@ logger = logging.getLogger(__name__)
 # Patterns for extracting specs from scraped text
 SPEC_PATTERNS = {
     'horsepower': [
-        # "204 hp", "310 horsepower", "150 PS", "220 kW"
-        re.compile(r'(\d{2,4})\s*(?:hp|horsepower|bhp|PS)\b', re.IGNORECASE),
-        re.compile(r'(\d{2,4})\s*kW\b', re.IGNORECASE),  # kW — convert later
+        # "204 hp", "310 horsepower", "150 PS", "100 bhp"
+        re.compile(r'(\d{2,4})\s*(?:hp|horsepower|bhp|PS|cv)\b', re.IGNORECASE),
+        # "110kW", "110 kW", "72.5 kW" — convert to HP later
+        re.compile(r'(\d{2,4}(?:\.\d)?)\s*kW\b', re.IGNORECASE),
+        # Chinese: "100马力", "100匹"
+        re.compile(r'(\d{2,4})\s*(?:马力|匹)', re.IGNORECASE),
+        # "power: 150", "max power 150"
+        re.compile(r'(?:max\.?\s*)?power[:\s]+?(\d{2,4})\s*(?:hp|kW|PS|bhp)', re.IGNORECASE),
     ],
     'torque': [
         # "400 Nm", "295 lb-ft", "300 lb·ft"

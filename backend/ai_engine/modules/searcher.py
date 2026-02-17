@@ -128,7 +128,7 @@ def search_car_details(make, model, year=None):
     Returns structured text with key info found, including scraped page content.
     """
     # Construct query
-    query = f"{year if year else ''} {make} {model} specs review price release date".strip()
+    query = f"{year if year else ''} {make} {model} specifications hp kW price review".strip()
     print(f"🌐 Searching web for: {query}...")
 
     search_results = []
