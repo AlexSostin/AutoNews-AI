@@ -208,16 +208,56 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
             logger.warning(f"Cannot generate deep specs: no model for article #{article.id}")
             return None
         
-        # Check if fully populated VehicleSpecs already exists
-        existing = VehicleSpecs.objects.filter(
-            article=article,
+        # Normalize make to canonical brand display name (e.g., "Zeekr" → "ZEEKR")
+        try:
+            from news.auto_tags import BRAND_DISPLAY_NAMES
+            make_lower = make.lower().strip()
+            make = BRAND_DISPLAY_NAMES.get(make_lower, make)
+        except ImportError:
+            pass
+        
+        # Derive trim_name from specs or default to ''
+        trim = trim or ''
+        
+        # Clean up duplicate VehicleSpecs with different casing
+        # Keep the best-populated one, delete empty duplicates
+        existing_all = list(VehicleSpecs.objects.filter(
             make__iexact=make,
             model_name__iexact=model_name,
-        ).first()
+            trim_name__iexact=trim,
+        ))
+        
+        if len(existing_all) > 1:
+            # Multiple records with different casing — merge
+            best = max(existing_all, key=lambda vs: sum(
+                1 for f in vs._meta.fields 
+                if getattr(vs, f.name) is not None and f.name not in ('id', 'article', 'make', 'model_name', 'trim_name')
+            ))
+            for dup in existing_all:
+                if dup.id != best.id:
+                    print(f"🧹 Deleting duplicate VehicleSpecs #{dup.id} ({dup.make}/{dup.model_name})")
+                    dup.delete()
+            existing = best
+            # Normalize the casing on the best record
+            if existing.make != make or existing.model_name != model_name:
+                existing.make = make
+                existing.model_name = model_name
+                existing.save(update_fields=['make', 'model_name'])
+        elif len(existing_all) == 1:
+            existing = existing_all[0]
+            # Normalize casing if needed
+            if existing.make != make:
+                existing.make = make
+                existing.save(update_fields=['make'])
+        else:
+            existing = None
         
         if existing and existing.power_hp and existing.length_mm:
             # Already has performance + dimensions — skip
-            print(f"📋 VehicleSpecs already populated for {make} {model_name}")
+            if existing.article_id != article.id:
+                print(f"📋 VehicleSpecs already populated for {make} {model_name} (linked to article #{existing.article_id})")
+            else:
+                print(f"📋 VehicleSpecs already populated for {make} {model_name}")
             return existing
         
         # Build prompt and call AI
@@ -231,8 +271,13 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         
         data = _parse_ai_response(response)
         if not data:
-            print(f"⚠️ Failed to parse AI specs response")
+            print(f"⚠️ Failed to parse AI specs response for {make} {model_name}")
+            print(f"   Raw response (first 500 chars): {str(response)[:500]}")
             return None
+        
+        # Log what Gemini returned
+        key_fields = {k: data.get(k) for k in ['power_hp', 'power_kw', 'torque_nm', 'battery_kwh', 'range_km', 'length_mm']}
+        print(f"   AI returned key fields: {key_fields}")
         
         # Build validated defaults dict
         defaults = {
@@ -300,11 +345,15 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         # Remove None values so they don't overwrite existing data
         defaults = {k: v for k, v in defaults.items() if v is not None}
         
-        # Create or update
+        # Always set/update article reference
+        defaults['article'] = article
+        
+        # Create or update — use SAME fields as unique_together: (make, model_name, trim_name)
+        trim_for_lookup = str(data.get('trim_name', trim or ''))[:100]
         vehicle_specs, created = VehicleSpecs.objects.update_or_create(
             make=make,
             model_name=model_name,
-            article=article,
+            trim_name=trim_for_lookup,
             defaults=defaults
         )
         
