@@ -1010,14 +1010,13 @@ class ArticleViewSet(viewsets.ModelViewSet):
                                 'model': parts[1],
                                 'year': int(year_match.group(1)),
                             }
-                            # Create CarSpecification
+                            # Create CarSpecification (no 'year' field in model)
                             from news.models import CarSpecification
                             CarSpecification.objects.update_or_create(
                                 article=article,
                                 defaults={
                                     'make': specs_dict['make'],
                                     'model': specs_dict['model'],
-                                    'year': specs_dict.get('year'),
                                 }
                             )
                             enrichment_results['car_spec'] = {
@@ -1634,11 +1633,21 @@ Return ONLY the reformatted HTML."""
             web_context = ''
 
             if car_spec and car_spec.make:
+                # CarSpecification has no 'year' field — extract from title
+                import re
+                _year = None
+                _y_match = re.search(r'\b(20[2-3]\d)\b', article.title)
+                if _y_match:
+                    _year = int(_y_match.group(1))
+                elif car_spec.release_date:
+                    _ry = re.search(r'(20[2-3]\d)', car_spec.release_date)
+                    if _ry:
+                        _year = int(_ry.group(1))
                 specs_dict = {
                     'make': car_spec.make or '',
                     'model': car_spec.model or '',
                     'trim': car_spec.trim or '',
-                    'year': car_spec.year,
+                    'year': _year,
                     'horsepower': car_spec.horsepower,
                     'torque': car_spec.torque or '',
                     'acceleration': car_spec.zero_to_sixty or '',
@@ -1647,19 +1656,46 @@ Return ONLY the reformatted HTML."""
                     'price': car_spec.price or '',
                 }
             else:
-                # Try to extract make/model from article title
+                # Multi-pattern title parser for make/model extraction
                 import re
                 title = article.title
-                year_match = re.match(r'(\d{4})\s+(.+?)(?:\s+(?:Review|First|Walk|Test|Preview|Deep|Comparison))', title, re.IGNORECASE)
-                if year_match:
-                    remaining = year_match.group(2).strip()
-                    parts = remaining.split(' ', 1)
-                    if len(parts) >= 2:
-                        specs_dict = {
-                            'make': parts[0],
-                            'model': parts[1],
-                            'year': int(year_match.group(1)),
-                        }
+                year = None
+                make = None
+                model_name = None
+
+                m = re.match(r'(\d{4})\s+(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Comparison|Test))?$', title, re.IGNORECASE)
+                if m:
+                    year, make, model_name = int(m.group(1)), m.group(2), m.group(3).strip()
+                if not make:
+                    m = re.match(r'(?:First\s+Drive|Review|Test\s+Drive)[:\s]+(\d{4})\s+(\S+)\s+(.+?)(?:\s+-\s+.+)?$', title, re.IGNORECASE)
+                    if m:
+                        year, make, model_name = int(m.group(1)), m.group(2), m.group(3).strip()
+                        if ' - ' in model_name:
+                            model_name = model_name.split(' - ')[0].strip()
+                if not make:
+                    m = re.match(r'(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Walkaround|Comparison|Test))', title, re.IGNORECASE)
+                    if m:
+                        make, model_name = m.group(1), m.group(2).strip()
+                if not make:
+                    try:
+                        from news.auto_tags import KNOWN_BRANDS, BRAND_DISPLAY_NAMES
+                        title_lower = title.lower()
+                        for brand in KNOWN_BRANDS:
+                            if title_lower.startswith(brand) or title_lower.startswith(brand + ' '):
+                                make = BRAND_DISPLAY_NAMES.get(brand, brand.title())
+                                rest = title[len(brand):].strip()
+                                model_match = re.match(r'(\S+(?:\s+\S+)?)', rest)
+                                if model_match:
+                                    model_name = model_match.group(1)
+                                break
+                    except ImportError:
+                        pass
+                if not year:
+                    y_match = re.search(r'\b(20[2-3]\d)\b', title)
+                    if y_match:
+                        year = int(y_match.group(1))
+                if make and model_name:
+                    specs_dict = {'make': make, 'model': model_name, 'year': year}
 
             if specs_dict and specs_dict.get('make'):
                 try:
@@ -3749,11 +3785,21 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 try:
                     car_spec = CarSpecification.objects.filter(article=article).first()
                     if car_spec:
+                        # CarSpecification has no 'year' field — extract from title
+                        import re as _re
+                        _year = None
+                        _y_match = _re.search(r'\b(20[2-3]\d)\b', article.title)
+                        if _y_match:
+                            _year = int(_y_match.group(1))
+                        elif car_spec.release_date:
+                            _ry = _re.search(r'(20[2-3]\d)', car_spec.release_date)
+                            if _ry:
+                                _year = int(_ry.group(1))
                         specs_dict = {
                             'make': car_spec.make or '',
                             'model': car_spec.model or '',
                             'trim': car_spec.trim or '',
-                            'year': car_spec.year,
+                            'year': _year,
                             'horsepower': car_spec.horsepower,
                             'torque': car_spec.torque or '',
                             'acceleration': car_spec.zero_to_sixty or '',
