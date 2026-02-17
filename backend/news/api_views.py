@@ -1846,8 +1846,11 @@ Return ONLY the reformatted HTML."""
                     article_result['steps']['deep_specs'] = bool(vehicle_specs)
                 except Exception as e:
                     article_result['errors'].append(f'Deep specs: {e}')
+                    article_result['steps']['deep_specs'] = False
             elif has_specs:
                 article_result['steps']['deep_specs'] = 'skipped'
+            else:
+                article_result['steps']['deep_specs'] = 'no_specs'
 
             # --- Step 3: A/B Titles ---
             has_ab = ArticleTitleVariant.objects.filter(article=article).exists()

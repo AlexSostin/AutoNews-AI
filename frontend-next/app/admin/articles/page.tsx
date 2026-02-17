@@ -242,7 +242,7 @@ export default function ArticlesPage() {
               <span className="hidden sm:inline">{bulkEnriching ? 'Enriching...' : 'Bulk Enrich'}</span>
             </button>
             {!bulkEnriching && (
-              <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-20">
+              <div className="absolute right-0 top-full pt-1 hidden group-hover:block z-20">
                 <div className="bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[180px]">
                   <button
                     onClick={() => handleBulkEnrich('missing')}

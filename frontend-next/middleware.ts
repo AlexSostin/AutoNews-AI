@@ -6,14 +6,13 @@ let cachedSettings: { maintenance_mode: boolean; maintenance_message: string } |
 let settingsCacheTime = 0;
 const CACHE_TTL = 30_000; // 30 seconds
 
-async function getMaintenanceSettings(request: NextRequest) {
+async function getMaintenanceSettings() {
   const now = Date.now();
   if (cachedSettings && now - settingsCacheTime < CACHE_TTL) {
     return cachedSettings;
   }
 
   try {
-    // Use internal API URL if available, otherwise construct from request
     const apiBase = process.env.API_INTERNAL_URL
       || process.env.CUSTOM_DOMAIN_API
       || (process.env.RAILWAY_ENVIRONMENT === 'production'
@@ -69,13 +68,6 @@ export async function middleware(request: NextRequest) {
   const isAdminRoute = pathname.startsWith('/admin');
   const isLoginRoute = pathname === '/login';
   const isRegisterRoute = pathname === '/register';
-  const isApiRoute = pathname.startsWith('/api');
-  const isStaticRoute = pathname.startsWith('/_next') || pathname.startsWith('/static');
-
-  // Skip static assets and API routes
-  if (isApiRoute || isStaticRoute) {
-    return NextResponse.next();
-  }
 
   // Admin routes - check if token exists
   if (isAdminRoute) {
@@ -90,16 +82,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Maintenance mode check — for ALL public routes
+  // Maintenance mode check — for public page routes only
   // Skip login/register so admins can still log in
   if (!isLoginRoute && !isRegisterRoute) {
-    const settings = await getMaintenanceSettings(request);
+    const settings = await getMaintenanceSettings();
     if (settings?.maintenance_mode) {
-      // Check if user is admin — let admins through
       const admin = await isAdminUser(request);
       if (!admin) {
-        // Rewrite to home page which will show MaintenancePage
-        // This ensures maintenance page is shown on ALL routes
+        // Rewrite all public routes to home which shows MaintenancePage
         const url = request.nextUrl.clone();
         url.pathname = '/';
         return NextResponse.rewrite(url);
@@ -111,13 +101,22 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Only match actual page routes, NOT _next/*, static assets, API routes, etc.
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico, robots.txt, sitemap.xml
-     */
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+    '/',
+    '/login',
+    '/register',
+    '/admin/:path*',
+    '/articles/:path*',
+    '/about',
+    '/contact',
+    '/cars/:path*',
+    '/categories/:path*',
+    '/search',
+    '/trending',
+    '/profile/:path*',
+    '/privacy-policy',
+    '/terms',
+    '/for-authors',
   ],
 };
