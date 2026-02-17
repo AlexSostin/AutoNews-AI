@@ -304,3 +304,40 @@ def sync_vehicle_specs_to_car_spec(sender, instance, **kwargs):
         logger.info(f"🔄 {action} CarSpecification for article [{instance.article_id}] from VehicleSpecs: {model_name}")
     except Exception as e:
         logger.error(f"❌ Failed to sync VehicleSpecs → CarSpecification for article [{instance.article_id}]: {e}")
+
+
+# ============================================================================
+# AUTO-SYNC CARSPECIFICATION FIELDS → ARTICLE TAGS
+# ============================================================================
+
+@receiver(post_save, sender=CarSpecification)
+def sync_car_spec_tags(sender, instance, **kwargs):
+    """
+    When CarSpecification is saved, auto-add relevant tags to the article:
+    - Drivetrain (AWD/FWD/RWD/4WD) from specs.drivetrain
+    This catches drivetrain data regardless of source (AI, admin edit, VehicleSpecs sync).
+    """
+    try:
+        from .models import Tag
+        article = instance.article
+        
+        # --- Drivetrain tag ---
+        dt = (instance.drivetrain or '').strip().upper()
+        if dt in ('AWD', 'FWD', 'RWD', '4WD'):
+            # Check if article already has a drivetrain tag
+            existing_dt_tags = article.tags.filter(
+                group__name='Drivetrain'
+            )
+            if not existing_dt_tags.exists():
+                # Find the tag in DB
+                tag = Tag.objects.filter(
+                    group__name='Drivetrain',
+                    name__iexact=dt
+                ).first()
+                if tag:
+                    article.tags.add(tag)
+                    logger.info(f"🏷️ Auto-synced drivetrain tag '{dt}' to article [{article.id}]")
+                else:
+                    logger.warning(f"⚠️ Drivetrain tag '{dt}' not found in DB")
+    except Exception as e:
+        logger.error(f"❌ Failed to sync CarSpec tags for article: {e}")
