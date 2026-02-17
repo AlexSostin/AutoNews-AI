@@ -58,7 +58,8 @@ from .api_views import (
 )
 from .search_analytics_views import (
     SearchAPIView, AnalyticsOverviewAPIView, AnalyticsTopArticlesAPIView,
-    AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView, GSCAnalyticsAPIView
+    AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView, GSCAnalyticsAPIView,
+    AnalyticsAIStatsAPIView
 )
 from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet
 
@@ -100,6 +101,7 @@ urlpatterns = [
     path('analytics/views/timeline/', AnalyticsViewsTimelineAPIView.as_view(), name='analytics_timeline'),
     path('analytics/categories/', AnalyticsCategoriesAPIView.as_view(), name='analytics_categories'),
     path('analytics/gsc/', GSCAnalyticsAPIView.as_view(), name='analytics_gsc'),
+    path('analytics/ai-stats/', AnalyticsAIStatsAPIView.as_view(), name='analytics_ai_stats'),
     
     # Car Catalog endpoints
     path('cars/brands/', CarBrandsListView.as_view(), name='car_brands_list'),

@@ -27,7 +27,8 @@ import {
   Wrench,
   ArrowRightLeft,
   Globe,
-  MessageSquareWarning
+  MessageSquareWarning,
+  FlaskConical
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
@@ -45,6 +46,7 @@ const menuItems = [
   { href: '/admin/brands', icon: Globe, label: 'Brands' },
   { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },
   { href: '/admin/feedback', icon: MessageSquareWarning, label: 'Feedback' },
+  { href: '/admin/ab-testing', icon: FlaskConical, label: 'A/B Testing' },
   { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
   { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },
   { href: '/admin/rss-feeds', icon: Rss, label: 'RSS Feeds' },

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Languages, Sparkles, Save, Eye, RefreshCw, ArrowLeft,
-    FileText, Gauge, Pen, Search, CheckCircle, AlertCircle, Loader2
+    FileText, Gauge, Pen, Search, CheckCircle, AlertCircle, Loader2,
+    Upload, Zap, Send, Image as ImageIcon, Tag, Car, TestTubes
 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -13,6 +14,15 @@ interface Category {
     id: number;
     name: string;
     slug: string;
+}
+
+interface EnrichmentResult {
+    success: boolean;
+    error?: string;
+    make?: string;
+    model?: string;
+    fields_filled?: number;
+    variants_created?: number;
 }
 
 interface TranslateResult {
@@ -28,6 +38,13 @@ interface TranslateResult {
     article_id?: number;
     article_slug?: string;
     saved?: boolean;
+    published?: boolean;
+    tags_assigned?: string[];
+    enrichment?: {
+        car_spec?: EnrichmentResult;
+        deep_specs?: EnrichmentResult;
+        ab_titles?: EnrichmentResult;
+    };
     error?: string;
 }
 
@@ -38,7 +55,9 @@ export default function TranslateEnhancePage() {
     const [result, setResult] = useState<TranslateResult | null>(null);
     const [showPreview, setShowPreview] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [publishing, setPublishing] = useState(false);
     const [saved, setSaved] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form state
     const [russianText, setRussianText] = useState('');
@@ -47,6 +66,8 @@ export default function TranslateEnhancePage() {
     const [tone, setTone] = useState<'professional' | 'casual' | 'technical'>('professional');
     const [seoKeywords, setSeoKeywords] = useState('');
     const [provider, setProvider] = useState<'gemini' | 'groq'>('gemini');
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     useEffect(() => {
         fetchCategories();
@@ -59,6 +80,16 @@ export default function TranslateEnhancePage() {
             setCategories(data);
         } catch (error) {
             console.error('Failed to fetch categories:', error);
+        }
+    };
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+            reader.readAsDataURL(file);
         }
     };
 
@@ -101,19 +132,34 @@ export default function TranslateEnhancePage() {
         }
     };
 
-    const handleSaveDraft = async () => {
+    const handleSave = async (publish: boolean = false) => {
         if (!result?.title || !result?.content) return;
 
-        setSaving(true);
+        if (publish) {
+            setPublishing(true);
+        } else {
+            setSaving(true);
+        }
+
         try {
-            const res = await api.post('/articles/translate-enhance/', {
-                russian_text: russianText,
-                category,
-                target_length: targetLength,
-                tone,
-                seo_keywords: seoKeywords,
-                provider,
-                save_as_draft: true,
+            const formData = new FormData();
+            formData.append('russian_text', russianText);
+            formData.append('category', category);
+            formData.append('target_length', targetLength);
+            formData.append('tone', tone);
+            formData.append('seo_keywords', seoKeywords);
+            formData.append('provider', provider);
+            if (publish) {
+                formData.append('save_and_publish', 'true');
+            } else {
+                formData.append('save_as_draft', 'true');
+            }
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
+            const res = await api.post('/articles/translate-enhance/', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
 
             if (res.data.saved) {
@@ -122,8 +168,10 @@ export default function TranslateEnhancePage() {
             }
         } catch (error: any) {
             console.error('Save failed:', error);
+            alert(`❌ Save failed: ${error.response?.data?.error || error.message}`);
         } finally {
             setSaving(false);
+            setPublishing(false);
         }
     };
 
@@ -151,7 +199,7 @@ export default function TranslateEnhancePage() {
                             Translate & Enhance
                         </h1>
                         <p className="text-gray-500 text-sm mt-1">
-                            Write in Russian → Get a professional English article
+                            Write in Russian → Get a professional English article with specs, tags & A/B titles
                         </p>
                     </div>
                 </div>
@@ -169,7 +217,7 @@ export default function TranslateEnhancePage() {
                         <textarea
                             value={russianText}
                             onChange={(e) => setRussianText(e.target.value)}
-                            placeholder="Write your text in Russian here... For example: Новый BYD Seal 06 GT got a 530 HP electric motor. 0-100 in 3.2 seconds. 82 kWh battery provides 620 km range."
+                            placeholder="Write your text in Russian here... For example: Новый BYD Seal 06 GT получил электромотор мощностью 530 л.с. Разгон 0-100 за 3.2 секунды. Батарея 82 кВтч обеспечивает запас хода 620 км."
                             className="w-full h-48 px-4 py-3 border border-gray-300 rounded-lg resize-y focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 placeholder:text-gray-400 text-sm leading-relaxed"
                             disabled={loading}
                         />
@@ -179,6 +227,49 @@ export default function TranslateEnhancePage() {
                                 {charCount < 20 ? 'Need at least 20 characters' : '✓ Ready'}
                             </span>
                         </div>
+                    </div>
+
+                    {/* Image Upload */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                            <ImageIcon size={16} className="text-indigo-500" />
+                            Cover Image <span className="text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageSelect}
+                            className="hidden"
+                        />
+                        {imagePreview ? (
+                            <div className="relative">
+                                <img
+                                    src={imagePreview}
+                                    alt="Preview"
+                                    className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                                />
+                                <button
+                                    onClick={() => {
+                                        setImageFile(null);
+                                        setImagePreview(null);
+                                        if (fileInputRef.current) fileInputRef.current.value = '';
+                                    }}
+                                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={loading}
+                                className="w-full h-28 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors cursor-pointer"
+                            >
+                                <Upload size={24} />
+                                <span className="text-sm">Click to upload cover image</span>
+                            </button>
+                        )}
                     </div>
 
                     {/* Options */}
@@ -301,7 +392,7 @@ export default function TranslateEnhancePage() {
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Action Button */}
                     <button
                         onClick={handleTranslate}
                         disabled={loading || charCount < 20}
@@ -408,12 +499,65 @@ export default function TranslateEnhancePage() {
                                 )}
                             </div>
 
+                            {/* Enrichment Results (shown after save) */}
+                            {result.saved && result.enrichment && (
+                                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 p-5">
+                                    <h3 className="text-sm font-bold text-emerald-800 flex items-center gap-2 mb-3">
+                                        <Zap size={16} className="text-emerald-600" />
+                                        Auto-Enrichment Results
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {/* Deep Specs */}
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <Car size={14} className={result.enrichment.deep_specs?.success ? 'text-green-600' : 'text-gray-400'} />
+                                            <span className={result.enrichment.deep_specs?.success ? 'text-green-700' : 'text-gray-500'}>
+                                                {result.enrichment.deep_specs?.success
+                                                    ? `🚗 VehicleSpecs: ${result.enrichment.deep_specs.make} ${result.enrichment.deep_specs.model} (${result.enrichment.deep_specs.fields_filled} fields)`
+                                                    : `⚠️ Specs: ${result.enrichment.deep_specs?.error || 'Not available'}`
+                                                }
+                                            </span>
+                                        </div>
+                                        {/* A/B Titles */}
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <TestTubes size={14} className={result.enrichment.ab_titles?.success ? 'text-green-600' : 'text-gray-400'} />
+                                            <span className={result.enrichment.ab_titles?.success ? 'text-green-700' : 'text-gray-500'}>
+                                                {result.enrichment.ab_titles?.success
+                                                    ? `📝 A/B Titles: ${result.enrichment.ab_titles.variants_created} variants created`
+                                                    : `⚠️ A/B: ${result.enrichment.ab_titles?.error || 'Not available'}`
+                                                }
+                                            </span>
+                                        </div>
+                                        {/* Car Spec */}
+                                        {result.enrichment.car_spec && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <FileText size={14} className={result.enrichment.car_spec?.success ? 'text-green-600' : 'text-gray-400'} />
+                                                <span className={result.enrichment.car_spec?.success ? 'text-green-700' : 'text-gray-500'}>
+                                                    {result.enrichment.car_spec?.success
+                                                        ? `📋 CarSpec: ${result.enrichment.car_spec.make} ${result.enrichment.car_spec.model}`
+                                                        : `⚠️ CarSpec: ${result.enrichment.car_spec?.error || 'Not available'}`
+                                                    }
+                                                </span>
+                                            </div>
+                                        )}
+                                        {/* Tags */}
+                                        {result.tags_assigned && result.tags_assigned.length > 0 && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Tag size={14} className="text-green-600" />
+                                                <span className="text-green-700">
+                                                    🏷️ Tags: {result.tags_assigned.join(', ')}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Action buttons */}
                             <div className="flex gap-3">
                                 <button
                                     onClick={handleRegenerate}
-                                    disabled={loading}
-                                    className="flex-1 py-2.5 px-4 rounded-lg font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 text-sm"
+                                    disabled={loading || saving || publishing}
+                                    className="flex-1 py-2.5 px-4 rounded-lg font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
                                 >
                                     <RefreshCw size={16} />
                                     Regenerate
@@ -422,31 +566,65 @@ export default function TranslateEnhancePage() {
                                 {saved ? (
                                     <button
                                         onClick={() => router.push(`/admin/articles`)}
-                                        className="flex-1 py-2.5 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 transition-all flex items-center justify-center gap-2 text-sm shadow-md"
+                                        className="flex-[2] py-2.5 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 transition-all flex items-center justify-center gap-2 text-sm shadow-md"
                                     >
                                         <CheckCircle size={16} />
-                                        Saved! View Articles
+                                        {result.published ? '✅ Published! View Articles' : '✅ Saved! View Articles'}
                                     </button>
                                 ) : (
-                                    <button
-                                        onClick={handleSaveDraft}
-                                        disabled={saving}
-                                        className="flex-1 py-2.5 px-4 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 text-sm shadow-md"
-                                    >
-                                        {saving ? (
-                                            <>
-                                                <Loader2 size={16} className="animate-spin" />
-                                                Saving...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Save size={16} />
-                                                Save as Draft
-                                            </>
-                                        )}
-                                    </button>
+                                    <>
+                                        <button
+                                            onClick={() => handleSave(false)}
+                                            disabled={saving || publishing}
+                                            className="flex-1 py-2.5 px-4 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 text-sm shadow-md disabled:opacity-50"
+                                        >
+                                            {saving ? (
+                                                <>
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Save size={16} />
+                                                    Save Draft
+                                                </>
+                                            )}
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleSave(true)}
+                                            disabled={saving || publishing}
+                                            className="flex-1 py-2.5 px-4 rounded-lg font-medium text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition-all flex items-center justify-center gap-2 text-sm shadow-md disabled:opacity-50"
+                                        >
+                                            {publishing ? (
+                                                <>
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                    Publishing...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Send size={16} />
+                                                    Save & Publish
+                                                </>
+                                            )}
+                                        </button>
+                                    </>
                                 )}
                             </div>
+
+                            {/* What happens on save info */}
+                            {!saved && (
+                                <div className="bg-blue-50 rounded-lg border border-blue-200 p-3">
+                                    <p className="text-xs text-blue-700 font-medium mb-1">⚡ Auto-enrichment on save:</p>
+                                    <ul className="text-xs text-blue-600 space-y-0.5">
+                                        <li>• VehicleSpecs card (Gemini AI)</li>
+                                        <li>• A/B Title variants for testing</li>
+                                        <li>• Auto-tags from keywords & brand</li>
+                                        <li>• CarSpecification data</li>
+                                        {imageFile && <li>• Cover image upload</li>}
+                                    </ul>
+                                </div>
+                            )}
                         </>
                     )}
 
@@ -455,10 +633,20 @@ export default function TranslateEnhancePage() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
                             <Languages size={48} className="mx-auto text-gray-300 mb-4" />
                             <h3 className="text-lg font-semibold text-gray-500 mb-2">Preview will appear here</h3>
-                            <p className="text-gray-400 text-sm max-w-sm mx-auto">
+                            <p className="text-gray-400 text-sm max-w-sm mx-auto mb-4">
                                 Write your text in Russian on the left, configure options, and click
                                 &ldquo;Translate & Enhance&rdquo; to generate a professional English article.
                             </p>
+                            <div className="bg-gray-50 rounded-lg p-3 text-left max-w-sm mx-auto">
+                                <p className="text-xs font-semibold text-gray-600 mb-2">✨ What&apos;s included:</p>
+                                <ul className="text-xs text-gray-500 space-y-1">
+                                    <li>📝 Translation + SEO article</li>
+                                    <li>🚗 VehicleSpecs card (Gemini)</li>
+                                    <li>📊 A/B title testing variants</li>
+                                    <li>🏷️ Auto-tags & categories</li>
+                                    <li>📸 Cover image upload</li>
+                                </ul>
+                            </div>
                         </div>
                     )}
                 </div>

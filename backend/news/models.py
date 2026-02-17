@@ -1360,3 +1360,39 @@ class ArticleFeedback(models.Model):
     
     def __str__(self):
         return f"[{self.get_category_display()}] {self.article.title[:40]} — {self.message[:50]}"
+
+
+class ArticleTitleVariant(models.Model):
+    """A/B testing variants for article titles.
+    AI generates 2-3 title variants per article, and the system
+    tracks impressions/clicks to determine the best-performing title."""
+    
+    VARIANT_CHOICES = [
+        ('A', 'Variant A (Original)'),
+        ('B', 'Variant B'),
+        ('C', 'Variant C'),
+    ]
+    
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='title_variants')
+    variant = models.CharField(max_length=1, choices=VARIANT_CHOICES)
+    title = models.CharField(max_length=500)
+    impressions = models.PositiveIntegerField(default=0, help_text="Number of times shown")
+    clicks = models.PositiveIntegerField(default=0, help_text="Number of click-throughs")
+    is_winner = models.BooleanField(default=False, help_text="Winning variant (applied as main title)")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['variant']
+        unique_together = ['article', 'variant']
+        verbose_name = 'Title A/B Variant'
+        verbose_name_plural = 'Title A/B Variants'
+    
+    @property
+    def ctr(self):
+        """Click-through rate as percentage"""
+        if self.impressions == 0:
+            return 0.0
+        return round((self.clicks / self.impressions) * 100, 2)
+    
+    def __str__(self):
+        return f"[{self.variant}] {self.title[:60]} (CTR: {self.ctr}%)"

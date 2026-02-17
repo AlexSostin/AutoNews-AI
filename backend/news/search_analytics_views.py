@@ -305,3 +305,95 @@ class GSCAnalyticsAPIView(APIView):
             'previous_summary': previous_summary,
             'last_sync': last_report.updated_at.isoformat() if last_report else None
         })
+
+
+class AnalyticsAIStatsAPIView(APIView):
+    """
+    AI & Enrichment analytics
+    GET /api/v1/analytics/ai-stats/
+    Returns: enrichment coverage, top tags by views, source breakdown
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from news.models import (
+            VehicleSpecs, ArticleTitleVariant, CarSpecification,
+            PendingArticle
+        )
+
+        published = Article.objects.filter(is_published=True, is_deleted=False)
+        total = published.count()
+
+        # --- 1. Enrichment Coverage ---
+        with_vehicle_specs = VehicleSpecs.objects.filter(
+            article__in=published
+        ).values('article').distinct().count()
+
+        with_ab_titles = ArticleTitleVariant.objects.filter(
+            article__in=published
+        ).values('article').distinct().count()
+
+        with_tags = published.filter(tags__isnull=False).distinct().count()
+
+        with_car_specs = CarSpecification.objects.filter(
+            article__in=published
+        ).values('article').distinct().count()
+
+        with_images = published.exclude(
+            Q(image='') | Q(image__isnull=True)
+        ).count()
+
+        enrichment = {
+            'total_articles': total,
+            'vehicle_specs': with_vehicle_specs,
+            'ab_titles': with_ab_titles,
+            'tags': with_tags,
+            'car_specs': with_car_specs,
+            'images': with_images,
+        }
+
+        # --- 2. Top Tags by Views ---
+        top_tags = Tag.objects.filter(
+            article__is_published=True,
+            article__is_deleted=False
+        ).annotate(
+            article_count=Count('article', distinct=True),
+            total_views=Sum('article__views')
+        ).order_by('-total_views')[:15]
+
+        tags_data = [{
+            'name': tag.name,
+            'slug': tag.slug,
+            'article_count': tag.article_count,
+            'total_views': tag.total_views or 0,
+        } for tag in top_tags]
+
+        # --- 3. AI Source Breakdown ---
+        # YouTube articles (have youtube_url)
+        youtube_count = published.exclude(
+            Q(youtube_url='') | Q(youtube_url__isnull=True)
+        ).count()
+
+        # RSS articles (approved from PendingArticle with rss_feed)
+        rss_published_ids = PendingArticle.objects.filter(
+            status='published',
+            rss_feed__isnull=False,
+            published_article__isnull=False
+        ).values_list('published_article_id', flat=True)
+        rss_count = published.filter(id__in=rss_published_ids).count()
+
+        # Translated/manual (no youtube URL and not from RSS)
+        translated_count = total - youtube_count - rss_count
+
+        sources = {
+            'youtube': youtube_count,
+            'rss': rss_count,
+            'translated': max(translated_count, 0),
+        }
+
+        return Response({
+            'enrichment': enrichment,
+            'top_tags': tags_data,
+            'sources': sources,
+        })
+

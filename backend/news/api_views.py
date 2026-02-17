@@ -864,7 +864,6 @@ class ArticleViewSet(viewsets.ModelViewSet):
         tone = request.data.get('tone', 'professional')
         seo_keywords = request.data.get('seo_keywords', '')
         provider = request.data.get('provider', 'gemini')
-        save_as_draft = request.data.get('save_as_draft', False)
 
         if target_length not in ('short', 'medium', 'long'):
             target_length = 'medium'
@@ -890,8 +889,12 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        # Optionally save as draft
-        if save_as_draft and result.get('title') and result.get('content'):
+        # Optionally save (as draft or published)
+        save_as_draft = request.data.get('save_as_draft', False)
+        save_and_publish = request.data.get('save_and_publish', False)
+        should_save = (save_as_draft or save_and_publish) and result.get('title') and result.get('content')
+
+        if should_save:
             try:
                 from django.utils.text import slugify
                 slug = slugify(result.get('suggested_slug') or result['title'])[:80]
@@ -912,7 +915,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     seo_description=result.get('meta_description', '')[:160],
                     meta_keywords=', '.join(result.get('seo_keywords', [])),
                     generation_metadata=result.get('generation_metadata'),
-                    is_published=False,
+                    is_published=save_and_publish,
                 )
 
                 # Assign categories
@@ -929,15 +932,162 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     if cat:
                         article.categories.add(cat)
 
+                # --- Auto-assign tags from seo_keywords + smart matching ---
+                tags_assigned = []
+                try:
+                    all_tags = list(Tag.objects.select_related('group').all())
+                    title_lower = result['title'].lower()
+                    content_lower = result.get('content', '').lower()
+                    combined_text = f"{title_lower} {content_lower}"
+                    seo_kw_list = result.get('seo_keywords', [])
+                    keywords_text = ' '.join(kw.lower() for kw in seo_kw_list)
+
+                    # Tags too generic for content matching (only match via exact keyword)
+                    GENERIC_TAGS = {'technology', 'navigation', 'advanced', 'performance', 'budget', 'luxury'}
+
+                    for tag in all_tags:
+                        tag_lower = tag.name.lower()
+                        matched = False
+
+                        # Skip year tags (e.g. "2025") from fuzzy matching — too many false positives
+                        if tag_lower.isdigit():
+                            if any(kw.strip().lower() == tag_lower for kw in seo_kw_list):
+                                matched = True
+                        # 1. Exact keyword match
+                        elif any(kw.strip().lower() == tag_lower for kw in seo_kw_list):
+                            matched = True
+                        # 2. Keyword contains tag name (e.g. "electric vehicle" contains "Electric")
+                        elif len(tag_lower) >= 3 and tag_lower not in GENERIC_TAGS and tag_lower in keywords_text:
+                            matched = True
+                        # 3. Tag name appears in title (e.g. "BYD" in "2026 BYD Seal Review")
+                        elif len(tag_lower) >= 2 and (f' {tag_lower} ' in f' {title_lower} ' or title_lower.startswith(f'{tag_lower} ')):
+                            matched = True
+                        # 4. Brand/body/fuel tags — check content too (not generic ones)
+                        elif tag.group and tag.group.name in ('Manufacturers', 'Brands', 'Body Types', 'Fuel Types', 'Segments'):
+                            if tag_lower not in GENERIC_TAGS and f' {tag_lower} ' in f' {combined_text} ':
+                                matched = True
+                        # 5. Special fuel type matching
+                        elif tag_lower in ('ev', 'electric') and ('electric' in combined_text or ' ev ' in f' {combined_text} ' or 'bev' in combined_text):
+                            matched = True
+                        elif tag_lower == 'phev' and 'phev' in combined_text:
+                            matched = True
+                        elif tag_lower == 'hybrid' and 'hybrid' in combined_text:
+                            matched = True
+
+                        if matched and tag.name not in tags_assigned:
+                            article.tags.add(tag)
+                            tags_assigned.append(tag.name)
+
+                except Exception as tag_err:
+                    logger.warning(f'Auto-tag assignment failed: {tag_err}')
+
+                # --- Handle image upload ---
+                image_file = request.FILES.get('image')
+                if image_file:
+                    try:
+                        article.image = image_file
+                        article.save(update_fields=['image'])
+                    except Exception as img_err:
+                        logger.warning(f'Image upload failed: {img_err}')
+
+                # --- Auto-create CarSpecification ---
+                enrichment_results = {}
+                specs_dict = None
+                try:
+                    # Try to extract make/model/year from title
+                    import re as regex
+                    title = result['title']
+                    year_match = regex.match(
+                        r'(\d{4})\s+(.+?)(?:\s+(?:Review|First|Walk|Test|Preview|Deep|Comparison|Gets|Launches|Unveiled|Revealed|Announced))',
+                        title, regex.IGNORECASE
+                    )
+                    if year_match:
+                        remaining = year_match.group(2).strip()
+                        parts = remaining.split(' ', 1)
+                        if len(parts) >= 2:
+                            specs_dict = {
+                                'make': parts[0],
+                                'model': parts[1],
+                                'year': int(year_match.group(1)),
+                            }
+                            # Create CarSpecification
+                            from news.models import CarSpecification
+                            CarSpecification.objects.update_or_create(
+                                article=article,
+                                defaults={
+                                    'make': specs_dict['make'],
+                                    'model': specs_dict['model'],
+                                    'year': specs_dict.get('year'),
+                                }
+                            )
+                            enrichment_results['car_spec'] = {
+                                'success': True,
+                                'make': specs_dict['make'],
+                                'model': specs_dict['model'],
+                            }
+                except Exception as spec_err:
+                    logger.warning(f'Auto CarSpecification failed: {spec_err}')
+                    enrichment_results['car_spec'] = {'success': False, 'error': str(spec_err)}
+
+                # --- Run Deep Specs Enrichment (Gemini) ---
+                try:
+                    from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+                    web_context = ''
+                    if specs_dict:
+                        try:
+                            from ai_engine.modules.searcher import get_web_context
+                            web_context = get_web_context(specs_dict)
+                        except Exception:
+                            pass
+                    
+                    vehicle_specs = generate_deep_vehicle_specs(
+                        article,
+                        specs=specs_dict,
+                        web_context=web_context,
+                        provider='gemini'
+                    )
+                    if vehicle_specs:
+                        enrichment_results['deep_specs'] = {
+                            'success': True,
+                            'make': vehicle_specs.make,
+                            'model': vehicle_specs.model_name,
+                            'fields_filled': sum(1 for f in vehicle_specs._meta.fields if getattr(vehicle_specs, f.name) is not None),
+                        }
+                    else:
+                        enrichment_results['deep_specs'] = {'success': False, 'error': 'No specs generated'}
+                except Exception as ds_err:
+                    logger.warning(f'Deep specs enrichment failed: {ds_err}')
+                    enrichment_results['deep_specs'] = {'success': False, 'error': str(ds_err)}
+
+                # --- Run A/B Title Variants (Gemini) ---
+                try:
+                    from ai_engine.main import generate_title_variants
+                    generate_title_variants(article, provider='gemini')
+                    from news.models import ArticleTitleVariant
+                    ab_count = ArticleTitleVariant.objects.filter(article=article).count()
+                    enrichment_results['ab_titles'] = {
+                        'success': True,
+                        'variants_created': ab_count,
+                    }
+                except Exception as ab_err:
+                    logger.warning(f'A/B title generation failed: {ab_err}')
+                    enrichment_results['ab_titles'] = {'success': False, 'error': str(ab_err)}
+
                 from django.core.cache import cache
                 invalidate_article_cache(article_id=article.id, slug=article.slug)
 
                 result['article_id'] = article.id
                 result['article_slug'] = article.slug
                 result['saved'] = True
-                print(f'💾 Draft saved: {article.title} (ID: {article.id})')
+                result['published'] = save_and_publish
+                result['tags_assigned'] = tags_assigned
+                result['enrichment'] = enrichment_results
+                action = 'Published' if save_and_publish else 'Draft saved'
+                print(f'💾 {action}: {article.title} (ID: {article.id})')
+                if tags_assigned:
+                    print(f'🏷️ Tags: {", ".join(tags_assigned)}')
             except Exception as save_error:
-                logger.error(f'Failed to save draft: {save_error}')
+                logger.error(f'Failed to save: {save_error}')
                 result['saved'] = False
                 result['save_error'] = str(save_error)
 
@@ -1151,6 +1301,147 @@ class ArticleViewSet(viewsets.ModelViewSet):
         if x_forwarded_for:
             return x_forwarded_for.split(',')[0].strip()
         return request.META.get('REMOTE_ADDR')
+    
+    @action(detail=True, methods=['get'], url_path='ab-title',
+            permission_classes=[AllowAny])
+    def ab_title(self, request, slug=None):
+        """Get the A/B test title variant for this visitor.
+        Returns assigned variant based on cookie, or assigns a random one."""
+        import random
+        from news.models import ArticleTitleVariant
+        
+        article = self.get_object()
+        variants = list(ArticleTitleVariant.objects.filter(article=article))
+        
+        if not variants:
+            return Response({
+                'title': article.title,
+                'variant': None,
+                'ab_active': False
+            })
+        
+        # Googlebot always sees variant A (original)
+        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+        is_bot = any(bot in user_agent for bot in ['googlebot', 'bingbot', 'yandex', 'spider', 'crawler'])
+        
+        cookie_key = f'ab_{article.id}'
+        assigned_variant = request.COOKIES.get(cookie_key)
+        
+        if is_bot:
+            assigned_variant = 'A'
+        
+        if assigned_variant and assigned_variant in [v.variant for v in variants]:
+            chosen = next(v for v in variants if v.variant == assigned_variant)
+        else:
+            chosen = random.choice(variants)
+            assigned_variant = chosen.variant
+        
+        # Increment impressions (use F() to avoid race conditions)
+        if not is_bot:
+            from django.db.models import F
+            ArticleTitleVariant.objects.filter(id=chosen.id).update(
+                impressions=F('impressions') + 1
+            )
+        
+        response = Response({
+            'title': chosen.title,
+            'variant': chosen.variant,
+            'ab_active': True
+        })
+        
+        # Set cookie for 30 days so visitor always sees same variant
+        if not is_bot:
+            response.set_cookie(
+                cookie_key,
+                assigned_variant,
+                max_age=30 * 24 * 60 * 60,
+                httponly=False,
+                samesite='Lax'
+            )
+        
+        return response
+    
+    @action(detail=True, methods=['post'], url_path='ab-click',
+            permission_classes=[AllowAny])
+    def ab_click(self, request, slug=None):
+        """Record a click (conversion) for an A/B test variant."""
+        from news.models import ArticleTitleVariant
+        from django.db.models import F
+        
+        article = self.get_object()
+        variant_letter = request.data.get('variant') or request.COOKIES.get(f'ab_{article.id}')
+        
+        if not variant_letter:
+            return Response({'success': False, 'error': 'No variant specified'}, status=400)
+        
+        updated = ArticleTitleVariant.objects.filter(
+            article=article, variant=variant_letter
+        ).update(clicks=F('clicks') + 1)
+        
+        return Response({'success': updated > 0})
+    
+    @action(detail=True, methods=['get'], url_path='ab-stats',
+            permission_classes=[IsAdminUser])
+    def ab_stats(self, request, slug=None):
+        """Get A/B test statistics for an article (admin only)."""
+        from news.models import ArticleTitleVariant
+        
+        article = self.get_object()
+        variants = ArticleTitleVariant.objects.filter(article=article)
+        
+        data = []
+        for v in variants:
+            data.append({
+                'id': v.id,
+                'variant': v.variant,
+                'title': v.title,
+                'impressions': v.impressions,
+                'clicks': v.clicks,
+                'ctr': v.ctr,
+                'is_winner': v.is_winner,
+            })
+        
+        return Response({
+            'article_id': article.id,
+            'article_slug': article.slug,
+            'original_title': article.title,
+            'variants': data,
+            'total_impressions': sum(v.impressions for v in variants),
+            'total_clicks': sum(v.clicks for v in variants),
+        })
+    
+    @action(detail=True, methods=['post'], url_path='ab-pick-winner',
+            permission_classes=[IsAdminUser])
+    def ab_pick_winner(self, request, slug=None):
+        """Pick the winning A/B variant and apply it as the article title."""
+        from news.models import ArticleTitleVariant
+        
+        article = self.get_object()
+        variant_letter = request.data.get('variant')
+        
+        if not variant_letter:
+            return Response({'error': 'Specify variant (A, B, or C)'}, status=400)
+        
+        try:
+            winner = ArticleTitleVariant.objects.get(article=article, variant=variant_letter)
+        except ArticleTitleVariant.DoesNotExist:
+            return Response({'error': f'Variant {variant_letter} not found'}, status=404)
+        
+        # Mark winner and unmark others
+        ArticleTitleVariant.objects.filter(article=article).update(is_winner=False)
+        winner.is_winner = True
+        winner.save(update_fields=['is_winner'])
+        
+        # Apply winning title to article
+        article.title = winner.title
+        article.save(update_fields=['title'])
+        
+        return Response({
+            'success': True,
+            'new_title': winner.title,
+            'variant': winner.variant,
+            'ctr': winner.ctr
+        })
 
     @action(detail=False, methods=['get'])
     @method_decorator(cache_page(60 * 15))  # Cache trending for 15 minutes
@@ -1318,6 +1609,290 @@ Return ONLY the reformatted HTML."""
                 'success': False,
                 'message': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+            url_path='re-enrich')
+    def re_enrich(self, request, slug=None):
+        """
+        Re-enrich article metadata using AI (Deep Specs + A/B Titles + Web Search).
+        Does NOT modify article content — safe to run on any published article.
+        POST /api/v1/articles/{slug}/re-enrich/
+        """
+        article = self.get_object()
+        results = {
+            'deep_specs': None,
+            'ab_titles': None,
+            'web_search': None,
+        }
+        errors = []
+
+        # --- Step 1: Web Search Enrichment (updates CarSpecification) ---
+        try:
+            from news.models import CarSpecification
+            car_spec = CarSpecification.objects.filter(article=article).first()
+            specs_dict = None
+            web_context = ''
+
+            if car_spec and car_spec.make:
+                specs_dict = {
+                    'make': car_spec.make or '',
+                    'model': car_spec.model or '',
+                    'trim': car_spec.trim or '',
+                    'year': car_spec.year,
+                    'horsepower': car_spec.horsepower,
+                    'torque': car_spec.torque or '',
+                    'acceleration': car_spec.zero_to_sixty or '',
+                    'top_speed': car_spec.top_speed or '',
+                    'drivetrain': car_spec.drivetrain or '',
+                    'price': car_spec.price or '',
+                }
+            else:
+                # Try to extract make/model from article title
+                import re
+                title = article.title
+                year_match = re.match(r'(\d{4})\s+(.+?)(?:\s+(?:Review|First|Walk|Test|Preview|Deep|Comparison))', title, re.IGNORECASE)
+                if year_match:
+                    remaining = year_match.group(2).strip()
+                    parts = remaining.split(' ', 1)
+                    if len(parts) >= 2:
+                        specs_dict = {
+                            'make': parts[0],
+                            'model': parts[1],
+                            'year': int(year_match.group(1)),
+                        }
+
+            if specs_dict and specs_dict.get('make'):
+                try:
+                    from ai_engine.modules.searcher import get_web_context
+                    web_context = get_web_context(specs_dict)
+                    results['web_search'] = {
+                        'success': True,
+                        'context_length': len(web_context),
+                    }
+                except Exception as ws_err:
+                    errors.append(f'Web search: {ws_err}')
+                    results['web_search'] = {'success': False, 'error': str(ws_err)}
+            else:
+                results['web_search'] = {'success': False, 'error': 'No make/model found'}
+
+        except Exception as e:
+            errors.append(f'Web search setup: {e}')
+            results['web_search'] = {'success': False, 'error': str(e)}
+
+        # --- Step 2: Deep Specs Enrichment (creates/updates VehicleSpecs) ---
+        try:
+            from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+            vehicle_specs = generate_deep_vehicle_specs(
+                article,
+                specs=specs_dict,
+                web_context=web_context,
+                provider='gemini'
+            )
+            if vehicle_specs:
+                results['deep_specs'] = {
+                    'success': True,
+                    'make': vehicle_specs.make,
+                    'model': vehicle_specs.model_name,
+                    'trim': vehicle_specs.trim_name or 'Standard',
+                    'fields_filled': sum(1 for f in vehicle_specs._meta.fields if getattr(vehicle_specs, f.name) is not None),
+                }
+            else:
+                results['deep_specs'] = {'success': False, 'error': 'No specs generated'}
+        except Exception as ds_err:
+            errors.append(f'Deep specs: {ds_err}')
+            results['deep_specs'] = {'success': False, 'error': str(ds_err)}
+
+        # --- Step 3: A/B Title Variants ---
+        try:
+            from ai_engine.main import generate_title_variants
+            from news.models import ArticleTitleVariant
+            existing_count = ArticleTitleVariant.objects.filter(article=article).count()
+
+            if existing_count == 0:
+                generate_title_variants(article, provider='gemini')
+                new_count = ArticleTitleVariant.objects.filter(article=article).count()
+                results['ab_titles'] = {
+                    'success': True,
+                    'variants_created': new_count,
+                }
+            else:
+                results['ab_titles'] = {
+                    'success': True,
+                    'skipped': True,
+                    'existing_variants': existing_count,
+                    'message': 'A/B variants already exist',
+                }
+        except Exception as ab_err:
+            errors.append(f'A/B titles: {ab_err}')
+            results['ab_titles'] = {'success': False, 'error': str(ab_err)}
+
+        # --- Step 4: Smart Auto-Tags (with auto-creation) ---
+        try:
+            from news.auto_tags import auto_tag_article
+            tag_result = auto_tag_article(article, use_ai=True)
+            results['smart_tags'] = {
+                'success': True,
+                'new_tags_created': tag_result['created'],
+                'existing_tags_matched': tag_result['matched'],
+                'total_added': tag_result['total'],
+                'ai_used': tag_result['ai_used'],
+            }
+        except Exception as tag_err:
+            errors.append(f'Smart tags: {tag_err}')
+            results['smart_tags'] = {'success': False, 'error': str(tag_err)}
+
+        # --- Summary ---
+        success_count = sum(1 for r in results.values() if r and r.get('success'))
+        total = len(results)
+
+        return Response({
+            'success': success_count > 0,
+            'message': f'{success_count}/{total} enrichment steps completed',
+            'results': results,
+            'errors': errors if errors else None,
+        })
+
+    @action(detail=False, methods=['post'], url_path='bulk-re-enrich')
+    def bulk_re_enrich(self, request):
+        """
+        Bulk re-enrich multiple articles.
+        POST /api/v1/articles/bulk-re-enrich/
+        Body: { "mode": "missing"|"selected"|"all", "article_ids": [...] }
+        """
+        import time as _time
+        from news.models import VehicleSpecs, ArticleTitleVariant, CarSpecification
+
+        mode = request.data.get('mode', 'missing')
+        article_ids = request.data.get('article_ids', [])
+
+        published = Article.objects.filter(is_published=True, is_deleted=False)
+
+        if mode == 'selected' and article_ids:
+            articles = published.filter(id__in=article_ids)
+        elif mode == 'missing':
+            # Articles missing VehicleSpecs OR A/B titles
+            articles_with_specs = VehicleSpecs.objects.values_list('article_id', flat=True)
+            articles_with_ab = ArticleTitleVariant.objects.values_list('article_id', flat=True)
+            articles = published.exclude(
+                id__in=set(articles_with_specs) & set(articles_with_ab)
+            )
+        else:  # all
+            articles = published
+
+        total_articles = articles.count()
+        if total_articles == 0:
+            return Response({
+                'success': True,
+                'message': 'All articles are fully enriched!',
+                'processed': 0,
+                'results': [],
+            })
+
+        results_list = []
+        success_total = 0
+        errors_total = 0
+        start_time = _time.time()
+
+        for article in articles.order_by('id'):
+            article_result = {
+                'id': article.id,
+                'title': article.title[:80],
+                'steps': {},
+                'errors': [],
+            }
+
+            # --- Step 1: Web Search ---
+            specs_dict = None
+            web_context = ''
+            try:
+                car_spec = CarSpecification.objects.filter(article=article).first()
+                if car_spec and car_spec.make:
+                    specs_dict = {
+                        'make': car_spec.make or '',
+                        'model': car_spec.model or '',
+                        'trim': car_spec.trim or '',
+                        'year': car_spec.year,
+                    }
+                else:
+                    import re
+                    year_match = re.match(
+                        r'(\d{4})\s+(.+?)(?:\s+(?:Review|First|Walk|Test|Preview|Deep|Comparison))',
+                        article.title, re.IGNORECASE
+                    )
+                    if year_match:
+                        remaining = year_match.group(2).strip()
+                        parts = remaining.split(' ', 1)
+                        if len(parts) >= 2:
+                            specs_dict = {'make': parts[0], 'model': parts[1], 'year': int(year_match.group(1))}
+
+                if specs_dict and specs_dict.get('make'):
+                    try:
+                        from ai_engine.modules.searcher import get_web_context
+                        web_context = get_web_context(specs_dict)
+                        article_result['steps']['web_search'] = True
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            # --- Step 2: Deep Specs ---
+            has_specs = VehicleSpecs.objects.filter(article=article).exists()
+            if not has_specs and specs_dict and specs_dict.get('make'):
+                try:
+                    from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+                    vehicle_specs = generate_deep_vehicle_specs(
+                        article, specs=specs_dict, web_context=web_context, provider='gemini'
+                    )
+                    article_result['steps']['deep_specs'] = bool(vehicle_specs)
+                except Exception as e:
+                    article_result['errors'].append(f'Deep specs: {e}')
+            elif has_specs:
+                article_result['steps']['deep_specs'] = 'skipped'
+
+            # --- Step 3: A/B Titles ---
+            has_ab = ArticleTitleVariant.objects.filter(article=article).exists()
+            if not has_ab:
+                try:
+                    from ai_engine.main import generate_title_variants
+                    generate_title_variants(article, provider='gemini')
+                    article_result['steps']['ab_titles'] = True
+                except Exception as e:
+                    article_result['errors'].append(f'A/B titles: {e}')
+            else:
+                article_result['steps']['ab_titles'] = 'skipped'
+
+            # --- Step 4: Smart Auto-Tags (with auto-creation) ---
+            try:
+                from news.auto_tags import auto_tag_article
+                tag_result = auto_tag_article(article, use_ai=True)
+                created_count = len(tag_result['created'])
+                matched_count = len(tag_result['matched'])
+                article_result['steps']['smart_tags'] = created_count + matched_count
+                if tag_result['created']:
+                    article_result['steps']['tags_created'] = tag_result['created']
+                if tag_result['ai_used']:
+                    article_result['steps']['ai_used'] = True
+            except Exception as e:
+                article_result['errors'].append(f'Smart tags: {e}')
+
+            if article_result['errors']:
+                errors_total += 1
+            else:
+                success_total += 1
+
+            results_list.append(article_result)
+
+        elapsed = round(_time.time() - start_time, 1)
+
+        return Response({
+            'success': True,
+            'message': f'Bulk enrichment completed: {success_total}/{total_articles} articles processed in {elapsed}s',
+            'processed': total_articles,
+            'success_count': success_total,
+            'error_count': errors_total,
+            'elapsed_seconds': elapsed,
+            'results': results_list,
+        })
     
     @action(detail=True, methods=['get'])
     def similar_articles(self, request, slug=None):
@@ -3016,6 +3591,50 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 except Exception as e:
                     print(f"  Error restoring tags: {e}")
 
+            # --- Smart tag matching (same logic as translate-enhance) ---
+            try:
+                all_tags = list(Tag.objects.select_related('group').all())
+                title_lower = article.title.lower()
+                content_lower = (article.content or '').lower()
+                combined_text = f"{title_lower} {content_lower}"
+                seo_kw_list = [kw.strip() for kw in (article.meta_keywords or '').split(',') if kw.strip()]
+                keywords_text = ' '.join(kw.lower() for kw in seo_kw_list)
+
+                GENERIC_TAGS = {'technology', 'navigation', 'advanced', 'performance', 'budget', 'luxury'}
+                existing_tag_names = list(article.tags.values_list('name', flat=True))
+
+                for tag in all_tags:
+                    tag_lower = tag.name.lower()
+                    matched = False
+
+                    if tag_lower.isdigit():
+                        if any(kw.lower() == tag_lower for kw in seo_kw_list):
+                            matched = True
+                    elif any(kw.lower() == tag_lower for kw in seo_kw_list):
+                        matched = True
+                    elif len(tag_lower) >= 3 and tag_lower not in GENERIC_TAGS and tag_lower in keywords_text:
+                        matched = True
+                    elif len(tag_lower) >= 2 and (f' {tag_lower} ' in f' {title_lower} ' or title_lower.startswith(f'{tag_lower} ')):
+                        matched = True
+                    elif tag.group and tag.group.name in ('Manufacturers', 'Brands', 'Body Types', 'Fuel Types', 'Segments'):
+                        if tag_lower not in GENERIC_TAGS and f' {tag_lower} ' in f' {combined_text} ':
+                            matched = True
+                    elif tag_lower in ('ev', 'electric') and ('electric' in combined_text or ' ev ' in f' {combined_text} ' or 'bev' in combined_text):
+                        matched = True
+                    elif tag_lower == 'phev' and 'phev' in combined_text:
+                        matched = True
+                    elif tag_lower == 'hybrid' and 'hybrid' in combined_text:
+                        matched = True
+
+                    if matched and tag.name not in existing_tag_names:
+                        article.tags.add(tag)
+                        existing_tag_names.append(tag.name)
+
+                smart_tags = list(article.tags.values_list('name', flat=True))
+                print(f"  🏷️ Smart tags: {', '.join(smart_tags)}")
+            except Exception as tag_err:
+                logger.warning(f"Smart tag matching failed: {tag_err}")
+
             # Restore Specs from PendingArticle
             if pending.specs and isinstance(pending.specs, dict):
                 try:
@@ -3043,6 +3662,48 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             pending.reviewed_by = request.user
             pending.reviewed_at = timezone.now()
             pending.save()
+            
+            # Generate A/B title variants
+            try:
+                from ai_engine.main import generate_title_variants
+                generate_title_variants(article, provider='gemini')
+            except Exception as ab_err:
+                logger.warning(f"A/B title variant generation failed: {ab_err}")
+            
+            # Deep specs enrichment — auto-fill VehicleSpecs card
+            try:
+                from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+                # Build specs dict from CarSpecification if available
+                specs_dict = None
+                web_context = ''
+                try:
+                    car_spec = CarSpecification.objects.filter(article=article).first()
+                    if car_spec:
+                        specs_dict = {
+                            'make': car_spec.make or '',
+                            'model': car_spec.model or '',
+                            'trim': car_spec.trim or '',
+                            'year': car_spec.year,
+                            'horsepower': car_spec.horsepower,
+                            'torque': car_spec.torque or '',
+                            'acceleration': car_spec.zero_to_sixty or '',
+                            'top_speed': car_spec.top_speed or '',
+                            'drivetrain': car_spec.drivetrain or '',
+                            'price': car_spec.price or '',
+                        }
+                except Exception:
+                    pass
+                
+                # Web search for better spec accuracy
+                if specs_dict and specs_dict.get('make'):
+                    try:
+                        from ai_engine.modules.searcher import get_web_context
+                        web_context = get_web_context(specs_dict)
+                    except Exception:
+                        pass
+                    generate_deep_vehicle_specs(article, specs=specs_dict, web_context=web_context, provider='gemini')
+            except Exception as ds_err:
+                logger.warning(f"Deep specs enrichment failed: {ds_err}")
             
             # Clear cache so the new article appears on homepage immediately
             # The ArticleViewSet list uses @cache_page(300) for anonymous users

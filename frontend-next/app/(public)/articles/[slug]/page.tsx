@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import ArticleCard from '@/components/public/ArticleCard';
 import AdBanner from '@/components/public/AdBanner';
+import ABTitle from '@/components/public/ABTitle';
 import ShareButtons from '@/components/public/ShareButtons';
 import RatingStars from '@/components/public/RatingStars';
 import ArticleContentWithImages from '@/components/public/ArticleContentWithImages';
@@ -19,6 +20,7 @@ import PriceConverter from '@/components/public/PriceConverter';
 import JsonLd from '@/components/public/JsonLd';
 import RelatedCarousel from '@/components/public/RelatedCarousel';
 import FeedbackButton from '@/components/public/FeedbackButton';
+import SpecsCardLink from '@/components/public/SpecsCardLink';
 import { Article } from '@/types';
 import {
   Calendar,
@@ -365,7 +367,7 @@ export default async function ArticleDetailPage({
               )}
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 flex-1">
-                  {article.title}
+                  <ABTitle articleSlug={article.slug} originalTitle={article.title} />
                 </h1>
                 <FavoriteButton
                   articleId={article.id}
@@ -400,6 +402,14 @@ export default async function ArticleDetailPage({
                   images={articleImages}
                 />
               </div>
+
+              {/* Link to Vehicle Specs Card — only shows if /cars/ page exists */}
+              {article.tags && article.tags.length > 0 && (
+                <SpecsCardLink
+                  articleTitle={article.title}
+                  tagNames={(article.tags as any[]).map((t: any) => typeof t === 'string' ? t : t.name)}
+                />
+              )}
 
               {/* Mid Article Ad (Conditional - hidden for now) */}
               <AdBanner format="rectangle" />

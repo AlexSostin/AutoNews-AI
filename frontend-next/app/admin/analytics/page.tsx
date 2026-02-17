@@ -11,7 +11,14 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
-  Mail
+  Mail,
+  Tag,
+  Cpu,
+  Sparkles,
+  CheckCircle2,
+  Youtube,
+  Rss,
+  Languages
 } from 'lucide-react';
 import api from '@/lib/api';
 import {
@@ -27,7 +34,7 @@ import {
   Legend,
   Filler,
 } from 'chart.js';
-import { Line, Pie } from 'react-chartjs-2';
+import { Line, Pie, Bar, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
@@ -50,6 +57,7 @@ interface Article {
   views: number;
   created_at: string;
   category?: { name: string };
+  name: string;
 }
 
 interface Stats {
@@ -95,11 +103,34 @@ interface GSCStats {
   last_sync: string | null;
 }
 
+interface AIStats {
+  enrichment: {
+    total_articles: number;
+    vehicle_specs: number;
+    ab_titles: number;
+    tags: number;
+    car_specs: number;
+    images: number;
+  };
+  top_tags: {
+    name: string;
+    slug: string;
+    article_count: number;
+    total_views: number;
+  }[];
+  sources: {
+    youtube: number;
+    rss: number;
+    translated: number;
+  };
+}
+
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [timeline, setTimeline] = useState<TimelineData | null>(null);
   const [categories, setCategories] = useState<CategoriesData | null>(null);
   const [gscStats, setGscStats] = useState<GSCStats | null>(null);
+  const [aiStats, setAiStats] = useState<AIStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -108,19 +139,20 @@ export default function AnalyticsPage() {
 
   const fetchStats = async () => {
     try {
-      // Use api client which handles token refresh automatically
       const [
         overviewRes,
         topArticlesRes,
         timelineRes,
         categoriesRes,
-        gscRes
+        gscRes,
+        aiRes
       ] = await Promise.all([
         api.get('/analytics/overview/'),
         api.get('/analytics/articles/top/?limit=10'),
         api.get('/analytics/views/timeline/?days=30'),
         api.get('/analytics/categories/'),
-        api.get('/analytics/gsc/?days=30').catch(() => ({ data: null }))
+        api.get('/analytics/gsc/?days=30').catch(() => ({ data: null })),
+        api.get('/analytics/ai-stats/').catch(() => ({ data: null }))
       ]);
 
       setStats({
@@ -138,6 +170,7 @@ export default function AnalyticsPage() {
       setTimeline(timelineRes.data);
       setCategories(categoriesRes.data);
       setGscStats(gscRes.data);
+      setAiStats(aiRes.data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -229,12 +262,26 @@ export default function AnalyticsPage() {
     }
   ] : [];
 
+  // Enrichment progress bar helper
+  const getEnrichmentPercent = (count: number) => {
+    if (!aiStats?.enrichment.total_articles) return 0;
+    return Math.round((count / aiStats.enrichment.total_articles) * 100);
+  };
+
+  const enrichmentItems = aiStats ? [
+    { label: 'Deep Specs (VehicleSpecs)', count: aiStats.enrichment.vehicle_specs, icon: Sparkles, color: 'bg-violet-500' },
+    { label: 'A/B Title Variants', count: aiStats.enrichment.ab_titles, icon: FileText, color: 'bg-blue-500' },
+    { label: 'Tags Assigned', count: aiStats.enrichment.tags, icon: Tag, color: 'bg-emerald-500' },
+    { label: 'Car Specifications', count: aiStats.enrichment.car_specs, icon: Cpu, color: 'bg-orange-500' },
+    { label: 'Featured Images', count: aiStats.enrichment.images, icon: Eye, color: 'bg-pink-500' },
+  ] : [];
+
   return (
     <div className="space-y-8 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-950">📊 Analytics Dashboard</h1>
-          <p className="text-gray-500 text-sm">Real-time stats and Google Search performance</p>
+          <p className="text-gray-500 text-sm">Real-time stats, AI insights, and Google Search performance</p>
         </div>
         {gscStats && (
           <div className="bg-green-50 px-4 py-2 rounded-lg border border-green-100 hidden sm:block">
@@ -272,6 +319,177 @@ export default function AnalyticsPage() {
           );
         })}
       </div>
+
+      {/* AI & Enrichment Section */}
+      {aiStats && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-gray-900 border-l-4 border-violet-600 pl-4 mt-12">🤖 AI & Enrichment Stats</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Enrichment Coverage */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <CheckCircle2 className="text-violet-600" size={20} />
+                Enrichment Coverage
+              </h3>
+              <p className="text-xs text-gray-400 mb-6">
+                Out of {aiStats.enrichment.total_articles} published articles
+              </p>
+              <div className="space-y-4">
+                {enrichmentItems.map((item) => {
+                  const Icon = item.icon;
+                  const percent = getEnrichmentPercent(item.count);
+                  return (
+                    <div key={item.label}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <Icon size={16} className="text-gray-500" />
+                          <span className="text-sm font-semibold text-gray-700">{item.label}</span>
+                        </div>
+                        <span className="text-sm font-black text-gray-900">
+                          {item.count} <span className="text-gray-400 font-medium">({percent}%)</span>
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2.5">
+                        <div
+                          className={`${item.color} h-2.5 rounded-full transition-all duration-500`}
+                          style={{ width: `${Math.max(percent, 2)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* AI Source Breakdown */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Cpu className="text-violet-600" size={20} />
+                Article Sources
+              </h3>
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-full max-w-[250px]">
+                  <Doughnut
+                    data={{
+                      labels: ['YouTube', 'RSS Feeds', 'Translated/Manual'],
+                      datasets: [{
+                        data: [
+                          aiStats.sources.youtube,
+                          aiStats.sources.rss,
+                          aiStats.sources.translated,
+                        ],
+                        backgroundColor: [
+                          'rgba(239, 68, 68, 0.85)',
+                          'rgba(249, 115, 22, 0.85)',
+                          'rgba(139, 92, 246, 0.85)',
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff',
+                      }],
+                    }}
+                    options={{
+                      responsive: true,
+                      cutout: '60%',
+                      plugins: {
+                        legend: { display: false },
+                      },
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3 w-full">
+                  {[
+                    { label: 'YouTube', count: aiStats.sources.youtube, icon: Youtube, color: 'text-red-500', bg: 'bg-red-50' },
+                    { label: 'RSS', count: aiStats.sources.rss, icon: Rss, color: 'text-orange-500', bg: 'bg-orange-50' },
+                    { label: 'Translated', count: aiStats.sources.translated, icon: Languages, color: 'text-violet-500', bg: 'bg-violet-50' },
+                  ].map((src) => {
+                    const SrcIcon = src.icon;
+                    return (
+                      <div key={src.label} className={`${src.bg} rounded-lg p-3 text-center`}>
+                        <SrcIcon size={18} className={`${src.color} mx-auto mb-1`} />
+                        <p className="text-xl font-black text-gray-900">{src.count}</p>
+                        <p className="text-xs font-semibold text-gray-500">{src.label}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Tags */}
+          {aiStats.top_tags.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Tag className="text-emerald-600" size={20} />
+                🏷️ Top Tags by Views
+              </h3>
+              <div className="h-[300px]">
+                <Bar
+                  data={{
+                    labels: aiStats.top_tags.map(t => t.name),
+                    datasets: [
+                      {
+                        label: 'Total Views',
+                        data: aiStats.top_tags.map(t => t.total_views),
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                      },
+                      {
+                        label: 'Articles',
+                        data: aiStats.top_tags.map(t => t.article_count),
+                        backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                        borderColor: 'rgba(139, 92, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y1',
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                      mode: 'index' as const,
+                      intersect: false,
+                    },
+                    plugins: {
+                      legend: { position: 'top' as const },
+                    },
+                    scales: {
+                      y: {
+                        type: 'linear' as const,
+                        display: true,
+                        position: 'left' as const,
+                        title: { display: true, text: 'Views' },
+                        beginAtZero: true,
+                      },
+                      y1: {
+                        type: 'linear' as const,
+                        display: true,
+                        position: 'right' as const,
+                        title: { display: true, text: 'Articles' },
+                        grid: { drawOnChartArea: false },
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                      },
+                      x: {
+                        ticks: {
+                          maxRotation: 45,
+                          minRotation: 45,
+                          font: { size: 11 },
+                        },
+                      },
+                    },
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* GSC Section */}
       {gscStats && (

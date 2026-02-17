@@ -649,6 +649,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             'meta_keywords': seo_keywords,
             'image_paths': screenshot_paths,
             'analysis': analysis,
+            'web_context': web_context,
             'video_title': video_title,
             'author_name': author_name,
             'author_channel_url': author_channel_url,
@@ -663,6 +664,87 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             'success': False,
             'error': str(e)
         }
+
+def generate_title_variants(article, provider='gemini'):
+    """Generate A/B title variants for an article using AI.
+    Creates 3 variants: A (original), B and C (AI-generated alternatives).
+    Returns the created variants or empty list on failure."""
+    try:
+        from news.models import ArticleTitleVariant
+        
+        # Skip if variants already exist
+        if ArticleTitleVariant.objects.filter(article=article).exists():
+            print(f"📊 A/B variants already exist for article #{article.id}")
+            return []
+        
+        # Generate alternatives using AI
+        from modules.ai_provider import get_ai_provider
+        ai = get_ai_provider(provider)
+        
+        prompt = f"""You are an SEO expert and headline writer for an automotive news website.
+
+Given this article title: "{article.title}"
+
+Generate exactly 2 alternative headline variants that:
+- Are roughly the same length (±20%)
+- Highlight different angles or benefits (performance, price, tech, etc.)
+- Are engaging, click-worthy, but NOT clickbait
+- Maintain factual accuracy
+- Include the car make/model name
+
+Reply with ONLY the two alternative titles, one per line. No numbering, no explanations, no quotes."""
+
+        result = ai.generate_completion(prompt, temperature=0.9, max_tokens=200)
+        
+        lines = [l.strip().strip('"').strip("'") for l in result.strip().split('\n') if l.strip()]
+        # Filter out lines that look like numbering or explanations
+        lines = [l for l in lines if len(l) > 10 and not l.startswith(('1.', '2.', '-', '*', '#'))]
+        # Remove leading numbers like "1) " or "2) "
+        import re
+        lines = [re.sub(r'^\d+[\)\.]\s*', '', l) for l in lines]
+        
+        alt_titles = lines[:2]  # Max 2 alternatives
+        
+        if not alt_titles:
+            print(f"⚠️ AI returned no valid title alternatives")
+            return []
+        
+        # Create variant A (original)
+        variants = []
+        variants.append(ArticleTitleVariant.objects.create(
+            article=article,
+            variant='A',
+            title=article.title
+        ))
+        
+        # Create variant B
+        if len(alt_titles) >= 1:
+            variants.append(ArticleTitleVariant.objects.create(
+                article=article,
+                variant='B',
+                title=alt_titles[0][:500]
+            ))
+        
+        # Create variant C
+        if len(alt_titles) >= 2:
+            variants.append(ArticleTitleVariant.objects.create(
+                article=article,
+                variant='C',
+                title=alt_titles[1][:500]
+            ))
+        
+        print(f"📊 Created {len(variants)} A/B title variants:")
+        for v in variants:
+            print(f"   [{v.variant}] {v.title}")
+        
+        return variants
+        
+    except Exception as e:
+        print(f"⚠️ A/B title variant generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
 
 def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', is_published=True):
     """Generate and publish immediately (LEGACY/MANUAL flow)"""
@@ -702,6 +784,21 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', 
     
     print(f"✅ Article created! ID: {article.id}, Slug: {article.slug}")
     
+    # Generate A/B title variants
+    generate_title_variants(article, provider=provider)
+    
+    # Deep specs enrichment — auto-fill VehicleSpecs card (/cars/{brand}/{model})
+    try:
+        from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+        generate_deep_vehicle_specs(
+            article,
+            specs=result.get('specs'),
+            web_context=result.get('web_context', ''),
+            provider=provider
+        )
+    except Exception as e:
+        print(f"⚠️ Deep specs enrichment failed: {e}")
+    
     return {
         'success': True,
         'article_id': article.id,
@@ -710,6 +807,7 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', 
         'category': result['category_name'],
         'tags': result['tag_names']
     }
+
 
 def create_pending_article(youtube_url, channel_id, video_title, video_id, provider='gemini'):
     """Generate article and save as PendingArticle (NEW flow)"""

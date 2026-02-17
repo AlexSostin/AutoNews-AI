@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Plus, X, Sparkles, Loader2, Search, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, Plus, X, Sparkles, Loader2, Search, ChevronDown, Zap } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 
@@ -50,6 +50,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [newGalleryImages, setNewGalleryImages] = useState<File[]>([]);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [reformatting, setReformatting] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [tagSearch, setTagSearch] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [letterFilter, setLetterFilter] = useState<Record<string, string | null>>({});
@@ -428,6 +429,44 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               >
                 {reformatting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                 {reformatting ? 'Reformatting...' : '✨ Reformat with AI'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!formData.slug) return;
+                  if (!confirm('Run AI enrichment? This will:\n\n• Generate VehicleSpecs card (Gemini)\n• Create A/B title variants\n• Web search for latest specs\n\nArticle content will NOT be changed.')) return;
+                  setEnriching(true);
+                  try {
+                    const { data } = await api.post(`/articles/${formData.slug}/re-enrich/`);
+                    let msg = `✅ ${data.message}\n\n`;
+                    if (data.results?.deep_specs?.success) {
+                      msg += `🚗 Specs: ${data.results.deep_specs.make} ${data.results.deep_specs.model} (${data.results.deep_specs.fields_filled} fields)\n`;
+                    } else if (data.results?.deep_specs?.error) {
+                      msg += `⚠️ Specs: ${data.results.deep_specs.error}\n`;
+                    }
+                    if (data.results?.ab_titles?.success) {
+                      msg += data.results.ab_titles.skipped
+                        ? `📝 A/B: ${data.results.ab_titles.existing_variants} variants already exist\n`
+                        : `📝 A/B: ${data.results.ab_titles.variants_created} variants created\n`;
+                    } else if (data.results?.ab_titles?.error) {
+                      msg += `⚠️ A/B: ${data.results.ab_titles.error}\n`;
+                    }
+                    if (data.results?.web_search?.success) {
+                      msg += `🔍 Web: ${data.results.web_search.context_length} chars of context found\n`;
+                    } else if (data.results?.web_search?.error) {
+                      msg += `⚠️ Web: ${data.results.web_search.error}\n`;
+                    }
+                    alert(msg);
+                  } catch (err: any) {
+                    alert(`❌ Error: ${err.response?.data?.message || err.message}`);
+                  }
+                  setEnriching(false);
+                }}
+                disabled={enriching || reformatting}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg text-xs font-bold hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                {enriching ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                {enriching ? 'Enriching...' : '⚡ Re-enrich Specs'}
               </button>
             </div>
             <textarea
@@ -842,8 +881,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                                     type="button"
                                     onClick={() => setLetterFilter(prev => ({ ...prev, [groupName]: null }))}
                                     className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${!activeLetter
-                                        ? 'bg-indigo-600 text-white shadow-sm'
-                                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                      ? 'bg-indigo-600 text-white shadow-sm'
+                                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                                       }`}
                                   >
                                     All
@@ -860,10 +899,10 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                                           [groupName]: isActive ? null : letter
                                         }))}
                                         className={`w-6 h-6 rounded text-[11px] font-bold transition-all flex items-center justify-center ${isActive
-                                            ? `${getLetterColor(letter)} text-white shadow-sm`
-                                            : hasItems
-                                              ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                                              : 'text-gray-200 cursor-default'
+                                          ? `${getLetterColor(letter)} text-white shadow-sm`
+                                          : hasItems
+                                            ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                            : 'text-gray-200 cursor-default'
                                           }`}
                                       >
                                         {letter}
@@ -949,7 +988,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             </Link>
           </div>
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   );
 }

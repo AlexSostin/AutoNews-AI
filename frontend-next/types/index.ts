@@ -23,7 +23,7 @@ export interface Article {
   price_usd: number | null;
   categories: { id: number; name: string; slug: string }[];
   category_names: string[];
-  tags: number[];
+  tags: { id: number; name: string; slug: string }[] | number[];
   tag_names: string[];
   author?: string;
   author_name?: string;

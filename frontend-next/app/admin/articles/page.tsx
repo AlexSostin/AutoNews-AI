@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Search, Zap, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 
@@ -34,6 +34,28 @@ export default function ArticlesPage() {
   const [pagination, setPagination] = useState<PaginationInfo>({ count: 0, next: null, previous: null });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [bulkEnriching, setBulkEnriching] = useState(false);
+  const [bulkResults, setBulkResults] = useState<any>(null);
+
+  const handleBulkEnrich = async (mode: 'missing' | 'all') => {
+    const label = mode === 'missing' ? 'articles missing enrichment' : 'ALL published articles';
+    if (!confirm(`Run AI enrichment on ${label}?\n\nThis will:\n• Generate VehicleSpecs (Deep Specs)\n• Create A/B title variants\n• Run smart tag matching\n• Search web for latest specs\n\nThis may take several minutes for many articles.`)) return;
+
+    setBulkEnriching(true);
+    setBulkResults(null);
+    try {
+      const { data } = await api.post('/articles/bulk-re-enrich/', { mode });
+      setBulkResults(data);
+      if (data.success) {
+        setSuccessMessage(data.message);
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
+    } catch (err: any) {
+      setBulkResults({ success: false, message: err.response?.data?.message || err.message });
+    } finally {
+      setBulkEnriching(false);
+    }
+  };
 
   useEffect(() => {
     fetchArticles();
@@ -145,15 +167,107 @@ export default function ArticlesPage() {
           ✓ {successMessage}
         </div>
       )}
+      {/* Bulk Enrich Results Modal */}
+      {bulkResults && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setBulkResults(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-black text-gray-900">⚡ Bulk Enrichment Results</h3>
+                <p className="text-sm text-gray-500 font-medium mt-1">{bulkResults.message}</p>
+              </div>
+              <button onClick={() => setBulkResults(null)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" title="Close">
+                <X size={22} className="text-gray-600" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto max-h-[60vh] space-y-3">
+              {bulkResults.processed > 0 && (
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-black text-green-700">{bulkResults.success_count}</p>
+                    <p className="text-xs font-semibold text-green-600">Success</p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-black text-red-700">{bulkResults.error_count}</p>
+                    <p className="text-xs font-semibold text-red-600">Errors</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-black text-blue-700">{bulkResults.elapsed_seconds}s</p>
+                    <p className="text-xs font-semibold text-blue-600">Duration</p>
+                  </div>
+                </div>
+              )}
+              {bulkResults.results?.map((r: any) => (
+                <div key={r.id} className={`border rounded-lg p-3 ${r.errors?.length ? 'border-red-200 bg-red-50/50' : 'border-green-200 bg-green-50/50'}`}>
+                  <p className="font-bold text-gray-900 text-sm truncate">#{r.id} {r.title}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {Object.entries(r.steps || {}).map(([key, val]: [string, any]) => (
+                      <span key={key} className={`px-2 py-0.5 rounded-full text-xs font-semibold ${val === true ? 'bg-green-100 text-green-700' :
+                        val === 'skipped' ? 'bg-gray-100 text-gray-500' :
+                          typeof val === 'number' ? 'bg-blue-100 text-blue-700' :
+                            'bg-red-100 text-red-700'
+                        }`}>
+                        {key.replace('_', ' ')}: {val === true ? '✅' : val === 'skipped' ? '⏭️' : typeof val === 'number' ? `+${val}` : '❌'}
+                      </span>
+                    ))}
+                  </div>
+                  {r.errors?.length > 0 && (
+                    <p className="text-xs text-red-600 mt-1.5 font-medium">{r.errors.join(', ')}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setBulkResults(null)}
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-bold hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Articles</h1>
-        <Link
-          href="/admin/articles/new"
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 sm:px-6 py-3 rounded-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center gap-2 shadow-md"
-        >
-          <Plus size={20} />
-          <span className="hidden sm:inline">New Article</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <div className="relative group">
+            <button
+              onClick={() => handleBulkEnrich('missing')}
+              disabled={bulkEnriching}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-3 sm:px-4 py-3 rounded-lg font-bold hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-md"
+            >
+              {bulkEnriching ? <Loader2 size={18} className="animate-spin" /> : <Zap size={18} />}
+              <span className="hidden sm:inline">{bulkEnriching ? 'Enriching...' : 'Bulk Enrich'}</span>
+            </button>
+            {!bulkEnriching && (
+              <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-20">
+                <div className="bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[180px]">
+                  <button
+                    onClick={() => handleBulkEnrich('missing')}
+                    className="w-full px-4 py-2 text-left text-sm font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                  >
+                    🔍 Enrich Missing Only
+                  </button>
+                  <button
+                    onClick={() => handleBulkEnrich('all')}
+                    className="w-full px-4 py-2 text-left text-sm font-semibold text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                  >
+                    🌐 Re-Enrich All Articles
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <Link
+            href="/admin/articles/new"
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 sm:px-6 py-3 rounded-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center gap-2 shadow-md"
+          >
+            <Plus size={20} />
+            <span className="hidden sm:inline">New Article</span>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
