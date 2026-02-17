@@ -89,23 +89,44 @@ NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
 - NO HTML <html>, <head>, or <body> tags
 
 
+BANNED PHRASES — using ANY of these will make the article REJECTED:
+- "specific horsepower figures are not available"
+- "horsepower and torque figures are not specified"
+- "exact battery capacity is not specified"
+- "expected to be equipped"
+- "anticipated to be a key component"
+- "potentially with"
+- "likely running"
+- "is expected to feature"
+- Any form of "not specified" for HP, torque, battery, or range
+- Listing "HP not specified" as a Con
+If a car EXISTS and is on SALE, do NOT use speculative language. Write as FACT.
+
 Required Structure:
 - <h2>[Year] [Brand] [Model] [Version] Review: [Hook/Description]</h2>
 - Introduction paragraph (2-3 sentences with key specs)
-- <h2>Performance & Specs</h2> - MUST include specific HP/kW, torque, 0-60, range, battery, price.
-  CRITICAL: If horsepower data is provided in the analysis/specs below, you MUST include it.
-  If HP is given in kW, convert: 1 kW = 1.34 hp. NEVER write "the exact horsepower is not specified".
-  If HP is truly not in data, research the model and provide the known figure.
+- <h2>Performance & Specs</h2> - MUST include ALL of these with CONCRETE NUMBERS:
+  * Horsepower (HP) and kilowatts (kW) — MANDATORY, no excuses
+  * Torque in Nm or lb-ft
+  * 0-60 mph or 0-100 km/h time
+  * Battery capacity in kWh (for EVs)
+  * Range in km and miles
+  * Starting price
+  HOW TO FIND HP: Check the analysis data, web context, AND your own training knowledge.
+  You are an automotive expert — you KNOW the specs of major car models (BYD, Tesla, Zeekr, NIO, Li Auto, etc.).
+  If HP is in kW, convert: 1 kW ≈ 1.34 hp (e.g., 200 kW = 268 hp).
+  NEVER write that specs are "unavailable" or "not specified" — USE YOUR KNOWLEDGE.
 - <h2>Design & Interior</h2> - Describe styling, materials, space, cargo volume
-- <h2>Technology & Features</h2> - This section MUST include at least 4-5 specific items from this list:
-  * Infotainment screen size and system name
-  * ADAS / driver assistance features (lane keeping, adaptive cruise, etc.)
+- <h2>Technology & Features</h2> - This section MUST include at least 4-5 SPECIFIC, CONCRETE items:
+  * Infotainment screen size and system name (e.g., "15.4-inch AMOLED touchscreen")
+  * ADAS / driver assistance features (name them specifically)
   * Connectivity (Apple CarPlay, Android Auto, wireless charging)
   * OTA update capability
   * Digital instrument cluster details
   * Sound system (brand, speakers count)
   * Safety tech (collision avoidance, blind spot monitoring, etc.)
-  If not in the transcript, check the web context or the model's known features. Write at least 2 full paragraphs.
+  CRITICAL: Do NOT write "likely" or "potentially" — state features as FACTS.
+  If not in the transcript, use the web context or your training knowledge. Write at least 2 full paragraphs.
 - <h2>Driving Experience</h2> - Handling, comfort, real-world performance
 - <h2>US Market Availability & Pricing</h2> - Write as factual paragraphs and HTML lists covering these topics:
   <ul>
@@ -160,6 +181,9 @@ Writing Style:
 - Mention target audience (families, enthusiasts, eco-conscious, etc.)
 - Natural keyword placement for SEO
 - Be factual — never invent specs, prices, or release dates
+- WRITE WITH AUTHORITY — you are an automotive expert, not a speculator
+- NEVER use "is expected to", "is anticipated", "potentially", "likely" for cars that are already on sale
+- If the car is already available in any market, describe its features as FACTS, not predictions
 
 Analysis Data:
 {analysis_data}
@@ -167,7 +191,7 @@ Analysis Data:
 Remember: Be creative with the title, but include all facts! Write comprehensive, engaging content!
 """
     
-    system_prompt = "You are a senior automotive expert at FreshMotors. Combine deep technical knowledge with engaging, accessible writing. Explain specs in terms of real-world driving impact. Be factual — never fabricate data. Write SEO-optimized content with specific numbers and competitor comparisons."
+    system_prompt = """You are a senior automotive journalist at FreshMotors with 15+ years of hands-on experience testing vehicles worldwide. You have extensive knowledge of ALL major car brands including Chinese EVs (BYD, Zeekr, NIO, Li Auto, XPeng, Chery, Geely, GAC). You KNOW their specs from memory — horsepower, torque, battery sizes, range figures. When writing, ALWAYS include concrete HP/kW numbers — you are NEVER allowed to write that specs are 'not specified' or 'unavailable'. Use your expertise. Write with AUTHORITY and CONFIDENCE, never speculation. If a car is already on sale, describe it as FACT, not prediction."""
     
     try:
         # Use AI provider factory
