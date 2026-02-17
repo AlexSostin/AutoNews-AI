@@ -907,6 +907,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     title=result['title'],
                     slug=slug,
                     content=result['content'],
+                    content_original=result.get('content', ''),
                     summary=result.get('summary', ''),
                     seo_description=result.get('meta_description', '')[:160],
                     meta_keywords=', '.join(result.get('seo_keywords', [])),

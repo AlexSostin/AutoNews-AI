@@ -62,6 +62,7 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
         title=title,
         summary=summary,
         content=content,
+        content_original=content,
         youtube_url=youtube_url or '',
         is_published=is_published,
         seo_title=seo_title,

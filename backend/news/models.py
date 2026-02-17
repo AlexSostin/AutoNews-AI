@@ -157,6 +157,7 @@ class Article(models.Model):
     slug = models.SlugField(blank=True, max_length=250, db_index=True)
     summary = models.TextField(blank=True, help_text="Short description for list view")
     content = models.TextField()
+    content_original = models.TextField(blank=True, help_text="Original AI-generated content (before manual edits). Used for AI quality metrics.")
     image = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Main featured image (screenshot 1)")
     image_2 = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Screenshot 2 from video")
     image_3 = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Screenshot 3 from video")

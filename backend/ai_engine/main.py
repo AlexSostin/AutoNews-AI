@@ -595,6 +595,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             'success': True,
             'title': title,
             'content': article_html,
+            'content_original': article_html,
             'summary': summary,
             'category_name': category_name,
             'tag_names': tag_names,
