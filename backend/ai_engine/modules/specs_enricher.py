@@ -70,6 +70,14 @@ SPEC_PATTERNS = {
         # "15.6-inch screen", "12.3" display", "10.25-inch touchscreen"
         re.compile(r'(\d{1,2}\.?\d?)\s*[-]?\s*inch\s*(?:screen|display|touchscreen|infotainment)\b', re.IGNORECASE),
     ],
+    'drivetrain': [
+        # "FWD", "RWD", "AWD", "4WD"
+        re.compile(r'\b(FWD|RWD|AWD|4WD|2WD)\b'),
+        # "front-wheel drive", "rear-wheel drive", "all-wheel drive"
+        re.compile(r'(front[- ]wheel[- ]drive|rear[- ]wheel[- ]drive|all[- ]wheel[- ]drive|four[- ]wheel[- ]drive)', re.IGNORECASE),
+        # Chinese: 前驱 (FWD), 后驱 (RWD), 四驱 (AWD/4WD)
+        re.compile(r'(前驱|前轮驱动|后驱|后轮驱动|四驱|全轮驱动)'),
+    ],
 }
 
 
@@ -201,6 +209,29 @@ def enrich_specs_from_web(specs, web_context):
             specs['top_speed'] = f"{best} km/h"
             enriched_count += 1
             logger.info(f"  ✓ Enriched top speed: {specs['top_speed']}")
+    
+    # --- Drivetrain ---
+    if specs.get('drivetrain') in (None, 'Not specified', ''):
+        dt_values = _extract_values_from_text(web_context, 'drivetrain')
+        # Normalize to standard abbreviations
+        normalized = []
+        for v in dt_values:
+            v_lower = v.lower().replace('-', ' ').replace('  ', ' ')
+            if v_lower in ('fwd', 'front wheel drive', '前驱', '前轮驱动'):
+                normalized.append('FWD')
+            elif v_lower in ('rwd', 'rear wheel drive', '后驱', '后轮驱动'):
+                normalized.append('RWD')
+            elif v_lower in ('awd', 'all wheel drive', '四驱', '全轮驱动'):
+                normalized.append('AWD')
+            elif v_lower in ('4wd', 'four wheel drive'):
+                normalized.append('4WD')
+            else:
+                normalized.append(v.upper())
+        best = _most_common(normalized)
+        if best:
+            specs['drivetrain'] = best
+            enriched_count += 1
+            logger.info(f"  ✓ Enriched drivetrain: {specs['drivetrain']}")
     
     if enriched_count > 0:
         print(f"🔍 Enriched {enriched_count} specs from web sources")
