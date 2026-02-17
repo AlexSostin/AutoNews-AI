@@ -18,6 +18,9 @@ TRUSTED_DOMAINS = [
     'byd.com', 'press.byd.com',
     'motor1.com', 'carbuzz.com', 'carexpert.com.au',
     'driving.co.uk', 'whatcar.com', 'parkers.co.uk',
+    # EV spec databases — structured data with HP, kW, battery, range
+    'ev-database.org', 'evspecifications.com', 'ev-database.uk',
+    'zero-emission.org', 'pushevs.com',
 ]
 
 # Skip these domains entirely — no useful specs data
@@ -126,18 +129,32 @@ def search_car_details(make, model, year=None):
     """
     Searches for car details and reviews on the web.
     Returns structured text with key info found, including scraped page content.
+    Runs TWO searches: one general, one spec-focused for better HP/kW/battery coverage.
     """
-    # Construct query
-    query = f"{year if year else ''} {make} {model} specifications hp kW price review".strip()
-    print(f"🌐 Searching web for: {query}...")
+    # Construct queries
+    general_query = f"{year if year else ''} {make} {model} specifications hp kW price review".strip()
+    specs_query = f"{make} {model} horsepower kW torque battery specs".strip()
+    print(f"🌐 Searching web for: {general_query}...")
+    print(f"🔍 Specs-focused search: {specs_query}...")
 
     search_results = []
     trusted_results = []
     other_results = []
 
     try:
-        # Search Google (gets top 8 URLs for better coverage)
-        urls = list(search(query, num_results=8, advanced=True))
+        # Search 1: General (top 8 URLs)
+        urls = list(search(general_query, num_results=8, advanced=True))
+        
+        # Search 2: Specs-focused (top 4 URLs for targeted spec data)
+        try:
+            specs_urls = list(search(specs_query, num_results=4, advanced=True))
+            # Add only new URLs not already found
+            existing = {r.url for r in urls}
+            for r in specs_urls:
+                if r.url not in existing:
+                    urls.append(r)
+        except Exception:
+            pass  # Specs search is bonus, don't fail on it
 
         for result in urls:
             try:
@@ -164,21 +181,21 @@ def search_car_details(make, model, year=None):
             except Exception:
                 continue
 
-        # Prioritize trusted sources, then others — take up to 4 total
+        # Prioritize trusted sources, then others — take up to 5 total
         prioritized = trusted_results + other_results
-        prioritized = prioritized[:4]
+        prioritized = prioritized[:5]
 
         if not prioritized:
             return "No relevant web results found."
 
-        # Deep scrape top 2 pages for detailed content
-        for i, entry in enumerate(prioritized[:2]):
+        # Deep scrape top 3 pages for detailed content
+        for i, entry in enumerate(prioritized[:3]):
             print(f"  📄 Scraping: {entry['url'][:80]}...")
-            scraped = _scrape_page_content(entry['url'], max_chars=2500)
+            scraped = _scrape_page_content(entry['url'], max_chars=3000)
             if scraped:
                 entry['scraped'] = scraped
             # Small delay between requests
-            if i == 0 and len(prioritized) > 1:
+            if i < len(prioritized[:3]) - 1:
                 time.sleep(0.5)
 
         # Format results
@@ -196,7 +213,7 @@ def search_car_details(make, model, year=None):
 
     except Exception as e:
         print(f"⚠️ Search failed: {e}")
-        logger.error(f"Web search failed for '{query}': {e}")
+        logger.error(f"Web search failed for '{general_query}': {e}")
         return f"Web search failed: {str(e)}"
 
 

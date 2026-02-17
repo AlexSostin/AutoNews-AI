@@ -212,7 +212,7 @@ def check_duplicate(youtube_url):
     return None
 
 
-def _generate_article_content(youtube_url, task_id=None, provider='groq', video_title=None):
+def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None):
     """
     Internal function to generate article content without saving to DB.
     Returns dictionary with all article data.
@@ -548,7 +548,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='groq', video_
             'error': str(e)
         }
 
-def generate_article_from_youtube(youtube_url, task_id=None, provider='groq', is_published=True):
+def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', is_published=True):
     """Generate and publish immediately (LEGACY/MANUAL flow)"""
     
     # 0. Check duplicate first
@@ -594,7 +594,7 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='groq', is
         'tags': result['tag_names']
     }
 
-def create_pending_article(youtube_url, channel_id, video_title, video_id, provider='groq'):
+def create_pending_article(youtube_url, channel_id, video_title, video_id, provider='gemini'):
     """Generate article and save as PendingArticle (NEW flow)"""
     
     # Setup Django
