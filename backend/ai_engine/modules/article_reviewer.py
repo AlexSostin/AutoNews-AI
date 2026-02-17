@@ -33,7 +33,10 @@ def review_article(article_html: str, specs: dict, provider: str = 'gemini') -> 
         Improved HTML article content, or original if review fails
     """
     try:
-        from modules.ai_provider import get_ai_provider
+        try:
+            from ai_engine.modules.ai_provider import get_ai_provider
+        except ImportError:
+            from modules.ai_provider import get_ai_provider
         ai = get_ai_provider(provider)
         
         # Build context about the car from specs

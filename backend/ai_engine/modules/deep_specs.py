@@ -223,7 +223,7 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         # Build prompt and call AI
         prompt = _build_prompt(make, model_name, trim, year, specs, web_context)
         
-        from modules.ai_provider import get_ai_provider
+        from ai_engine.modules.ai_provider import get_ai_provider
         ai = get_ai_provider(provider)
         
         print(f"🔍 Deep specs enrichment: {make} {model_name} {trim or ''}...")
