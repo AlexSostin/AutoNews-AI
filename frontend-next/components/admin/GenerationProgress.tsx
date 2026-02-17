@@ -26,8 +26,9 @@ const STEPS = [
   { id: 5, name: 'Generating article', icon: '✍️' },
   { id: 6, name: 'Screenshots', icon: '📸' },
   { id: 7, name: 'Description', icon: '📝' },
-  { id: 8, name: 'Saving', icon: '📤' },
-  { id: 9, name: 'Done!', icon: '✅' },
+  { id: 8, name: 'AI Quality Check', icon: '🧠' },
+  { id: 9, name: 'Saving', icon: '📤' },
+  { id: 10, name: 'Done!', icon: '✅' },
 ];
 
 export default function GenerationProgress({
@@ -73,7 +74,7 @@ export default function GenerationProgress({
         setProgress(data.progress);
         setMessage(data.message);
 
-        if (data.progress >= 100 && data.step === 9) {
+        if (data.progress >= 100 && data.step === 10) {
           // Completed successfully - callback is handled by parent
           onComplete?.(true, data.article_id);
         }
@@ -145,10 +146,10 @@ export default function GenerationProgress({
               <div
                 key={step.id}
                 className={`flex items-center gap-3 p-3 rounded-lg transition-all ${isActive
-                    ? 'bg-indigo-50 border border-indigo-200'
-                    : isCompleted
-                      ? 'bg-green-50'
-                      : 'bg-gray-50'
+                  ? 'bg-indigo-50 border border-indigo-200'
+                  : isCompleted
+                    ? 'bg-green-50'
+                    : 'bg-gray-50'
                   }`}
               >
                 <span className="text-xl">{step.icon}</span>
