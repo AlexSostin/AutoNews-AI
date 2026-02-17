@@ -1815,15 +1815,56 @@ Return ONLY the reformatted HTML."""
                     }
                 else:
                     import re
-                    year_match = re.match(
-                        r'(\d{4})\s+(.+?)(?:\s+(?:Review|First|Walk|Test|Preview|Deep|Comparison))',
-                        article.title, re.IGNORECASE
-                    )
-                    if year_match:
-                        remaining = year_match.group(2).strip()
-                        parts = remaining.split(' ', 1)
-                        if len(parts) >= 2:
-                            specs_dict = {'make': parts[0], 'model': parts[1], 'year': int(year_match.group(1))}
+                    title = article.title
+                    year = None
+                    make = None
+                    model_name = None
+
+                    # Pattern 1: "2026 BYD Qin L DM-i Review"
+                    m = re.match(r'(\d{4})\s+(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Comparison|Test))?$', title, re.IGNORECASE)
+                    if m:
+                        year, make, model_name = int(m.group(1)), m.group(2), m.group(3).strip()
+
+                    # Pattern 2: "First Drive: 2026 NIO ET9 - Luxury Electric Sedan"
+                    if not make:
+                        m = re.match(r'(?:First\s+Drive|Review|Test\s+Drive)[:\s]+(\d{4})\s+(\S+)\s+(.+?)(?:\s+-\s+.+)?$', title, re.IGNORECASE)
+                        if m:
+                            year, make, model_name = int(m.group(1)), m.group(2), m.group(3).strip()
+                            # Clean model name: remove everything after " - "
+                            if ' - ' in model_name:
+                                model_name = model_name.split(' - ')[0].strip()
+
+                    # Pattern 3: "BYD Seal 06 GT Electric Hatchback Walkaround" (no year)
+                    if not make:
+                        m = re.match(r'(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Walkaround|Comparison|Test))', title, re.IGNORECASE)
+                        if m:
+                            make, model_name = m.group(1), m.group(2).strip()
+
+                    # Pattern 4: "Hongqi HS6 Sets Two Guinness..." (brand + model at start)
+                    if not make:
+                        try:
+                            from news.auto_tags import KNOWN_BRANDS, BRAND_DISPLAY_NAMES
+                            title_lower = title.lower()
+                            for brand in KNOWN_BRANDS:
+                                if title_lower.startswith(brand) or title_lower.startswith(brand + ' '):
+                                    make = BRAND_DISPLAY_NAMES.get(brand, brand.title())
+                                    rest = title[len(brand):].strip()
+                                    # Try to extract model from the next word(s)
+                                    model_match = re.match(r'(\S+(?:\s+\S+)?)', rest)
+                                    if model_match:
+                                        model_name = model_match.group(1)
+                                    break
+                        except ImportError:
+                            pass
+
+                    # Extract year from title if not found yet
+                    if not year:
+                        y_match = re.search(r'\b(20[2-3]\d)\b', title)
+                        if y_match:
+                            year = int(y_match.group(1))
+
+                    if make and model_name:
+                        specs_dict = {'make': make, 'model': model_name, 'year': year}
 
                 if specs_dict and specs_dict.get('make'):
                     try:
