@@ -18,8 +18,16 @@ export default function MaintenancePage({ message }: MaintenancePageProps) {
     return () => clearInterval(interval);
   }, []);
 
+  // Hide body overflow so user can't scroll past maintenance screen to footer
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-800 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-800 flex items-center justify-center p-4">
       <div className="max-w-lg w-full text-center">
         {/* Animated Icon */}
         <div className="mb-8 relative">

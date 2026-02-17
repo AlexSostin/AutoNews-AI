@@ -63,13 +63,13 @@ export default function LoginPage() {
 
         // Небольшая задержка для показа уведомления, затем редирект
         setTimeout(() => {
-          router.push('/');
+          window.location.href = '/';
         }, 500);
       } else {
         // Если нет данных - на главную по умолчанию
         toast.success('Login successful!');
         setTimeout(() => {
-          router.push('/');
+          window.location.href = '/';
         }, 500);
       }
     } catch (err: any) {
@@ -192,8 +192,7 @@ export default function LoginPage() {
                       });
                     }
                     setTimeout(() => {
-                      router.push('/');
-                      router.refresh();
+                      window.location.href = '/';
                     }, 500);
                   }}
                   onError={(error) => {

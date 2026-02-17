@@ -229,8 +229,7 @@ export default function RegisterPage() {
                       });
                     }
                     setTimeout(() => {
-                      router.push('/');
-                      router.refresh();
+                      window.location.href = '/';
                     }, 500);
                   }}
                   onError={(error) => {
