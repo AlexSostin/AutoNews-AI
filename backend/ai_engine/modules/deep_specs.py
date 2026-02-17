@@ -49,13 +49,13 @@ def _build_prompt(make, model_name, trim, year, existing_specs, web_context):
         web_text = web_context[:3000]
         web_section = f"\n\nWeb research data (use to fill specs):\n{web_text}"
     
-    return f"""You are an automotive specifications expert. Provide comprehensive, accurate technical specifications for this vehicle:
+    return f"""You are an automotive specifications database. Your task: fill in ALL known specifications for this vehicle using your knowledge and the provided web data.
 
 **Vehicle: {vehicle_id}**
 {known_specs}
 {web_section}
 
-Return a JSON object with these fields. Use null for unknown values. Be accurate — do NOT guess.
+Return a JSON object with the fields below. You MUST fill in as many fields as possible using your automotive knowledge. This vehicle is a real production car — you should know its power, dimensions, battery specs, etc. Only use null if the information truly does not exist (e.g., towing capacity for a city car).
 
 {{
   "make": "{make}",
@@ -63,61 +63,62 @@ Return a JSON object with these fields. Use null for unknown values. Be accurate
   "trim_name": "{trim or ''}",
   "year": {year or 'null'},
   
-  "drivetrain": "FWD|RWD|AWD|4WD or null",
-  "motor_count": "integer or null (for EVs)",
-  "motor_placement": "front|rear|front+rear or null",
+  "drivetrain": "FWD|RWD|AWD|4WD",
+  "motor_count": 1,
+  "motor_placement": "front|rear|front+rear",
   
-  "power_hp": "integer or null",
-  "power_kw": "integer or null",
-  "torque_nm": "integer or null",
-  "acceleration_0_100": "float seconds or null",
-  "top_speed_kmh": "integer or null",
+  "power_hp": 200,
+  "power_kw": 150,
+  "torque_nm": 300,
+  "acceleration_0_100": 7.5,
+  "top_speed_kmh": 180,
   
-  "battery_kwh": "float or null",
-  "range_km": "integer or null (best official range)",
-  "range_wltp": "integer km or null",
-  "range_epa": "integer km or null",
-  "range_cltc": "integer km or null",
+  "battery_kwh": 66.0,
+  "range_km": 400,
+  "range_wltp": null,
+  "range_epa": null,
+  "range_cltc": 500,
   
-  "charging_time_fast": "string like '30 min to 80%' or null",
-  "charging_time_slow": "string like '8 hours' or null",
-  "charging_power_max_kw": "integer or null",
+  "charging_time_fast": "30 min to 80%",
+  "charging_time_slow": "8 hours",
+  "charging_power_max_kw": 150,
   
-  "transmission": "automatic|manual|CVT|single-speed|dual-clutch or null",
-  "transmission_gears": "integer or null",
+  "transmission": "automatic|manual|CVT|single-speed|dual-clutch",
+  "transmission_gears": null,
   
-  "body_type": "sedan|SUV|hatchback|coupe|truck|crossover|wagon|shooting_brake|van|convertible|pickup|liftback|fastback|MPV|roadster|cabriolet|targa|limousine or null",
-  "fuel_type": "EV|Hybrid|PHEV|Gas|Diesel|Hydrogen or null",
-  "seats": "integer or null",
+  "body_type": "sedan|SUV|hatchback|coupe|truck|crossover|wagon|shooting_brake|van|convertible|pickup|liftback|fastback|MPV|roadster|cabriolet|targa|limousine",
+  "fuel_type": "EV|Hybrid|PHEV|Gas|Diesel|Hydrogen",
+  "seats": 5,
   
-  "length_mm": "integer or null",
-  "width_mm": "integer or null",
-  "height_mm": "integer or null",
-  "wheelbase_mm": "integer or null",
-  "weight_kg": "integer or null",
-  "cargo_liters": "integer or null",
-  "cargo_liters_max": "integer (seats folded) or null",
-  "ground_clearance_mm": "integer or null",
-  "towing_capacity_kg": "integer or null",
+  "length_mm": 4500,
+  "width_mm": 1850,
+  "height_mm": 1600,
+  "wheelbase_mm": 2700,
+  "weight_kg": 1800,
+  "cargo_liters": 400,
+  "cargo_liters_max": 1200,
+  "ground_clearance_mm": 170,
+  "towing_capacity_kg": null,
   
-  "price_from": "integer (in main market currency) or null",
-  "price_to": "integer or null",
-  "currency": "USD|EUR|CNY|GBP|JPY or null",
+  "price_from": 25000,
+  "price_to": 35000,
+  "currency": "USD|EUR|CNY|GBP|JPY",
   
-  "model_year": "integer or null",
-  "country_of_origin": "string or null",
-  "platform": "string (e.g. SEA, MEB, E-GMP) or null",
-  "voltage_architecture": "integer (400 or 800) or null",
-  "suspension_type": "string or null"
+  "model_year": 2026,
+  "country_of_origin": "China",
+  "platform": "SEA",
+  "voltage_architecture": 800,
+  "suspension_type": "MacPherson strut front, multi-link rear"
 }}
 
-IMPORTANT:
+CRITICAL RULES:
 - Return ONLY valid JSON, no markdown, no explanation
-- Use integers for measurements (mm, kg, kW, km)
-- Use float only for acceleration_0_100 and battery_kwh
-- For Chinese EVs, include CLTC range. For European, include WLTP. For US, include EPA.
-- price_from/price_to should be in the vehicle's primary market currency
-- Be conservative: if unsure, use null rather than guessing"""
+- Use actual INTEGER values (not strings like "200 hp", just 200)
+- The example values above are PLACEHOLDERS — replace them with the REAL specifications for {vehicle_id}
+- You know this car. Fill in power_hp, torque_nm, battery_kwh, range_km, dimensions, weight, and price
+- For Chinese EVs, always include range_cltc. For European, range_wltp. For US, range_epa
+- price_from/price_to should be in CNY for Chinese-market vehicles, USD for US-market
+- DO NOT return all nulls — that is a failure. You must provide at least power, range, and dimensions"""
 
 
 def _safe_int(value):
@@ -282,7 +283,7 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         # Build validated defaults dict
         defaults = {
             'article': article,
-            'trim_name': str(data.get('trim_name', trim or ''))[:100],
+            'trim_name': (str(data.get('trim_name') or trim or '') if data.get('trim_name') is not None else (trim or ''))[:100],
             
             # Drivetrain
             'drivetrain': _validate_choice(data.get('drivetrain'), VALID_DRIVETRAINS),
@@ -348,14 +349,22 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         # Always set/update article reference
         defaults['article'] = article
         
+        # Derive trim_name for DB lookup (must match unique_together)
+        trim_for_lookup = (str(data.get('trim_name') or trim or '') if data.get('trim_name') is not None else (trim or ''))[:100]
+        
         # Create or update — use SAME fields as unique_together: (make, model_name, trim_name)
-        trim_for_lookup = str(data.get('trim_name', trim or ''))[:100]
         vehicle_specs, created = VehicleSpecs.objects.update_or_create(
             make=make,
             model_name=model_name,
             trim_name=trim_for_lookup,
             defaults=defaults
         )
+        
+        # Validate: warn if too few fields populated
+        spec_fields_filled = sum(1 for k in ['power_hp', 'power_kw', 'torque_nm', 'battery_kwh', 'range_km', 'length_mm', 'width_mm', 'weight_kg']
+                                 if defaults.get(k) is not None)
+        if spec_fields_filled < 3:
+            print(f"⚠️ WARNING: Only {spec_fields_filled}/8 key fields filled for {make} {model_name}. AI may have returned empty data.")
         
         # Count how many fields were filled
         filled = sum(1 for k, v in defaults.items() 
