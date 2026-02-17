@@ -1924,8 +1924,10 @@ Return ONLY the reformatted HTML."""
                     pass
 
                 # --- Step 2: Deep Specs ---
-                has_specs = VehicleSpecs.objects.filter(article=article).exists()
-                if not has_specs and specs_dict and specs_dict.get('make'):
+                # Only skip if VehicleSpecs exists AND has actual data (not empty shell)
+                existing_vs = VehicleSpecs.objects.filter(article=article).first()
+                has_populated_specs = existing_vs and (existing_vs.power_hp or existing_vs.range_km or existing_vs.length_mm)
+                if not has_populated_specs and specs_dict and specs_dict.get('make'):
                     try:
                         from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
                         vehicle_specs = generate_deep_vehicle_specs(
@@ -1935,7 +1937,7 @@ Return ONLY the reformatted HTML."""
                     except Exception as e:
                         article_result['errors'].append(f'Deep specs: {e}')
                         article_result['steps']['deep_specs'] = False
-                elif has_specs:
+                elif has_populated_specs:
                     article_result['steps']['deep_specs'] = 'skipped'
                 else:
                     article_result['steps']['deep_specs'] = 'no_specs'
