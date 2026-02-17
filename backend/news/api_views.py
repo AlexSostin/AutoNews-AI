@@ -1098,6 +1098,59 @@ class ArticleViewSet(viewsets.ModelViewSet):
             article.save(update_fields=['views'])
             return Response({'views': article.views})
     
+    @action(detail=True, methods=['post'], url_path='feedback')
+    def submit_feedback(self, request, slug=None):
+        """Submit user feedback about article issues (hallucinations, errors, etc.)"""
+        article = self.get_object()
+        
+        category = request.data.get('category', 'other')
+        message = request.data.get('message', '').strip()
+        
+        if not message or len(message) < 5:
+            return Response({'error': 'Message must be at least 5 characters'}, status=400)
+        if len(message) > 1000:
+            return Response({'error': 'Message too long (max 1000 characters)'}, status=400)
+        
+        valid_categories = ['factual_error', 'typo', 'outdated', 'hallucination', 'other']
+        if category not in valid_categories:
+            category = 'other'
+        
+        # Rate limit: 1 feedback per IP per article per day
+        ip = self._get_client_ip(request)
+        from django.utils import timezone
+        from datetime import timedelta
+        from news.models import ArticleFeedback
+        
+        if ip:
+            recent = ArticleFeedback.objects.filter(
+                article=article,
+                ip_address=ip,
+                created_at__gte=timezone.now() - timedelta(days=1)
+            ).exists()
+            if recent:
+                return Response({'error': 'You already submitted feedback for this article today'}, status=429)
+        
+        feedback = ArticleFeedback.objects.create(
+            article=article,
+            category=category,
+            message=message[:1000],
+            ip_address=ip,
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:300]
+        )
+        
+        return Response({
+            'success': True,
+            'id': feedback.id,
+            'message': 'Thank you for your feedback!'
+        }, status=201)
+    
+    def _get_client_ip(self, request):
+        """Extract client IP from request headers"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR')
+
     @action(detail=False, methods=['get'])
     @method_decorator(cache_page(60 * 15))  # Cache trending for 15 minutes
     def trending(self, request):

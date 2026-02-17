@@ -18,6 +18,7 @@ import ViewTracker from '@/components/public/ViewTracker';
 import PriceConverter from '@/components/public/PriceConverter';
 import JsonLd from '@/components/public/JsonLd';
 import RelatedCarousel from '@/components/public/RelatedCarousel';
+import FeedbackButton from '@/components/public/FeedbackButton';
 import { Article } from '@/types';
 import {
   Calendar,
@@ -493,6 +494,11 @@ export default async function ArticleDetailPage({
 
               {/* Share Buttons */}
               <ShareButtons url={fullUrl} title={article.title} />
+
+              {/* Feedback Button */}
+              <div className="flex justify-center">
+                <FeedbackButton articleSlug={article.slug} />
+              </div>
 
               {/* Rating System */}
               <RatingStars

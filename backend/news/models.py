@@ -1328,3 +1328,35 @@ class ArticleEmbedding(models.Model):
             return len(self.embedding_vector)
         return 0
 
+
+class ArticleFeedback(models.Model):
+    """User-reported issues on articles (hallucinations, errors, typos)"""
+    CATEGORY_CHOICES = [
+        ('factual_error', 'Factual Error'),
+        ('typo', 'Typo / Grammar'),
+        ('outdated', 'Outdated Information'),
+        ('hallucination', 'AI Hallucination'),
+        ('other', 'Other'),
+    ]
+    
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='feedback')
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other')
+    message = models.TextField(max_length=1000, help_text="User's description of the issue")
+    
+    # Anti-spam
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=300, blank=True)
+    
+    # Moderation
+    is_resolved = models.BooleanField(default=False)
+    admin_notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Article Feedback'
+        verbose_name_plural = 'Article Feedback'
+    
+    def __str__(self):
+        return f"[{self.get_category_display()}] {self.article.title[:40]} — {self.message[:50]}"

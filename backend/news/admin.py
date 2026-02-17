@@ -7,7 +7,7 @@ from datetime import timedelta
 from .models import (
     Article, Category, Tag, TagGroup, CarSpecification, SiteSettings, Comment, Rating,
     ArticleImage, Favorite, SecurityLog, EmailVerification, PasswordResetToken,
-    NewsletterSubscriber, VehicleSpecs
+    NewsletterSubscriber, VehicleSpecs, ArticleFeedback
 )
 import sys
 import os
@@ -774,3 +774,29 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
         count = queryset.update(is_active=False, unsubscribed_at=timezone.now())
         self.message_user(request, f'{count} subscribers deactivated.')
     deactivate_subscribers.short_description = 'Deactivate selected subscribers'
+
+
+@admin.register(ArticleFeedback)
+class ArticleFeedbackAdmin(admin.ModelAdmin):
+    list_display = ('article', 'category', 'message_preview', 'is_resolved', 'created_at')
+    list_filter = ('category', 'is_resolved', 'created_at')
+    search_fields = ('article__title', 'message')
+    readonly_fields = ('article', 'category', 'message', 'ip_address', 'user_agent', 'created_at')
+    list_editable = ('is_resolved',)
+    ordering = ('-created_at',)
+    
+    def message_preview(self, obj):
+        return obj.message[:80] + ('...' if len(obj.message) > 80 else '')
+    message_preview.short_description = 'Message'
+    
+    actions = ['mark_resolved', 'mark_unresolved']
+    
+    def mark_resolved(self, request, queryset):
+        count = queryset.update(is_resolved=True)
+        self.message_user(request, f'{count} feedback items marked as resolved.')
+    mark_resolved.short_description = 'Mark selected as resolved'
+    
+    def mark_unresolved(self, request, queryset):
+        count = queryset.update(is_resolved=False)
+        self.message_user(request, f'{count} feedback items marked as unresolved.')
+    mark_unresolved.short_description = 'Mark selected as unresolved'
