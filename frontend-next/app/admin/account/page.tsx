@@ -77,7 +77,6 @@ export default function AccountSettingsPage() {
         body: JSON.stringify({
           first_name: profile.first_name,
           last_name: profile.last_name,
-          email: profile.email
         })
       });
 
@@ -193,10 +192,11 @@ export default function AccountSettingsPage() {
                 <input
                   type="email"
                   value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                  disabled
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
                 />
               </div>
+              <p className="text-xs text-gray-400 mt-1">Email changes require verification — use Profile page</p>
             </div>
 
             <div>

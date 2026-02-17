@@ -26,7 +26,8 @@ import {
   Car,
   Wrench,
   ArrowRightLeft,
-  Globe
+  Globe,
+  MessageSquareWarning
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
@@ -43,6 +44,7 @@ const menuItems = [
   { href: '/admin/brand-aliases', icon: ArrowRightLeft, label: 'Brand Aliases' },
   { href: '/admin/brands', icon: Globe, label: 'Brands' },
   { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },
+  { href: '/admin/feedback', icon: MessageSquareWarning, label: 'Feedback' },
   { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
   { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },
   { href: '/admin/rss-feeds', icon: Rss, label: 'RSS Feeds' },

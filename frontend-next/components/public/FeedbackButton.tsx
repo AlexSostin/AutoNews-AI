@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, X, Send, CheckCircle } from 'lucide-react';
+import { MessageSquareWarning, X, Send, CheckCircle } from 'lucide-react';
 
 interface FeedbackButtonProps {
     articleSlug: string;
@@ -68,13 +68,11 @@ export default function FeedbackButton({ articleSlug }: FeedbackButtonProps) {
             {/* Trigger Button */}
             <button
                 onClick={() => setIsOpen(true)}
-                className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors group cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
                 aria-label="Report an issue with this article"
             >
-                <AlertTriangle size={16} className="group-hover:text-red-600 transition-colors" />
-                <span className="underline underline-offset-2 decoration-gray-300 group-hover:decoration-red-400">
-                    Found an error?
-                </span>
+                <MessageSquareWarning size={16} />
+                Found an error? Let us know
             </button>
 
             {/* Modal Overlay */}
@@ -113,12 +111,12 @@ export default function FeedbackButton({ articleSlug }: FeedbackButtonProps) {
                                                 type="button"
                                                 onClick={() => setCategory(cat.value)}
                                                 className={`text-left px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${category === cat.value
-                                                        ? 'border-indigo-500 bg-indigo-50'
-                                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                                    ? 'border-indigo-500 bg-indigo-50'
+                                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                                     }`}
                                             >
-                                                <div className="font-medium text-sm">{cat.label}</div>
-                                                <div className="text-xs text-gray-500">{cat.desc}</div>
+                                                <div className="font-medium text-sm text-gray-900">{cat.label}</div>
+                                                <div className="text-xs text-gray-600">{cat.desc}</div>
                                             </button>
                                         ))}
                                     </div>
@@ -128,7 +126,7 @@ export default function FeedbackButton({ articleSlug }: FeedbackButtonProps) {
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
                                         placeholder="Describe the issue (e.g., 'The horsepower listed is 500hp but the actual spec is 300hp')"
-                                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:outline-none resize-none text-sm text-gray-800 placeholder:text-gray-400"
+                                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:outline-none resize-none text-base text-gray-900 placeholder:text-gray-400"
                                         rows={3}
                                         maxLength={1000}
                                         required

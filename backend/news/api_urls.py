@@ -9,7 +9,8 @@ from .api_views import (
     ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
     FavoriteViewSet, SubscriberViewSet,
     YouTubeChannelViewSet, RSSFeedViewSet, RSSNewsItemViewSet, PendingArticleViewSet, AutoPublishScheduleViewSet,
-    AdminNotificationViewSet, VehicleSpecsViewSet, BrandAliasViewSet
+    AdminNotificationViewSet, VehicleSpecsViewSet, BrandAliasViewSet,
+    ArticleFeedbackViewSet
 )
 from .health import health_check, health_check_detailed, readiness_check
 
@@ -49,6 +50,7 @@ router.register(r'auto-publish-schedule', AutoPublishScheduleViewSet, basename='
 router.register(r'notifications', AdminNotificationViewSet, basename='notification')
 router.register(r'vehicle-specs', VehicleSpecsViewSet, basename='vehicle-specs')
 router.register(r'brand-aliases', BrandAliasViewSet, basename='brand-alias')
+router.register(r'feedback', ArticleFeedbackViewSet, basename='feedback')
 from .api_views import (
     CurrencyRatesView, CurrentUserView, ChangePasswordView, EmailPreferencesView,
     RequestEmailChangeView, VerifyEmailChangeView,
