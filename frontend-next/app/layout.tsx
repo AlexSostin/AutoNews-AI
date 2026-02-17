@@ -9,11 +9,19 @@ import CookieConsent from "@/components/public/CookieConsent";
 import { Toaster } from 'react-hot-toast';
 
 async function getGAId() {
+  // Primary: environment variable (most reliable)
+  const envGaId = process.env.NEXT_PUBLIC_GA_ID;
+  if (envGaId) return envGaId;
+
+  // Fallback: fetch from API
   const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || PRODUCTION_API_URL;
 
   try {
-    const res = await fetch(`${apiUrl}/settings/`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${apiUrl}/settings/`, {
+      next: { revalidate: 3600 },
+      headers: { 'User-Agent': 'FreshMotors-SSR/1.0' },
+    });
     if (res.ok) {
       const data = await res.json();
       return data.google_analytics_id;

@@ -48,7 +48,7 @@ EXCLUDED_PATHS = [
     '/api/v1/feed',
 ]
 
-# Known good bot UAs to allow (search engines, etc.)
+# Known good bot UAs to allow (search engines, our SSR, etc.)
 ALLOWED_BOTS = [
     r'googlebot',
     r'bingbot',
@@ -62,6 +62,7 @@ ALLOWED_BOTS = [
     r'whatsapp',
     r'telegrambot',
     r'applebot',
+    r'freshmotors-ssr', # Our Next.js SSR
 ]
 
 ALLOWED_BOT_REGEX = re.compile('|'.join(ALLOWED_BOTS), re.IGNORECASE)
