@@ -47,88 +47,40 @@ export default function ArticlesPage() {
     setEnrichProgress(null);
 
     try {
-      // Use native fetch for SSE streaming (axios doesn't support streams)
-      const { getApiUrl } = await import('@/lib/api');
-      const apiBase = getApiUrl();
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('access_token='))
-        ?.split('=')[1];
+      // Start the task — returns immediately with task_id
+      const { data: startData } = await api.post('/articles/bulk-re-enrich/', { mode });
+      const taskId = startData.task_id;
+      setEnrichProgress({ current: 0, total: startData.total });
 
-      const response = await fetch(`${apiBase}/articles/bulk-re-enrich/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ mode }),
-      });
+      // Poll for progress every 1.5 seconds
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data: status } = await api.get(`/articles/bulk-re-enrich-status/?task_id=${taskId}`);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+          setEnrichProgress({ current: status.current, total: status.total });
+          setBulkResults({
+            success: true,
+            message: status.message,
+            processed: status.current,
+            success_count: status.success_count,
+            error_count: status.error_count,
+            elapsed_seconds: status.elapsed_seconds,
+            results: status.results || [],
+          });
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      const streamedResults: any[] = [];
-      let finalData: any = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Parse SSE events from buffer
-        const events = buffer.split('\n\n');
-        buffer = events.pop() || ''; // Keep incomplete event in buffer
-
-        for (const event of events) {
-          const dataLine = event.trim();
-          if (!dataLine.startsWith('data: ')) continue;
-          try {
-            const data = JSON.parse(dataLine.slice(6));
-
-            if (data.type === 'init') {
-              setEnrichProgress({ current: 0, total: data.total });
-            } else if (data.type === 'progress') {
-              setEnrichProgress({ current: data.current, total: data.total });
-              streamedResults.push(data.article);
-              // Update results live
-              setBulkResults({
-                success: true,
-                message: `Processing ${data.current}/${data.total}...`,
-                processed: data.current,
-                success_count: streamedResults.filter((r: any) => !r.errors?.length).length,
-                error_count: streamedResults.filter((r: any) => r.errors?.length).length,
-                elapsed_seconds: '...',
-                results: [...streamedResults],
-              });
-            } else if (data.type === 'done') {
-              finalData = data;
-            }
-          } catch {
-            // Skip malformed events
+          if (status.status === 'done') {
+            clearInterval(pollInterval);
+            setSuccessMessage(status.message);
+            setTimeout(() => setSuccessMessage(null), 5000);
+            setBulkEnriching(false);
+            setEnrichProgress(null);
           }
+        } catch {
+          // Polling error — keep trying
         }
-      }
-
-      // Set final results
-      if (finalData) {
-        setBulkResults({
-          ...finalData,
-          success: true,
-          results: streamedResults,
-        });
-        setSuccessMessage(finalData.message);
-        setTimeout(() => setSuccessMessage(null), 5000);
-      }
+      }, 1500);
     } catch (err: any) {
-      setBulkResults({ success: false, message: err.message || 'Network Error' });
-    } finally {
+      setBulkResults({ success: false, message: err?.response?.data?.detail || err.message || 'Network Error' });
       setBulkEnriching(false);
       setEnrichProgress(null);
     }

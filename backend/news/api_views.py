@@ -1791,15 +1791,15 @@ Return ONLY the reformatted HTML."""
     @action(detail=False, methods=['post'], url_path='bulk-re-enrich')
     def bulk_re_enrich(self, request):
         """
-        Bulk re-enrich multiple articles — SSE streaming response.
+        Bulk re-enrich multiple articles — background thread + polling.
         POST /api/v1/articles/bulk-re-enrich/
         Body: { "mode": "missing"|"selected"|"all", "article_ids": [...] }
         
-        Returns Server-Sent Events stream with progress updates.
+        Returns { task_id, total } immediately. Poll /bulk-re-enrich-status/?task_id=xxx for progress.
         """
-        import time as _time
-        import json as _json
-        from django.http import StreamingHttpResponse
+        import threading
+        import uuid as _uuid
+        from django.core.cache import cache
         from news.models import VehicleSpecs, ArticleTitleVariant, CarSpecification
 
         mode = request.data.get('mode', 'missing')
@@ -1819,23 +1819,52 @@ Return ONLY the reformatted HTML."""
             articles = published
 
         total_articles = articles.count()
+        article_id_list = list(articles.order_by('id').values_list('id', flat=True))
+        task_id = str(_uuid.uuid4())[:8]
 
-        def event_stream():
-            """Generator that yields SSE events for each article processed."""
+        # Store initial state in cache (TTL = 1 hour)
+        cache.set(f'bulk_enrich_{task_id}', {
+            'status': 'running',
+            'current': 0,
+            'total': total_articles,
+            'results': [],
+            'success_count': 0,
+            'error_count': 0,
+            'message': 'Starting enrichment...',
+            'elapsed_seconds': 0,
+        }, timeout=3600)
+
+        def _process_task():
+            """Background thread — processes articles and updates cache."""
             import re
-
-            # Send init event
-            yield f"data: {_json.dumps({'type': 'init', 'total': total_articles})}\n\n"
-
-            if total_articles == 0:
-                yield f"data: {_json.dumps({'type': 'done', 'message': 'All articles are fully enriched!', 'processed': 0, 'success_count': 0, 'error_count': 0, 'elapsed_seconds': 0})}\n\n"
-                return
+            import time as _time
+            from django.core.cache import cache as _cache
+            from django.db import connection
 
             success_total = 0
             errors_total = 0
+            all_results = []
             start_time = _time.time()
 
-            for idx, article in enumerate(articles.order_by('id'), 1):
+            if total_articles == 0:
+                _cache.set(f'bulk_enrich_{task_id}', {
+                    'status': 'done',
+                    'current': 0,
+                    'total': 0,
+                    'results': [],
+                    'success_count': 0,
+                    'error_count': 0,
+                    'message': 'All articles are fully enriched!',
+                    'elapsed_seconds': 0,
+                }, timeout=3600)
+                return
+
+            for idx, art_id in enumerate(article_id_list, 1):
+                try:
+                    article = Article.objects.get(id=art_id)
+                except Article.DoesNotExist:
+                    continue
+
                 article_result = {
                     'id': article.id,
                     'title': article.title[:80],
@@ -1849,7 +1878,6 @@ Return ONLY the reformatted HTML."""
                 try:
                     car_spec = CarSpecification.objects.filter(article=article).first()
                     if car_spec and car_spec.make:
-                        # CarSpecification has no 'year' field — extract from title or release_date
                         _year = None
                         _y_match = re.search(r'\b(20[2-3]\d)\b', article.title)
                         if _y_match:
@@ -1924,7 +1952,6 @@ Return ONLY the reformatted HTML."""
                     pass
 
                 # --- Step 2: Deep Specs ---
-                # Only skip if VehicleSpecs exists AND has actual data (not empty shell)
                 existing_vs = VehicleSpecs.objects.filter(article=article).first()
                 has_populated_specs = existing_vs and (existing_vs.power_hp or existing_vs.range_km or existing_vs.length_mm)
                 if not has_populated_specs and specs_dict and specs_dict.get('make'):
@@ -1973,34 +2000,64 @@ Return ONLY the reformatted HTML."""
                 else:
                     success_total += 1
 
-                # Send progress event for this article
-                progress_event = {
-                    'type': 'progress',
+                all_results.append(article_result)
+
+                # Update cache with progress (every article)
+                elapsed = round(_time.time() - start_time, 1)
+                _cache.set(f'bulk_enrich_{task_id}', {
+                    'status': 'running',
                     'current': idx,
                     'total': total_articles,
-                    'article': article_result,
-                }
-                yield f"data: {_json.dumps(progress_event)}\n\n"
+                    'results': all_results[-10:],  # Keep last 10 for display
+                    'success_count': success_total,
+                    'error_count': errors_total,
+                    'message': f'Processing {idx}/{total_articles}...',
+                    'elapsed_seconds': elapsed,
+                }, timeout=3600)
 
-            # Send final done event
+            # Final state
             elapsed = round(_time.time() - start_time, 1)
-            done_event = {
-                'type': 'done',
-                'message': f'Bulk enrichment completed: {success_total}/{total_articles} articles processed in {elapsed}s',
-                'processed': total_articles,
+            _cache.set(f'bulk_enrich_{task_id}', {
+                'status': 'done',
+                'current': total_articles,
+                'total': total_articles,
+                'results': all_results,
                 'success_count': success_total,
                 'error_count': errors_total,
+                'message': f'Bulk enrichment completed: {success_total}/{total_articles} articles processed in {elapsed}s',
                 'elapsed_seconds': elapsed,
-            }
-            yield f"data: {_json.dumps(done_event)}\n\n"
+            }, timeout=3600)
 
-        response = StreamingHttpResponse(
-            event_stream(),
-            content_type='text/event-stream',
-        )
-        response['Cache-Control'] = 'no-cache'
-        response['X-Accel-Buffering'] = 'no'  # Disable nginx buffering
-        return response
+            # Close DB connection for this thread
+            connection.close()
+
+        # Start background thread
+        thread = threading.Thread(target=_process_task, daemon=True)
+        thread.start()
+
+        return Response({
+            'task_id': task_id,
+            'total': total_articles,
+            'message': f'Enrichment started for {total_articles} articles',
+        })
+
+    @action(detail=False, methods=['get'], url_path='bulk-re-enrich-status')
+    def bulk_re_enrich_status(self, request):
+        """
+        Poll enrichment progress.
+        GET /api/v1/articles/bulk-re-enrich-status/?task_id=xxx
+        """
+        from django.core.cache import cache
+
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response({'error': 'task_id required'}, status=400)
+
+        state = cache.get(f'bulk_enrich_{task_id}')
+        if not state:
+            return Response({'error': 'Task not found or expired'}, status=404)
+
+        return Response(state)
     
     @action(detail=True, methods=['get'])
     def similar_articles(self, request, slug=None):
