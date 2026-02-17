@@ -13,6 +13,31 @@ interface ArticleCardProps {
   priority?: boolean;
 }
 
+const FUEL_TYPES = new Set(['Electric', 'Hybrid', 'PHEV', 'Plug-in Hybrid', 'Gasoline', 'Diesel', 'Hydrogen']);
+const DRIVETRAINS = new Set(['AWD', 'FWD', 'RWD', '4WD']);
+
+function prioritizeTags(tags: string[]): string[] {
+  const years: string[] = [];
+  const fuelTypes: string[] = [];
+  const drivetrains: string[] = [];
+  const models: string[] = [];
+
+  for (const tag of tags) {
+    if (/^20\d{2}$/.test(tag)) {
+      years.push(tag);
+    } else if (FUEL_TYPES.has(tag)) {
+      fuelTypes.push(tag);
+    } else if (DRIVETRAINS.has(tag)) {
+      drivetrains.push(tag);
+    } else {
+      models.push(tag);
+    }
+  }
+
+  // Priority: Year → Model (first one) → Fuel Type → Drivetrain → rest
+  return [...years, ...models.slice(0, 1), ...fuelTypes, ...drivetrains, ...models.slice(1)].slice(0, 3);
+}
+
 export default function ArticleCard({ article, priority = false }: ArticleCardProps) {
   // Use first screenshot from video as background
   const defaultImage = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&h=400&fit=crop';
@@ -73,7 +98,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
 
           {article.tag_names && article.tag_names.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-auto">
-              {article.tag_names.slice(0, 3).map((tag) => (
+              {prioritizeTags(article.tag_names).map((tag) => (
                 <span key={tag} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">
                   {tag}
                 </span>
