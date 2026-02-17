@@ -236,7 +236,12 @@ export default async function ArticleDetailPage({
       ))}
 
       {/* Track page view */}
-      <ViewTracker articleSlug={article.slug} />
+      <ViewTracker
+        articleSlug={article.slug}
+        articleId={article.id}
+        articleTitle={article.title}
+        categoryName={article.categories?.[0]?.name}
+      />
 
       {/* Reading Progress Bar */}
       <ReadingProgressBar />

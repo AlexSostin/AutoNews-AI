@@ -186,6 +186,7 @@ class Article(models.Model):
     is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete - allows recreating articles with same slug")
     views = models.PositiveIntegerField(default=0, help_text="Number of times this article has been viewed", db_index=True)
     is_hero = models.BooleanField(default=False, db_index=True, help_text="Show in Home page Hero section")
+    generation_metadata = models.JSONField(null=True, blank=True, help_text="AI generation stats: timing, provider, AI Editor diff")
     
     class Meta:
         ordering = ['-created_at']

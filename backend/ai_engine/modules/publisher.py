@@ -21,7 +21,7 @@ from django.core.files import File
 from django.utils.text import slugify
 import re
 
-def publish_article(title, content, category_name="Reviews", image_path=None, image_paths=None, youtube_url=None, summary=None, tag_names=None, specs=None, meta_keywords=None, is_published=True, author_name="", author_channel_url=""):
+def publish_article(title, content, category_name="Reviews", image_path=None, image_paths=None, youtube_url=None, summary=None, tag_names=None, specs=None, meta_keywords=None, is_published=True, author_name="", author_channel_url="", generation_metadata=None):
     """
     Publishes the article to the Django database with full metadata.
     
@@ -69,7 +69,8 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
         seo_description=seo_description,
         meta_keywords=meta_keywords or '',
         author_name=author_name,
-        author_channel_url=author_channel_url
+        author_channel_url=author_channel_url,
+        generation_metadata=generation_metadata
     )
     
     # Add images (support for 3 screenshots from video)
