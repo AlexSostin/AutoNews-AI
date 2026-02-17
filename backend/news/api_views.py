@@ -1807,11 +1807,21 @@ Return ONLY the reformatted HTML."""
             try:
                 car_spec = CarSpecification.objects.filter(article=article).first()
                 if car_spec and car_spec.make:
+                    # CarSpecification has no 'year' field — extract from title or release_date
+                    import re as _re
+                    _year = None
+                    _y_match = _re.search(r'\b(20[2-3]\d)\b', article.title)
+                    if _y_match:
+                        _year = int(_y_match.group(1))
+                    elif car_spec.release_date:
+                        _ry = _re.search(r'(20[2-3]\d)', car_spec.release_date)
+                        if _ry:
+                            _year = int(_ry.group(1))
                     specs_dict = {
                         'make': car_spec.make or '',
                         'model': car_spec.model or '',
                         'trim': car_spec.trim or '',
-                        'year': car_spec.year,
+                        'year': _year,
                     }
                 else:
                     import re
