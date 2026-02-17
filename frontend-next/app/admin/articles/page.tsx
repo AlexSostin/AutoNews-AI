@@ -36,6 +36,7 @@ export default function ArticlesPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [bulkEnriching, setBulkEnriching] = useState(false);
   const [bulkResults, setBulkResults] = useState<any>(null);
+  const [enrichProgress, setEnrichProgress] = useState<{ current: number; total: number } | null>(null);
 
   const handleBulkEnrich = async (mode: 'missing' | 'all') => {
     const label = mode === 'missing' ? 'articles missing enrichment' : 'ALL published articles';
@@ -43,17 +44,93 @@ export default function ArticlesPage() {
 
     setBulkEnriching(true);
     setBulkResults(null);
+    setEnrichProgress(null);
+
     try {
-      const { data } = await api.post('/articles/bulk-re-enrich/', { mode });
-      setBulkResults(data);
-      if (data.success) {
-        setSuccessMessage(data.message);
+      // Use native fetch for SSE streaming (axios doesn't support streams)
+      const { getApiUrl } = await import('@/lib/api');
+      const apiBase = getApiUrl();
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('access_token='))
+        ?.split('=')[1];
+
+      const response = await fetch(`${apiBase}/articles/bulk-re-enrich/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ mode }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const streamedResults: any[] = [];
+      let finalData: any = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE events from buffer
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || ''; // Keep incomplete event in buffer
+
+        for (const event of events) {
+          const dataLine = event.trim();
+          if (!dataLine.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(dataLine.slice(6));
+
+            if (data.type === 'init') {
+              setEnrichProgress({ current: 0, total: data.total });
+            } else if (data.type === 'progress') {
+              setEnrichProgress({ current: data.current, total: data.total });
+              streamedResults.push(data.article);
+              // Update results live
+              setBulkResults({
+                success: true,
+                message: `Processing ${data.current}/${data.total}...`,
+                processed: data.current,
+                success_count: streamedResults.filter((r: any) => !r.errors?.length).length,
+                error_count: streamedResults.filter((r: any) => r.errors?.length).length,
+                elapsed_seconds: '...',
+                results: [...streamedResults],
+              });
+            } else if (data.type === 'done') {
+              finalData = data;
+            }
+          } catch {
+            // Skip malformed events
+          }
+        }
+      }
+
+      // Set final results
+      if (finalData) {
+        setBulkResults({
+          ...finalData,
+          success: true,
+          results: streamedResults,
+        });
+        setSuccessMessage(finalData.message);
         setTimeout(() => setSuccessMessage(null), 5000);
       }
     } catch (err: any) {
-      setBulkResults({ success: false, message: err.response?.data?.message || err.message });
+      setBulkResults({ success: false, message: err.message || 'Network Error' });
     } finally {
       setBulkEnriching(false);
+      setEnrichProgress(null);
     }
   };
 
@@ -173,13 +250,29 @@ export default function ArticlesPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
-                <h3 className="text-lg font-black text-gray-900">⚡ Bulk Enrichment Results</h3>
+                <h3 className="text-lg font-black text-gray-900">⚡ Bulk Enrichment {enrichProgress ? 'Progress' : 'Results'}</h3>
                 <p className="text-sm text-gray-500 font-medium mt-1">{bulkResults.message}</p>
               </div>
-              <button onClick={() => setBulkResults(null)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" title="Close">
-                <X size={22} className="text-gray-600" />
-              </button>
+              {!enrichProgress && (
+                <button onClick={() => setBulkResults(null)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" title="Close">
+                  <X size={22} className="text-gray-600" />
+                </button>
+              )}
             </div>
+            {enrichProgress && (
+              <div className="px-5 pt-4">
+                <div className="flex items-center justify-between text-sm font-bold text-gray-700 mb-2">
+                  <span>Processing article {enrichProgress.current} of {enrichProgress.total}</span>
+                  <span className="text-emerald-600">{enrichProgress.total > 0 ? Math.round((enrichProgress.current / enrichProgress.total) * 100) : 0}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-3 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${enrichProgress.total > 0 ? (enrichProgress.current / enrichProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="p-5 overflow-y-auto max-h-[60vh] space-y-3">
               {bulkResults.processed > 0 && (
                 <div className="grid grid-cols-3 gap-3 mb-4">

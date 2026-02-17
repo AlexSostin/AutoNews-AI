@@ -1755,11 +1755,15 @@ Return ONLY the reformatted HTML."""
     @action(detail=False, methods=['post'], url_path='bulk-re-enrich')
     def bulk_re_enrich(self, request):
         """
-        Bulk re-enrich multiple articles.
+        Bulk re-enrich multiple articles — SSE streaming response.
         POST /api/v1/articles/bulk-re-enrich/
         Body: { "mode": "missing"|"selected"|"all", "article_ids": [...] }
+        
+        Returns Server-Sent Events stream with progress updates.
         """
         import time as _time
+        import json as _json
+        from django.http import StreamingHttpResponse
         from news.models import VehicleSpecs, ArticleTitleVariant, CarSpecification
 
         mode = request.data.get('mode', 'missing')
@@ -1770,183 +1774,195 @@ Return ONLY the reformatted HTML."""
         if mode == 'selected' and article_ids:
             articles = published.filter(id__in=article_ids)
         elif mode == 'missing':
-            # Articles missing VehicleSpecs OR A/B titles
             articles_with_specs = VehicleSpecs.objects.values_list('article_id', flat=True)
             articles_with_ab = ArticleTitleVariant.objects.values_list('article_id', flat=True)
             articles = published.exclude(
                 id__in=set(articles_with_specs) & set(articles_with_ab)
             )
-        else:  # all
+        else:
             articles = published
 
         total_articles = articles.count()
-        if total_articles == 0:
-            return Response({
-                'success': True,
-                'message': 'All articles are fully enriched!',
-                'processed': 0,
-                'results': [],
-            })
 
-        results_list = []
-        success_total = 0
-        errors_total = 0
-        start_time = _time.time()
+        def event_stream():
+            """Generator that yields SSE events for each article processed."""
+            import re
 
-        for article in articles.order_by('id'):
-            article_result = {
-                'id': article.id,
-                'title': article.title[:80],
-                'steps': {},
-                'errors': [],
-            }
+            # Send init event
+            yield f"data: {_json.dumps({'type': 'init', 'total': total_articles})}\n\n"
 
-            # --- Step 1: Web Search ---
-            specs_dict = None
-            web_context = ''
-            try:
-                car_spec = CarSpecification.objects.filter(article=article).first()
-                if car_spec and car_spec.make:
-                    # CarSpecification has no 'year' field — extract from title or release_date
-                    import re as _re
-                    _year = None
-                    _y_match = _re.search(r'\b(20[2-3]\d)\b', article.title)
-                    if _y_match:
-                        _year = int(_y_match.group(1))
-                    elif car_spec.release_date:
-                        _ry = _re.search(r'(20[2-3]\d)', car_spec.release_date)
-                        if _ry:
-                            _year = int(_ry.group(1))
-                    specs_dict = {
-                        'make': car_spec.make or '',
-                        'model': car_spec.model or '',
-                        'trim': car_spec.trim or '',
-                        'year': _year,
-                    }
-                else:
-                    import re
-                    title = article.title
-                    year = None
-                    make = None
-                    model_name = None
+            if total_articles == 0:
+                yield f"data: {_json.dumps({'type': 'done', 'message': 'All articles are fully enriched!', 'processed': 0, 'success_count': 0, 'error_count': 0, 'elapsed_seconds': 0})}\n\n"
+                return
 
-                    # Pattern 1: "2026 BYD Qin L DM-i Review"
-                    m = re.match(r'(\d{4})\s+(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Comparison|Test))?$', title, re.IGNORECASE)
-                    if m:
-                        year, make, model_name = int(m.group(1)), m.group(2), m.group(3).strip()
+            success_total = 0
+            errors_total = 0
+            start_time = _time.time()
 
-                    # Pattern 2: "First Drive: 2026 NIO ET9 - Luxury Electric Sedan"
-                    if not make:
-                        m = re.match(r'(?:First\s+Drive|Review|Test\s+Drive)[:\s]+(\d{4})\s+(\S+)\s+(.+?)(?:\s+-\s+.+)?$', title, re.IGNORECASE)
+            for idx, article in enumerate(articles.order_by('id'), 1):
+                article_result = {
+                    'id': article.id,
+                    'title': article.title[:80],
+                    'steps': {},
+                    'errors': [],
+                }
+
+                # --- Step 1: Web Search ---
+                specs_dict = None
+                web_context = ''
+                try:
+                    car_spec = CarSpecification.objects.filter(article=article).first()
+                    if car_spec and car_spec.make:
+                        # CarSpecification has no 'year' field — extract from title or release_date
+                        _year = None
+                        _y_match = re.search(r'\b(20[2-3]\d)\b', article.title)
+                        if _y_match:
+                            _year = int(_y_match.group(1))
+                        elif car_spec.release_date:
+                            _ry = re.search(r'(20[2-3]\d)', car_spec.release_date)
+                            if _ry:
+                                _year = int(_ry.group(1))
+                        specs_dict = {
+                            'make': car_spec.make or '',
+                            'model': car_spec.model or '',
+                            'trim': car_spec.trim or '',
+                            'year': _year,
+                        }
+                    else:
+                        title = article.title
+                        year = None
+                        make = None
+                        model_name = None
+
+                        # Pattern 1: "2026 BYD Qin L DM-i Review"
+                        m = re.match(r'(\d{4})\s+(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Comparison|Test))?$', title, re.IGNORECASE)
                         if m:
                             year, make, model_name = int(m.group(1)), m.group(2), m.group(3).strip()
-                            # Clean model name: remove everything after " - "
-                            if ' - ' in model_name:
-                                model_name = model_name.split(' - ')[0].strip()
 
-                    # Pattern 3: "BYD Seal 06 GT Electric Hatchback Walkaround" (no year)
-                    if not make:
-                        m = re.match(r'(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Walkaround|Comparison|Test))', title, re.IGNORECASE)
-                        if m:
-                            make, model_name = m.group(1), m.group(2).strip()
+                        # Pattern 2: "First Drive: 2026 NIO ET9 - Luxury Electric Sedan"
+                        if not make:
+                            m = re.match(r'(?:First\s+Drive|Review|Test\s+Drive)[:\s]+(\d{4})\s+(\S+)\s+(.+?)(?:\s+-\s+.+)?$', title, re.IGNORECASE)
+                            if m:
+                                year, make, model_name = int(m.group(1)), m.group(2), m.group(3).strip()
+                                if ' - ' in model_name:
+                                    model_name = model_name.split(' - ')[0].strip()
 
-                    # Pattern 4: "Hongqi HS6 Sets Two Guinness..." (brand + model at start)
-                    if not make:
+                        # Pattern 3: "BYD Seal 06 GT Electric Hatchback Walkaround" (no year)
+                        if not make:
+                            m = re.match(r'(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Walkaround|Comparison|Test))', title, re.IGNORECASE)
+                            if m:
+                                make, model_name = m.group(1), m.group(2).strip()
+
+                        # Pattern 4: known brands fallback
+                        if not make:
+                            try:
+                                from news.auto_tags import KNOWN_BRANDS, BRAND_DISPLAY_NAMES
+                                title_lower = title.lower()
+                                for brand in KNOWN_BRANDS:
+                                    if title_lower.startswith(brand) or title_lower.startswith(brand + ' '):
+                                        make = BRAND_DISPLAY_NAMES.get(brand, brand.title())
+                                        rest = title[len(brand):].strip()
+                                        model_match = re.match(r'(\S+(?:\s+\S+)?)', rest)
+                                        if model_match:
+                                            model_name = model_match.group(1)
+                                        break
+                            except ImportError:
+                                pass
+
+                        if not year:
+                            y_match = re.search(r'\b(20[2-3]\d)\b', title)
+                            if y_match:
+                                year = int(y_match.group(1))
+
+                        if make and model_name:
+                            specs_dict = {'make': make, 'model': model_name, 'year': year}
+
+                    if specs_dict and specs_dict.get('make'):
                         try:
-                            from news.auto_tags import KNOWN_BRANDS, BRAND_DISPLAY_NAMES
-                            title_lower = title.lower()
-                            for brand in KNOWN_BRANDS:
-                                if title_lower.startswith(brand) or title_lower.startswith(brand + ' '):
-                                    make = BRAND_DISPLAY_NAMES.get(brand, brand.title())
-                                    rest = title[len(brand):].strip()
-                                    # Try to extract model from the next word(s)
-                                    model_match = re.match(r'(\S+(?:\s+\S+)?)', rest)
-                                    if model_match:
-                                        model_name = model_match.group(1)
-                                    break
-                        except ImportError:
+                            from ai_engine.modules.searcher import get_web_context
+                            web_context = get_web_context(specs_dict)
+                            article_result['steps']['web_search'] = True
+                        except Exception:
                             pass
+                except Exception:
+                    pass
 
-                    # Extract year from title if not found yet
-                    if not year:
-                        y_match = re.search(r'\b(20[2-3]\d)\b', title)
-                        if y_match:
-                            year = int(y_match.group(1))
-
-                    if make and model_name:
-                        specs_dict = {'make': make, 'model': model_name, 'year': year}
-
-                if specs_dict and specs_dict.get('make'):
+                # --- Step 2: Deep Specs ---
+                has_specs = VehicleSpecs.objects.filter(article=article).exists()
+                if not has_specs and specs_dict and specs_dict.get('make'):
                     try:
-                        from ai_engine.modules.searcher import get_web_context
-                        web_context = get_web_context(specs_dict)
-                        article_result['steps']['web_search'] = True
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+                        from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+                        vehicle_specs = generate_deep_vehicle_specs(
+                            article, specs=specs_dict, web_context=web_context, provider='gemini'
+                        )
+                        article_result['steps']['deep_specs'] = bool(vehicle_specs)
+                    except Exception as e:
+                        article_result['errors'].append(f'Deep specs: {e}')
+                        article_result['steps']['deep_specs'] = False
+                elif has_specs:
+                    article_result['steps']['deep_specs'] = 'skipped'
+                else:
+                    article_result['steps']['deep_specs'] = 'no_specs'
 
-            # --- Step 2: Deep Specs ---
-            has_specs = VehicleSpecs.objects.filter(article=article).exists()
-            if not has_specs and specs_dict and specs_dict.get('make'):
+                # --- Step 3: A/B Titles ---
+                has_ab = ArticleTitleVariant.objects.filter(article=article).exists()
+                if not has_ab:
+                    try:
+                        from ai_engine.main import generate_title_variants
+                        generate_title_variants(article, provider='gemini')
+                        article_result['steps']['ab_titles'] = True
+                    except Exception as e:
+                        article_result['errors'].append(f'A/B titles: {e}')
+                else:
+                    article_result['steps']['ab_titles'] = 'skipped'
+
+                # --- Step 4: Smart Auto-Tags ---
                 try:
-                    from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
-                    vehicle_specs = generate_deep_vehicle_specs(
-                        article, specs=specs_dict, web_context=web_context, provider='gemini'
-                    )
-                    article_result['steps']['deep_specs'] = bool(vehicle_specs)
+                    from news.auto_tags import auto_tag_article
+                    tag_result = auto_tag_article(article, use_ai=True)
+                    created_count = len(tag_result['created'])
+                    matched_count = len(tag_result['matched'])
+                    article_result['steps']['smart_tags'] = created_count + matched_count
+                    if tag_result['created']:
+                        article_result['steps']['tags_created'] = tag_result['created']
+                    if tag_result['ai_used']:
+                        article_result['steps']['ai_used'] = True
                 except Exception as e:
-                    article_result['errors'].append(f'Deep specs: {e}')
-                    article_result['steps']['deep_specs'] = False
-            elif has_specs:
-                article_result['steps']['deep_specs'] = 'skipped'
-            else:
-                article_result['steps']['deep_specs'] = 'no_specs'
+                    article_result['errors'].append(f'Smart tags: {e}')
 
-            # --- Step 3: A/B Titles ---
-            has_ab = ArticleTitleVariant.objects.filter(article=article).exists()
-            if not has_ab:
-                try:
-                    from ai_engine.main import generate_title_variants
-                    generate_title_variants(article, provider='gemini')
-                    article_result['steps']['ab_titles'] = True
-                except Exception as e:
-                    article_result['errors'].append(f'A/B titles: {e}')
-            else:
-                article_result['steps']['ab_titles'] = 'skipped'
+                if article_result['errors']:
+                    errors_total += 1
+                else:
+                    success_total += 1
 
-            # --- Step 4: Smart Auto-Tags (with auto-creation) ---
-            try:
-                from news.auto_tags import auto_tag_article
-                tag_result = auto_tag_article(article, use_ai=True)
-                created_count = len(tag_result['created'])
-                matched_count = len(tag_result['matched'])
-                article_result['steps']['smart_tags'] = created_count + matched_count
-                if tag_result['created']:
-                    article_result['steps']['tags_created'] = tag_result['created']
-                if tag_result['ai_used']:
-                    article_result['steps']['ai_used'] = True
-            except Exception as e:
-                article_result['errors'].append(f'Smart tags: {e}')
+                # Send progress event for this article
+                progress_event = {
+                    'type': 'progress',
+                    'current': idx,
+                    'total': total_articles,
+                    'article': article_result,
+                }
+                yield f"data: {_json.dumps(progress_event)}\n\n"
 
-            if article_result['errors']:
-                errors_total += 1
-            else:
-                success_total += 1
+            # Send final done event
+            elapsed = round(_time.time() - start_time, 1)
+            done_event = {
+                'type': 'done',
+                'message': f'Bulk enrichment completed: {success_total}/{total_articles} articles processed in {elapsed}s',
+                'processed': total_articles,
+                'success_count': success_total,
+                'error_count': errors_total,
+                'elapsed_seconds': elapsed,
+            }
+            yield f"data: {_json.dumps(done_event)}\n\n"
 
-            results_list.append(article_result)
-
-        elapsed = round(_time.time() - start_time, 1)
-
-        return Response({
-            'success': True,
-            'message': f'Bulk enrichment completed: {success_total}/{total_articles} articles processed in {elapsed}s',
-            'processed': total_articles,
-            'success_count': success_total,
-            'error_count': errors_total,
-            'elapsed_seconds': elapsed,
-            'results': results_list,
-        })
+        response = StreamingHttpResponse(
+            event_stream(),
+            content_type='text/event-stream',
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'  # Disable nginx buffering
+        return response
     
     @action(detail=True, methods=['get'])
     def similar_articles(self, request, slug=None):
