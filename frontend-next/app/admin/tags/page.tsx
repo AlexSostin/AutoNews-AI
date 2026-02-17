@@ -527,8 +527,8 @@ export default function TagsPage() {
                               <button
                                 onClick={() => setLetterFilter(prev => ({ ...prev, [groupName]: null }))}
                                 className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${!activeLetter
-                                    ? 'bg-indigo-600 text-white shadow-sm'
-                                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                  ? 'bg-indigo-600 text-white shadow-sm'
+                                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                                   }`}
                               >
                                 All
@@ -544,10 +544,10 @@ export default function TagsPage() {
                                       [groupName]: isActive ? null : letter
                                     }))}
                                     className={`w-6 h-6 rounded text-[11px] font-bold transition-all flex items-center justify-center ${isActive
-                                        ? `${getLetterColor(letter)} text-white shadow-sm`
-                                        : hasItems
-                                          ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                                          : 'text-gray-200 cursor-default'
+                                      ? `${getLetterColor(letter)} text-white shadow-sm`
+                                      : hasItems
+                                        ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                        : 'text-gray-200 cursor-default'
                                       }`}
                                   >
                                     {letter}
@@ -601,7 +601,7 @@ export default function TagsPage() {
                                 )}
 
                                 {/* Actions */}
-                                <div className={`items-center gap-0.5 ml-1 ${activeTagMenuId === tag.id ? 'flex' : 'hidden group-hover:flex'}`}>
+                                <div className={`flex items-center gap-0.5 ml-1 ${activeTagMenuId === tag.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                                   <button
                                     onClick={() => setActiveTagMenuId(activeTagMenuId === tag.id ? null : tag.id)}
                                     className="p-0.5 text-gray-400 hover:text-indigo-600 transition-colors"

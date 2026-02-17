@@ -419,6 +419,27 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 tag_names.append(dt_upper)
                 print(f"🏷️ Auto-added drivetrain tag (post-enrichment): {dt_upper}")
         
+        # 2.10 AUTO-ADD SEGMENT TAG based on price
+        try:
+            from modules.analyzer import extract_price_usd
+            price_usd = extract_price_usd(analysis)
+            if price_usd and price_usd > 0:
+                # Check if any price-based segment already assigned
+                price_segments = {'Budget', 'Premium', 'Luxury'}
+                has_price_segment = any(t in price_segments for t in tag_names)
+                if not has_price_segment:
+                    if price_usd < 25000:
+                        tag_names.append('Budget')
+                        print(f"🏷️ Auto-added segment: Budget (${price_usd:,.0f})")
+                    elif 50000 <= price_usd < 80000:
+                        tag_names.append('Premium')
+                        print(f"🏷️ Auto-added segment: Premium (${price_usd:,.0f})")
+                    elif price_usd >= 80000:
+                        tag_names.append('Luxury')
+                        print(f"🏷️ Auto-added segment: Luxury (${price_usd:,.0f})")
+        except Exception as e:
+            print(f"⚠️ Price segment auto-add failed: {e}")
+        
         # 3. Generate Article
         send_progress(5, 65, f"✍️ Generating article with {provider_name}...")
         print(f"✍️  Generating article...")
