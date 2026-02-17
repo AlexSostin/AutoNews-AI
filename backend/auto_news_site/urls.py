@@ -56,3 +56,11 @@ from news.views import serve_media_with_cors
 urlpatterns += [
     re_path(r'^media/(?P<path>.*)$', serve_media_with_cors, name='media'),
 ]
+
+# Serve static files explicitly in production (WhiteNoise + Daphne ASGI has MIME issues)
+if not settings.DEBUG:
+    from django.views.static import serve as static_serve
+    urlpatterns += [
+        re_path(r'^static/(?P<path>.*)$', static_serve, {'document_root': settings.STATIC_ROOT}),
+    ]
+
