@@ -18,7 +18,7 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
   // The actual token validation happens on the backend
   setCookie('access_token', access);
   setCookie('refresh_token', refresh);
-  
+
   // Also store in localStorage for client-side access
   localStorage.setItem('access_token', access);
   localStorage.setItem('refresh_token', refresh);
@@ -27,7 +27,7 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
   const userData = await getCurrentUser(access);
   if (userData) {
     localStorage.setItem('user', JSON.stringify(userData));
-    
+
     // Установить пользователя в Sentry для отслеживания ошибок
     setUserContext({
       id: userData.id.toString(),
@@ -50,35 +50,60 @@ export const logout = () => {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('user');
-  
+
   // Clear cookies
   document.cookie = 'access_token=; path=/; max-age=0';
   document.cookie = 'refresh_token=; path=/; max-age=0';
-  
+
   // Очистить пользователя из Sentry
   clearUserContext();
-  
+
   // Trigger auth change event
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('authChange'));
   }
-  
+
   window.location.href = '/login';
+};
+
+// Check if a JWT token is expired by reading its payload
+const _isTokenExpired = (token: string): boolean => {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return true;
+    const decoded = JSON.parse(atob(payload));
+    if (!decoded.exp) return false; // No expiry = treat as valid
+    // exp is in seconds, Date.now() is in ms. Add 30s buffer.
+    return decoded.exp * 1000 < Date.now() + 30000;
+  } catch {
+    return true; // Can't decode = treat as expired
+  }
 };
 
 export const isAuthenticated = (): boolean => {
   if (typeof window === 'undefined') return false;
-  
+
   // Check cookies first (middleware uses cookies)
   const cookieToken = document.cookie
     .split('; ')
     .find(row => row.startsWith('access_token='));
-  
-  if (cookieToken) return true;
-  
+
+  if (cookieToken) {
+    const token = cookieToken.split('=')[1];
+    if (token && !_isTokenExpired(token)) return true;
+    // Token expired — clean up stale data
+    _clearAuthData();
+    return false;
+  }
+
   // Fallback to localStorage - if found, restore the cookie!
   const tokenFromStorage = localStorage.getItem('access_token');
   if (tokenFromStorage) {
+    if (_isTokenExpired(tokenFromStorage)) {
+      // Token expired — clean up stale data
+      _clearAuthData();
+      return false;
+    }
     // Restore the cookie for middleware
     setCookie('access_token', tokenFromStorage);
     const refreshFromStorage = localStorage.getItem('refresh_token');
@@ -87,20 +112,29 @@ export const isAuthenticated = (): boolean => {
     }
     return true;
   }
-  
+
   return false;
+};
+
+// Clean up expired/stale auth data without redirect
+const _clearAuthData = () => {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user');
+  document.cookie = 'access_token=; path=/; max-age=0';
+  document.cookie = 'refresh_token=; path=/; max-age=0';
 };
 
 export const getAccessToken = (): string | null => {
   if (typeof window === 'undefined') return null;
-  
+
   // Check cookies first (middleware uses cookies)
   const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('access_token='));
-  
+
   if (token) return token.split('=')[1];
-  
+
   // Fallback to localStorage - if found, restore the cookie!
   const tokenFromStorage = localStorage.getItem('access_token');
   if (tokenFromStorage) {
@@ -136,7 +170,7 @@ export const getCurrentUser = async (token?: string): Promise<User | null> => {
     });
 
     if (!response.ok) return null;
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -146,7 +180,7 @@ export const getCurrentUser = async (token?: string): Promise<User | null> => {
 
 export const getUserFromStorage = (): User | null => {
   if (typeof window === 'undefined') return null;
-  
+
   const userData = localStorage.getItem('user');
   return userData ? JSON.parse(userData) : null;
 };
