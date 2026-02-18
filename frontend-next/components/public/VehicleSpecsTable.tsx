@@ -62,13 +62,30 @@ interface VehicleSpecsTableProps {
 
 type SpecDef = { label: string; key: string; format: (v: VehicleSpecItem) => string };
 
+// ─── Conversion Helpers ──────────────────────────────────────
+const MM_TO_INCH = 0.0393701;
+const KG_TO_LBS = 2.20462;
+const LITERS_TO_CUFT = 0.0353147;
+
+function mmToFeetInches(mm: number): string {
+    const totalInches = mm * MM_TO_INCH;
+    const feet = Math.floor(totalInches / 12);
+    const inches = Math.round(totalInches % 12);
+    return `${feet}′${inches}″`;
+}
+
+function mmToInches(mm: number): string {
+    return `${(mm * MM_TO_INCH).toFixed(1)}″`;
+}
+
 export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTableProps) {
-    const { system, formatDistance, formatSpeed, ready } = useLocaleUnits();
+    const { system, setSystem, formatDistance, formatSpeed, ready } = useLocaleUnits();
 
     if (!vehicleSpecsList || vehicleSpecsList.length === 0) return null;
 
     const vsList = vehicleSpecsList;
     const multi = vsList.length > 1;
+    const imp = system === 'imperial';
 
     // Locale-aware formatters
     const fmtDist = (v: number | null): string => {
@@ -84,7 +101,32 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
     const fmtNum = (v: number | null, unit: string) => v ? `${v} ${unit}` : '';
     const fmtStr = (v: string | null) => v || '';
 
-    const accelLabel = system === 'imperial' ? '0-60 mph' : '0-100 km/h';
+    // mm formatting: metric → mm, imperial → feet′inches″ for large, inches for small
+    const fmtLength = (mm: number | null): string => {
+        if (!mm) return '';
+        if (imp) return mmToFeetInches(mm);
+        return `${mm.toLocaleString()} mm`;
+    };
+
+    const fmtSmallMm = (mm: number | null): string => {
+        if (!mm) return '';
+        if (imp) return mmToInches(mm);
+        return `${mm} mm`;
+    };
+
+    const fmtWeight = (kg: number | null): string => {
+        if (!kg) return '';
+        if (imp) return `${Math.round(kg * KG_TO_LBS).toLocaleString()} lbs`;
+        return `${kg.toLocaleString()} kg`;
+    };
+
+    const fmtCargo = (liters: number | null): string => {
+        if (!liters) return '';
+        if (imp) return `${(liters * LITERS_TO_CUFT).toFixed(1)} cu ft`;
+        return `${liters} L`;
+    };
+
+    const accelLabel = imp ? '0-60 mph' : '0-100 km/h';
 
     const evRows: SpecDef[] = [
         { label: 'Battery', key: 'battery_kwh', format: v => fmtNum(v.battery_kwh, 'kWh') },
@@ -105,7 +147,13 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
 
     const perfRows: SpecDef[] = [
         { label: 'Power', key: 'power_display', format: v => fmtStr(v.power_display) },
-        { label: 'Torque', key: 'torque_nm', format: v => fmtNum(v.torque_nm, 'Nm') },
+        {
+            label: 'Torque', key: 'torque_nm', format: v => {
+                if (!v.torque_nm) return '';
+                if (imp) return `${Math.round(v.torque_nm * 0.7376)} lb-ft`;
+                return `${v.torque_nm} Nm`;
+            }
+        },
         { label: accelLabel, key: 'acceleration_0_100', format: v => v.acceleration_0_100 ? `${v.acceleration_0_100}s` : '' },
         { label: 'Top Speed', key: 'top_speed_kmh', format: v => fmtSpd(v.top_speed_kmh) },
         { label: 'Drivetrain', key: 'drivetrain', format: v => fmtStr(v.drivetrain) },
@@ -113,27 +161,15 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
     ];
 
     const dimRows: SpecDef[] = [
-        { label: 'Length', key: 'length_mm', format: v => fmtNum(v.length_mm, 'mm') },
-        { label: 'Width', key: 'width_mm', format: v => fmtNum(v.width_mm, 'mm') },
-        { label: 'Height', key: 'height_mm', format: v => fmtNum(v.height_mm, 'mm') },
-        { label: 'Wheelbase', key: 'wheelbase_mm', format: v => fmtNum(v.wheelbase_mm, 'mm') },
-        {
-            label: 'Weight', key: 'weight_kg', format: v => {
-                if (!v.weight_kg) return '';
-                if (system === 'imperial') return `${Math.round(v.weight_kg * 2.20462).toLocaleString()} lbs`;
-                return `${v.weight_kg.toLocaleString()} kg`;
-            }
-        },
-        { label: 'Cargo', key: 'cargo_liters', format: v => fmtNum(v.cargo_liters, 'L') },
-        { label: 'Max Cargo', key: 'cargo_liters_max', format: v => fmtNum(v.cargo_liters_max, 'L') },
-        { label: 'Ground Clearance', key: 'ground_clearance_mm', format: v => fmtNum(v.ground_clearance_mm, 'mm') },
-        {
-            label: 'Towing', key: 'towing_capacity_kg', format: v => {
-                if (!v.towing_capacity_kg) return '';
-                if (system === 'imperial') return `${Math.round(v.towing_capacity_kg * 2.20462).toLocaleString()} lbs`;
-                return `${v.towing_capacity_kg.toLocaleString()} kg`;
-            }
-        },
+        { label: 'Length', key: 'length_mm', format: v => fmtLength(v.length_mm) },
+        { label: 'Width', key: 'width_mm', format: v => fmtLength(v.width_mm) },
+        { label: 'Height', key: 'height_mm', format: v => fmtLength(v.height_mm) },
+        { label: 'Wheelbase', key: 'wheelbase_mm', format: v => fmtLength(v.wheelbase_mm) },
+        { label: 'Weight', key: 'weight_kg', format: v => fmtWeight(v.weight_kg) },
+        { label: 'Cargo', key: 'cargo_liters', format: v => fmtCargo(v.cargo_liters) },
+        { label: 'Max Cargo', key: 'cargo_liters_max', format: v => fmtCargo(v.cargo_liters_max) },
+        { label: 'Ground Clearance', key: 'ground_clearance_mm', format: v => fmtSmallMm(v.ground_clearance_mm) },
+        { label: 'Towing', key: 'towing_capacity_kg', format: v => fmtWeight(v.towing_capacity_kg) },
     ];
 
     const techRows: SpecDef[] = [
@@ -151,25 +187,18 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
     );
 
     // Render a section
-    const renderSection = (title: string, emoji: string, gradient: string, rows: SpecDef[], showToggle: boolean = false) => {
+    const renderSection = (title: string, emoji: string, gradient: string, rows: SpecDef[]) => {
         const activeRows = hasData(rows);
         if (activeRows.length === 0) return null;
         return (
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
                 <div className={`px-6 py-4 ${gradient}`}>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-xl font-bold text-white">{emoji} {title}</h2>
-                            {multi && (
-                                <p className="text-white/70 text-sm mt-1">
-                                    Comparing {vsList.length} trim variants
-                                </p>
-                            )}
-                        </div>
-                        {showToggle && ready && (
-                            <UnitToggle className="bg-white/20 backdrop-blur-sm" />
-                        )}
-                    </div>
+                    <h2 className="text-xl font-bold text-white">{emoji} {title}</h2>
+                    {multi && (
+                        <p className="text-white/70 text-sm mt-1">
+                            Comparing {vsList.length} trim variants
+                        </p>
+                    )}
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -213,11 +242,19 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
     };
 
     return (
-        <>
-            {renderSection('Performance', '⚡', 'bg-gradient-to-r from-indigo-600 to-purple-600', perfRows, true)}
-            {renderSection('EV & Battery', '🔋', 'bg-gradient-to-r from-green-600 to-emerald-600', evRows, true)}
-            {renderSection('Dimensions & Weight', '📐', 'bg-gradient-to-r from-cyan-600 to-teal-600', dimRows, true)}
+        <div className="space-y-8">
+            {/* Single toggle at the top */}
+            {ready && (
+                <div className="flex items-center justify-between bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl px-5 py-3 shadow-sm">
+                    <span className="text-white text-sm font-medium">📐 Units</span>
+                    <UnitToggle system={system} onToggle={setSystem} />
+                </div>
+            )}
+
+            {renderSection('Performance', '⚡', 'bg-gradient-to-r from-indigo-600 to-purple-600', perfRows)}
+            {renderSection('EV & Battery', '🔋', 'bg-gradient-to-r from-green-600 to-emerald-600', evRows)}
+            {renderSection('Dimensions & Weight', '📐', 'bg-gradient-to-r from-cyan-600 to-teal-600', dimRows)}
             {renderSection('Technical Details', '🔧', 'bg-gradient-to-r from-orange-500 to-amber-500', techRows)}
-        </>
+        </div>
     );
 }

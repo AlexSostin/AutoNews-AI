@@ -1,35 +1,33 @@
 'use client';
 
-import { useLocaleUnits, UnitSystem } from '@/hooks/useLocaleUnits';
+import { UnitSystem } from '@/hooks/useLocaleUnits';
 
 interface UnitToggleProps {
+    system: UnitSystem;
+    onToggle: (system: UnitSystem) => void;
     className?: string;
 }
 
-export default function UnitToggle({ className = '' }: UnitToggleProps) {
-    const { system, setSystem, ready } = useLocaleUnits();
-
-    if (!ready) return null;
-
+export default function UnitToggle({ system, onToggle, className = '' }: UnitToggleProps) {
     return (
-        <div className={`inline-flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 ${className}`}>
+        <div className={`inline-flex items-center gap-1 rounded-lg p-0.5 ${className}`}>
             <button
-                onClick={() => setSystem('metric')}
+                onClick={() => onToggle('metric')}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${system === 'metric'
                         ? 'bg-white text-indigo-700 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
+                        : 'text-gray-300 hover:text-white'
                     }`}
             >
-                km
+                Metric
             </button>
             <button
-                onClick={() => setSystem('imperial')}
+                onClick={() => onToggle('imperial')}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${system === 'imperial'
                         ? 'bg-white text-indigo-700 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
+                        : 'text-gray-300 hover:text-white'
                     }`}
             >
-                mi
+                Imperial
             </button>
         </div>
     );
