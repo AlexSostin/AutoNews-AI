@@ -212,6 +212,93 @@ def _is_automotive_result(entry: dict) -> bool:
     return bool(_AUTO_KEYWORDS.search(text))
 
 
+# --- Direct site search (no search engine needed) ---
+# These sites have predictable search URLs and always return relevant results
+
+DIRECT_SEARCH_SITES = [
+    {
+        'name': 'CNEVPost',
+        'domain': 'cnevpost.com',
+        'url_template': 'https://cnevpost.com/?s={query}',
+        'article_selectors': ['article h2 a', 'h2.entry-title a', '.post-title a'],
+    },
+    {
+        'name': 'InsideEVs',
+        'domain': 'insideevs.com',
+        'url_template': 'https://insideevs.com/search/?q={query}',
+        'article_selectors': ['h3 a', 'h2 a', '.search-result a'],
+    },
+    {
+        'name': 'Electrek',
+        'domain': 'electrek.co',
+        'url_template': 'https://electrek.co/?s={query}',
+        'article_selectors': ['h2 a', 'h3 a', '.post-title a'],
+    },
+]
+
+
+def _search_direct_sites(make: str, model: str, max_per_site: int = 3) -> list:
+    """
+    Directly search known automotive sites without a search engine.
+    Much more reliable than DDG/Google for Chinese EVs.
+    Returns list of dicts with 'title', 'url', 'desc', 'trusted'.
+    """
+    query = f"{make}+{model}".replace(' ', '+')
+    results = []
+    
+    for site in DIRECT_SEARCH_SITES:
+        url = site['url_template'].format(query=query)
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=10, allow_redirects=True)
+            if response.status_code != 200:
+                continue
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Try each selector pattern
+            found_links = []
+            for selector in site['article_selectors']:
+                found_links.extend(soup.select(selector))
+                if found_links:
+                    break
+            
+            # Fallback: find any h2/h3 with links
+            if not found_links:
+                for tag in soup.find_all(['h2', 'h3']):
+                    a = tag.find('a')
+                    if a and a.get('href'):
+                        found_links.append(a)
+            
+            # Filter to relevant links (must mention make or model)
+            make_lower = make.lower()
+            model_lower = model.lower()
+            count = 0
+            for a in found_links:
+                if count >= max_per_site:
+                    break
+                title = a.get_text(strip=True)
+                href = a.get('href', '')
+                # Must mention the car brand or model
+                text_lower = f"{title} {href}".lower()
+                if (make_lower in text_lower or model_lower in text_lower) and len(title) > 15:
+                    results.append({
+                        'title': title,
+                        'url': href if href.startswith('http') else f"https://{site['domain']}{href}",
+                        'desc': f"From {site['name']} — direct site search",
+                        'trusted': True,  # These are all trusted automotive sites
+                    })
+                    count += 1
+            
+            if count > 0:
+                print(f"  🎯 {site['name']}: found {count} articles")
+            
+        except Exception as e:
+            logger.debug(f"Direct search failed for {site['name']}: {e}")
+            continue
+    
+    return results
+
+
 def search_car_details(make, model, year=None):
     """
     Searches for car details and reviews on the web.
@@ -234,13 +321,23 @@ def search_car_details(make, model, year=None):
     for i, q in enumerate(queries, 1):
         print(f"  🔍 Query {i}: {q}")
 
-    # --- Search Phase: DuckDuckGo primary, Google fallback ---
+    # --- Search Phase: 3 tiers ---
     all_results = []
     seen_urls = set()
     
-    # Primary: DuckDuckGo (works in Docker, no rate limits)
+    # Tier 1: Direct site search (most reliable, no rate limits)
+    print("  🎯 Tier 1: Direct site search (cnevpost, insideevs, electrek)...")
+    direct_results = _search_direct_sites(make, model)
+    for r in direct_results:
+        if r['url'] not in seen_urls:
+            all_results.append(r)
+            seen_urls.add(r['url'])
+    if direct_results:
+        print(f"  🎯 Direct search found {len(direct_results)} articles")
+    
+    # Tier 2: DuckDuckGo (works in Docker, no rate limits)
     if HAS_DDGS:
-        print("  🦆 Using DuckDuckGo...")
+        print("  🦆 Tier 2: DuckDuckGo...")
         for q in queries:
             ddg_results = _search_ddgs(q, max_results=6)
             for r in ddg_results:
@@ -250,9 +347,9 @@ def search_car_details(make, model, year=None):
         
         print(f"  🦆 DuckDuckGo found {len(all_results)} raw results")
     
-    # Fallback: Google (if DuckDuckGo returned nothing)
+    # Tier 3: Google (if nothing else returned results)
     if not all_results and HAS_GOOGLE:
-        print("  🔍 DuckDuckGo empty, trying Google fallback...")
+        print("  🔍 Tier 3: Google fallback...")
         for q in queries[:2]:  # Only first 2 queries for Google (rate limit risk)
             google_results = _search_google(q, max_results=6)
             for r in google_results:
