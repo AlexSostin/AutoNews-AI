@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useState, useRef, useCallback, type ReactElement } from 'react';
 
 interface ArticleContentWithImagesProps {
   content: string;
@@ -15,52 +15,32 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
     console.log('📸 Images available:', images);
     console.log('📝 Content length:', content.length);
 
-    // Split content into top-level block elements, preserving nested structures
-    // We split on top-level block closing tags only (not nested ones like </li>)
     const topLevelBlocks: string[] = [];
     let current = '';
     let depth = 0;
 
-    // Split on closing tags that mark the end of a top-level element
-    // Track nesting for block-level elements
     const tokens = content.split(/(<\/?[^>]+>)/g);
 
     for (const token of tokens) {
       const openMatch = token.match(/^<(ul|ol|table|blockquote|pre|div|section)[\s>]/i);
       const closeMatch = token.match(/^<\/(ul|ol|table|blockquote|pre|div|section)>/i);
 
-      if (openMatch) {
-        depth++;
-      }
-
+      if (openMatch) depth++;
       current += token;
 
       if (closeMatch) {
         depth--;
         if (depth <= 0) {
           depth = 0;
-          // End of a top-level block element - split here
-          if (current.trim()) {
-            topLevelBlocks.push(current);
-            current = '';
-          }
+          if (current.trim()) { topLevelBlocks.push(current); current = ''; }
         }
       } else if (depth === 0) {
-        // At top level, also split on </h2>, </h3>, </h4>, </p>
         const topCloseMatch = token.match(/^<\/(h[1-6]|p)>/i);
-        if (topCloseMatch) {
-          if (current.trim()) {
-            topLevelBlocks.push(current);
-            current = '';
-          }
-        }
+        if (topCloseMatch && current.trim()) { topLevelBlocks.push(current); current = ''; }
       }
     }
 
-    // Add any remaining content
-    if (current.trim()) {
-      topLevelBlocks.push(current);
-    }
+    if (current.trim()) topLevelBlocks.push(current);
 
     const parts: ReactElement[] = [];
     let imageIndex = 0;
@@ -68,42 +48,26 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
     topLevelBlocks.forEach((block, idx) => {
       if (block.trim()) {
         parts.push(
-          <div
-            key={`element-${idx}`}
-            dangerouslySetInnerHTML={{ __html: block }}
-            className="article-element"
-          />
+          <div key={`element-${idx}`} dangerouslySetInnerHTML={{ __html: block }} className="article-element" />
         );
 
-        // Insert image after every 4 elements (if we have images)
         if ((idx + 1) % 4 === 0 && imageIndex < images.length) {
           console.log(`🖼️ Inserting image ${imageIndex + 1} at position ${idx + 1}`);
           const currentImage = images[imageIndex];
           const isPexelsImage = currentImage.includes('pexels.com');
 
           parts.push(
-            <div key={`img-${imageIndex}`} className="my-10 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-50 to-gray-100 transform hover:scale-[1.02] transition-transform duration-300">
-              <div className="relative w-full aspect-video">
-                <Image
-                  src={currentImage}
-                  alt={`Article image ${imageIndex + 1}`}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              </div>
-              {isPexelsImage && (
-                <div className="px-4 py-2 bg-black/20 backdrop-blur-sm">
-                  <p className="text-xs text-gray-300 text-center">Photo via Pexels</p>
-                </div>
-              )}
-            </div>
+            <InlineImage
+              key={`img-${imageIndex}`}
+              src={currentImage}
+              alt={`Article image ${imageIndex + 1}`}
+              isPexels={isPexelsImage}
+            />
           );
           imageIndex++;
         }
       }
     });
-
 
     console.log('✅ Total parts created:', parts.length);
     setContentParts(parts);
@@ -116,3 +80,205 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
   );
 }
 
+// ─── Inline image with lightbox + zoom/pan ────────────────────────────────────
+function InlineImage({ src, alt, isPexels }: { src: string; alt: string; isPexels: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  // Refs for window-level drag listeners
+  const scaleRef = useRef(1);
+  const offsetRef = useRef({ x: 0, y: 0 });
+  const dragging = useRef(false);
+  const startPos = useRef({ x: 0, y: 0 });
+  const startOffset = useRef({ x: 0, y: 0 });
+  const lastPinchDist = useRef<number | null>(null);
+
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  useEffect(() => { offsetRef.current = offset; }, [offset]);
+
+  const resetZoom = useCallback(() => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+    scaleRef.current = 1;
+    offsetRef.current = { x: 0, y: 0 };
+  }, []);
+
+  useEffect(() => {
+    if (!open) { resetZoom(); return; }
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', handler);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handler);
+      document.body.style.overflow = '';
+    };
+  }, [open, resetZoom]);
+
+  // Mouse wheel zoom
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setScale(s => {
+      const next = Math.min(5, Math.max(1, s - e.deltaY * 0.003));
+      scaleRef.current = next;
+      return next;
+    });
+  };
+
+  // Mouse drag — listeners on window to avoid losing track on fast moves
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (scaleRef.current <= 1) return;
+    e.preventDefault();
+    dragging.current = true;
+    startPos.current = { x: e.clientX, y: e.clientY };
+    startOffset.current = { ...offsetRef.current };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const nx = startOffset.current.x + (ev.clientX - startPos.current.x);
+      const ny = startOffset.current.y + (ev.clientY - startPos.current.y);
+      offsetRef.current = { x: nx, y: ny };
+      setOffset({ x: nx, y: ny });
+    };
+
+    const onUp = () => {
+      dragging.current = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  // Touch pinch + pan
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastPinchDist.current = Math.hypot(dx, dy);
+    } else if (e.touches.length === 1 && scaleRef.current > 1) {
+      dragging.current = true;
+      startPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      startOffset.current = { ...offsetRef.current };
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastPinchDist.current !== null) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const ratio = dist / lastPinchDist.current;
+      lastPinchDist.current = dist;
+      setScale(s => {
+        const next = Math.min(5, Math.max(1, s * ratio));
+        scaleRef.current = next;
+        return next;
+      });
+    } else if (e.touches.length === 1 && dragging.current) {
+      const nx = startOffset.current.x + (e.touches[0].clientX - startPos.current.x);
+      const ny = startOffset.current.y + (e.touches[0].clientY - startPos.current.y);
+      offsetRef.current = { x: nx, y: ny };
+      setOffset({ x: nx, y: ny });
+    }
+  };
+
+  const onTouchEnd = () => {
+    dragging.current = false;
+    lastPinchDist.current = null;
+    if (scaleRef.current <= 1) resetZoom();
+  };
+
+  return (
+    <>
+      {/* Thumbnail button */}
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full my-10 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-50 to-gray-100 group cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-indigo-500 block text-left"
+        aria-label="Open image fullscreen"
+      >
+        <div className="relative w-full aspect-video">
+          <Image
+            src={src} alt={alt} fill
+            className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
+            unoptimized
+          />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+            <svg className="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+            </svg>
+          </div>
+        </div>
+        {isPexels && (
+          <div className="px-4 py-2 bg-black/20 backdrop-blur-sm">
+            <p className="text-xs text-gray-300 text-center">Photo via Pexels</p>
+          </div>
+        )}
+      </button>
+
+      {/* Lightbox with zoom */}
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+          onClick={() => { if (scaleRef.current <= 1) setOpen(false); }}
+        >
+          {/* Top bar */}
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-end px-4 py-3 z-10 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <button onClick={resetZoom} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors" title="Reset zoom">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button onClick={() => setOpen(false)} className="p-2 bg-white/10 hover:bg-white/25 rounded-full text-white transition-colors" aria-label="Close">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Zoom hints */}
+          {scale === 1 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 text-xs pointer-events-none select-none hidden md:block">
+              Scroll to zoom · Drag to pan
+            </div>
+          )}
+          {scale === 1 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 text-xs pointer-events-none select-none md:hidden">
+              Pinch to zoom · Drag to pan
+            </div>
+          )}
+
+          {/* Zoomable image */}
+          <div
+            className="relative w-full h-full max-w-5xl max-h-[90vh] mx-8 overflow-hidden select-none"
+            style={{ cursor: scale > 1 ? 'grab' : 'zoom-in' }}
+            onWheel={onWheel}
+            onMouseDown={onMouseDown}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onClick={e => e.stopPropagation()}
+          >
+            <div
+              style={{
+                transform: `scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)`,
+                transition: scale === 1 ? 'transform 0.25s ease' : 'none',
+                width: '100%',
+                height: '100%',
+                position: 'relative',
+                willChange: 'transform',
+              }}
+            >
+              <Image src={src} alt={alt} fill className="object-contain" unoptimized priority />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

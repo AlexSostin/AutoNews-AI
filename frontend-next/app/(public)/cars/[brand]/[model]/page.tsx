@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fixImageUrl } from '@/lib/config';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // revalidate every hour
 
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 const LOCAL_API_URL = 'http://localhost:8000/api/v1';
@@ -111,7 +111,7 @@ interface ModelData {
 
 async function getModel(brand: string, model: string): Promise<ModelData | null> {
     try {
-        const res = await fetch(`${getApiUrl()}/cars/brands/${brand}/models/${model}/`, { cache: 'no-store' });
+        const res = await fetch(`${getApiUrl()}/cars/brands/${brand}/models/${model}/`, { next: { revalidate: 3600 } });
         if (!res.ok) return null;
         return await res.json();
     } catch {

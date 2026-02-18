@@ -33,7 +33,7 @@ const getApiUrl = () => {
 
 async function getCategory(slug: string) {
   const res = await fetch(`${getApiUrl()}/categories/?search=${slug}`, {
-    cache: 'no-store'
+    next: { revalidate: 3600 } // categories change rarely
   });
 
   if (!res.ok) {
@@ -48,7 +48,7 @@ async function getCategory(slug: string) {
 async function getArticlesByCategory(categorySlug: string, page = 1) {
   const res = await fetch(
     `${getApiUrl()}/articles/?category=${categorySlug}&page=${page}&page_size=12`,
-    { cache: 'no-store' }
+    { next: { revalidate: 120 } } // refresh every 2 minutes
   );
 
   if (!res.ok) {

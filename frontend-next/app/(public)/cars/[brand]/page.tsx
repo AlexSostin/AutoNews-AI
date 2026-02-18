@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { fixImageUrl } from '@/lib/config';
 import BrandModelsGrid from './BrandModelsGrid';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // revalidate every hour
 
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 const LOCAL_API_URL = 'http://localhost:8000/api/v1';
@@ -39,7 +39,7 @@ interface BrandData {
 
 async function getBrand(slug: string): Promise<BrandData | null> {
     try {
-        const res = await fetch(`${getApiUrl()}/cars/brands/${slug}/`, { cache: 'no-store' });
+        const res = await fetch(`${getApiUrl()}/cars/brands/${slug}/`, { next: { revalidate: 3600 } });
         if (!res.ok) return null;
         return await res.json();
     } catch {
