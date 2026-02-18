@@ -2,6 +2,7 @@
 
 import { useLocaleUnits, kmToMiles, kmhToMph } from '@/hooks/useLocaleUnits';
 import UnitToggle from './UnitToggle';
+import PriceConverter from './PriceConverter';
 
 // Must match the type in the parent page
 interface VehicleSpecItem {
@@ -186,6 +187,9 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
         vsList.some(vs => { const val = r.format(vs); return val && val !== ''; })
     );
 
+    // Check if any trim has price data
+    const hasAnyPrice = vsList.some(vs => vs.price_usd_from || vs.price_display);
+
     // Render a section
     const renderSection = (title: string, emoji: string, gradient: string, rows: SpecDef[]) => {
         const activeRows = hasData(rows);
@@ -241,6 +245,46 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
         );
     };
 
+    // Render pricing section with PriceConverter
+    const renderPricing = () => {
+        if (!hasAnyPrice) return null;
+
+        return (
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600">
+                    <h2 className="text-xl font-bold text-white">💰 Pricing</h2>
+                    <p className="text-white/70 text-sm mt-1">
+                        Convert to your local currency
+                    </p>
+                </div>
+                <div className="p-6 space-y-4">
+                    {vsList.map(vs => {
+                        const avgUsd = vs.price_usd_from && vs.price_usd_to
+                            ? Math.round((vs.price_usd_from + vs.price_usd_to) / 2)
+                            : vs.price_usd_from;
+
+                        return (
+                            <div key={vs.id} className="space-y-2">
+                                {multi && (
+                                    <h3 className="font-bold text-indigo-700 text-sm">{vs.trim_name}</h3>
+                                )}
+                                {vs.price_display && (
+                                    <p className="text-gray-600 text-sm">
+                                        Original: <span className="font-semibold text-gray-900">{vs.price_display}</span>
+                                    </p>
+                                )}
+                                {avgUsd && (
+                                    <PriceConverter priceUsd={avgUsd} />
+                                )}
+                                {multi && <hr className="border-gray-100" />}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-8">
             {/* Single toggle at the top */}
@@ -255,6 +299,8 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
             {renderSection('EV & Battery', '🔋', 'bg-gradient-to-r from-green-600 to-emerald-600', evRows)}
             {renderSection('Dimensions & Weight', '📐', 'bg-gradient-to-r from-cyan-600 to-teal-600', dimRows)}
             {renderSection('Technical Details', '🔧', 'bg-gradient-to-r from-orange-500 to-amber-500', techRows)}
+            {renderPricing()}
         </div>
     );
 }
+

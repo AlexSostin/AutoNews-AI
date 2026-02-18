@@ -252,8 +252,8 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column — Specs + Trims + Gallery */}
                     <div className="lg:col-span-2 space-y-8">
-                        {/* Specs Table */}
-                        {hasSpecs && (
+                        {/* Old Specs Table — only shown when NO VehicleSpecs exist (fallback) */}
+                        {hasSpecs && !(data.vehicle_specs_list?.length > 0 || data.vehicle_specs) && (
                             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
                                 <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600">
                                     <h2 className="text-xl font-bold text-white">📊 Specifications</h2>
