@@ -1953,7 +1953,7 @@ Return ONLY the reformatted HTML."""
 
                 # --- Step 2: Deep Specs ---
                 existing_vs = VehicleSpecs.objects.filter(article=article).first()
-                has_populated_specs = existing_vs and (existing_vs.power_hp or existing_vs.range_km or existing_vs.length_mm)
+                has_populated_specs = existing_vs and (existing_vs.power_hp or existing_vs.torque_nm) and existing_vs.length_mm
                 if not has_populated_specs and specs_dict and specs_dict.get('make'):
                     try:
                         from ai_engine.modules.deep_specs import generate_deep_vehicle_specs

@@ -124,6 +124,8 @@ CRITICAL RULES:
 - motor_placement is a single string: "front", "rear", or "front+rear" (NOT multiple values)
 - For Chinese EVs, always include range_cltc. For European, range_wltp. For US, range_epa
 - price_from/price_to should be in CNY for Chinese-market vehicles, USD for US-market
+- range_km is PURE ELECTRIC range only. For PHEVs/DM-i/EREV, this is how far the car goes on battery alone (typically 50-200km), NOT the combined gasoline+electric range (which can be 1000+ km)
+- range_cltc/range_wltp/range_epa are also PURE ELECTRIC range measured by that standard
 - DO NOT return all nulls — that is a failure. You must provide at least power, range, and dimensions"""
 
 
@@ -157,6 +159,17 @@ def _validate_choice(value, valid_set):
 # Garbage values for trim_name that should be treated as empty
 _GARBAGE_TRIM_VALUES = {'None', 'null', 'none', 'N/A', 'n/a', 'Not specified', 'not specified', 'Standard', '-'}
 
+# Trailing words from article titles that are NOT part of model names
+_MODEL_STOP_WORDS = {
+    'sets', 'redefines', 'challenges', 'pioneers', 'reveals', 'gets',
+    'launches', 'introduces', 'features', 'offers', 'breaks', 'takes',
+    'makes', 'earns', 'wins', 'debuts', 'shows', 'leads', 'dominates',
+    'delivers', 'targets', 'combines', 'promises', 'brings', 'hits',
+    'enters', 'aims', 'boasts', 'claims', 'highlights', 'marks',
+    'a', 'an', 'the', 'for', 'with', 'is', 'in', 'on', 'at', 'to',
+    'two', 'three', 'four', 'five', 'new', 'and', 'its', 'as',
+}
+
 
 def _sanitize_trim(value):
     """Clean up trim_name — return '' for garbage/null-like values."""
@@ -166,6 +179,27 @@ def _sanitize_trim(value):
     if s in _GARBAGE_TRIM_VALUES:
         return ''
     return s
+
+
+def _clean_model_name(model_name, make):
+    """Normalize model_name: strip brand prefix and trailing parser noise."""
+    if not model_name:
+        return model_name
+    
+    # Strip brand prefix (word-boundary safe: "IM LS9" → "LS9", but "IMPERIAL" stays)
+    if make and model_name.lower().startswith(make.lower() + ' '):
+        cleaned = model_name[len(make):].strip()
+        if cleaned:  # Don't strip if it would leave empty
+            model_name = cleaned
+    
+    # Strip trailing verbs/articles from title parser noise
+    # "HS6 Sets" → "HS6", but "07 REV" stays (neither word is a stop word)
+    words = model_name.split()
+    while len(words) > 1 and words[-1].lower() in _MODEL_STOP_WORDS:
+        words.pop()
+    model_name = ' '.join(words)
+    
+    return model_name
 
 
 def _clean_pipe_value(value):
@@ -249,6 +283,12 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         # Sanitize and normalize trim_name
         trim = _sanitize_trim(trim)
         
+        # Normalize model_name — strip brand prefix and parser noise
+        original_model_name = model_name
+        model_name = _clean_model_name(model_name, make)
+        if model_name != original_model_name:
+            print(f"📝 Model name normalized: '{original_model_name}' → '{model_name}'")
+        
         # Clean up ghost records with garbage trim_name (e.g., 'None', 'null')
         ghost_records = VehicleSpecs.objects.filter(
             make__iexact=make,
@@ -259,6 +299,19 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
             ghost_count = ghost_records.count()
             ghost_records.delete()
             print(f"🧹 Deleted {ghost_count} ghost VehicleSpecs with garbage trim_name for {make} {model_name}")
+        
+        # If model_name was normalized, also clean up records under the old name
+        if model_name != original_model_name:
+            old_records = VehicleSpecs.objects.filter(
+                make__iexact=make,
+                model_name__iexact=original_model_name,
+            )
+            if old_records.exists():
+                # Transfer data from old to new: keep the old record but rename it
+                for old_rec in old_records:
+                    old_rec.model_name = model_name
+                    old_rec.save(update_fields=['model_name'])
+                print(f"📝 Renamed {old_records.count()} VehicleSpecs: '{original_model_name}' → '{model_name}'")
         
         # Find existing records — clean up duplicates, keep best
         existing_all = list(VehicleSpecs.objects.filter(
@@ -329,6 +382,14 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         # Log what Gemini returned
         key_fields = {k: data.get(k) for k in ['power_hp', 'power_kw', 'torque_nm', 'battery_kwh', 'range_km', 'length_mm']}
         print(f"   AI returned key fields: {key_fields}")
+        
+        # Validate PHEV range — warn if it looks like combined range
+        fuel = data.get('fuel_type', '')
+        if fuel in ('PHEV', 'Hybrid') or (data.get('battery_kwh') and data.get('range_km')):
+            battery = _safe_float(data.get('battery_kwh'))
+            range_val = _safe_int(data.get('range_km'))
+            if battery and battery < 30 and range_val and range_val > 500:
+                print(f"⚠️ PHEV range suspicious: {range_val}km on {battery}kWh — this may be combined range, not pure electric")
         
         # Build validated defaults dict
         defaults = {
