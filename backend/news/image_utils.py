@@ -1,7 +1,7 @@
 """
 Image optimization utilities for WebP conversion
 """
-from PIL import Image
+from PIL import Image, ImageOps
 from io import BytesIO
 from django.core.files.base import ContentFile
 import os
@@ -21,6 +21,9 @@ def convert_to_webp(image_file, quality=85):
     try:
         # Open image
         img = Image.open(image_file)
+        
+        # Apply EXIF orientation (fixes rotated phone photos)
+        img = ImageOps.exif_transpose(img)
         
         # Convert RGBA to RGB if necessary (WebP doesn't support transparency in some modes)
         if img.mode in ('RGBA', 'LA', 'P'):
@@ -65,6 +68,9 @@ def optimize_image(image_file, max_width=1920, max_height=1080, quality=85):
     try:
         img = Image.open(image_file)
         
+        # Apply EXIF orientation FIRST (fixes rotated phone photos)
+        img = ImageOps.exif_transpose(img)
+        
         # Resize if larger than max dimensions
         if img.width > max_width or img.height > max_height:
             img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
@@ -93,3 +99,4 @@ def optimize_image(image_file, max_width=1920, max_height=1080, quality=85):
     except Exception as e:
         print(f"Error optimizing image: {e}")
         return convert_to_webp(image_file, quality)  # Try simple conversion as fallback
+

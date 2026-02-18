@@ -139,9 +139,9 @@ def extract_video_screenshots(youtube_url, output_dir=None, count=1):
         f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",  # 1920x1080 - BEST!
         f"https://i.ytimg.com/vi/{video_id}/sddefault.jpg",      # 640x480 - Fallback
         f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",      # 480x360 - Last resort
+        f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",  # Alternative CDN
+        f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg",     # Alternative CDN fallback
     ]
-    
-    
     
     thumbnails = []
     
@@ -149,18 +149,27 @@ def extract_video_screenshots(youtube_url, output_dir=None, count=1):
     from PIL import Image
     from io import BytesIO
     
+    # Browser-like headers (YouTube blocks bare requests)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+    }
+    
     # Try each URL until we get one good quality image
     for url in thumbnail_urls:
         try:
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200 and len(response.content) > 10000:  # Min 10KB for quality
+            response = requests.get(url, timeout=15, headers=headers)
+            content_length = len(response.content)
+            print(f"  Trying {url.split('/')[-1]}: status={response.status_code}, size={content_length} bytes")
+            
+            if response.status_code == 200 and content_length > 5000:  # Min 5KB for quality
                 # Verify it's a valid image
                 try:
                     img = Image.open(BytesIO(response.content))
                     width, height = img.size
                     
-                    # We want at least 640px width for quality
-                    if width >= 640:
+                    # We want at least 480px width for quality
+                    if width >= 480:
                         # Save thumbnail
                         output_filename = f"{video_id}_cover.jpg"
                         output_path = os.path.join(output_dir, output_filename)
@@ -169,19 +178,25 @@ def extract_video_screenshots(youtube_url, output_dir=None, count=1):
                             f.write(response.content)
                         
                         thumbnails.append(output_path)
-                        print(f"  ✓ High-quality thumbnail downloaded: {width}x{height} ({len(response.content)//1024}KB)")
+                        print(f"  ✓ High-quality thumbnail downloaded: {width}x{height} ({content_length//1024}KB)")
                         break  # Got one good image, stop here!
+                    else:
+                        print(f"  ⚠️ Image too small: {width}x{height}")
                         
                 except Exception as e:
+                    print(f"  ⚠️ Invalid image from {url}: {e}")
                     continue
+            elif response.status_code != 200:
+                print(f"  ⚠️ HTTP {response.status_code} for {url.split('/')[-1]}")
                     
         except Exception as e:
+            print(f"  ⚠️ Request failed for {url.split('/')[-1]}: {e}")
             continue
     
     if thumbnails:
         print(f"✓ Downloaded best quality thumbnail")
     else:
-        print("⚠️ No thumbnail could be downloaded")
+        print("⚠️ No thumbnail could be downloaded from any URL")
     
     return thumbnails
 
