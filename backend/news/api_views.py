@@ -3784,15 +3784,10 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                     try:
                         file_name = f"{slug}_{i+1}.jpg"
                         content_file = None
-                        cloudinary_url = None
                         
-                        # Case A: It's already a Cloudinary URL - reuse it directly
-                        if 'cloudinary.com' in image_path:
-                            logger.info(f"[APPROVE] Reusing existing Cloudinary URL for image {i+1}: {image_path[:100]}")
-                            cloudinary_url = image_path
-                        
-                        # Case B: It's a non-Cloudinary URL (Pexels, etc) - download and upload
-                        elif image_path.startswith('http'):
+                        # Case A+B: Any URL (Cloudinary, Pexels, etc) — download and upload via .save()
+                        # Direct assignment to ImageField doesn't work with MediaCloudinaryStorage
+                        if image_path.startswith('http'):
                             logger.info(f"[APPROVE] Downloading image {i+1} from URL: {image_path[:100]}")
                             resp = img_requests.get(image_path, timeout=15)
                             logger.info(f"[APPROVE] Download status: {resp.status_code}, size: {len(resp.content)} bytes")
@@ -3822,21 +3817,8 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                         else:
                             logger.warning(f"[APPROVE] Image path not recognized/found: {image_path}")
                                 
-                        # Save to Article
-                        if cloudinary_url:
-                            # Direct assignment for Cloudinary URLs
-                            if i == 0:
-                                article.image = cloudinary_url
-                                logger.info(f"[APPROVE] ✓ Image 1 reused from Cloudinary: {cloudinary_url}")
-                            elif i == 1:
-                                article.image_2 = cloudinary_url
-                                logger.info(f"[APPROVE] ✓ Image 2 reused from Cloudinary: {cloudinary_url}")
-                            elif i == 2:
-                                article.image_3 = cloudinary_url
-                                logger.info(f"[APPROVE] ✓ Image 3 reused from Cloudinary: {cloudinary_url}")
-                            article.save()
-                        elif content_file:
-                            # Upload new file
+                        # Save to Article via .save() — works with any storage backend
+                        if content_file:
                             logger.info(f"[APPROVE] Saving image {i+1} ({file_name}, {len(content_file)} bytes) to article...")
                             if i == 0:
                                 article.image.save(file_name, content_file, save=True)
@@ -3848,7 +3830,7 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                                 article.image_3.save(file_name, content_file, save=True)
                                 logger.info(f"[APPROVE] ✓ Image 3 saved. article.image_3.url = {article.image_3.url if article.image_3 else 'NONE'}")
                         else:
-                            logger.warning(f"[APPROVE] No content_file or cloudinary_url for image {i+1}")
+                            logger.warning(f"[APPROVE] No content_file for image {i+1}")
                                 
                     except Exception as img_err:
                         logger.error(f"[APPROVE] Error saving image {image_path}: {img_err}", exc_info=True)
