@@ -165,9 +165,9 @@ export default function BrandModelsGrid({
 
             {/* Models Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {sortedModels.map((model) => (
+                {sortedModels.map((model, idx) => (
                     <Link
-                        key={model.slug}
+                        key={`${model.slug}-${idx}`}
                         href={`/cars/${brandSlug}/${model.slug}`}
                         className="group flex flex-col h-full bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.06)] transition-all duration-300 hover:shadow-[0_20px_50px_rgba(79,70,229,0.15)] hover:-translate-y-1.5 hover:border-indigo-300"
                     >
