@@ -180,7 +180,18 @@ export async function silentAuthFetch<T>(
         const response = await fetch(fullUrl, { ...options, headers });
 
         if (response.status === 401) {
-            // Silently clear stale tokens
+            // Try to refresh the token before giving up
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+                // Retry with new token
+                headers['Authorization'] = `Bearer ${newToken}`;
+                const retryResponse = await fetch(fullUrl, { ...options, headers });
+                if (retryResponse.ok) {
+                    return await retryResponse.json();
+                }
+            }
+
+            // Refresh failed — clear stale tokens (without redirect)
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
