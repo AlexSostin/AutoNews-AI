@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { DollarSign, Euro, ChevronDown } from 'lucide-react';
+import { useLocaleUnits } from '@/hooks/useLocaleUnits';
 
 interface CurrencyRates {
   USD: number;
@@ -26,10 +27,20 @@ const currencies = [
 ];
 
 export default function PriceConverter({ priceUsd, className = '' }: PriceConverterProps) {
+  const { currency: detectedCurrency, ready: localeReady } = useLocaleUnits();
   const [rates, setRates] = useState<CurrencyRates | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currencyInitialized, setCurrencyInitialized] = useState(false);
+
+  // Auto-select currency based on detected locale (only once)
+  useEffect(() => {
+    if (localeReady && !currencyInitialized) {
+      setSelectedCurrency(detectedCurrency);
+      setCurrencyInitialized(true);
+    }
+  }, [localeReady, detectedCurrency, currencyInitialized]);
 
   useEffect(() => {
     const fetchRates = async () => {
@@ -63,10 +74,10 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
     return null;
   }
 
-  const convertedPrice = rates 
+  const convertedPrice = rates
     ? priceUsd * (rates[selectedCurrency as keyof CurrencyRates] as number || 1)
     : priceUsd;
-  
+
   const formatPrice = (price: number, currencyCode: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -101,10 +112,10 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
         {isOpen && (
           <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 min-w-[160px] overflow-hidden">
             {currencies.map((currency) => {
-              const convertedForPreview = rates 
+              const convertedForPreview = rates
                 ? priceUsd * (rates[currency.code as keyof CurrencyRates] as number || 1)
                 : priceUsd;
-              
+
               return (
                 <button
                   key={currency.code}
@@ -112,9 +123,8 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
                     setSelectedCurrency(currency.code);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                    selectedCurrency === currency.code ? 'bg-purple-50 text-purple-700' : ''
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${selectedCurrency === currency.code ? 'bg-purple-50 text-purple-700' : ''
+                    }`}
                 >
                   <span className="flex items-center gap-2">
                     <span className="font-medium">{currency.symbol}</span>
@@ -132,11 +142,12 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
 
       {/* Click outside to close */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => setIsOpen(false)}
         />
       )}
     </div>
   );
 }
+
