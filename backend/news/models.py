@@ -1047,6 +1047,10 @@ class VehicleSpecs(models.Model):
         null=True, blank=True,
         help_text="CLTC range in kilometers (Chinese standard)"
     )
+    combined_range_km = models.IntegerField(
+        null=True, blank=True,
+        help_text="Total combined range for PHEVs (gas+electric) in km"
+    )
     
     # Charging
     charging_time_fast = models.CharField(
@@ -1192,6 +1196,18 @@ class VehicleSpecs(models.Model):
         default='USD',
         help_text="Price currency"
     )
+    price_usd_from = models.IntegerField(
+        null=True, blank=True,
+        help_text="Price in USD (auto-converted from original currency)"
+    )
+    price_usd_to = models.IntegerField(
+        null=True, blank=True,
+        help_text="Max price in USD (auto-converted)"
+    )
+    price_updated_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When price/exchange rate was last updated"
+    )
     
     # Additional Info
     year = models.IntegerField(
@@ -1274,12 +1290,28 @@ class VehicleSpecs(models.Model):
         return "N/A"
     
     def get_price_display(self):
-        """Return formatted price range"""
-        if self.price_from and self.price_to:
-            return f"{self.currency} {self.price_from:,} - {self.price_to:,}"
-        elif self.price_from:
-            return f"From {self.currency} {self.price_from:,}"
-        return "N/A"
+        """Return formatted price with USD equivalent for non-USD currencies."""
+        if not self.price_from:
+            return "N/A"
+        
+        symbols = {'CNY': '¥', 'USD': '$', 'EUR': '€', 'GBP': '£', 'JPY': '¥', 'RUB': '₽'}
+        sym = symbols.get(self.currency, self.currency + ' ')
+        
+        if self.currency == 'USD':
+            if self.price_to:
+                return f"${self.price_from:,} – ${self.price_to:,}"
+            return f"From ${self.price_from:,}"
+        
+        # Non-USD: show original + USD equivalent
+        if self.price_to:
+            main = f"{sym}{self.price_from:,} – {sym}{self.price_to:,}"
+        else:
+            main = f"From {sym}{self.price_from:,}"
+        
+        if self.price_usd_from:
+            return f"{main} (~${self.price_usd_from:,} USD)"
+        
+        return main
 
 
 class ArticleEmbedding(models.Model):

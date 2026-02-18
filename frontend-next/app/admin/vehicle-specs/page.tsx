@@ -31,6 +31,7 @@ interface VehicleSpec {
     range_wltp: number | null;
     range_epa: number | null;
     range_cltc: number | null;
+    combined_range_km: number | null;
     charging_time_fast: string | null;
     charging_time_slow: string | null;
     charging_power_max_kw: number | null;
@@ -197,7 +198,7 @@ export default function VehicleSpecsPage() {
             drivetrain: null, motor_count: null, motor_placement: null,
             power_hp: null, power_kw: null, torque_nm: null,
             acceleration_0_100: null, top_speed_kmh: null,
-            battery_kwh: null, range_km: null, range_wltp: null, range_epa: null, range_cltc: null,
+            battery_kwh: null, range_km: null, range_wltp: null, range_epa: null, range_cltc: null, combined_range_km: null,
             charging_time_fast: null, charging_time_slow: null, charging_power_max_kw: null,
             transmission: null, transmission_gears: null,
             body_type: null, fuel_type: null, seats: null,
@@ -236,7 +237,7 @@ export default function VehicleSpecsPage() {
 
     const updateField = (key: string, value: string) => {
         const numFields = ['motor_count', 'power_hp', 'power_kw', 'torque_nm', 'top_speed_kmh',
-            'range_km', 'range_wltp', 'range_epa', 'range_cltc', 'charging_power_max_kw',
+            'range_km', 'range_wltp', 'range_epa', 'range_cltc', 'combined_range_km', 'charging_power_max_kw',
             'transmission_gears', 'seats', 'length_mm', 'width_mm', 'height_mm', 'wheelbase_mm',
             'weight_kg', 'cargo_liters', 'cargo_liters_max', 'ground_clearance_mm', 'towing_capacity_kg',
             'price_from', 'price_to', 'year', 'model_year', 'voltage_architecture'];
@@ -259,7 +260,7 @@ export default function VehicleSpecsPage() {
             'drivetrain', 'motor_count', 'motor_placement',
             'power_hp', 'power_kw', 'torque_nm',
             'acceleration_0_100', 'top_speed_kmh',
-            'battery_kwh', 'range_km', 'range_wltp', 'range_epa', 'range_cltc',
+            'battery_kwh', 'range_km', 'range_wltp', 'range_epa', 'range_cltc', 'combined_range_km',
             'charging_time_fast', 'charging_time_slow', 'charging_power_max_kw',
             'voltage_architecture', 'transmission', 'transmission_gears',
             'body_type', 'fuel_type', 'seats',
@@ -531,14 +532,14 @@ export default function VehicleSpecsPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
                     <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                        className="flex items-center gap-1 px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-40">
+                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                         <ChevronLeft size={16} /> Prev
                     </button>
-                    <span className="text-sm text-gray-500">{page + 1} / {totalPages}</span>
+                    <span className="text-sm font-semibold text-gray-700">Page {page + 1} of {totalPages}</span>
                     <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-                        className="flex items-center gap-1 px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-40">
+                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                         Next <ChevronRight size={16} />
                     </button>
                 </div>
@@ -695,6 +696,7 @@ export default function VehicleSpecsPage() {
                                     <FieldInput label="Range WLTP (km)" value={form.range_wltp as number} onChange={v => updateField('range_wltp', v)} type="number" />
                                     <FieldInput label="Range EPA (km)" value={form.range_epa as number} onChange={v => updateField('range_epa', v)} type="number" />
                                     <FieldInput label="Range CLTC (km)" value={form.range_cltc as number} onChange={v => updateField('range_cltc', v)} type="number" />
+                                    <FieldInput label="Combined Range (km)" value={form.combined_range_km as number} onChange={v => updateField('combined_range_km', v)} type="number" />
                                     <FieldInput label="Fast Charge" value={form.charging_time_fast as string} onChange={v => updateField('charging_time_fast', v)} placeholder="30 min to 80%" />
                                     <FieldInput label="Slow Charge" value={form.charging_time_slow as string} onChange={v => updateField('charging_time_slow', v)} placeholder="8h (AC)" />
                                     <FieldInput label="Max Charge (kW)" value={form.charging_power_max_kw as number} onChange={v => updateField('charging_power_max_kw', v)} type="number" />

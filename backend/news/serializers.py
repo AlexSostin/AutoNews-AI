@@ -133,25 +133,30 @@ class VehicleSpecsSerializer(serializers.ModelSerializer):
         return None
     
     def get_range_display(self, obj):
-        """Format range information"""
+        """Format range information, including combined range for PHEVs."""
         ranges = []
         if obj.range_wltp:
             ranges.append(f"WLTP: {obj.range_wltp} km")
         if obj.range_epa:
             ranges.append(f"EPA: {obj.range_epa} km")
+        if obj.range_cltc:
+            ranges.append(f"CLTC: {obj.range_cltc} km")
         if obj.range_km and not ranges:
             ranges.append(f"{obj.range_km} km")
-        return ", ".join(ranges) if ranges else None
+        
+        electric_part = ", ".join(ranges) if ranges else None
+        
+        # Add combined range for PHEVs
+        if obj.combined_range_km and electric_part:
+            return f"⚡ {electric_part} | ⛽ {obj.combined_range_km:,} km combined"
+        elif obj.combined_range_km:
+            return f"⛽ {obj.combined_range_km:,} km combined"
+        
+        return electric_part
     
     def get_price_display(self, obj):
-        """Format price range"""
-        if obj.price_from and obj.price_to:
-            currency = obj.currency or "USD"
-            return f"{currency} {obj.price_from:,.0f} - {obj.price_to:,.0f}"
-        elif obj.price_from:
-            currency = obj.currency or "USD"
-            return f"{currency} {obj.price_from:,.0f}+"
-        return None
+        """Format price with currency and USD equivalent."""
+        return obj.get_price_display()
 
 
 class ArticleImageSerializer(serializers.ModelSerializer):

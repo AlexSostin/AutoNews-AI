@@ -36,6 +36,7 @@ interface VehicleSpecItem {
     range_wltp: number | null;
     range_epa: number | null;
     range_cltc: number | null;
+    combined_range_km: number | null;
     range_display: string | null;
     charging_time_fast: string | null;
     charging_time_slow: string | null;
@@ -56,6 +57,9 @@ interface VehicleSpecItem {
     price_from: number | null;
     price_to: number | null;
     currency: string | null;
+    price_usd_from: number | null;
+    price_usd_to: number | null;
+    price_updated_at: string | null;
     price_display: string | null;
     year: number | null;
     country_of_origin: string | null;
@@ -287,6 +291,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                 { label: 'Range (WLTP)', key: 'range_wltp', format: v => fmtNum(v.range_wltp, 'km') },
                                 { label: 'Range (EPA)', key: 'range_epa', format: v => fmtNum(v.range_epa, 'km') },
                                 { label: 'Range (CLTC)', key: 'range_cltc', format: v => fmtNum(v.range_cltc, 'km') },
+                                { label: 'Combined Range', key: 'combined_range_km', format: v => v.combined_range_km ? `${v.combined_range_km.toLocaleString()} km (gas+electric)` : '' },
                                 { label: 'Fast Charging', key: 'charging_time_fast', format: v => fmtStr(v.charging_time_fast) },
                                 { label: 'Max Charge Power', key: 'charging_power_max_kw', format: v => fmtNum(v.charging_power_max_kw, 'kW') },
                                 { label: 'Voltage', key: 'voltage_architecture', format: v => v.voltage_architecture ? `${v.voltage_architecture}V` : '' },

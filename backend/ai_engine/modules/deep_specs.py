@@ -78,6 +78,7 @@ Return a JSON object with the fields below. You MUST fill in as many fields as p
   "range_wltp": null,
   "range_epa": null,
   "range_cltc": 500,
+  "combined_range_km": null,
   
   "charging_time_fast": "30 min to 80%",
   "charging_time_slow": "8 hours",
@@ -126,6 +127,7 @@ CRITICAL RULES:
 - price_from/price_to should be in CNY for Chinese-market vehicles, USD for US-market
 - range_km is PURE ELECTRIC range only. For PHEVs/DM-i/EREV, this is how far the car goes on battery alone (typically 50-200km), NOT the combined gasoline+electric range (which can be 1000+ km)
 - range_cltc/range_wltp/range_epa are also PURE ELECTRIC range measured by that standard
+- combined_range_km is the TOTAL range for PHEVs/DM-i/EREV (gas+electric combined). For BYD DM-i vehicles this is typically 1000-1200km. For pure EVs, set to null
 - DO NOT return all nulls — that is a failure. You must provide at least power, range, and dimensions"""
 
 
@@ -436,6 +438,7 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
             'range_wltp': _safe_int(data.get('range_wltp')),
             'range_epa': _safe_int(data.get('range_epa')),
             'range_cltc': _safe_int(data.get('range_cltc')),
+            'combined_range_km': _safe_int(data.get('combined_range_km')),
             
             # Charging
             'charging_time_fast': str(data.get('charging_time_fast', '') or '')[:100] or None,
