@@ -205,26 +205,34 @@ class Article(models.Model):
     def save(self, *args, **kwargs):
         # Optimize images before saving
         from .image_utils import optimize_image
+        from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUploadedFile
         
-        # Helper for batch optimization
+        # Helper for batch optimization — only process genuinely NEW uploads
         def process_img(field_name):
             img = getattr(self, field_name)
             if not img:
                 return
-            # Skip optimization for direct URLs (e.g. Cloudinary URLs assigned during approve)
+            # Skip if not a fresh upload (existing stored images should never be re-optimized)
+            img_file = getattr(img, 'file', None)
+            if not isinstance(img_file, (InMemoryUploadedFile, TemporaryUploadedFile, BytesIO)):
+                return
             img_name = getattr(img, 'name', str(img))
+            # Skip optimization for direct URLs (e.g. Cloudinary URLs assigned during approve)
             if img_name.startswith('http'):
                 return
-            if hasattr(img, 'file') and not img_name.endswith('_optimized.webp'):
-                try:
-                    optimized_img = optimize_image(img, max_width=1920, max_height=1080, quality=85)
-                    if optimized_img:
-                        setattr(self, field_name, optimized_img)
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"[{field_name}] optimization failed: {e}")
+            # Skip if already optimized (check substring, not just endswith, for Cloudinary compat)
+            if '_optimized' in img_name:
+                return
+            try:
+                optimized_img = optimize_image(img, max_width=1920, max_height=1080, quality=85)
+                if optimized_img:
+                    setattr(self, field_name, optimized_img)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"[{field_name}] optimization failed: {e}")
 
+        from io import BytesIO
         process_img('image')
         process_img('image_2')
         process_img('image_3')
