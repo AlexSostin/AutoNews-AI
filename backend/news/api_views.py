@@ -1954,6 +1954,16 @@ Return ONLY the reformatted HTML."""
                 # --- Step 2: Deep Specs ---
                 existing_vs = VehicleSpecs.objects.filter(article=article).first()
                 has_populated_specs = existing_vs and (existing_vs.power_hp or existing_vs.torque_nm) and existing_vs.length_mm
+                
+                # Force re-enrich for PHEVs with suspicious ranges
+                # Small battery (<50kWh) with huge range (>500km) = likely combined, not electric
+                if has_populated_specs and existing_vs.battery_kwh and existing_vs.battery_kwh < 50:
+                    if (existing_vs.range_km and existing_vs.range_km > 500) or \
+                       (existing_vs.range_cltc and existing_vs.range_cltc > 500):
+                        print(f"⚠️ Forcing PHEV re-enrich: {existing_vs.make} {existing_vs.model_name} "
+                              f"(battery={existing_vs.battery_kwh}kWh, range_km={existing_vs.range_km}, range_cltc={existing_vs.range_cltc})")
+                        has_populated_specs = False  # Force through to generate_deep_vehicle_specs
+                
                 if not has_populated_specs and specs_dict and specs_dict.get('make'):
                     try:
                         from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
