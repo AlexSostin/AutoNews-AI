@@ -1,13 +1,25 @@
 
 import requests
-from googlesearch import search
 from bs4 import BeautifulSoup
 import time
-import random
 import logging
 import re
 
 logger = logging.getLogger(__name__)
+
+# Try to import search backends
+try:
+    from duckduckgo_search import DDGS
+    HAS_DDGS = True
+except ImportError:
+    HAS_DDGS = False
+    logger.warning("duckduckgo_search not installed — web search will be limited")
+
+try:
+    from googlesearch import search as google_search
+    HAS_GOOGLE = True
+except ImportError:
+    HAS_GOOGLE = False
 
 # Trusted automotive sources — prioritized in results
 TRUSTED_DOMAINS = [
@@ -125,96 +137,178 @@ def _scrape_page_content(url: str, max_chars: int = 3000) -> str:
         return ""
 
 
+def _search_ddgs(query: str, max_results: int = 8) -> list:
+    """
+    Search using DuckDuckGo (reliable, no rate limiting, works in Docker).
+    Returns list of dicts with 'title', 'url', 'desc'.
+    """
+    if not HAS_DDGS:
+        return []
+    
+    try:
+        with DDGS() as ddgs:
+            raw_results = list(ddgs.text(query, region='wt-wt', max_results=max_results))
+        
+        results = []
+        for r in raw_results:
+            url = r.get('href', '')
+            if _is_blocked(url):
+                continue
+            results.append({
+                'title': r.get('title', ''),
+                'desc': r.get('body', ''),
+                'url': url,
+                'trusted': _is_trusted(url),
+            })
+        return results
+    except Exception as e:
+        logger.warning(f"DuckDuckGo search failed: {e}")
+        return []
+
+
+def _search_google(query: str, max_results: int = 8) -> list:
+    """
+    Search using Google (fallback — often blocked in Docker/cloud).
+    Returns list of dicts with 'title', 'url', 'desc'.
+    """
+    if not HAS_GOOGLE:
+        return []
+    
+    try:
+        raw_results = list(google_search(query, num_results=max_results, advanced=True))
+        results = []
+        for r in raw_results:
+            url = r.url
+            if _is_blocked(url):
+                continue
+            results.append({
+                'title': r.title,
+                'desc': r.description,
+                'url': url,
+                'trusted': _is_trusted(url),
+            })
+        return results
+    except Exception as e:
+        logger.warning(f"Google search failed: {e}")
+        return []
+
+
+# Automotive relevance keywords — at least one must appear in title or description
+_AUTO_KEYWORDS = re.compile(
+    r'(car|vehicle|suv|sedan|hatchback|electric|ev\b|motor|drive|engine|horsepower|'
+    r'hp\b|kw\b|torque|battery|range|mpg|mph|km/h|automotive|auto\b|review|specs|'
+    r'specification|price|msrp|dealer|model\s|trim|hybrid|phev|bev\b|charging|'
+    r'crossover|pickup|truck|coupe|convertible|wagon|minivan)',
+    re.IGNORECASE
+)
+
+
+def _is_automotive_result(entry: dict) -> bool:
+    """Check if a search result is actually about cars (not phones, forums, etc.)."""
+    # Trusted automotive domains are always relevant
+    if entry.get('trusted'):
+        return True
+    text = f"{entry.get('title', '')} {entry.get('desc', '')}".lower()
+    return bool(_AUTO_KEYWORDS.search(text))
+
+
 def search_car_details(make, model, year=None):
     """
     Searches for car details and reviews on the web.
     Returns structured text with key info found, including scraped page content.
-    Runs TWO searches: one general, one spec-focused for better HP/kW/battery coverage.
+    Uses DuckDuckGo as primary (reliable), Google as fallback.
+    Runs THREE diverse searches for comprehensive coverage.
     """
-    # Construct queries
-    general_query = f"{year if year else ''} {make} {model} specifications hp kW price review".strip()
-    specs_query = f"{make} {model} horsepower kW torque battery specs".strip()
-    print(f"🌐 Searching web for: {general_query}...")
-    print(f"🔍 Specs-focused search: {specs_query}...")
+    year_str = str(year) if year else ''
+    
+    # Construct THREE diverse queries for better coverage
+    # Query 1: General review with 'car' keyword to avoid brand ambiguity
+    #         (e.g., "Xiaomi" alone returns phone results)
+    queries = [
+        f"{year_str} {make} {model} car review specifications price".strip(),
+        f"{make} {model} electric car specs horsepower kW battery range".strip(),
+        f"{make} {model} car hp torque 0-60 interior review".strip(),
+    ]
+    
+    print(f"🌐 Searching web for: {make} {model} {year_str}...")
+    for i, q in enumerate(queries, 1):
+        print(f"  🔍 Query {i}: {q}")
 
-    search_results = []
-    trusted_results = []
-    other_results = []
-
-    try:
-        # Search 1: General (top 8 URLs)
-        urls = list(search(general_query, num_results=8, advanced=True))
+    # --- Search Phase: DuckDuckGo primary, Google fallback ---
+    all_results = []
+    seen_urls = set()
+    
+    # Primary: DuckDuckGo (works in Docker, no rate limits)
+    if HAS_DDGS:
+        print("  🦆 Using DuckDuckGo...")
+        for q in queries:
+            ddg_results = _search_ddgs(q, max_results=6)
+            for r in ddg_results:
+                if r['url'] not in seen_urls:
+                    all_results.append(r)
+                    seen_urls.add(r['url'])
         
-        # Search 2: Specs-focused (top 4 URLs for targeted spec data)
-        try:
-            specs_urls = list(search(specs_query, num_results=4, advanced=True))
-            # Add only new URLs not already found
-            existing = {r.url for r in urls}
-            for r in specs_urls:
-                if r.url not in existing:
-                    urls.append(r)
-        except Exception:
-            pass  # Specs search is bonus, don't fail on it
+        print(f"  🦆 DuckDuckGo found {len(all_results)} raw results")
+    
+    # Fallback: Google (if DuckDuckGo returned nothing)
+    if not all_results and HAS_GOOGLE:
+        print("  🔍 DuckDuckGo empty, trying Google fallback...")
+        for q in queries[:2]:  # Only first 2 queries for Google (rate limit risk)
+            google_results = _search_google(q, max_results=6)
+            for r in google_results:
+                if r['url'] not in seen_urls:
+                    all_results.append(r)
+                    seen_urls.add(r['url'])
+        print(f"  🔍 Google found {len(all_results)} results")
+    
+    if not all_results:
+        print("  ⚠️ No search results from any provider!")
+        return "No relevant web results found."
 
-        for result in urls:
-            try:
-                title = result.title
-                desc = result.description
-                url = result.url
+    # --- Filter out non-automotive results ---
+    automotive_results = [r for r in all_results if _is_automotive_result(r)]
+    if automotive_results:
+        print(f"  🚗 Filtered to {len(automotive_results)} automotive results (dropped {len(all_results) - len(automotive_results)} irrelevant)")
+        all_results = automotive_results
+    else:
+        print(f"  ⚠️ No results passed automotive filter, using all {len(all_results)} results")
 
-                # Skip blocked domains
-                if _is_blocked(url):
-                    continue
+    # --- Prioritize trusted sources ---
+    trusted = [r for r in all_results if r['trusted']]
+    other = [r for r in all_results if not r['trusted']]
+    prioritized = trusted + other
+    prioritized = prioritized[:6]  # Take top 6
 
-                entry = {
-                    'title': title,
-                    'desc': desc,
-                    'url': url,
-                    'trusted': _is_trusted(url),
-                }
+    print(f"  ✓ {len(trusted)} trusted, {len(other)} other sources (using top {len(prioritized)})")
 
-                if entry['trusted']:
-                    trusted_results.append(entry)
-                else:
-                    other_results.append(entry)
+    # --- Deep scrape top 3 pages for detailed content ---
+    for i, entry in enumerate(prioritized[:3]):
+        print(f"  📄 Scraping: {entry['url'][:80]}...")
+        scraped = _scrape_page_content(entry['url'], max_chars=3000)
+        if scraped:
+            entry['scraped'] = scraped
+            print(f"     ✓ Scraped {len(scraped)} chars")
+        else:
+            print(f"     ⚠️ No content scraped")
+        # Small delay between requests
+        if i < 2:
+            time.sleep(0.3)
 
-            except Exception:
-                continue
+    # --- Format results ---
+    search_results = []
+    for entry in prioritized:
+        trusted_tag = " [TRUSTED SOURCE]" if entry['trusted'] else ""
+        result_text = f"Source: {entry['title']} ({entry['url']}){trusted_tag}\n"
+        result_text += f"Summary: {entry['desc']}\n"
 
-        # Prioritize trusted sources, then others — take up to 5 total
-        prioritized = trusted_results + other_results
-        prioritized = prioritized[:5]
+        if entry.get('scraped'):
+            result_text += f"Page Content:\n{entry['scraped']}\n"
 
-        if not prioritized:
-            return "No relevant web results found."
+        search_results.append(result_text)
 
-        # Deep scrape top 3 pages for detailed content
-        for i, entry in enumerate(prioritized[:3]):
-            print(f"  📄 Scraping: {entry['url'][:80]}...")
-            scraped = _scrape_page_content(entry['url'], max_chars=3000)
-            if scraped:
-                entry['scraped'] = scraped
-            # Small delay between requests
-            if i < len(prioritized[:3]) - 1:
-                time.sleep(0.5)
-
-        # Format results
-        for entry in prioritized:
-            trusted_tag = " [TRUSTED SOURCE]" if entry['trusted'] else ""
-            result_text = f"Source: {entry['title']} ({entry['url']}){trusted_tag}\n"
-            result_text += f"Summary: {entry['desc']}\n"
-
-            if entry.get('scraped'):
-                result_text += f"Page Content:\n{entry['scraped']}\n"
-
-            search_results.append(result_text)
-
-        return "\n---\n".join(search_results)
-
-    except Exception as e:
-        print(f"⚠️ Search failed: {e}")
-        logger.error(f"Web search failed for '{general_query}': {e}")
-        return f"Web search failed: {str(e)}"
+    combined = "\n---\n".join(search_results)
+    print(f"  ✓ Total web context: {len(combined)} chars from {len(search_results)} sources")
+    return combined
 
 
 def get_web_context(specs_dict):
