@@ -25,6 +25,17 @@ export default function FavoriteButton({
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  // Check favorite status client-side on mount (works even when page is cached)
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+
+    favoriteAPI.checkFavorite(articleId, token)
+      .then(result => setIsFavorited(result.is_favorited))
+      .catch(() => { }); // silently fail — not critical
+  }, [articleId]);
+
+  // Also sync with server-provided value when it changes
   useEffect(() => {
     setIsFavorited(initialIsFavorited);
   }, [initialIsFavorited]);
@@ -45,7 +56,6 @@ export default function FavoriteButton({
       setIsFavorited(result.is_favorited);
     } catch (error: any) {
       console.error('Failed to toggle favorite:', error);
-      // If session expired, redirect to login
       if (error?.message?.includes('Session expired') || error?.message?.includes('log in')) {
         router.push('/login');
       }

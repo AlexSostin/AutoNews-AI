@@ -3,11 +3,11 @@ import AdBanner from '@/components/public/AdBanner';
 import TrendingSection from '@/components/public/TrendingSection';
 import EmptyState from '@/components/public/EmptyState';
 import MaintenancePage from '@/components/public/MaintenancePage';
+import MaintenanceGuard from '@/components/public/MaintenanceGuard';
 import Hero from '@/components/public/Hero';
 import InfiniteArticleList from '@/components/public/InfiniteArticleList';
 import Link from 'next/link';
 import { fixImageUrl } from '@/lib/config';
-import { cookies } from 'next/headers';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 30; // shortest revalidation controls the page
 
 // Production API URL - hardcoded for server-side rendering
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
@@ -48,7 +48,7 @@ const getApiUrl = () => {
 async function getSettings() {
   try {
     const res = await fetch(`${getApiUrl()}/settings/`, {
-      cache: 'no-store',
+      next: { revalidate: 30 },
     });
     if (!res.ok) return null;
     return await res.json();
@@ -57,31 +57,15 @@ async function getSettings() {
   }
 }
 
-async function checkIsAdmin() {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('access_token')?.value;
-    if (!token) return false;
-
-    const res = await fetch(`${getApiUrl()}/users/me/`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!res.ok) return false;
-    const user = await res.json();
-    return user.is_staff || user.is_superuser;
-  } catch {
-    return false;
-  }
-}
+// checkIsAdmin removed — now handled client-side by MaintenanceGuard
 
 async function getArticles() {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
-      cache: 'no-store',
+      next: { revalidate: 120 }, // refresh every 2 minutes
       signal: controller.signal,
     });
 
@@ -105,7 +89,7 @@ async function getCategories() {
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch(`${getApiUrl()}/categories/`, {
-      cache: 'no-store',
+      next: { revalidate: 3600 }, // refresh every hour
       signal: controller.signal,
     });
 
@@ -122,7 +106,7 @@ async function getCategories() {
 
 async function getBrands() {
   try {
-    const res = await fetch(`${getApiUrl()}/cars/brands/`, { cache: 'no-store' });
+    const res = await fetch(`${getApiUrl()}/cars/brands/`, { next: { revalidate: 3600 } });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data.slice(0, 8) : [];
@@ -132,19 +116,21 @@ async function getBrands() {
 }
 
 export default async function Home() {
-  // Fetch settings and auth check in parallel (both independent)
-  const [settings, isAdmin] = await Promise.all([getSettings(), checkIsAdmin()]);
-
-  if (settings?.maintenance_mode && !isAdmin) {
-    return <MaintenancePage message={settings.maintenance_message} />;
-  }
-
-  // Fetch articles, categories, and brands in parallel
-  const [articlesData, categories, brands] = await Promise.all([getArticles(), getCategories(), getBrands()]);
+  // Fetch all data in parallel (no auth needed — maintenance guard is client-side)
+  const [settings, articlesData, categories, brands] = await Promise.all([
+    getSettings(),
+    getArticles(),
+    getCategories(),
+    getBrands(),
+  ]);
   const articles = articlesData.results || [];
 
   return (
-    <>
+    <MaintenanceGuard
+      maintenanceMode={settings?.maintenance_mode || false}
+      maintenanceMessage={settings?.maintenance_message}
+      fallback={<MaintenancePage message={settings?.maintenance_message} />}
+    >
       <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
         {/* Hero Section */}
         <Hero articles={articles} settings={settings} />
@@ -278,6 +264,6 @@ export default async function Home() {
           <AdBanner format="leaderboard" />
         </div>
       </main>
-    </>
+    </MaintenanceGuard>
   );
 }

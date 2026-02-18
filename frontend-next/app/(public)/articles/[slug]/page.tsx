@@ -21,6 +21,7 @@ import JsonLd from '@/components/public/JsonLd';
 import RelatedCarousel from '@/components/public/RelatedCarousel';
 import FeedbackButton from '@/components/public/FeedbackButton';
 import SpecsCardLink from '@/components/public/SpecsCardLink';
+import ImageLightbox from '@/components/public/ImageLightbox';
 import { Article } from '@/types';
 import {
   Calendar,
@@ -104,15 +105,8 @@ const getApiUrl = () => {
 };
 
 async function getArticle(slug: string): Promise<Article | null> {
-  const { headers } = await import('next/headers');
-  const headersList = await headers();
-  const cookie = headersList.get('cookie') || '';
-
   const res = await fetch(`${getApiUrl()}/articles/${slug}/`, {
-    cache: 'no-store',
-    headers: {
-      'Cookie': cookie
-    }
+    next: { revalidate: 300 } // cache for 5 minutes
   });
 
   if (!res.ok) {
@@ -455,48 +449,10 @@ export default async function ArticleDetailPage({
 
                   if (allImages.length === 0) return null;
 
-                  const gridCols = allImages.length === 1 ? 'md:grid-cols-1 max-w-2xl mx-auto'
-                    : allImages.length === 2 ? 'md:grid-cols-2'
-                      : allImages.length <= 4 ? 'md:grid-cols-3'
-                        : 'md:grid-cols-3 lg:grid-cols-4';
-
                   return (
                     <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
                       <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Vehicle Gallery</h3>
-
-                      {/* Mobile: Horizontal scroll slider */}
-                      <div className="md:hidden">
-                        <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4">
-                          {allImages.map((img, index) => (
-                            <div key={index} className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center">
-                              <Image
-                                src={img.url}
-                                alt={img.alt}
-                                fill
-                                className="object-cover"
-                              />
-                              <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-                                {index + 1} / {allImages.length}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-center text-gray-500 text-sm mt-2">← Swipe to see more →</p>
-                      </div>
-
-                      {/* Desktop: Grid layout */}
-                      <div className={`hidden md:grid gap-4 ${gridCols}`}>
-                        {allImages.map((img, index) => (
-                          <div key={index} className="relative aspect-video rounded-lg overflow-hidden">
-                            <Image
-                              src={img.url}
-                              alt={img.alt}
-                              fill
-                              className="object-cover hover:scale-105 transition-transform duration-300"
-                            />
-                          </div>
-                        ))}
-                      </div>
+                      <ImageLightbox images={allImages} />
                     </div>
                   );
                 })()
