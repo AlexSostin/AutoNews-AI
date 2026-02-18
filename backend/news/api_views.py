@@ -1982,8 +1982,29 @@ Return ONLY the reformatted HTML."""
                         article_result['steps']['deep_specs'] = False
                 elif has_populated_specs:
                     article_result['steps']['deep_specs'] = 'skipped'
-                    # Still include detail for skipped
                     vs = existing_vs
+                    
+                    # Normalize model name even for skipped records
+                    if specs_dict and specs_dict.get('make'):
+                        try:
+                            from ai_engine.modules.deep_specs import _clean_model_name
+                            from news.auto_tags import BRAND_DISPLAY_NAMES
+                            norm_make = BRAND_DISPLAY_NAMES.get((specs_dict.get('make', '') or '').lower().strip(), specs_dict.get('make', ''))
+                            cleaned_model = _clean_model_name(vs.model_name, norm_make)
+                            vs_update_fields = []
+                            if vs.model_name != cleaned_model:
+                                vs.model_name = cleaned_model
+                                vs_update_fields.append('model_name')
+                            if vs.make != norm_make:
+                                vs.make = norm_make
+                                vs_update_fields.append('make')
+                            if vs_update_fields:
+                                vs.save(update_fields=vs_update_fields)
+                                print(f"📝 Normalized skipped VehicleSpecs: {norm_make} {cleaned_model}")
+                        except Exception:
+                            pass
+                    
+                    # Include detail for skipped
                     key_fields = {}
                     for fn in ['power_hp', 'torque_nm', 'battery_kwh', 'range_km', 'range_cltc', 'length_mm', 'weight_kg', 'price_from']:
                         val = getattr(vs, fn, None)

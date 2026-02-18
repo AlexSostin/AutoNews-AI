@@ -357,12 +357,34 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
             existing = None
         
         if existing and existing.power_hp and existing.length_mm:
-            # Already has performance + dimensions — skip
-            if existing.article_id != article.id:
-                print(f"📋 VehicleSpecs already populated for {make} {model_name} (linked to article #{existing.article_id})")
-            else:
-                print(f"📋 VehicleSpecs already populated for {make} {model_name}")
-            return existing
+            # Check for suspicious PHEV ranges before skipping
+            # Small battery (<50kWh) with huge range (>500km) = likely combined range, not electric
+            needs_range_fix = False
+            if existing.battery_kwh and existing.battery_kwh < 50:
+                fix_fields = []
+                if existing.range_km and existing.range_km > 500:
+                    fix_fields.append('range_km')
+                if existing.range_cltc and existing.range_cltc > 500:
+                    fix_fields.append('range_cltc')
+                if existing.range_wltp and existing.range_wltp > 500:
+                    fix_fields.append('range_wltp')
+                if fix_fields:
+                    needs_range_fix = True
+                    print(f"⚠️ PHEV suspicious range for {make} {model_name}: "
+                          f"battery={existing.battery_kwh}kWh but {', '.join(f'{f}={getattr(existing, f)}' for f in fix_fields)}")
+                    # Clear suspicious values so re-enrichment fills correct ones
+                    for f in fix_fields:
+                        setattr(existing, f, None)
+                    existing.save(update_fields=fix_fields)
+                    print(f"   🧹 Cleared {', '.join(fix_fields)} — will re-enrich with corrected prompt")
+            
+            if not needs_range_fix:
+                # Already has good data — skip
+                if existing.article_id != article.id:
+                    print(f"📋 VehicleSpecs already populated for {make} {model_name} (linked to article #{existing.article_id})")
+                else:
+                    print(f"📋 VehicleSpecs already populated for {make} {model_name}")
+                return existing
         
         # Build prompt and call AI
         prompt = _build_prompt(make, model_name, trim, year, specs, web_context)
