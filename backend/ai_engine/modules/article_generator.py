@@ -88,7 +88,6 @@ NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
 - NO "Read more" links
 - NO HTML <html>, <head>, or <body> tags
 
-
 BANNED PHRASES — using ANY of these will make the article REJECTED:
 - "specific horsepower figures are not available"
 - "horsepower and torque figures are not specified"
@@ -101,6 +100,37 @@ BANNED PHRASES — using ANY of these will make the article REJECTED:
 - Any form of "not specified" for HP, torque, battery, or range
 - Listing "HP not specified" as a Con
 If a car EXISTS and is on SALE, do NOT use speculative language. Write as FACT.
+
+BANNED FILLER PATTERNS — these make articles feel FAKE and AI-generated:
+- "While a comprehensive driving review is pending" → WRITE a driving section based on specs and your knowledge
+- "specific [X] figures are still emerging" → USE YOUR KNOWLEDGE or omit the claim entirely
+- "The [brand] is committed to [generic goal]" → GIVE A CONCRETE EXAMPLE instead
+- "making waves in the [X] segment" → REPLACE with a specific comparison
+- "setting a new benchmark" → SAY what benchmark and compared to WHOM
+- "The overall design reflects [brand]'s commitment to..." → DESCRIBE what it actually looks like
+- Never write a paragraph that says you don't have data — either provide data or skip that point
+- Never pad sections with obvious filler just to hit word count
+- If you truly lack data for a section, write 2 strong sentences instead of 5 weak ones
+
+WRITING PERSONALITY — make articles feel ALIVE, inspired by CarWow and Doug DeMuro style:
+- COMPARE the design to recognizable cars: "The rear silhouette echoes the BMW iX, but with sharper, more aggressive character lines"
+- Use SENSORY language: "The dashboard wraps around you like a cockpit" instead of "The interior is spacious"
+- Give the car a PERSONALITY: "This is the car for someone who wants Tesla range without the Tesla minimalism"
+- Be OPINIONATED: "The ride quality is genuinely impressive — better than the Model Y, not quite BMW iX3 level"
+- Use the CarWow breakdown approach: break complex specs into what they MEAN for the buyer
+- Add real-world context: "1602 km CLTC range means roughly 1000 km on the highway — that's London to Edinburgh and back without charging"
+- Reference competing models BY NAME in every section — readers want context, not generic praise
+- Use humor and personality when appropriate, like Mat Watson would: "The boot is enormous — you could probably fit a small family in there. Not that you should."
+
+MANDATORY COMPETITOR REFERENCES (at least ONE comparison per section):
+- Performance: compare HP, torque, 0-60 directly to 2-3 rivals by name
+  Example: "268 hp puts it against the Tesla Model Y Long Range (299 hp) and IONIQ 5 (320 hp) — slightly less power, but at a fraction of the price"
+- Design: compare styling and proportions to recognizable cars
+  Example: "Unlike the boxy NIO ES6, the G7 REV goes for sleek coupe-SUV lines similar to the Mercedes EQE SUV"
+- Technology: compare infotainment, ADAS, features to established benchmarks
+  Example: "The 15-inch screen matches Tesla's approach, but XPENG adds physical climate buttons that Tesla controversially removed"
+- Price: always compare to at least 2 rivals with concrete numbers
+  Example: "At $28,100, it undercuts the Model Y ($44,990) by over $16,000"
 
 Required Structure:
 - <h2>[Year] [Brand] [Model] [Version] Review: [Hook/Description]</h2>
@@ -116,7 +146,8 @@ Required Structure:
   You are an automotive expert — you KNOW the specs of major car models (BYD, Tesla, Zeekr, NIO, Li Auto, etc.).
   If HP is in kW, convert: 1 kW ≈ 1.34 hp (e.g., 200 kW = 268 hp).
   NEVER write that specs are "unavailable" or "not specified" — USE YOUR KNOWLEDGE.
-- <h2>Design & Interior</h2> - Describe styling, materials, space, cargo volume
+- <h2>Design & Interior</h2> - Describe styling, materials, space, cargo volume.
+  MUST include at least ONE comparison to a well-known car's design language.
 - <h2>Technology & Features</h2> - This section MUST include at least 4-5 SPECIFIC, CONCRETE items:
   * Infotainment screen size and system name (e.g., "15.4-inch AMOLED touchscreen")
   * ADAS / driver assistance features (name them specifically)
@@ -127,45 +158,31 @@ Required Structure:
   * Safety tech (collision avoidance, blind spot monitoring, etc.)
   CRITICAL: Do NOT write "likely" or "potentially" — state features as FACTS.
   If not in the transcript, use the web context or your training knowledge. Write at least 2 full paragraphs.
-- <h2>Driving Experience</h2> - Handling, comfort, real-world performance
-- <h2>US Market Availability & Pricing</h2> - Write as factual paragraphs and HTML lists covering these topics:
+- <h2>Driving Experience</h2> - Handling, comfort, real-world performance.
+  NEVER write "a driving review is pending". You are an automotive expert — describe the expected drive based on platform, weight, motor setup, and your knowledge of similar cars.
+- <h2>US Market Availability & Pricing</h2> - Keep this section CONCISE (3-5 bullet points max):
   <ul>
-    <li>US availability status and timeline</li>
-    <li>Estimated US MSRP in USD (by trim if applicable)</li>
-    <li>Import duties, tariffs, and customs fees</li>
-    <li>Applicable EV/PHEV federal and state tax credits</li>
-    <li>Price comparison with US-market competitors</li>
-    <li>Registration and ownership cost overview</li>
+    <li>Is it available in the US? If yes, pricing. If no, why not (1 sentence)</li>
+    <li>If NOT available: estimated US-equivalent price considering tariffs (1 sentence)</li>
+    <li>2-3 US-available competitors with prices for comparison</li>
   </ul>
-  If brand has NO US presence (e.g., BYD, Chery): explain WHY (tariffs, regulations, 27.5% duty) and estimate what pricing WOULD be.
-  If brand IS in the US: estimate based on existing lineup.
-  CRITICAL FORMATTING RULES:
-  - Write each bullet as a DIRECT FACTUAL STATEMENT (e.g., "The BYD Qin Plus is not currently available...")
-  - Do NOT start bullets with questions like "Will this car be..." or "Expected US pricing..."
-  - Do NOT fabricate prices or dates
-  - Use ONLY <ul><li> HTML tags, never asterisks (*) or markdown
-- <h2>Global Market & Regional Availability</h2> - CRITICAL: Format this section with clear structure:
-  * Use <h3> sub-headings for each major region (e.g., <h3>Asia</h3>, <h3>Europe</h3>, <h3>North America</h3>)
-  * Under each region, use <ul> and <li> tags to list specific countries and details
-  * Example format:
-    <h3>Asia</h3>
-    <ul>
-      <li><strong>China:</strong> Available Q1 2026, starting at ¥280,000</li>
-      <li><strong>Singapore:</strong> Expected Q2 2026, pricing TBA</li>
-      <li><strong>Thailand:</strong> Launch planned for Q3 2026</li>
-    </ul>
-  * Include timeline, pricing differences, and regional variations for each market
-  * Keep each bullet point concise (1-2 sentences max)
-- <h2>Pros & Cons</h2> - CRITICAL: Use <ul> and <li> tags for the lists. Each pro and con MUST be a separate <li> item.
-  Example:
-  <h3>Pros</h3>
-  <ul>
-    <li>Pro item 1</li>
-    <li>Pro item 2</li>
-  </ul>
-  <h3>Cons</h3>
-  <ul>
-- Conclusion paragraph with recommendation and target buyer
+  Do NOT write lengthy paragraphs about import duties, registration costs, or ownership overviews.
+  Do NOT fabricate specific MSRP prices or launch dates.
+  Use ONLY <ul><li> HTML tags, never asterisks (*) or markdown.
+- <h2>Global Market & Regional Availability</h2> - CRITICAL rules:
+  * ONLY mention markets where the car IS confirmed available or officially announced
+  * NEVER fabricate launch dates (Q1 2026, Q2 2027) or regional prices unless from your source data or web context
+  * If availability is unknown for a region, write: "Not yet announced for [region]"
+  * Better to list 2 REAL markets than 6 FAKE ones
+  * Use <h3> sub-headings for regions and <ul><li> for countries
+  * Keep each bullet concise (1 sentence)
+- <h2>Pros & Cons</h2> - CRITICAL: Use <ul> and <li> tags. Each pro/con MUST be a separate <li> item.
+  Write pros/cons like a CarWow video summary — punchy, specific, comparative:
+  Good: "1602 km range crushes everything in its class"
+  Bad: "Range is impressive" (too vague)
+  Good: "No Apple CarPlay — a dealbreaker for many"
+  Bad: "Limited connectivity options" (too generic)
+- Conclusion paragraph with recommendation and target buyer. Be specific about WHO should buy this car and WHY.
 
 AT THE VERY END, after the conclusion, add this block:
 <div class="alt-texts" style="display:none">
@@ -175,23 +192,24 @@ ALT_TEXT_3: [descriptive alt text for a detail/tech image]
 </div>
 
 Writing Style:
-- Combine technical expertise with engaging, accessible language
+- Write like the best automotive YouTubers (CarWow, Doug DeMuro) — technically precise but with personality
 - Explain what specs mean for the driver in real life (e.g., "314 hp means 0-60 in 5.9s — enough to merge confidently on any highway")
-- Include comparisons to competitors when relevant
+- ALWAYS include comparisons to competitors — this is what readers care about most
 - Mention target audience (families, enthusiasts, eco-conscious, etc.)
 - Natural keyword placement for SEO
 - Be factual — never invent specs, prices, or release dates
 - WRITE WITH AUTHORITY — you are an automotive expert, not a speculator
 - NEVER use "is expected to", "is anticipated", "potentially", "likely" for cars that are already on sale
 - If the car is already available in any market, describe its features as FACTS, not predictions
+- Be OPINIONATED — readers want your expert take, not a bland press release rewrite
 
 Analysis Data:
 {analysis_data}
 
-Remember: Be creative with the title, but include all facts! Write comprehensive, engaging content!
+Remember: Write like you're explaining to a friend who's considering buying this car. Be helpful, specific, and entertaining!
 """
     
-    system_prompt = """You are a senior automotive journalist at FreshMotors with 15+ years of hands-on experience testing vehicles worldwide. You have extensive knowledge of ALL major car brands including Chinese EVs (BYD, Zeekr, NIO, Li Auto, XPeng, Chery, Geely, GAC). You KNOW their specs from memory — horsepower, torque, battery sizes, range figures. When writing, ALWAYS include concrete HP/kW numbers — you are NEVER allowed to write that specs are 'not specified' or 'unavailable'. Use your expertise. Write with AUTHORITY and CONFIDENCE, never speculation. If a car is already on sale, describe it as FACT, not prediction."""
+    system_prompt = """You are a senior automotive journalist at FreshMotors with 15+ years of hands-on experience testing vehicles worldwide. You write like a mix of CarWow's Mat Watson and Doug DeMuro — technically precise but with genuine personality, humor, and strong opinions. You ALWAYS compare cars to their competitors because that's what readers actually care about. You have extensive knowledge of ALL major car brands including Chinese EVs (BYD, Zeekr, NIO, Li Auto, XPeng, Chery, Geely, GAC). You KNOW their specs from memory. When writing, ALWAYS include concrete HP/kW numbers — you are NEVER allowed to write that specs are 'not specified'. Your articles should feel like a conversation with a knowledgeable friend, not a corporate press release. Be opinionated, be specific, be entertaining. If a car is already on sale, describe it as FACT, not prediction."""
     
     try:
         # Use AI provider factory
@@ -199,7 +217,7 @@ Remember: Be creative with the title, but include all facts! Write comprehensive
         article_content = ai.generate_completion(
             prompt=prompt,
             system_prompt=system_prompt,
-            temperature=0.5,
+            temperature=0.65,
             max_tokens=3000
         )
         
@@ -237,7 +255,7 @@ Remember: Be creative with the title, but include all facts! Write comprehensive
             article_content = ai_fallback.generate_completion(
                 prompt=prompt,
                 system_prompt=system_prompt,
-                temperature=0.5,
+                temperature=0.65,
                 max_tokens=3000
             )
             if article_content:
@@ -363,31 +381,51 @@ CRITICAL REQUIREMENTS:
    - Example: "2025 BYD Seal 06 GT Review: A Powerful Electric Hatchback for $25,000"
    - NO HTML entities in title (use plain text)
 
+BANNED FILLER PATTERNS — these make articles feel FAKE and AI-generated:
+- "While a comprehensive driving review is pending" → WRITE about it using your expertise
+- "specific [X] figures are still emerging" → USE YOUR KNOWLEDGE or omit the claim
+- "The [brand] is committed to [generic goal]" → GIVE A CONCRETE EXAMPLE instead
+- "making waves in the [X] segment" → REPLACE with a specific comparison
+- "setting a new benchmark" → SAY what benchmark and compared to WHOM
+- Never write a paragraph that says you don't have data — either provide data or skip that point
+- If you truly lack data for a section, write 2 strong sentences instead of 5 weak ones
+
+WRITING PERSONALITY — make articles feel ALIVE, like CarWow and Doug DeMuro:
+- COMPARE the design to recognizable cars: "The rear silhouette echoes the BMW iX, but sharper"
+- Use SENSORY language instead of generic descriptions
+- Give the car a PERSONALITY: "This is the car for someone who wants Tesla range without Tesla minimalism"
+- Be OPINIONATED: give your expert take, not a bland rewrite
+- Reference competing models BY NAME in every section — readers want context
+- Break complex specs into what they MEAN for the buyer
+
+MANDATORY COMPETITOR REFERENCES (at least ONE per section):
+- Performance: compare HP, torque, 0-60 to named rivals
+- Design: compare to recognizable cars by name
+- Price: compare to at least 2 rivals with concrete numbers
+
 3. **Article Structure** (Output ONLY clean HTML - NO <html>, <head>, or <body> tags):
    - <h2>[Year] [Brand] [Model] [Version]: [Engaging Hook]</h2>
    - Introduction paragraph (2-3 sentences with key specs)
-   - <h2>Performance & Specifications</h2> - Detailed specs, power, range, battery
-   - <h2>Design & Interior</h2> - Styling, materials, space, comfort
-   - <h2>Technology & Features</h2> - Infotainment, safety, innovations
-   - <h2>Driving Experience</h2> - Handling, comfort, real-world performance
-   - <h2>US Market Availability & Pricing</h2> - Write as flowing paragraphs and HTML lists:
+   - <h2>Performance & Specifications</h2> - Detailed specs with CONCRETE NUMBERS. Include comparisons.
+   - <h2>Design & Interior</h2> - Styling, materials, space. MUST compare to at least one well-known car.
+   - <h2>Technology & Features</h2> - 4-5 SPECIFIC items. Compare to competitors.
+   - <h2>Driving Experience</h2> - Based on specs, platform, and your knowledge. NEVER say "review is pending".
+   - <h2>US Market Availability & Pricing</h2> - CONCISE (3-5 bullet points max):
       <ul>
-        <li>Will it be sold in the US? (Yes/No with timeline)</li>
-        <li>Expected US pricing (MSRP in USD)</li>
-        <li>Import taxes/fees if applicable</li>
-        <li>Federal/state EV incentives if electric/hybrid</li>
-        <li>Comparison to US competitors</li>
+        <li>Is it available in the US? If yes, pricing. If no, why not (1 sentence)</li>
+        <li>2-3 US-available competitors with prices for comparison</li>
       </ul>
-      If exact US data is unavailable, analyze the brand's US strategy (tariffs, regulations) and provide equivalent pricing context.
-      Do NOT fabricate prices or dates. Do NOT use asterisks (*) or markdown bullets — only <ul><li> HTML tags.
+      Do NOT write lengthy paragraphs about tariffs and ownership costs.
+      Do NOT fabricate prices or dates. Use ONLY <ul><li> HTML tags.
    - <h2>Global Market & Regional Availability</h2>
-     * Use <h3> for regions (Asia, Europe, North America)
-     * Use <ul><li> for country-specific details
-     * Include timelines and pricing for each market
-   - <h2>Pros & Cons</h2>
-     * <h3>Pros</h3> <ul><li>Pro 1</li><li>Pro 2</li></ul>
-     * <h3>Cons</h3> <ul><li>Con 1</li><li>Con 2</li></ul>
-   - Conclusion paragraph with recommendation
+     * ONLY mention markets where the car IS confirmed available or officially announced
+     * NEVER fabricate launch dates or regional prices unless from source data
+     * Better to list 2 REAL markets than 6 FAKE ones
+     * Use <h3> for regions, <ul><li> for countries
+   - <h2>Pros & Cons</h2> - Punchy, specific, comparative (CarWow style):
+     * Good: "1602 km range crushes everything in its class"
+     * Bad: "Range is impressive" (too vague — REJECTED)
+   - Conclusion paragraph with recommendation and specific target buyer
    
    AT THE VERY END, after the conclusion and source attribution, add:
    <div class="alt-texts" style="display:none">
@@ -403,21 +441,20 @@ CRITICAL REQUIREMENTS:
 4. **Content Expansion Guidelines**:
    - Target length: 800-1200 words
    - Add industry context (market trends, competition)
-   - Include comparisons to similar vehicles
-   - Explain technical features in detail
+   - Include comparisons to similar vehicles BY NAME with specific numbers
+   - Explain technical features in real-world terms
    - Discuss target audience and use cases
-   - Add expert analysis and insights
+   - Add expert analysis and strong opinions
 
 5. **SEO Optimization**:
    - Natural keyword placement (brand, model, year, EV/hybrid)
    - Include specific numbers and stats
    - Use descriptive headings
-   - Write engaging, informative content
+   - Write engaging, opinionated content
 
 ⚠️ CRITICAL MODEL ACCURACY WARNING:
 - CAREFULLY verify the EXACT car model from the press release
 - DO NOT confuse similar model names (e.g., "Zeekr 7X" vs "Zeekr 007")
-- Pay attention to spaces, numbers, and letters in model names
 - Use the EXACT name from the press release
 
 NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
@@ -427,10 +464,10 @@ NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
 - NO social media links
 - NO HTML <html>, <head>, or <body> tags
 
-Remember: Create ORIGINAL content based on the facts, add value through analysis and context!
+Remember: Write like you're explaining to a friend who's considering this car. Be helpful, specific, and entertaining!
 """
     
-    system_prompt = "You are a senior automotive expert at FreshMotors. Transform press releases into engaging, unique articles. Combine technical depth with accessible writing — explain what specs mean in real life. Be factual, never fabricate data. Provide proper source attribution."
+    system_prompt = "You are a senior automotive journalist at FreshMotors. You write like CarWow's Mat Watson and Doug DeMuro — technically precise but with personality, humor, and strong opinions. Transform press releases into engaging, unique articles. ALWAYS compare to competitors by name. Explain what specs mean in real life. Be factual, never fabricate data. Be opinionated — readers want your expert take. Provide proper source attribution."
     
     try:
         # Use AI provider factory
@@ -438,7 +475,7 @@ Remember: Create ORIGINAL content based on the facts, add value through analysis
         article_content = ai.generate_completion(
             prompt=prompt,
             system_prompt=system_prompt,
-            temperature=0.5,
+            temperature=0.65,
             max_tokens=3500  # Longer for expanded content
         )
         
@@ -473,7 +510,7 @@ Remember: Create ORIGINAL content based on the facts, add value through analysis
             article_content = ai_fallback.generate_completion(
                 prompt=prompt,
                 system_prompt=system_prompt,
-                temperature=0.5,
+                temperature=0.65,
                 max_tokens=3500
             )
             if article_content:
