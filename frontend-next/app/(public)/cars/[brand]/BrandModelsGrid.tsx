@@ -202,7 +202,7 @@ export default function BrandModelsGrid({
                             <div className="space-y-0 mt-auto rounded-xl border border-gray-100 overflow-hidden">
                                 {[
                                     { label: 'Engine', value: model.engine || '—' },
-                                    { label: 'Power', value: model.horsepower ? `${model.horsepower} hp` : '—' },
+                                    { label: 'Power', value: model.horsepower || '—' },
                                     { label: 'Price', value: model.price ? (model.price_date ? `${model.price} (${model.price_date})` : model.price) : '—', highlight: true },
                                     { label: 'Articles', value: String(model.article_count) },
                                 ].map((spec, i) => (

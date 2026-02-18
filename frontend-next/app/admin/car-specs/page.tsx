@@ -327,7 +327,7 @@ export default function CarSpecsPage() {
                                                 <span className="text-sm text-gray-700">{spec.engine || '—'}</span>
                                             </td>
                                             <td className="px-4 py-3 hidden lg:table-cell">
-                                                <span className="text-sm font-semibold text-gray-800">{spec.horsepower ? `${spec.horsepower} hp` : '—'}</span>
+                                                <span className="text-sm font-semibold text-gray-800">{spec.horsepower || '—'}</span>
                                                 {spec.torque && <div className="text-xs text-gray-400">{spec.torque}</div>}
                                             </td>
                                             <td className="px-4 py-3 hidden lg:table-cell">
