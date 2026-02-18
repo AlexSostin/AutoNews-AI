@@ -349,8 +349,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                 value={formData.slug}
                 onChange={(e) => slugEditable && setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-') })}
                 className={`flex-1 px-4 py-3 border rounded-lg font-medium ${slugEditable
-                    ? 'border-amber-400 bg-amber-50 text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none'
-                    : 'border-gray-300 bg-gray-50 text-gray-700 cursor-not-allowed'
+                  ? 'border-amber-400 bg-amber-50 text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none'
+                  : 'border-gray-300 bg-gray-50 text-gray-700 cursor-not-allowed'
                   }`}
                 disabled={!slugEditable}
               />
@@ -366,8 +366,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                   }
                 }}
                 className={`px-3 py-3 rounded-lg border transition-colors ${slugEditable
-                    ? 'bg-amber-100 border-amber-400 text-amber-700 hover:bg-amber-200'
-                    : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
+                  ? 'bg-amber-100 border-amber-400 text-amber-700 hover:bg-amber-200'
+                  : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
                   }`}
                 title={slugEditable ? 'Lock slug' : 'Unlock slug for editing'}
               >
@@ -461,11 +461,11 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               <button
                 type="button"
                 onClick={async () => {
-                  if (!formData.slug) return;
+                  if (!articleId) return;
                   if (!confirm('Run AI enrichment? This will:\n\n• Generate VehicleSpecs card (Gemini)\n• Create A/B title variants\n• Web search for latest specs\n\nArticle content will NOT be changed.')) return;
                   setEnriching(true);
                   try {
-                    const { data } = await api.post(`/articles/${formData.slug}/re-enrich/`);
+                    const { data } = await api.post(`/articles/${articleId}/re-enrich/`);
                     let msg = `✅ ${data.message}\n\n`;
                     if (data.results?.deep_specs?.success) {
                       msg += `🚗 Specs: ${data.results.deep_specs.make} ${data.results.deep_specs.model} (${data.results.deep_specs.fields_filled} fields)\n`;
