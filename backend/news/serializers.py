@@ -301,7 +301,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
                   'car_specification', 'vehicle_specs', 'images', 'average_rating', 'rating_count',
                   'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero',
                   'author_name', 'author_channel_url']
-        read_only_fields = ['slug', 'views', 'created_at', 'updated_at']
+        read_only_fields = ['views', 'created_at', 'updated_at']
     
     def validate_image(self, value):
         """Validate main image"""

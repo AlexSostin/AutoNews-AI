@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Plus, X, Sparkles, Loader2, Search, ChevronDown, Zap } from 'lucide-react';
+import { ArrowLeft, Save, Plus, X, Sparkles, Loader2, Search, ChevronDown, Zap, Lock, Unlock } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 
@@ -54,6 +54,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [tagSearch, setTagSearch] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [letterFilter, setLetterFilter] = useState<Record<string, string | null>>({});
+  const [slugEditable, setSlugEditable] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -221,6 +222,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       if (formData.image || formData.image_2 || formData.image_3 || formData.delete_image || formData.delete_image_2 || formData.delete_image_3) {
         const formDataToSend = new FormData();
         formDataToSend.append('title', formData.title);
+        if (slugEditable) formDataToSend.append('slug', formData.slug);
         formDataToSend.append('summary', formData.summary);
         formDataToSend.append('content', formData.content);
         formData.category_ids.forEach(id => formDataToSend.append('category_ids', id.toString()));
@@ -260,7 +262,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         });
       } else {
         // No images - use JSON
-        const payload = {
+        const payload: Record<string, any> = {
           title: formData.title,
           summary: formData.summary,
           content: formData.content,
@@ -272,6 +274,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           author_name: formData.author_name,
           author_channel_url: formData.author_channel_url,
         };
+        if (slugEditable) payload.slug = formData.slug;
 
         await api.put(`/articles/${articleId}/`, payload);
       }
@@ -338,14 +341,39 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           {/* Slug */}
           <div>
             <label className="block text-sm font-bold text-gray-900 mb-2">
-              Slug <span className="text-sm font-normal text-gray-600">(auto-generated from title)</span>
+              Slug <span className="text-sm font-normal text-gray-600">{slugEditable ? '(editing — will change URL!)' : '(auto-generated from title)'}</span>
             </label>
-            <input
-              type="text"
-              value={formData.slug}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-medium cursor-not-allowed"
-              disabled
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={formData.slug}
+                onChange={(e) => slugEditable && setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-') })}
+                className={`flex-1 px-4 py-3 border rounded-lg font-medium ${slugEditable
+                    ? 'border-amber-400 bg-amber-50 text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none'
+                    : 'border-gray-300 bg-gray-50 text-gray-700 cursor-not-allowed'
+                  }`}
+                disabled={!slugEditable}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!slugEditable) {
+                    if (confirm('⚠️ Changing the slug will change the article URL.\n\nThis can break existing links and hurt SEO if the article is already indexed.\n\nAre you sure you want to edit the slug?')) {
+                      setSlugEditable(true);
+                    }
+                  } else {
+                    setSlugEditable(false);
+                  }
+                }}
+                className={`px-3 py-3 rounded-lg border transition-colors ${slugEditable
+                    ? 'bg-amber-100 border-amber-400 text-amber-700 hover:bg-amber-200'
+                    : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
+                  }`}
+                title={slugEditable ? 'Lock slug' : 'Unlock slug for editing'}
+              >
+                {slugEditable ? <Unlock size={18} /> : <Lock size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* YouTube URL */}
