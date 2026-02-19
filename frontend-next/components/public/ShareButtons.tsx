@@ -56,35 +56,35 @@ export default function ShareButtons({ url, title }: ShareButtonsProps) {
     {
       name: 'Facebook',
       icon: Facebook,
-      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(title)}`,
       color: 'hover:bg-blue-600',
       bgColor: 'bg-blue-500'
     },
     {
       name: 'X',
       icon: XIcon,
-      url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
+      url: `https://x.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}&via=FreshMotorsNet`,
       color: 'hover:bg-gray-900',
       bgColor: 'bg-black'
     },
     {
       name: 'Reddit',
       icon: RedditIcon,
-      url: `https://reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`,
+      url: `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&type=link`,
       color: 'hover:bg-orange-600',
       bgColor: 'bg-orange-500'
     },
     {
       name: 'LinkedIn',
       icon: LinkedInIcon,
-      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+      url: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&source=FreshMotors`,
       color: 'hover:bg-blue-700',
       bgColor: 'bg-blue-600'
     },
     {
       name: 'WhatsApp',
       icon: WhatsAppIcon,
-      url: `https://wa.me/?text=${encodeURIComponent(title + ' ' + url)}`,
+      url: `https://wa.me/?text=${encodeURIComponent(title + '\n\n' + url)}`,
       color: 'hover:bg-green-600',
       bgColor: 'bg-green-500'
     },
@@ -98,7 +98,7 @@ export default function ShareButtons({ url, title }: ShareButtonsProps) {
     {
       name: 'Email',
       icon: Mail,
-      url: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(title + '\n\n' + url)}`,
+      url: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent('Check out this article:\n\n' + title + '\n\n' + url + '\n\n— FreshMotors.net')}`,
       color: 'hover:bg-gray-700',
       bgColor: 'bg-gray-600'
     }
