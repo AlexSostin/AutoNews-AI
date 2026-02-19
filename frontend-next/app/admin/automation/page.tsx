@@ -162,7 +162,7 @@ export default function AutomationPage() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-black text-gray-950">🤖 Automation</h1>
-                    <p className="text-sm text-gray-500 font-medium mt-1">
+                    <p className="text-sm text-gray-600 font-medium mt-1">
                         Control RSS, YouTube, auto-publish, and AI image generation. Changes take effect on next cycle.
                     </p>
                 </div>
@@ -274,7 +274,7 @@ export default function AutomationPage() {
                                 className="flex-1 accent-indigo-600"
                             />
                             <span className={`text-lg font-black min-w-[3rem] text-center ${settings.auto_publish_min_quality >= 7 ? 'text-emerald-600' :
-                                    settings.auto_publish_min_quality >= 5 ? 'text-amber-600' : 'text-red-600'
+                                settings.auto_publish_min_quality >= 5 ? 'text-amber-600' : 'text-red-600'
                                 }`}>
                                 {settings.auto_publish_min_quality}/10
                             </span>
@@ -323,13 +323,13 @@ export default function AutomationPage() {
                             onChange={(v) => updateSetting('auto_image_prefer_press', v)}
                         />
                     </SettingRow>
-                    <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 leading-relaxed border border-gray-100">
-                        <p className="font-bold text-gray-700 mb-1">Как работает:</p>
+                    <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 leading-relaxed border border-gray-100">
+                        <p className="font-bold text-gray-800 mb-1">How it works:</p>
                         <div className="space-y-0.5">
-                            <p>1️⃣ Ищет фото авто (зелёные press или жёлтые)</p>
-                            <p>2️⃣ Использует как <strong>reference</strong> для AI</p>
-                            <p>3️⃣ Публикует <strong>только AI картинку</strong> (без копирайта)</p>
-                            <p>4️⃣ Если фото не найдено → пропускает</p>
+                            <p>1️⃣ Searches for car photos (press or any available)</p>
+                            <p>2️⃣ Uses found photo as <strong>reference</strong> for AI</p>
+                            <p>3️⃣ Publishes <strong>only the AI-generated image</strong> (no copyright)</p>
+                            <p>4️⃣ If no reference found → skips</p>
                         </div>
                     </div>
                 </ModuleCard>
@@ -343,7 +343,7 @@ export default function AutomationPage() {
                     lastStatus="Submits on publish"
                     saving={saving}
                 >
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-600">
                         When enabled, newly published articles are automatically submitted to the Google Indexing API
                         for faster crawling and indexing.
                     </p>
@@ -357,16 +357,16 @@ export default function AutomationPage() {
                             onClick={() => triggerTask('score')}
                             disabled={triggering === 'score'}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${triggering === 'score'
-                                    ? 'bg-gray-100 text-gray-400 cursor-wait'
-                                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                                ? 'bg-gray-100 text-gray-400 cursor-wait'
+                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
                                 }`}
                         >
                             {triggering === 'score' ? '⏳ Scoring...' : '🔄 Score Unscored'}
                         </button>
                     </div>
-                    <p className="text-sm text-gray-500 leading-relaxed">
+                    <p className="text-sm text-gray-600 leading-relaxed">
                         Evaluates pending articles on: content length, title quality, structure,
-                        images, specs, tags, and red flags. Score 1-10. Articles ≥ <strong className="text-gray-700">{settings.auto_publish_min_quality}</strong> are
+                        images, specs, tags, and red flags. Score 1-10. Articles ≥ <strong className="text-gray-800">{settings.auto_publish_min_quality}</strong> are
                         eligible for auto-publishing.
                     </p>
                 </div>
@@ -385,12 +385,12 @@ export default function AutomationPage() {
                                 </div>
                                 <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${item.quality_score >= 7
-                                            ? 'bg-emerald-100 text-emerald-700'
-                                            : 'bg-amber-100 text-amber-700'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-amber-100 text-amber-700'
                                         }`}>
                                         Q: {item.quality_score}/10
                                     </span>
-                                    <span className="text-xs text-gray-400 font-medium">
+                                    <span className="text-xs text-gray-500 font-semibold">
                                         {timeAgo(item.published_at)}
                                     </span>
                                 </div>
@@ -413,7 +413,7 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 text-center">
             <div className="text-2xl mb-1">{icon}</div>
             <div className={`text-2xl font-black ${color || 'text-gray-900'}`}>{value}</div>
-            <div className="text-xs text-gray-500 font-semibold mt-0.5">{label}</div>
+            <div className="text-xs text-gray-600 font-bold mt-0.5">{label}</div>
         </div>
     );
 }
@@ -449,9 +449,9 @@ function ModuleCard({
             </div>
 
             {/* Status bar */}
-            <div className="flex items-center justify-between text-xs font-semibold bg-gray-50 rounded-lg px-3 py-2 mb-4 border border-gray-100">
-                <span className="text-gray-500">{lastStatus || 'No runs yet'}</span>
-                <span className="text-gray-400">{timeAgo(lastRun)}</span>
+            <div className="flex items-center justify-between text-xs font-bold bg-gray-50 rounded-lg px-3 py-2 mb-4 border border-gray-100">
+                <span className="text-gray-600">{lastStatus || 'No runs yet'}</span>
+                <span className="text-gray-500">{timeAgo(lastRun)}</span>
             </div>
 
             {/* Settings */}
@@ -465,10 +465,10 @@ function ModuleCard({
                     onClick={onTrigger}
                     disabled={triggering || !enabled}
                     className={`mt-4 w-full py-2.5 rounded-lg font-bold text-sm transition-all ${triggering
-                            ? 'bg-gray-100 text-gray-400 cursor-wait'
-                            : enabled
-                                ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        ? 'bg-gray-100 text-gray-400 cursor-wait'
+                        : enabled
+                            ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         }`}
                 >
                     {triggering ? '⏳ Running...' : '▶️ Run Now'}
@@ -481,7 +481,7 @@ function ModuleCard({
 function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div className="flex items-center justify-between gap-4">
-            <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">{label}</label>
+            <label className="text-sm font-bold text-gray-800 whitespace-nowrap">{label}</label>
             <div className="min-w-[140px]">{children}</div>
         </div>
     );
