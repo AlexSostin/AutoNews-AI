@@ -318,42 +318,37 @@ export default function AutomationPage() {
 
                 {/* Auto-Image */}
                 <ModuleCard
-                    title="📸 Auto-Image"
+                    title="📸 Auto-Image (AI)"
                     enabled={settings.auto_image_mode !== 'off'}
                     onToggle={(v) => updateSetting('auto_image_mode', v ? 'search_first' : 'off')}
                     lastRun={null}
-                    lastStatus={{
-                        'off': 'Disabled',
-                        'search_first': 'Search → AI fallback',
-                        'search_only': 'Search only',
-                        'ai_only': 'AI generation only',
-                    }[settings.auto_image_mode] || 'Unknown'}
+                    lastStatus={settings.auto_image_mode === 'off' ? 'Disabled' : 'Find reference → AI generate'}
                     saving={saving}
                 >
-                    <SettingRow label="Image mode">
-                        <select
-                            value={settings.auto_image_mode}
-                            onChange={(e) => updateSetting('auto_image_mode', e.target.value)}
-                            style={selectStyle}
-                        >
-                            <option value="off">Off</option>
-                            <option value="search_first">🔍 Search → 🎨 AI fallback</option>
-                            <option value="search_only">🔍 Search only</option>
-                            <option value="ai_only">🎨 AI only (Gemini)</option>
-                        </select>
-                    </SettingRow>
                     <SettingRow label="Prefer press photos">
                         <ToggleSwitch
                             checked={settings.auto_image_prefer_press}
                             onChange={(v) => updateSetting('auto_image_prefer_press', v)}
                         />
                     </SettingRow>
-                    <p style={{ color: '#a0a0b0', fontSize: '0.8rem', margin: '0.5rem 0 0' }}>
-                        <strong>Search:</strong> finds real car photos, prefers press/editorial (green-highlighted).
-                        <br />
-                        <strong>AI:</strong> generates photorealistic image via Gemini using a found reference.
-                    </p>
+                    <div style={{
+                        background: '#13132a',
+                        borderRadius: '8px',
+                        padding: '0.75rem',
+                        fontSize: '0.8rem',
+                        color: '#a0a0b0',
+                        lineHeight: 1.5,
+                    }}>
+                        <div style={{ marginBottom: '0.3rem' }}>
+                            <strong style={{ color: '#c0c0d0' }}>Как работает:</strong>
+                        </div>
+                        1️⃣ Ищет фото авто (зелёные press или жёлтые)<br />
+                        2️⃣ Использует как <strong>reference</strong> для AI генерации<br />
+                        3️⃣ Публикует <strong>только AI картинку</strong> (без копирайта)<br />
+                        4️⃣ Если фото не найдено → пропускает
+                    </div>
                 </ModuleCard>
+
 
                 {/* Google Indexing */}
                 <ModuleCard
