@@ -56,7 +56,8 @@ def auto_publish_pending():
         quality_score__gte=settings.auto_publish_min_quality,
     ).order_by('created_at')  # FIFO — oldest first
     
-    if settings.auto_publish_require_image:
+    # If require_image is on AND auto_image is off, filter to only those with images
+    if settings.auto_publish_require_image and settings.auto_image_mode == 'off':
         queryset = queryset.exclude(featured_image='')
     
     candidates = queryset[:publish_limit]
@@ -91,6 +92,27 @@ def auto_publish_pending():
             )
             
             if article:
+                # Auto-attach image if needed
+                if settings.auto_image_mode != 'off':
+                    try:
+                        from ai_engine.modules.auto_image_finder import find_and_attach_image
+                        img_result = find_and_attach_image(article, pending_article=pending)
+                        if img_result.get('success'):
+                            logger.info(f"📸 Auto-image ({img_result['method']}): {article.title[:50]}")
+                        else:
+                            logger.info(f"📸 Auto-image skipped: {img_result.get('error', '?')}")
+                            # If require_image is on and we failed, unpublish
+                            if settings.auto_publish_require_image:
+                                article.is_published = False
+                                article.save(update_fields=['is_published'])
+                                logger.warning(f"⚠️ Unpublished (no image): {article.title[:50]}")
+                                pending.status = 'pending'
+                                pending.review_notes = f'Auto-image failed: {img_result.get("error", "?")}'
+                                pending.save()
+                                continue
+                    except Exception as e:
+                        logger.error(f"❌ Auto-image error: {e}")
+                
                 # Update pending article status
                 pending.status = 'published'
                 pending.published_article = article

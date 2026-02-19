@@ -1600,6 +1600,21 @@ class AutomationSettings(models.Model):
         null=True, blank=True, help_text="When auto-publish last checked"
     )
     
+    # === Auto-Image ===
+    AUTO_IMAGE_CHOICES = [
+        ('off', 'Off — no auto image'),
+        ('search_first', 'Search first → AI fallback'),
+        ('search_only', 'Search only — no AI'),
+        ('ai_only', 'AI only — generate from reference'),
+    ]
+    auto_image_mode = models.CharField(
+        max_length=20, choices=AUTO_IMAGE_CHOICES, default='off',
+        help_text="How to auto-attach images to published articles"
+    )
+    auto_image_prefer_press = models.BooleanField(
+        default=True, help_text="Prefer editorial/press photos (green-highlighted) over others"
+    )
+    
     # === Google Indexing ===
     google_indexing_enabled = models.BooleanField(
         default=True, help_text="Auto-submit published articles to Google Indexing API"

@@ -826,6 +826,8 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             'auto_publish_max_per_hour', 'auto_publish_max_per_day',
             'auto_publish_require_image', 'auto_publish_today_count',
             'auto_publish_today_date', 'auto_publish_last_run',
+            # Auto-Image
+            'auto_image_mode', 'auto_image_prefer_press',
             # Google Indexing
             'google_indexing_enabled',
         ]

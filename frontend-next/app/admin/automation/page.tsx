@@ -27,6 +27,8 @@ interface AutomationSettings {
     auto_publish_today_count: number;
     auto_publish_today_date: string | null;
     auto_publish_last_run: string | null;
+    auto_image_mode: string;
+    auto_image_prefer_press: boolean;
     google_indexing_enabled: boolean;
 }
 
@@ -312,6 +314,45 @@ export default function AutomationPage() {
                             onChange={(v) => updateSetting('auto_publish_require_image', v)}
                         />
                     </SettingRow>
+                </ModuleCard>
+
+                {/* Auto-Image */}
+                <ModuleCard
+                    title="📸 Auto-Image"
+                    enabled={settings.auto_image_mode !== 'off'}
+                    onToggle={(v) => updateSetting('auto_image_mode', v ? 'search_first' : 'off')}
+                    lastRun={null}
+                    lastStatus={{
+                        'off': 'Disabled',
+                        'search_first': 'Search → AI fallback',
+                        'search_only': 'Search only',
+                        'ai_only': 'AI generation only',
+                    }[settings.auto_image_mode] || 'Unknown'}
+                    saving={saving}
+                >
+                    <SettingRow label="Image mode">
+                        <select
+                            value={settings.auto_image_mode}
+                            onChange={(e) => updateSetting('auto_image_mode', e.target.value)}
+                            style={selectStyle}
+                        >
+                            <option value="off">Off</option>
+                            <option value="search_first">🔍 Search → 🎨 AI fallback</option>
+                            <option value="search_only">🔍 Search only</option>
+                            <option value="ai_only">🎨 AI only (Gemini)</option>
+                        </select>
+                    </SettingRow>
+                    <SettingRow label="Prefer press photos">
+                        <ToggleSwitch
+                            checked={settings.auto_image_prefer_press}
+                            onChange={(v) => updateSetting('auto_image_prefer_press', v)}
+                        />
+                    </SettingRow>
+                    <p style={{ color: '#a0a0b0', fontSize: '0.8rem', margin: '0.5rem 0 0' }}>
+                        <strong>Search:</strong> finds real car photos, prefers press/editorial (green-highlighted).
+                        <br />
+                        <strong>AI:</strong> generates photorealistic image via Gemini using a found reference.
+                    </p>
                 </ModuleCard>
 
                 {/* Google Indexing */}
