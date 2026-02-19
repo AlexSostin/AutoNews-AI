@@ -271,39 +271,65 @@ def extract_tags_from_structured_data(article):
 
 def extract_tags_from_title(article):
     """
-    Layer 1.5: Extract tags by scanning title and content for known brands
-    and keywords. No API calls needed.
+    Layer 1.5: Extract tags by scanning title for the SUBJECT car's brand,
+    and first paragraph for fuel/body type. Avoids tagging competitors.
     """
     tags = []
     title_lower = article.title.lower()
-    content_lower = (article.content or '')[:2000].lower()
-    combined = f"{title_lower} {content_lower}"
+    
+    # Use ONLY first paragraph for fuel/body scanning (intro = subject car, rest = competitors)
+    first_para = re.split(r'</p>', article.content or '', maxsplit=1)[0]
+    first_para_lower = first_para[:500].lower()
+    # Title + first paragraph = subject car context
+    subject_context = f"{title_lower} {first_para_lower}"
 
-    # Scan for known brands in title (word boundary to avoid false positives)
+    # --- MANUFACTURERS: scan TITLE ONLY (NOT body text) ---
     for brand in KNOWN_BRANDS:
         pattern = rf'\b{re.escape(brand)}\b'
         if re.search(pattern, title_lower, re.IGNORECASE):
             tags.append((brand, 'Manufacturers'))
 
-    # Extract year from title (e.g. "2026 BYD...")
+    # --- MODEL: extract model name from title ---
+    # Pattern: "{Brand} {Model}" where model is 1-3 words after brand
+    for brand in KNOWN_BRANDS:
+        pattern = rf'\b{re.escape(brand)}\s+([\w#]+(?:\s+[\w#]+)?(?:\s+[\w#]+)?)\b'
+        model_match = re.search(pattern, title_lower, re.IGNORECASE)
+        if model_match:
+            model_name = model_match.group(1).strip()
+            # Skip if model is a generic word
+            generic_model_words = {'review', 'preview', 'test', 'drive', 'reveals', 'launches', 
+                                   'announces', 'the', 'new', 'all', 'its', 'first'}
+            model_parts = model_name.split()
+            if model_parts and model_parts[0].lower() not in generic_model_words:
+                # Get display brand name
+                display_brand = BRAND_DISPLAY_NAMES.get(brand, brand.title())
+                full_model = f"{display_brand} {model_name.title()}"
+                tags.append((full_model, 'Models'))
+                break  # Only one model per article
+
+    # --- YEAR: from title ---
     year_match = re.search(r'\b(202[0-9])\b', title_lower)
     if year_match:
         tags.append((year_match.group(1), 'Years'))
 
-    # Fuel type keywords in combined text
+    # --- FUEL TYPE: scan title + first paragraph ONLY (subject car context) ---
     fuel_patterns = {
-        'electric': ('Electric', 'Fuel Types'),
-        r'\bev\b': ('EV', 'Fuel Types'),
-        'phev': ('PHEV', 'Fuel Types'),
-        'plug-in hybrid': ('PHEV', 'Fuel Types'),
+        r'\bplug-in hybrid\b|\bphev\b': ('Plug-in Hybrid', 'Fuel Types'),
         r'\bhybrid\b': ('Hybrid', 'Fuel Types'),
-        'hydrogen': ('Hydrogen', 'Fuel Types'),
+        r'\belectric\b': ('Electric', 'Fuel Types'),
+        r'\bev\b': ('EV', 'Fuel Types'),
+        r'\bhydrogen\b': ('Hydrogen', 'Fuel Types'),
     }
+    fuel_found = False
     for pattern, (tag_name, group) in fuel_patterns.items():
-        if re.search(pattern, combined, re.IGNORECASE):
+        if re.search(pattern, subject_context, re.IGNORECASE):
             tags.append((tag_name, group))
-
-    # Body type keywords
+            fuel_found = True
+            # For PHEV: don't also add hybrid/electric separately
+            if tag_name in ('Plug-in Hybrid', 'PHEV'):
+                break
+    
+    # --- BODY TYPE: scan title + first paragraph ---
     body_patterns = {
         r'\bsuv\b': ('SUV', 'Body Types'),
         r'\bsedan\b': ('Sedan', 'Body Types'),
@@ -317,10 +343,10 @@ def extract_tags_from_title(article):
         r'\bsupercar\b|hypercar': ('Supercar', 'Body Types'),
     }
     for pattern, (tag_name, group) in body_patterns.items():
-        if re.search(pattern, combined, re.IGNORECASE):
+        if re.search(pattern, subject_context, re.IGNORECASE):
             tags.append((tag_name, group))
 
-    # Drivetrain keywords
+    # --- DRIVETRAIN: title + first paragraph ---
     drive_patterns = {
         r'\bawd\b': ('AWD', 'Drivetrain'),
         r'\brwd\b': ('RWD', 'Drivetrain'),
@@ -328,18 +354,31 @@ def extract_tags_from_title(article):
         r'\b4wd\b|4x4': ('4WD', 'Drivetrain'),
     }
     for pattern, (tag_name, group) in drive_patterns.items():
-        if re.search(pattern, combined, re.IGNORECASE):
+        if re.search(pattern, subject_context, re.IGNORECASE):
             tags.append((tag_name, group))
 
-    # Segment keywords in title only (avoid false matches in content)
+    # --- SEGMENTS: title only ---
     if 'luxury' in title_lower or 'premium' in title_lower:
         tags.append(('Luxury', 'Segments'))
     if 'affordable' in title_lower or 'budget' in title_lower:
         tags.append(('Budget', 'Segments'))
-    if 'family' in combined:
-        tags.append(('Family', 'Segments'))
-    if 'off-road' in combined or 'offroad' in combined:
-        tags.append(('Off-Road', 'Segments'))
+
+    # --- TECH & FEATURES: scan first paragraph for key tech terms ---
+    tech_patterns = {
+        r'\badas\b': ('ADAS', 'Tech & Features'),
+        r'\bcarplay\b': ('CarPlay', 'Tech & Features'),
+        r'\bandroid auto\b': ('Android Auto', 'Tech & Features'),
+        r'\blidar\b': ('LiDAR', 'Tech & Features'),
+        r'\bautopilot\b|\bself.driving\b|\bautonomous\b': ('Autonomous', 'Tech & Features'),
+        r'\bfast.charg\b': ('Fast Charging', 'Tech & Features'),
+        r'\bhead.up display\b|\bhud\b': ('Head-Up Display', 'Tech & Features'),
+        r'\blane.(?:keep|assist)\b': ('Lane Assist', 'Tech & Features'),
+        r'\bota\b': ('OTA Update', 'Tech & Features'),
+        r'\bair suspension\b': ('Air Suspension', 'Tech & Features'),
+    }
+    for pattern, (tag_name, group) in tech_patterns.items():
+        if re.search(pattern, subject_context, re.IGNORECASE):
+            tags.append((tag_name, group))
 
     return tags
 

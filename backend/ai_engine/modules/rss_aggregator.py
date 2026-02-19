@@ -481,10 +481,15 @@ class RSSAggregator:
         """
         try:
             from ai_engine.modules.article_generator import expand_press_release
-            from ai_engine.main import extract_title, validate_title, _is_generic_header
+            from ai_engine.main import extract_title, validate_title, _is_generic_header, _contains_non_latin
             
             title = entry.get('title', 'Untitled')
             source_url = entry.get('link', '')
+            
+            # Check if original title is non-English
+            is_non_english_title = _contains_non_latin(title)
+            if is_non_english_title:
+                logger.info(f"[RSS] Non-English title detected, will force AI title: {title[:50]}")
             
             logger.info(f"Expanding press release with AI: {title[:50]}")
             
@@ -499,9 +504,13 @@ class RSSAggregator:
             # Extract title from AI-generated content using shared extract_title
             ai_title = extract_title(expanded_content)
             
-            # Validate the extracted title, fallback to RSS entry title
+            # Only fall back to RSS title if AI title failed AND original is in English
             if not ai_title or _is_generic_header(ai_title):
-                ai_title = title  # Use original RSS title
+                if is_non_english_title:
+                    logger.warning(f"[RSS] AI title extraction failed and original is non-English, using validate_title fallback")
+                    ai_title = None  # Force validate_title to construct from specs
+                else:
+                    ai_title = title  # Use original RSS title (it's English)
             
             # Final validation  
             ai_title = validate_title(ai_title)

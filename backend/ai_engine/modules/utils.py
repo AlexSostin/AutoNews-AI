@@ -116,37 +116,42 @@ def clean_title(title):
 
 def validate_article_quality(content):
     """
-    Проверяет качество сгенерированной статьи.
+    Validate quality of AI-generated article content.
     
     Returns:
         dict: {'valid': bool, 'issues': list of strings}
     """
     issues = []
     
-    # Проверка минимальной длины
+    # Minimum length check
     if len(content) < 500:
-        issues.append("Статья слишком короткая (< 500 символов)")
+        issues.append("Article too short (< 500 characters)")
     
-    # Проверка наличия заголовка
+    # Must have heading
     if '<h2>' not in content:
-        issues.append("Отсутствует заголовок <h2>")
+        issues.append("Missing <h2> heading")
     
-    # Проверка структуры (должно быть несколько секций)
+    # Must have enough sections
     section_count = content.count('<h2>')
     if section_count < 3:
-        issues.append(f"Недостаточно секций (найдено {section_count}, нужно минимум 3)")
+        issues.append(f"Too few sections (found {section_count}, need at least 3)")
     
-    # Проверка на placeholder текст
+    # Check for placeholder text
     placeholders = ['lorem ipsum', 'placeholder', 'xxx', '[insert', 'todo:', 'tbd']
     content_lower = content.lower()
     for placeholder in placeholders:
         if placeholder in content_lower:
-            issues.append(f"Найден placeholder текст: {placeholder}")
+            issues.append(f"Found placeholder text: {placeholder}")
     
-    # Проверка на минимум параграфов
+    # Minimum paragraphs
     paragraph_count = content.count('<p>')
     if paragraph_count < 4:
-        issues.append(f"Мало параграфов (найдено {paragraph_count}, нужно минимум 4)")
+        issues.append(f"Too few paragraphs (found {paragraph_count}, need at least 4)")
+    
+    # TRUNCATION CHECK: if content doesn't end with a closing tag, it was cut off
+    stripped = content.strip()
+    if stripped and not stripped.endswith('>'):
+        issues.append("Content appears truncated (no closing HTML tag at end)")
     
     return {
         'valid': len(issues) == 0,

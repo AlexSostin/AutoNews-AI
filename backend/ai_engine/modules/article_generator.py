@@ -570,6 +570,16 @@ Remember: Write like you're explaining to a friend who's considering this car. B
             print("⚠️  Article quality issues:")
             for issue in quality['issues']:
                 print(f"  - {issue}")
+            
+            # Fix truncation: trim to last complete paragraph
+            if any('truncated' in i for i in quality['issues']):
+                logger.warning("[ARTICLE-GEN] Content truncated by AI token limit, trimming to last complete tag")
+                # Find last closing tag (</p>, </ul>, </h2>, </div>)
+                import re as _re
+                last_tag = _re.search(r'.*(</(p|ul|ol|h2|h3|div|li)>)', article_content, _re.DOTALL)
+                if last_tag:
+                    article_content = article_content[:last_tag.end()]
+                    print(f"  → Trimmed to {len(article_content)} chars")
         
         return article_content
         

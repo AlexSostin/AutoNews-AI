@@ -94,28 +94,42 @@ def _is_generic_header(text: str) -> bool:
     return False
 
 
+def _contains_non_latin(text: str) -> bool:
+    """Check if text contains non-Latin characters (Cyrillic, Chinese, Arabic, etc.)."""
+    # Allow: ASCII, common punctuation, digits, extended Latin (accents)
+    # Reject: Cyrillic (0400-04FF), Chinese (4E00-9FFF), Arabic (0600-06FF), etc.
+    non_latin = re.findall(r'[\u0400-\u04FF\u4E00-\u9FFF\u0600-\u06FF\u3040-\u309F\u30A0-\u30FF]', text)
+    # If more than 2 non-Latin chars, it's likely a non-English title
+    return len(non_latin) > 2
+
+
 def validate_title(title: str, video_title: str = None, specs: dict = None) -> str:
     """
     Validates and fixes article title. Returns a good title or constructs one from available data.
     
     Priority:
-    1. Use provided title if it's valid (not generic, long enough, contains brand/model info)
+    1. Use provided title if it's valid (not generic, long enough, in English)
     2. Use video_title if available
     3. Construct from specs (Year Make Model Review)
     4. Last resort: generic but unique-ish fallback
     """
     # Check if title is valid
     if title and len(title) > 15 and not _is_generic_header(title):
-        # Additional check: title should contain at least some brand/model indicator
-        return title.strip()
+        # Reject non-English titles (Cyrillic, Chinese, etc.)
+        if _contains_non_latin(title):
+            logger.warning(f"[TITLE] Rejected non-English title: {title[:60]}")
+            # Fall through to fallbacks below
+        else:
+            return title.strip()
     
     # Fallback 1: Use video title (cleaned up)
     if video_title and len(video_title) > 10:
         # Clean video title (remove channel name suffixes, etc.)
         clean_vt = re.sub(r'\s*[|\-–]\s*[^|\-–]+$', '', video_title).strip()
-        if clean_vt and len(clean_vt) > 10:
+        if clean_vt and len(clean_vt) > 10 and not _contains_non_latin(clean_vt):
             return clean_vt
-        return video_title.strip()
+        if not _contains_non_latin(video_title):
+            return video_title.strip()
     
     # Fallback 2: Construct from specs
     if specs:
@@ -130,7 +144,9 @@ def validate_title(title: str, video_title: str = None, specs: dict = None) -> s
             return f"{year_str}{make} {model}{trim_str} Review"
     
     # Last resort
-    return title if (title and len(title) > 5) else "New Car Review"
+    if title and len(title) > 5 and not _contains_non_latin(title):
+        return title
+    return "New Car Review"
 
 
 def extract_title(html_content):
