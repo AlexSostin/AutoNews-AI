@@ -29,7 +29,8 @@ import {
   Globe,
   MessageSquareWarning,
   FlaskConical,
-  Megaphone
+  Megaphone,
+  Bot
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
@@ -37,6 +38,7 @@ const menuItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/admin/notifications', icon: Bell, label: 'Notifications' },
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
+  { href: '/admin/automation', icon: Bot, label: 'Automation' },
   { href: '/admin/articles', icon: FileText, label: 'Articles' },
   { href: '/admin/translate', icon: Languages, label: 'Translate & Enhance' },
   { href: '/admin/categories', icon: Folder, label: 'Categories' },

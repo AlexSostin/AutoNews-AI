@@ -12,7 +12,8 @@ from .api_views import (
     AdminNotificationViewSet, VehicleSpecsViewSet, BrandAliasViewSet,
     ArticleFeedbackViewSet, GenerateAIImageView,
     SearchPhotosView, SaveExternalImageView,
-    AdPlacementViewSet
+    AdPlacementViewSet,
+    AutomationSettingsView, AutomationStatsView, AutomationTriggerView
 )
 from .health import health_check, health_check_detailed, readiness_check
 
@@ -122,6 +123,12 @@ urlpatterns = [
     path('articles/<str:identifier>/search-photos/', SearchPhotosView.as_view(), name='search_photos'),
     path('articles/<str:identifier>/save-external-image/', SaveExternalImageView.as_view(), name='save_external_image'),
     path('ai-image-styles/', GenerateAIImageView.as_view(), name='ai_image_styles'),
+    
+    
+    # Automation Control Panel
+    path('automation/settings/', AutomationSettingsView.as_view(), name='automation_settings'),
+    path('automation/stats/', AutomationStatsView.as_view(), name='automation_stats'),
+    path('automation/trigger/<str:task_type>/', AutomationTriggerView.as_view(), name='automation_trigger'),
     
     # API endpoints
     path('', include(router.urls)),

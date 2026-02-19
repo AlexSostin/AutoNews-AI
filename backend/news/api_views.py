@@ -16,7 +16,7 @@ from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, AdminNotification,
-    VehicleSpecs, NewsletterSubscriber, BrandAlias
+    VehicleSpecs, NewsletterSubscriber, BrandAlias, AutomationSettings
 )
 from .serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
@@ -24,7 +24,8 @@ from .serializers import (
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
     SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer, NewsletterHistorySerializer,
     YouTubeChannelSerializer, RSSFeedSerializer, RSSNewsItemSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
-    AdminNotificationSerializer, VehicleSpecsSerializer, BrandAliasSerializer
+    AdminNotificationSerializer, VehicleSpecsSerializer, BrandAliasSerializer,
+    AutomationSettingsSerializer
 )
 import os
 import sys
@@ -4992,3 +4993,105 @@ class AdPlacementViewSet(viewsets.ModelViewSet):
         AdPlacement.objects.filter(pk=ad.pk).update(clicks=F('clicks') + 1)
         return Response({'success': True, 'redirect': ad.link})
 
+
+
+# =============================================================================
+# Automation Control Panel
+# =============================================================================
+
+class AutomationSettingsView(APIView):
+    """GET/PUT automation settings (singleton)."""
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request):
+        settings = AutomationSettings.load()
+        serializer = AutomationSettingsSerializer(settings)
+        return Response(serializer.data)
+    
+    def put(self, request):
+        settings = AutomationSettings.load()
+        serializer = AutomationSettingsSerializer(settings, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AutomationStatsView(APIView):
+    """GET automation statistics overview."""
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request):
+        settings = AutomationSettings.load()
+        settings.reset_daily_counters()
+        
+        # Count pending articles by quality
+        pending_total = PendingArticle.objects.filter(status='pending').count()
+        pending_high_quality = PendingArticle.objects.filter(
+            status='pending',
+            quality_score__gte=settings.auto_publish_min_quality
+        ).count()
+        
+        # Today's published articles  
+        today = timezone.now().date()
+        published_today = Article.objects.filter(
+            is_published=True,
+            created_at__date=today
+        ).count()
+        
+        # Recent auto-published
+        recent_auto = PendingArticle.objects.filter(
+            status='published',
+            review_notes__startswith='Auto-published'
+        ).order_by('-reviewed_at')[:10]
+        
+        return Response({
+            'pending_total': pending_total,
+            'pending_high_quality': pending_high_quality,
+            'published_today': published_today,
+            'auto_published_today': settings.auto_publish_today_count,
+            'rss_articles_today': settings.rss_articles_today,
+            'youtube_articles_today': settings.youtube_articles_today,
+            'recent_auto_published': [
+                {
+                    'id': p.id,
+                    'title': p.title[:80],
+                    'quality_score': p.quality_score,
+                    'published_at': p.reviewed_at,
+                }
+                for p in recent_auto
+            ],
+        })
+
+
+class AutomationTriggerView(APIView):
+    """POST manual triggers for automation tasks."""
+    permission_classes = [IsAdminUser]
+    
+    def post(self, request, task_type):
+        import threading
+        
+        if task_type == 'rss':
+            from news.scheduler import _run_rss_scan
+            threading.Thread(target=_run_rss_scan, daemon=True).start()
+            return Response({'message': 'RSS scan triggered', 'status': 'running'})
+        
+        elif task_type == 'youtube':
+            from news.scheduler import _run_youtube_scan
+            threading.Thread(target=_run_youtube_scan, daemon=True).start()
+            return Response({'message': 'YouTube scan triggered', 'status': 'running'})
+        
+        elif task_type == 'auto-publish':
+            from news.scheduler import _run_auto_publish
+            threading.Thread(target=_run_auto_publish, daemon=True).start()
+            return Response({'message': 'Auto-publish triggered', 'status': 'running'})
+        
+        elif task_type == 'score':
+            from news.scheduler import _score_new_pending_articles
+            threading.Thread(target=_score_new_pending_articles, daemon=True).start()
+            return Response({'message': 'Quality scoring triggered', 'status': 'running'})
+        
+        return Response(
+            {'error': f'Unknown task type: {task_type}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )

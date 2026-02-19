@@ -6,7 +6,7 @@ from .models import (
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, EmailPreferences,
     AdminNotification, VehicleSpecs, NewsletterSubscriber, BrandAlias, Brand,
-    AdPlacement
+    AdPlacement, AutomationSettings
 )
 
 
@@ -806,3 +806,32 @@ class AdPlacementSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['impressions', 'clicks', 'ctr', 'is_currently_active', 'created_at', 'updated_at']
 
+
+class AutomationSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for the automation control panel settings."""
+    
+    class Meta:
+        model = AutomationSettings
+        fields = [
+            # RSS
+            'rss_scan_enabled', 'rss_scan_interval_minutes',
+            'rss_max_articles_per_scan', 'rss_last_run', 'rss_last_status',
+            'rss_articles_today',
+            # YouTube
+            'youtube_scan_enabled', 'youtube_scan_interval_minutes',
+            'youtube_max_videos_per_scan', 'youtube_last_run', 'youtube_last_status',
+            'youtube_articles_today',
+            # Auto-publish
+            'auto_publish_enabled', 'auto_publish_min_quality',
+            'auto_publish_max_per_hour', 'auto_publish_max_per_day',
+            'auto_publish_require_image', 'auto_publish_today_count',
+            'auto_publish_today_date', 'auto_publish_last_run',
+            # Google Indexing
+            'google_indexing_enabled',
+        ]
+        read_only_fields = [
+            'rss_last_run', 'rss_last_status', 'rss_articles_today',
+            'youtube_last_run', 'youtube_last_status', 'youtube_articles_today',
+            'auto_publish_today_count', 'auto_publish_today_date',
+            'auto_publish_last_run',
+        ]

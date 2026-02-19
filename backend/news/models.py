@@ -693,6 +693,10 @@ class PendingArticle(models.Model):
     
     # Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    quality_score = models.IntegerField(
+        default=0,
+        help_text="Auto-assessed quality 1-10 (used for auto-publish threshold)"
+    )
     
     # If published, link to the article
     published_article = models.ForeignKey(
@@ -1525,3 +1529,123 @@ class AdPlacement(models.Model):
     def __str__(self):
         status = "✅" if self.is_currently_active else "⏸️"
         return f"{status} {self.name} ({self.get_position_display()}) — {self.impressions} views, {self.clicks} clicks"
+
+
+class AutomationSettings(models.Model):
+    """Automation control panel — singleton config for all automated tasks.
+    
+    All modules default to OFF for safe rollout.
+    User enables them one by one from /admin/automation.
+    """
+    
+    # === RSS Scanning ===
+    rss_scan_enabled = models.BooleanField(
+        default=False, help_text="Enable automatic RSS feed scanning"
+    )
+    rss_scan_interval_minutes = models.IntegerField(
+        default=30, help_text="Minutes between RSS scans (15, 30, 60, 120)"
+    )
+    rss_max_articles_per_scan = models.IntegerField(
+        default=10, help_text="Max articles to process per scan cycle"
+    )
+    rss_last_run = models.DateTimeField(
+        null=True, blank=True, help_text="When RSS scan last ran"
+    )
+    rss_last_status = models.CharField(
+        max_length=500, blank=True, default='', help_text="Last scan result message"
+    )
+    rss_articles_today = models.IntegerField(default=0)
+    
+    # === YouTube Scanning ===
+    youtube_scan_enabled = models.BooleanField(
+        default=False, help_text="Enable automatic YouTube channel scanning"
+    )
+    youtube_scan_interval_minutes = models.IntegerField(
+        default=120, help_text="Minutes between YouTube scans (60, 120, 240)"
+    )
+    youtube_max_videos_per_scan = models.IntegerField(
+        default=3, help_text="Max videos to process per scan cycle"
+    )
+    youtube_last_run = models.DateTimeField(
+        null=True, blank=True, help_text="When YouTube scan last ran"
+    )
+    youtube_last_status = models.CharField(
+        max_length=500, blank=True, default='', help_text="Last scan result message"
+    )
+    youtube_articles_today = models.IntegerField(default=0)
+    
+    # === Auto-Publish ===
+    auto_publish_enabled = models.BooleanField(
+        default=False, help_text="Enable automatic publishing of high-quality pending articles"
+    )
+    auto_publish_min_quality = models.IntegerField(
+        default=7, help_text="Minimum quality score (1-10) required for auto-publish"
+    )
+    auto_publish_max_per_hour = models.IntegerField(
+        default=3, help_text="Maximum articles to auto-publish per hour"
+    )
+    auto_publish_max_per_day = models.IntegerField(
+        default=20, help_text="Maximum articles to auto-publish per day"
+    )
+    auto_publish_require_image = models.BooleanField(
+        default=True, help_text="Require featured image before auto-publishing"
+    )
+    auto_publish_today_count = models.IntegerField(
+        default=0, help_text="Counter: articles auto-published today"
+    )
+    auto_publish_today_date = models.DateField(
+        null=True, blank=True, help_text="Date for today's counter"
+    )
+    auto_publish_last_run = models.DateTimeField(
+        null=True, blank=True, help_text="When auto-publish last checked"
+    )
+    
+    # === Google Indexing ===
+    google_indexing_enabled = models.BooleanField(
+        default=True, help_text="Auto-submit published articles to Google Indexing API"
+    )
+    
+    # === Counters reset tracking ===
+    counters_reset_date = models.DateField(
+        null=True, blank=True, help_text="Last date counters were reset"
+    )
+    
+    class Meta:
+        verbose_name = 'Automation Settings'
+        verbose_name_plural = 'Automation Settings'
+    
+    def __str__(self):
+        modules = []
+        if self.rss_scan_enabled:
+            modules.append('RSS')
+        if self.youtube_scan_enabled:
+            modules.append('YouTube')
+        if self.auto_publish_enabled:
+            modules.append('Auto-Publish')
+        active = ', '.join(modules) if modules else 'All OFF'
+        return f"Automation Settings ({active})"
+    
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+    
+    def reset_daily_counters(self):
+        """Reset daily counters if it's a new day."""
+        from django.utils import timezone
+        today = timezone.now().date()
+        if self.counters_reset_date != today:
+            self.auto_publish_today_count = 0
+            self.auto_publish_today_date = today
+            self.rss_articles_today = 0
+            self.youtube_articles_today = 0
+            self.counters_reset_date = today
+            self.save(update_fields=[
+                'auto_publish_today_count', 'auto_publish_today_date',
+                'rss_articles_today', 'youtube_articles_today',
+                'counters_reset_date'
+            ])
