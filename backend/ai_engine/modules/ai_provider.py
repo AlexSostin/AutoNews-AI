@@ -73,12 +73,10 @@ class GeminiProvider(AIProvider):
         # Combine system prompt and user prompt for Gemini
         full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
         
-        # Try different model name formats
+        # Model priority: 2.5-flash (better instruction following) > 2.0-flash
         model_names_to_try = [
-            'gemini-2.0-flash',
             'gemini-2.5-flash',
-            'gemini-1.5-flash',
-            'gemini-pro',
+            'gemini-2.0-flash',
         ]
         
         last_error = None
@@ -96,7 +94,21 @@ class GeminiProvider(AIProvider):
                     generation_config=generation_config
                 )
                 
-                return response.text if response and response.text else ""
+                # Robust text extraction
+                text = ""
+                try:
+                    text = response.text
+                except Exception:
+                    # Fallback: extract from candidates
+                    if response.candidates:
+                        for part in response.candidates[0].content.parts:
+                            if hasattr(part, 'text'):
+                                text += part.text
+                
+                if text:
+                    print(f"✅ Generated with {model_name}")
+                    return text
+                    
             except Exception as e:
                 last_error = str(e)
                 print(f"Failed with model {model_name}: {e}")

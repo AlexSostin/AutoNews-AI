@@ -32,6 +32,59 @@ except ImportError:
 # Legacy Groq client for backwards compatibility
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
+
+# ── Banned phrase post-processing ──────────────────────────────────────────
+# Gemini sometimes ignores prompt bans.  This is the safety net.
+
+_BANNED_SENTENCE_PATTERNS = re.compile(
+    r'<p>[^<]*?('
+    r'While a comprehensive driving review is pending'
+    r'|While I haven\'t personally driven'
+    r'|some assumptions can be made'
+    r'|specific .{3,30} figures are still emerging'
+    r'|specific .{3,30} figures are not available'
+    r'|horsepower and torque figures are not specified'
+    r'|exact battery capacity is not specified'
+    r'|further details .{3,30} will be released'
+    r'|pricing details .{3,30} have not been officially announced'
+    r')[^<]*?</p>',
+    re.IGNORECASE
+)
+
+_BANNED_INLINE_REPLACEMENTS = [
+    # (pattern, replacement)
+    (re.compile(r'is making waves (?:as |in )', re.I), 'is positioned as '),
+    (re.compile(r'making waves in the .{3,30} segment', re.I), 'competing in this segment'),
+    (re.compile(r'setting a new benchmark', re.I), 'raising the bar'),
+    (re.compile(r'a hefty amount of torque', re.I), 'strong torque'),
+    (re.compile(r'expected to be equipped', re.I), 'equipped'),
+    (re.compile(r'anticipated to be a key component', re.I), 'a key component'),
+    (re.compile(r'potentially with', re.I), 'with'),
+    (re.compile(r'likely running', re.I), 'running'),
+    (re.compile(r'is expected to feature', re.I), 'features'),
+]
+
+
+def _clean_banned_phrases(html: str) -> str:
+    """Remove or replace banned filler phrases that Gemini sometimes ignores."""
+    original_len = len(html)
+    
+    # 1. Remove entire <p> blocks that are pure filler
+    html = _BANNED_SENTENCE_PATTERNS.sub('', html)
+    
+    # 2. Inline replacements for smaller phrases
+    for pattern, replacement in _BANNED_INLINE_REPLACEMENTS:
+        html = pattern.sub(replacement, html)
+    
+    # 3. Clean up empty paragraphs left behind
+    html = re.sub(r'<p>\s*</p>', '', html)
+    
+    cleaned = original_len - len(html)
+    if cleaned > 0:
+        print(f"  🧹 Post-processing: removed {cleaned} chars of filler")
+    
+    return html
+
 def generate_article(analysis_data, provider='groq', web_context=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
@@ -228,6 +281,7 @@ Remember: Write like you're explaining to a friend who's considering buying this
         
         # Post-processing: ensure it's HTML, not Markdown
         article_content = ensure_html_only(article_content)
+        article_content = _clean_banned_phrases(article_content)
         
         # Проверка качества статьи
         quality = validate_article_quality(article_content)
@@ -261,6 +315,7 @@ Remember: Write like you're explaining to a friend who's considering buying this
             if article_content:
                 print(f"✓ Fallback successful with {fallback_display}!")
                 article_content = ensure_html_only(article_content)
+                article_content = _clean_banned_phrases(article_content)
                 return article_content
         except Exception as fallback_err:
             logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
@@ -486,6 +541,7 @@ Remember: Write like you're explaining to a friend who's considering this car. B
         
         # Post-processing: ensure it's HTML, not Markdown
         article_content = ensure_html_only(article_content)
+        article_content = _clean_banned_phrases(article_content)
         
         # Validate quality
         quality = validate_article_quality(article_content)
@@ -516,6 +572,7 @@ Remember: Write like you're explaining to a friend who's considering this car. B
             if article_content:
                 print(f"✓ Fallback successful with {fallback_display}!")
                 article_content = ensure_html_only(article_content)
+                article_content = _clean_banned_phrases(article_content)
                 return article_content
         except Exception as fallback_err:
             logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
