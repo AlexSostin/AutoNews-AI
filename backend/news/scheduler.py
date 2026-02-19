@@ -83,7 +83,7 @@ def _run_rss_scan():
         
         settings.reset_daily_counters()
         
-        logger.info("📡 Auto RSS scan starting...")
+        logger.info("[SCHEDULER/RSS] 📡 Auto RSS scan starting...")
         aggregator = RSSAggregator()
         feeds = RSSFeed.objects.filter(is_enabled=True)
         
@@ -96,7 +96,7 @@ def _run_rss_scan():
                 )
                 total_created += created
             except Exception as e:
-                logger.error(f"❌ RSS scan error for {feed.name}: {e}")
+                logger.error(f"[SCHEDULER/RSS] ❌ Feed error '{feed.name}': {e}")
         
         # Score newly created pending articles
         _score_new_pending_articles()
@@ -109,13 +109,13 @@ def _run_rss_scan():
             'rss_last_run', 'rss_last_status', 'rss_articles_today'
         ])
         
-        logger.info(f"📡 Auto RSS scan done: {total_created} articles created")
+        logger.info(f"[SCHEDULER/RSS] ✅ Done: {total_created} articles from {feeds.count()} feeds")
         
         # Schedule next run using configured interval
         _schedule_rss_scan(settings.rss_scan_interval_minutes * 60)
         
     except Exception as e:
-        logger.error(f"❌ Auto RSS scan error: {e}")
+        logger.error(f"[SCHEDULER/RSS] ❌ Fatal error: {e}", exc_info=True)
         _schedule_rss_scan(5 * 60)  # Retry in 5 min on error
 
 
@@ -142,12 +142,12 @@ def _run_youtube_scan():
         
         settings.reset_daily_counters()
         
-        logger.info("🎬 Auto YouTube scan starting...")
+        logger.info("[SCHEDULER/YOUTUBE] 🎬 Auto YouTube scan starting...")
         
         try:
             client = YouTubeClient()
         except Exception as e:
-            logger.error(f"❌ YouTube client init failed: {e}")
+            logger.error(f"[SCHEDULER/YOUTUBE] ❌ Client init failed: {e}")
             settings.youtube_last_status = f"❌ Client error: {str(e)[:100]}"
             settings.youtube_last_run = timezone.now()
             settings.save(update_fields=['youtube_last_status', 'youtube_last_run'])
@@ -190,7 +190,7 @@ def _run_youtube_scan():
                         channel.videos_processed += 1
                         channel.save()
                 except Exception as e:
-                    logger.error(f"❌ YouTube article error for '{video_title[:40]}': {e}")
+                    logger.error(f"[SCHEDULER/YOUTUBE] ❌ Article error for '{video_title[:40]}': {e}")
             
             channel.last_checked = timezone.now()
             channel.save(update_fields=['last_checked'])
@@ -206,12 +206,12 @@ def _run_youtube_scan():
             'youtube_last_run', 'youtube_last_status', 'youtube_articles_today'
         ])
         
-        logger.info(f"🎬 Auto YouTube scan done: {total_created} articles created")
+        logger.info(f"[SCHEDULER/YOUTUBE] ✅ Done: {total_created} articles from {channels.count()} channels")
         
         _schedule_youtube_scan(settings.youtube_scan_interval_minutes * 60)
         
     except Exception as e:
-        logger.error(f"❌ Auto YouTube scan error: {e}")
+        logger.error(f"[SCHEDULER/YOUTUBE] ❌ Fatal error: {e}", exc_info=True)
         _schedule_youtube_scan(5 * 60)
 
 
@@ -241,12 +241,12 @@ def _run_auto_publish():
         settings.save(update_fields=['auto_publish_last_run'])
         
         if published > 0:
-            logger.info(f"📝 Auto-publish: {published} articles published")
+            logger.info(f"[SCHEDULER/AUTO-PUBLISH] 📝 {published} articles published")
         
         _schedule_auto_publish(AUTO_PUBLISH_CHECK_INTERVAL)
         
     except Exception as e:
-        logger.error(f"❌ Auto-publish error: {e}")
+        logger.error(f"[SCHEDULER/AUTO-PUBLISH] ❌ Fatal error: {e}", exc_info=True)
         _schedule_auto_publish(AUTO_PUBLISH_CHECK_INTERVAL)
 
 
@@ -272,10 +272,10 @@ def _score_new_pending_articles():
             try:
                 score_pending_article(pending)
             except Exception as e:
-                logger.error(f"❌ Scoring error for '{pending.title[:40]}': {e}")
+                logger.error(f"[SCHEDULER/SCORING] ❌ Score error for '{pending.title[:40]}': {e}")
                 
     except Exception as e:
-        logger.error(f"❌ Batch scoring error: {e}")
+        logger.error(f"[SCHEDULER/SCORING] ❌ Fatal error: {e}", exc_info=True)
 
 
 def start_scheduler():

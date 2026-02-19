@@ -31,7 +31,7 @@ def auto_publish_pending():
     
     # Check daily limit
     if settings.auto_publish_today_count >= settings.auto_publish_max_per_day:
-        logger.info(f"⏸️ Auto-publish: daily limit reached ({settings.auto_publish_today_count}/{settings.auto_publish_max_per_day})")
+        logger.info(f"[AUTO-PUBLISHER] ⏸️ Daily limit reached ({settings.auto_publish_today_count}/{settings.auto_publish_max_per_day})")
         return 0, f'daily limit reached ({settings.auto_publish_today_count}/{settings.auto_publish_max_per_day})'
     
     # Check hourly limit
@@ -42,7 +42,7 @@ def auto_publish_pending():
     ).count()
     
     if articles_this_hour >= settings.auto_publish_max_per_hour:
-        logger.info(f"⏸️ Auto-publish: hourly limit reached ({articles_this_hour}/{settings.auto_publish_max_per_hour})")
+        logger.info(f"[AUTO-PUBLISHER] ⏸️ Hourly limit reached ({articles_this_hour}/{settings.auto_publish_max_per_hour})")
         return 0, f'hourly limit reached ({articles_this_hour}/{settings.auto_publish_max_per_hour})'
     
     # How many more can we publish this hour?
@@ -98,20 +98,20 @@ def auto_publish_pending():
                         from ai_engine.modules.auto_image_finder import find_and_attach_image
                         img_result = find_and_attach_image(article, pending_article=pending)
                         if img_result.get('success'):
-                            logger.info(f"📸 Auto-image ({img_result['method']}): {article.title[:50]}")
+                            logger.info(f"[AUTO-PUBLISHER/IMAGE] 📸 Success ({img_result['method']}): {article.title[:50]}")
                         else:
-                            logger.info(f"📸 Auto-image skipped: {img_result.get('error', '?')}")
+                            logger.info(f"[AUTO-PUBLISHER/IMAGE] 📸 Skipped: {img_result.get('error', '?')}")
                             # If require_image is on and we failed, unpublish
                             if settings.auto_publish_require_image:
                                 article.is_published = False
                                 article.save(update_fields=['is_published'])
-                                logger.warning(f"⚠️ Unpublished (no image): {article.title[:50]}")
+                                logger.warning(f"[AUTO-PUBLISHER] ⚠️ Unpublished (no image): {article.title[:50]}")
                                 pending.status = 'pending'
                                 pending.review_notes = f'Auto-image failed: {img_result.get("error", "?")}'
                                 pending.save()
                                 continue
                     except Exception as e:
-                        logger.error(f"❌ Auto-image error: {e}")
+                        logger.error(f"[AUTO-PUBLISHER/IMAGE] ❌ Error: {e}", exc_info=True)
                 
                 # Update pending article status
                 pending.status = 'published'
@@ -125,16 +125,16 @@ def auto_publish_pending():
                 settings.save(update_fields=['auto_publish_today_count'])
                 
                 published_count += 1
-                logger.info(f"✅ Auto-published: {article.title[:60]} (quality: {pending.quality_score}/10)")
+                logger.info(f"[AUTO-PUBLISHER] ✅ Published: {article.title[:60]} (quality: {pending.quality_score}/10)")
             else:
-                logger.warning(f"⚠️ Auto-publish failed for: {pending.title[:60]}")
+                logger.warning(f"[AUTO-PUBLISHER] ⚠️ Publish failed for: {pending.title[:60]}")
                 
         except Exception as e:
-            logger.error(f"❌ Auto-publish error for '{pending.title[:40]}': {e}")
+            logger.error(f"[AUTO-PUBLISHER] ❌ Error for '{pending.title[:40]}': {e}", exc_info=True)
             continue
     
     if published_count > 0:
-        logger.info(f"📝 Auto-publish cycle: {published_count} articles published "
+        logger.info(f"[AUTO-PUBLISHER] 📝 Cycle done: {published_count} published "
                      f"(today: {settings.auto_publish_today_count}/{settings.auto_publish_max_per_day})")
     
     return published_count, f'{published_count} published'

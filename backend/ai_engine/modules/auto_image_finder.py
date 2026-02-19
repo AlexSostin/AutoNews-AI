@@ -38,7 +38,7 @@ def find_and_attach_image(article, pending_article=None):
     
     # If article already has an image, skip
     if article.image and str(article.image) and len(str(article.image)) > 5:
-        logger.info(f"📸 Article already has image, skipping: {article.title[:50]}")
+        logger.info(f"[AUTO-IMAGE] Article already has image, skipping: {article.title[:50]}")
         return {'success': True, 'method': 'existing', 'error': None}
     
     # Build search query
@@ -48,8 +48,8 @@ def find_and_attach_image(article, pending_article=None):
     reference_url = _find_reference_photo(car_name, settings.auto_image_prefer_press)
     
     if not reference_url:
-        logger.info(f"📸 No reference photo found, skipping: {car_name}")
-        return {'success': False, 'method': 'no_reference', 'error': 'No reference photo found online'}
+        logger.info(f"[AUTO-IMAGE/SEARCH] No reference found for: {car_name}")
+        return {'success': False, 'method': 'no_reference', 'error': f'No reference photo found for {car_name}'}
     
     # Step 2: Generate AI image from reference
     return _generate_ai_image(article, car_name, reference_url)
@@ -100,7 +100,7 @@ def _find_reference_photo(car_name, prefer_press=True):
     try:
         from ai_engine.modules.searcher import search_car_images
     except ImportError:
-        logger.warning("📸 searcher module not available")
+        logger.warning("[AUTO-IMAGE/SEARCH] searcher module not available")
         return None
     
     query = f"{car_name} press photo official"
@@ -118,14 +118,14 @@ def _find_reference_photo(car_name, prefer_press=True):
         # Try press/editorial first (green-highlighted)
         press = [r for r in results if r.get('is_press')]
         if press:
-            logger.info(f"📸 Using press photo as reference: {press[0].get('source', '?')}")
+            logger.info(f"[AUTO-IMAGE/SEARCH] Using press photo as reference: {press[0].get('source', '?')}")
             return press[0]['url']
     
     # Fall back to any photo — yellow zone is fine as reference for AI
     # Sort by resolution (biggest = best quality reference)
     results_sorted = sorted(results, key=lambda x: -(x.get('width', 0) * x.get('height', 0)))
     selected = results_sorted[0]
-    logger.info(f"📸 Using photo as AI reference: {selected.get('width', '?')}x{selected.get('height', '?')} from {selected.get('source', '?')}")
+    logger.info(f"[AUTO-IMAGE/SEARCH] Using photo as reference: {selected.get('width', '?')}x{selected.get('height', '?')} from {selected.get('source', '?')}")
     return selected['url']
 
 
@@ -138,12 +138,12 @@ def _generate_ai_image(article, car_name, reference_url):
     except ImportError:
         return {'success': False, 'method': 'ai_generate', 'error': 'image_generator module not available'}
     
-    logger.info(f"🎨 Generating AI image for: {car_name}")
+    logger.info(f"[AUTO-IMAGE/AI] Generating image for: {car_name}")
     result = generate_car_image(reference_url, car_name, style='scenic_road')
     
     if not result.get('success'):
         error = result.get('error', 'Unknown error')
-        logger.warning(f"🎨 AI generation failed: {error}")
+        logger.warning(f"[AUTO-IMAGE/AI] Generation failed: {error}")
         return {'success': False, 'method': 'ai_generate', 'error': error}
     
     # Save the AI-generated image to article
@@ -155,8 +155,8 @@ def _generate_ai_image(article, car_name, reference_url):
         image_file = ContentFile(image_bytes, name=filename)
         article.image.save(filename, image_file, save=True)
         
-        logger.info(f"✅ AI image saved for: {article.title[:50]} ({len(image_bytes)} bytes)")
+        logger.info(f"[AUTO-IMAGE/AI] ✅ Saved for: {article.title[:50]} ({len(image_bytes)} bytes)")
         return {'success': True, 'method': 'ai_generate', 'error': None}
     except Exception as e:
-        logger.error(f"❌ Failed to save AI image: {e}")
+        logger.error(f"[AUTO-IMAGE/AI] ❌ Failed to save: {e}", exc_info=True)
         return {'success': False, 'method': 'ai_generate', 'error': str(e)}
