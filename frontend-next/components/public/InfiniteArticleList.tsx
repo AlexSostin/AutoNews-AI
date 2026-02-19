@@ -112,7 +112,7 @@ export default function InfiniteArticleList({
             if ((index + 1) % 6 === 0 && index !== articles.length - 1) {
                 items.push(
                     <div key={`ad-${index}`} className="col-span-1 md:col-span-2 xl:col-span-3 flex justify-center my-8">
-                        <AdBanner format="leaderboard" />
+                        <AdBanner position="between_articles" />
                     </div>
                 );
             }

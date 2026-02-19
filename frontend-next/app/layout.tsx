@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Script from 'next/script';
 import AdSenseScript from "@/components/public/AdSenseScript";
 import ErrorBoundary from "@/components/public/ErrorBoundary";
+import WebVitals from "@/components/public/WebVitals";
 import "./globals.css";
 import BackToTop from "@/components/public/BackToTop";
 import CookieConsent from "@/components/public/CookieConsent";
@@ -151,6 +152,7 @@ export default async function RootLayout({
           </ErrorBoundary>
           <BackToTop />
           <CookieConsent />
+          <WebVitals />
         </GoogleAuthProvider>
       </body>
     </html>

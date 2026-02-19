@@ -430,7 +430,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                 </div>
             </section>
 
-            {/* JSON-LD Vehicle Schema + Breadcrumb */}
+            {/* JSON-LD Vehicle Schema + Breadcrumb + Product */}
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -441,25 +441,56 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                             name: data.full_name,
                             brand: { '@type': 'Brand', name: data.brand },
                             model: data.model,
-                            ...(data.specs.price && data.specs.price !== 'Not specified' && {
+                            ...(data.vehicle_specs ? {
+                                ...(data.vehicle_specs.fuel_type && { fuelType: data.vehicle_specs.fuel_type }),
+                                ...(data.vehicle_specs.transmission && { vehicleTransmission: data.vehicle_specs.transmission }),
+                                ...(data.vehicle_specs.body_type && { bodyType: data.vehicle_specs.body_type }),
+                                ...(data.vehicle_specs.seats && { seatingCapacity: data.vehicle_specs.seats }),
+                                ...(data.vehicle_specs.year && { vehicleModelDate: String(data.vehicle_specs.year) }),
+                                ...(data.vehicle_specs.drivetrain && { driveWheelConfiguration: data.vehicle_specs.drivetrain }),
+                                ...(data.vehicle_specs.cargo_liters && { cargoVolume: { '@type': 'QuantitativeValue', value: data.vehicle_specs.cargo_liters, unitCode: 'LTR' } }),
+                                ...(data.vehicle_specs.weight_kg && { weight: { '@type': 'QuantitativeValue', value: data.vehicle_specs.weight_kg, unitCode: 'KGM' } }),
+                                ...(data.vehicle_specs.acceleration_0_100 && { accelerationTime: `${data.vehicle_specs.acceleration_0_100}s 0-100 km/h` }),
+                                ...(data.vehicle_specs.top_speed_kmh && { speed: { '@type': 'QuantitativeValue', value: data.vehicle_specs.top_speed_kmh, unitCode: 'KMH' } }),
+                                ...(data.vehicle_specs.country_of_origin && { manufacturer: { '@type': 'Organization', name: data.brand, location: data.vehicle_specs.country_of_origin } }),
+                            } : {}),
+                            ...(data.specs.engine && data.specs.engine !== 'Not specified' && {
+                                vehicleEngine: { '@type': 'EngineSpecification', name: data.specs.engine },
+                            }),
+                            ...(data.vehicle_specs?.power_hp && {
+                                vehicleEngine: {
+                                    '@type': 'EngineSpecification',
+                                    ...(data.specs.engine && data.specs.engine !== 'Not specified' && { name: data.specs.engine }),
+                                    enginePower: { '@type': 'QuantitativeValue', value: data.vehicle_specs.power_hp, unitText: 'hp' },
+                                    ...(data.vehicle_specs.torque_nm && { torque: { '@type': 'QuantitativeValue', value: data.vehicle_specs.torque_nm, unitText: 'Nm' } }),
+                                },
+                            }),
+                            image: data.images[0] || undefined,
+                            ...(data.vehicle_specs?.price_usd_from && {
+                                offers: {
+                                    '@type': 'AggregateOffer',
+                                    priceCurrency: 'USD',
+                                    lowPrice: data.vehicle_specs.price_usd_from,
+                                    ...(data.vehicle_specs.price_usd_to && { highPrice: data.vehicle_specs.price_usd_to }),
+                                    availability: 'https://schema.org/InStock',
+                                },
+                            }),
+                            ...(!data.vehicle_specs?.price_usd_from && data.specs.price && data.specs.price !== 'Not specified' && {
                                 offers: {
                                     '@type': 'Offer',
                                     price: data.specs.price.replace(/[^0-9.]/g, ''),
                                     priceCurrency: 'USD',
                                 },
                             }),
-                            ...(data.specs.engine && data.specs.engine !== 'Not specified' && {
-                                vehicleEngine: { '@type': 'EngineSpecification', name: data.specs.engine },
-                            }),
-                            image: data.images[0] || undefined,
                         },
                         {
                             '@context': 'https://schema.org',
                             '@type': 'BreadcrumbList',
                             itemListElement: [
-                                { '@type': 'ListItem', position: 1, name: 'Cars', item: 'https://freshmotors.net/cars' },
-                                { '@type': 'ListItem', position: 2, name: data.brand, item: `https://freshmotors.net/cars/${data.brand_slug}` },
-                                { '@type': 'ListItem', position: 3, name: data.model, item: `https://freshmotors.net/cars/${data.brand_slug}/${data.model_slug}` },
+                                { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.freshmotors.net' },
+                                { '@type': 'ListItem', position: 2, name: 'Cars', item: 'https://www.freshmotors.net/cars' },
+                                { '@type': 'ListItem', position: 3, name: data.brand, item: `https://www.freshmotors.net/cars/${data.brand_slug}` },
+                                { '@type': 'ListItem', position: 4, name: data.model },
                             ],
                         },
                     ]),

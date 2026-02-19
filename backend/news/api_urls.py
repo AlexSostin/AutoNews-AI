@@ -10,7 +10,9 @@ from .api_views import (
     FavoriteViewSet, SubscriberViewSet,
     YouTubeChannelViewSet, RSSFeedViewSet, RSSNewsItemViewSet, PendingArticleViewSet, AutoPublishScheduleViewSet,
     AdminNotificationViewSet, VehicleSpecsViewSet, BrandAliasViewSet,
-    ArticleFeedbackViewSet
+    ArticleFeedbackViewSet, GenerateAIImageView,
+    SearchPhotosView, SaveExternalImageView,
+    AdPlacementViewSet
 )
 from .health import health_check, health_check_detailed, readiness_check
 
@@ -51,6 +53,7 @@ router.register(r'notifications', AdminNotificationViewSet, basename='notificati
 router.register(r'vehicle-specs', VehicleSpecsViewSet, basename='vehicle-specs')
 router.register(r'brand-aliases', BrandAliasViewSet, basename='brand-alias')
 router.register(r'feedback', ArticleFeedbackViewSet, basename='feedback')
+router.register(r'ads', AdPlacementViewSet, basename='ad')
 from .api_views import (
     CurrencyRatesView, CurrentUserView, ChangePasswordView, EmailPreferencesView,
     RequestEmailChangeView, VerifyEmailChangeView,
@@ -113,6 +116,12 @@ urlpatterns = [
     path('admin/brands/sync/', BrandViewSet.as_view({'post': 'sync_from_specs'}), name='admin_brands_sync'),
     path('admin/brands/<int:pk>/', BrandViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'put': 'update', 'delete': 'destroy'}), name='admin_brands_detail'),
     path('admin/brands/<int:pk>/merge/', BrandViewSet.as_view({'post': 'merge'}), name='admin_brands_merge'),
+    
+    # AI Image Generation
+    path('articles/<str:identifier>/generate-ai-image/', GenerateAIImageView.as_view(), name='generate_ai_image'),
+    path('articles/<str:identifier>/search-photos/', SearchPhotosView.as_view(), name='search_photos'),
+    path('articles/<str:identifier>/save-external-image/', SaveExternalImageView.as_view(), name='save_external_image'),
+    path('ai-image-styles/', GenerateAIImageView.as_view(), name='ai_image_styles'),
     
     # API endpoints
     path('', include(router.urls)),

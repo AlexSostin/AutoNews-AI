@@ -123,7 +123,8 @@ CRITICAL REQUIREMENTS:
 3. Structure with clear sections using <h2> headings
 4. Include specific numbers, stats, and comparisons for SEO
 5. Use natural keywords related to the car brand, model, year
-6. Write engaging, informative content (aim for 800-1200 words)
+6. Write engaging, informative content — MINIMUM 800 words, ideally 1000-1200 words. Articles under 600 words will be REJECTED.
+7. ALWAYS include these sections: Introduction, Design/Exterior, Interior/Tech, Performance/Powertrain, Competitors, Verdict/Pricing
 
 ⚠️ CRITICAL MODEL ACCURACY WARNING:
 - CAREFULLY verify the EXACT car model from the video title and transcript
@@ -213,22 +214,16 @@ Required Structure:
   If not in the transcript, use the web context or your training knowledge. Write at least 2 full paragraphs.
 - <h2>Driving Experience</h2> - Handling, comfort, real-world performance.
   NEVER write "a driving review is pending". You are an automotive expert — describe the expected drive based on platform, weight, motor setup, and your knowledge of similar cars.
-- <h2>US Market Availability & Pricing</h2> - Keep this section CONCISE (3-5 bullet points max):
+- <h2>Pricing & Availability</h2> - Keep this section CONCISE (3-5 bullet points max):
   <ul>
-    <li>Is it available in the US? If yes, pricing. If no, why not (1 sentence)</li>
-    <li>If NOT available: estimated US-equivalent price considering tariffs (1 sentence)</li>
-    <li>2-3 US-available competitors with prices for comparison</li>
+    <li>Starting price in USD, EUR, and CNY (where applicable)</li>
+    <li>Key trim levels with prices if known</li>
+    <li>Markets where confirmed available (do NOT fabricate launch dates)</li>
+    <li>2-3 competitors with prices for comparison</li>
   </ul>
-  Do NOT write lengthy paragraphs about import duties, registration costs, or ownership overviews.
-  Do NOT fabricate specific MSRP prices or launch dates.
+  Do NOT focus on any single market (US, Europe, China). Write as a GLOBAL automotive news article.
+  Do NOT fabricate specific MSRP prices or launch dates — use only confirmed data.
   Use ONLY <ul><li> HTML tags, never asterisks (*) or markdown.
-- <h2>Global Market & Regional Availability</h2> - CRITICAL rules:
-  * ONLY mention markets where the car IS confirmed available or officially announced
-  * NEVER fabricate launch dates (Q1 2026, Q2 2027) or regional prices unless from your source data or web context
-  * If availability is unknown for a region, write: "Not yet announced for [region]"
-  * Better to list 2 REAL markets than 6 FAKE ones
-  * Use <h3> sub-headings for regions and <ul><li> for countries
-  * Keep each bullet concise (1 sentence)
 - <h2>Pros & Cons</h2> - CRITICAL: Use <ul> and <li> tags. Each pro/con MUST be a separate <li> item.
   Write pros/cons like a CarWow video summary — punchy, specific, comparative:
   Good: "1602 km range crushes everything in its class"
@@ -267,17 +262,46 @@ Remember: Write like you're explaining to a friend who's considering buying this
     try:
         # Use AI provider factory
         ai = get_ai_provider(provider)
-        article_content = ai.generate_completion(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            temperature=0.65,
-            max_tokens=3000
-        )
         
-        if not article_content:
-            raise Exception(f"{provider_display} returned empty article")
+        MIN_WORD_COUNT = 400  # Minimum acceptable article length
+        MAX_RETRIES = 2       # Retry if too short
+        
+        article_content = None
+        for attempt in range(MAX_RETRIES):
+            current_prompt = prompt
+            if attempt > 0:
+                # On retry, add stronger length instructions
+                current_prompt = (
+                    "⚠️ IMPORTANT: Your previous response was TOO SHORT. "
+                    f"You MUST write AT LEAST 800 words (you wrote only ~{word_count} words). "
+                    "Include ALL sections: intro, design, performance, tech, competitors, verdict. "
+                    "DO NOT abbreviate or summarize. Write a COMPLETE, FULL-LENGTH article.\n\n"
+                    + prompt
+                )
+                print(f"🔄 Retry #{attempt}: previous attempt was only {word_count} words, need 800+")
             
-        print(f"✓ Article generated successfully with {provider_display}! Length: {len(article_content)} characters")
+            article_content = ai.generate_completion(
+                prompt=current_prompt,
+                system_prompt=system_prompt,
+                temperature=0.65,
+                max_tokens=4096
+            )
+            
+            if not article_content:
+                raise Exception(f"{provider_display} returned empty article")
+            
+            # Check word count
+            stripped = re.sub(r'<[^>]+>', ' ', article_content)
+            word_count = len(stripped.split())
+            print(f"  Attempt {attempt + 1}: {word_count} words, {len(article_content)} chars")
+            
+            if word_count >= MIN_WORD_COUNT:
+                break  # Good enough
+        
+        if word_count < MIN_WORD_COUNT:
+            print(f"⚠️ Article still short after {MAX_RETRIES} attempts: {word_count} words")
+            
+        print(f"✓ Article generated successfully with {provider_display}! Length: {len(article_content)} characters, {word_count} words")
         
         # Post-processing: ensure it's HTML, not Markdown
         article_content = ensure_html_only(article_content)
@@ -293,6 +317,7 @@ Remember: Write like you're explaining to a friend who's considering buying this
         # Вычисляем время чтения
         reading_time = calculate_reading_time(article_content)
         print(f"📖 Reading time: ~{reading_time} min")
+
         
         return article_content
     except Exception as e:
@@ -310,7 +335,7 @@ Remember: Write like you're explaining to a friend who's considering buying this
                 prompt=prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
-                max_tokens=3000
+                max_tokens=4096
             )
             if article_content:
                 print(f"✓ Fallback successful with {fallback_display}!")
@@ -465,18 +490,14 @@ MANDATORY COMPETITOR REFERENCES (at least ONE per section):
    - <h2>Design & Interior</h2> - Styling, materials, space. MUST compare to at least one well-known car.
    - <h2>Technology & Features</h2> - 4-5 SPECIFIC items. Compare to competitors.
    - <h2>Driving Experience</h2> - Based on specs, platform, and your knowledge. NEVER say "review is pending".
-   - <h2>US Market Availability & Pricing</h2> - CONCISE (3-5 bullet points max):
+   - <h2>Pricing & Availability</h2> - CONCISE (3-5 bullet points max):
       <ul>
-        <li>Is it available in the US? If yes, pricing. If no, why not (1 sentence)</li>
-        <li>2-3 US-available competitors with prices for comparison</li>
+        <li>Starting price in USD, EUR, CNY (where applicable)</li>
+        <li>Markets where confirmed available</li>
+        <li>2-3 competitors with prices for comparison</li>
       </ul>
-      Do NOT write lengthy paragraphs about tariffs and ownership costs.
+      Do NOT focus on any single market. Write as global automotive news.
       Do NOT fabricate prices or dates. Use ONLY <ul><li> HTML tags.
-   - <h2>Global Market & Regional Availability</h2>
-     * ONLY mention markets where the car IS confirmed available or officially announced
-     * NEVER fabricate launch dates or regional prices unless from source data
-     * Better to list 2 REAL markets than 6 FAKE ones
-     * Use <h3> for regions, <ul><li> for countries
    - <h2>Pros & Cons</h2> - Punchy, specific, comparative (CarWow style):
      * Good: "1602 km range crushes everything in its class"
      * Bad: "Range is impressive" (too vague — REJECTED)
@@ -531,7 +552,7 @@ Remember: Write like you're explaining to a friend who's considering this car. B
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.65,
-            max_tokens=3500  # Longer for expanded content
+            max_tokens=4096  # Longer for expanded content
         )
         
         if not article_content:

@@ -212,6 +212,21 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
             print(f"  ⚠️  Failed to save specs: {e}")
     
     print(f"✅ Article published successfully! ID: {article.id}")
+    
+    # Auto-submit to Google Indexing API for instant indexing
+    if is_published:
+        try:
+            from news.management.commands.submit_to_google import submit_url_to_google
+            site_url = os.environ.get('SITE_URL', 'https://www.freshmotors.net')
+            article_url = f"{site_url}/articles/{article.slug}"
+            result = submit_url_to_google(article_url)
+            if result['success']:
+                print(f"  🔍 Google Indexing API: submitted {article_url}")
+            else:
+                print(f"  ⚠️ Google Indexing API: {result.get('error', 'unknown error')[:80]}")
+        except Exception as e:
+            print(f"  ⚠️ Google Indexing API not configured: {e}")
+    
     return article
 
 

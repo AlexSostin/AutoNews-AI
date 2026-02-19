@@ -154,7 +154,7 @@ export default async function ArticleDetailPage({
 
   // Prepare article content HTML - strip inline iframes (video shown separately below)
   const articleContentHtml = (article.content || '').replace(/<div[^>]*class="video-container"[^>]*>[\s\S]*?<\/div>/g, '').replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/g, '');
-  const hasYoutubeVideo = Boolean(article.youtube_url);
+  const hasYoutubeVideo = Boolean(article.youtube_url) && article.show_youtube !== false;
   const youtubeEmbedUrl = article.youtube_url
     ? `https://www.youtube.com/embed/${article.youtube_url.match(/(?:watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || ''}`
     : '';
@@ -171,32 +171,42 @@ export default async function ArticleDetailPage({
     ? article.youtube_url.match(/(?:watch\?v=|embed\/|youtu\.be\/)([\w-]+)/)?.[1] || ''
     : '';
 
-  // JSON-LD data for SEO
+  // JSON-LD data for SEO — comprehensive Schema.org markup
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.freshmotors.net';
+  const categoryName = article.categories?.[0]?.name || 'News';
+  const categorySlug = article.categories?.[0]?.slug || 'news';
+
   const jsonLdData: Record<string, unknown>[] = [
+    // 1. NewsArticle — core article schema
     {
       "@context": "https://schema.org",
       "@type": "NewsArticle",
       "headline": article.title,
-      "description": article.summary,
+      "description": article.summary || article.seo_description,
       "image": articleImages,
       "datePublished": article.created_at,
       "dateModified": article.updated_at || article.created_at,
       "author": {
         "@type": "Person",
-        "name": article.author || "Fresh Motors Team"
+        "name": article.author || "Fresh Motors Team",
+        "url": article.author_channel_url || `${siteUrl}/about`
       },
       "publisher": {
         "@type": "Organization",
         "name": "Fresh Motors",
+        "url": siteUrl,
         "logo": {
           "@type": "ImageObject",
-          "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.png`
+          "url": `${siteUrl}/logo.png`
         }
       },
       "mainEntityOfPage": {
         "@type": "WebPage",
         "@id": fullUrl
       },
+      "articleSection": categoryName,
+      ...(article.tag_names && article.tag_names.length > 0 ? { "keywords": article.tag_names.join(', ') } : {}),
+      ...(article.views ? { "interactionStatistic": { "@type": "InteractionCounter", "interactionType": "https://schema.org/ReadAction", "userInteractionCount": article.views } } : {}),
       ...(hasYoutubeVideo ? {
         "video": {
           "@type": "VideoObject",
@@ -208,8 +218,113 @@ export default async function ArticleDetailPage({
           "contentUrl": article.youtube_url
         }
       } : {})
+    },
+
+    // 2. BreadcrumbList — navigation path
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": siteUrl
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": categoryName,
+          "item": `${siteUrl}/articles?category=${categorySlug}`
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": article.title
+        }
+      ]
     }
   ];
+
+  // 3. Review + Vehicle — when article has specs (car review)
+  if (article.specs) {
+    const specs = article.specs;
+    const vehicleSchema: Record<string, unknown> = {
+      "@type": "Vehicle",
+      "name": `${specs.make || ''} ${specs.model || specs.model_name || ''}`.trim(),
+      ...(specs.make ? { "brand": { "@type": "Brand", "name": specs.make } } : {}),
+      ...(specs.model ? { "model": specs.model } : {}),
+      ...(specs.year ? { "vehicleModelDate": specs.year } : {}),
+      ...(specs.fuel_type ? { "fuelType": specs.fuel_type } : {}),
+      ...(specs.transmission ? { "vehicleTransmission": specs.transmission } : {}),
+      ...(specs.engine ? { "vehicleEngine": { "@type": "EngineSpecification", "name": specs.engine } } : {}),
+      ...(specs.horsepower ? { "accelerationTime": specs.zero_to_sixty || undefined } : {}),
+    };
+
+    const reviewSchema: Record<string, unknown> = {
+      "@context": "https://schema.org",
+      "@type": "Review",
+      "name": article.title,
+      "description": article.summary,
+      "author": {
+        "@type": "Person",
+        "name": article.author || "Fresh Motors Team"
+      },
+      "datePublished": article.created_at,
+      "publisher": {
+        "@type": "Organization",
+        "name": "Fresh Motors"
+      },
+      "itemReviewed": vehicleSchema,
+      "url": fullUrl,
+    };
+
+    // Add aggregate rating if available
+    if (article.average_rating > 0 && article.rating_count > 0) {
+      reviewSchema["reviewRating"] = {
+        "@type": "Rating",
+        "ratingValue": article.average_rating.toFixed(1),
+        "bestRating": "5",
+        "worstRating": "1"
+      };
+      reviewSchema["aggregateRating"] = {
+        "@type": "AggregateRating",
+        "ratingValue": article.average_rating.toFixed(1),
+        "bestRating": "5",
+        "worstRating": "1",
+        "ratingCount": article.rating_count
+      };
+    }
+
+    jsonLdData.push(reviewSchema);
+
+    // 4. Product schema for price rich results
+    if (article.price_usd && article.price_usd > 0 && article.show_price !== false) {
+      jsonLdData.push({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": `${specs.make || ''} ${specs.model || specs.model_name || ''}`.trim(),
+        ...(specs.make ? { "brand": { "@type": "Brand", "name": specs.make } } : {}),
+        "image": articleImages[0] || `${siteUrl}/logo.png`,
+        "description": article.summary,
+        "offers": {
+          "@type": "Offer",
+          "priceCurrency": "USD",
+          "price": article.price_usd,
+          "availability": "https://schema.org/InStock",
+          "url": fullUrl
+        },
+        ...(article.average_rating > 0 ? {
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": article.average_rating.toFixed(1),
+            "bestRating": "5",
+            "ratingCount": article.rating_count
+          }
+        } : {})
+      });
+    }
+  }
 
   // Add standalone VideoObject for better video indexing
   if (hasYoutubeVideo) {
@@ -277,7 +392,7 @@ export default async function ArticleDetailPage({
                   <span>{formatDate(article.created_at)}</span>
                 </div>
 
-                {article.author_name ? (
+                {(article.show_source !== false) && article.author_name ? (
                   <div className="flex items-center gap-2">
                     <User size={16} className="text-indigo-600" />
                     <span className="font-bold">Source:</span>
@@ -294,7 +409,7 @@ export default async function ArticleDetailPage({
                       <span>{article.author_name}</span>
                     )}
                   </div>
-                ) : (article.author && (
+                ) : ((article.show_source !== false) && article.author && (
                   <div className="flex items-center gap-2">
                     <User size={16} className="text-indigo-600" />
                     <span>{article.author}</span>
@@ -374,7 +489,7 @@ export default async function ArticleDetailPage({
               </p>
 
               {/* Price Display with Currency Converter */}
-              {article.price_usd && (
+              {article.price_usd && article.show_price !== false && (
                 <div className="mt-4">
                   <PriceConverter priceUsd={article.price_usd} />
                 </div>
@@ -387,7 +502,7 @@ export default async function ArticleDetailPage({
             <div className="space-y-8">
 
               {/* Top Article Ad (Conditional - hidden for now) */}
-              <AdBanner format="leaderboard" />
+              <AdBanner position="header" />
 
               {/* Article Content */}
               <div className="bg-white rounded-xl shadow-md p-8">
@@ -406,7 +521,7 @@ export default async function ArticleDetailPage({
               )}
 
               {/* Mid Article Ad (Conditional - hidden for now) */}
-              <AdBanner format="rectangle" />
+              <AdBanner position="after_content" />
 
               {/* YouTube Video Section */}
               {hasYoutubeVideo && (
@@ -491,6 +606,8 @@ export default async function ArticleDetailPage({
                 </div>
               )}
 
+              {/* Sidebar Ad between content sections */}
+              <AdBanner position="sidebar" />
 
               {/* Related Articles Carousel */}
               {article.categories?.[0]?.slug && (

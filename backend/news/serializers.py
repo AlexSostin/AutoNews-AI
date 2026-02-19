@@ -5,7 +5,8 @@ from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, EmailPreferences,
-    AdminNotification, VehicleSpecs, NewsletterSubscriber, BrandAlias, Brand
+    AdminNotification, VehicleSpecs, NewsletterSubscriber, BrandAlias, Brand,
+    AdPlacement
 )
 
 
@@ -198,7 +199,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
                   'tag_names', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'price_usd', 'average_rating', 'views',
                   'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited', 
-                  'is_hero', 'author_name', 'author_channel_url']
+                  'is_hero', 'author_name', 'author_channel_url',
+                  'show_source', 'show_youtube', 'show_price']
     
     def get_category_names(self, obj):
         return [cat.name for cat in obj.categories.all()]
@@ -300,7 +302,8 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
                   'image_3', 'image_3_url', 'youtube_url', 'price_usd', 'views', 
                   'car_specification', 'vehicle_specs', 'images', 'average_rating', 'rating_count',
                   'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero',
-                  'author_name', 'author_channel_url']
+                  'author_name', 'author_channel_url',
+                  'show_source', 'show_youtube', 'show_price']
         read_only_fields = ['views', 'created_at', 'updated_at']
     
     def validate_image(self, value):
@@ -783,3 +786,23 @@ class BrandSerializer(serializers.ModelSerializer):
                     return request.build_absolute_uri(relative)
                 return relative
         return None
+
+
+class AdPlacementSerializer(serializers.ModelSerializer):
+    ctr = serializers.ReadOnlyField()
+    is_currently_active = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = AdPlacement
+        fields = [
+            'id', 'name', 'position', 'ad_type',
+            'image', 'link', 'alt_text',
+            'html_code',
+            'sponsor_name', 'sponsor_text',
+            'is_active', 'start_date', 'end_date', 'duration_preset',
+            'priority', 'target_pages',
+            'impressions', 'clicks', 'ctr', 'is_currently_active',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['impressions', 'clicks', 'ctr', 'is_currently_active', 'created_at', 'updated_at']
+

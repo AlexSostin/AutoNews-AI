@@ -186,6 +186,12 @@ class Article(models.Model):
     is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete - allows recreating articles with same slug")
     views = models.PositiveIntegerField(default=0, help_text="Number of times this article has been viewed", db_index=True)
     is_hero = models.BooleanField(default=False, db_index=True, help_text="Show in Home page Hero section")
+    
+    # Visibility toggles (control what's shown on public article page)
+    show_source = models.BooleanField(default=True, help_text="Show source/author credit on public page")
+    show_youtube = models.BooleanField(default=True, help_text="Show YouTube video embed on public page")
+    show_price = models.BooleanField(default=True, help_text="Show price on public page")
+    
     generation_metadata = models.JSONField(null=True, blank=True, help_text="AI generation stats: timing, provider, AI Editor diff")
     
     class Meta:
@@ -1355,8 +1361,6 @@ class ArticleEmbedding(models.Model):
         verbose_name_plural = 'Article Embeddings'
         indexes = [
             models.Index(fields=['article']),
-            models.Index(fields=['updated_at']),
-            models.Index(fields=['text_hash']),
         ]
     
     def __str__(self):
@@ -1436,3 +1440,88 @@ class ArticleTitleVariant(models.Model):
     
     def __str__(self):
         return f"[{self.variant}] {self.title[:60]} (CTR: {self.ctr}%)"
+
+
+class AdPlacement(models.Model):
+    """Advertising placement managed from admin panel."""
+    
+    POSITION_CHOICES = [
+        ('header', 'Header Banner'),
+        ('sidebar', 'Sidebar'),
+        ('between_articles', 'Between Articles (List)'),
+        ('after_content', 'After Article Content'),
+        ('footer', 'Footer'),
+    ]
+    
+    TYPE_CHOICES = [
+        ('banner', 'Banner (Image + Link)'),
+        ('html_code', 'HTML/JS Code (AdSense, etc)'),
+        ('sponsored', 'Sponsored Content (Text + Image)'),
+    ]
+    
+    name = models.CharField(max_length=200, help_text="Internal name for this ad placement")
+    position = models.CharField(max_length=30, choices=POSITION_CHOICES, db_index=True)
+    ad_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='banner')
+    
+    # Banner fields
+    image = models.ImageField(upload_to='ads/', blank=True, null=True, help_text="Banner image")
+    link = models.URLField(max_length=500, blank=True, help_text="Click-through URL")
+    alt_text = models.CharField(max_length=200, blank=True, help_text="Image alt text")
+    
+    # HTML code fields (for AdSense, etc)
+    html_code = models.TextField(blank=True, help_text="Raw HTML/JS code to embed")
+    
+    # Sponsored content fields
+    sponsor_name = models.CharField(max_length=200, blank=True, help_text="Sponsor/advertiser name")
+    sponsor_text = models.TextField(blank=True, help_text="Sponsored message text")
+    
+    # Scheduling
+    is_active = models.BooleanField(default=True, db_index=True, help_text="Enable/disable this ad")
+    start_date = models.DateTimeField(null=True, blank=True, help_text="Start showing (empty = immediately)")
+    end_date = models.DateTimeField(null=True, blank=True, help_text="Stop showing (empty = forever)")
+    duration_preset = models.CharField(
+        max_length=20, blank=True, default='unlimited',
+        help_text="Duration preset used when creating"
+    )
+    
+    # Display
+    priority = models.IntegerField(default=0, help_text="Higher = shown first")
+    target_pages = models.CharField(
+        max_length=200, blank=True, default='all',
+        help_text="Where to show: all, articles, home, cars"
+    )
+    
+    # Analytics
+    impressions = models.PositiveIntegerField(default=0, help_text="Times displayed")
+    clicks = models.PositiveIntegerField(default=0, help_text="Times clicked")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-priority', '-created_at']
+        verbose_name = 'Ad Placement'
+        verbose_name_plural = 'Ad Placements'
+    
+    @property
+    def ctr(self):
+        if self.impressions == 0:
+            return 0.0
+        return round((self.clicks / self.impressions) * 100, 2)
+    
+    @property
+    def is_currently_active(self):
+        """Check if ad should be shown right now (active + within date range)."""
+        if not self.is_active:
+            return False
+        from django.utils import timezone
+        now = timezone.now()
+        if self.start_date and now < self.start_date:
+            return False
+        if self.end_date and now > self.end_date:
+            return False
+        return True
+    
+    def __str__(self):
+        status = "✅" if self.is_currently_active else "⏸️"
+        return f"{status} {self.name} ({self.get_position_display()}) — {self.impressions} views, {self.clicks} clicks"

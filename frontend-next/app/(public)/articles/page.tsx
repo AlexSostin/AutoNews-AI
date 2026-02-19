@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ArticleCard from '@/components/public/ArticleCard';
+import AdBanner from '@/components/public/AdBanner';
 import Pagination from '@/components/public/Pagination';
 import { ArticleGridSkeleton } from '@/components/public/Skeletons';
 import TagsDropdown from '@/components/public/TagsDropdown';
@@ -129,6 +130,11 @@ function ArticlesContent() {
             <p className="text-lg sm:text-xl text-gray-600">
               {totalCount} {totalCount === 1 ? 'article' : 'articles'} found
             </p>
+          </div>
+
+          {/* Top Ad */}
+          <div className="flex justify-center mb-8">
+            <AdBanner position="header" />
           </div>
 
           {/* Filters */}
@@ -300,6 +306,10 @@ function ArticlesContent() {
                 </div>
               )}
             </div>
+          </div>
+          {/* Bottom Ad */}
+          <div className="flex justify-center mt-8">
+            <AdBanner position="footer" />
           </div>
         </div>
       </main>

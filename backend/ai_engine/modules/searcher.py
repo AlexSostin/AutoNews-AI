@@ -421,3 +421,130 @@ def get_web_context(specs_dict):
 
     results = search_car_details(make, model, year)
     return f"\n\n[WEB SEARCH RESULTS FOR CONTEXT]:\n{results}\n"
+
+
+# --- Image Search for Find Photo feature ---
+
+# Official manufacturer press/media domains (editorial use typically allowed)
+_EDITORIAL_DOMAINS = [
+    # Official manufacturer media sites
+    'newsroom', 'press.', 'media.', 'presseportal',
+    'mediaservices', 'news.', 'corporate',
+    # Major auto review sites (editorial images, fair use for reviews)
+    'cdn.motor1.com', 'hips.hearstapps.com', 'cdn.carbuzz.com',
+    'media.autoexpress.co.uk', 'www.autocar.co.uk', 'cdn.mos.cms.futurecdn.net',
+    'images.drive.com.au', 'www.topgear.com', 'www.carscoops.com',
+    'images.caradisiac.com', 'www.caranddriver.com', 'www.motortrend.com',
+    'electrek.co', 'cnevpost.com', 'carnewschina.com',
+    # Chinese brand official media
+    'byd.com', 'zeekrlife.com', 'nio.com', 'xpeng.com', 'lixiang.com',
+    'gac-motor.com', 'geely.com', 'cheryinternational.com',
+]
+
+# Creative Commons / freely usable domains
+_CC_DOMAINS = [
+    'upload.wikimedia.org', 'commons.wikimedia.org',
+    'live.staticflickr.com', 'flickr.com',
+    'pixabay.com', 'unsplash.com', 'pexels.com',
+]
+
+# Domains to block for image search (social media, etc.)
+_IMAGE_BLOCKED_DOMAINS = [
+    'youtube.com', 'reddit.com', 'pinterest.com', 'facebook.com',
+    'twitter.com', 'x.com', 'instagram.com', 'tiktok.com',
+    'amazon.com', 'ebay.com', 'aliexpress.com', 'wish.com',
+]
+
+
+def _classify_license(image_url: str, source: str) -> str:
+    """
+    Classify image license based on source domain.
+    Returns: 'editorial', 'cc', or 'unknown'
+    """
+    url_lower = image_url.lower()
+    source_lower = source.lower()
+    
+    # Check Creative Commons sources first
+    if any(d in url_lower or d in source_lower for d in _CC_DOMAINS):
+        return 'cc'
+    
+    # Check editorial/press sources
+    if any(d in url_lower or d in source_lower for d in _EDITORIAL_DOMAINS):
+        return 'editorial'
+    
+    return 'unknown'
+
+
+def search_car_images(query: str, max_results: int = 20) -> list:
+    """
+    Search for car press photos using DuckDuckGo Image Search.
+    
+    Args:
+        query: Search query, e.g. "2025 XPeng G9 press photo"
+        max_results: Maximum number of results to return
+    
+    Returns:
+        List of dicts with: title, url, thumbnail, source, width, height,
+        is_press, license ('editorial', 'cc', 'unknown')
+    """
+    if not HAS_DDGS:
+        logger.warning("DDGS not available for image search")
+        return []
+    
+    try:
+        with DDGS() as ddgs:
+            raw_results = list(ddgs.images(
+                query,
+                region='wt-wt',
+                safesearch='moderate',
+                size='Large',        # Only large images
+                type_image='photo',  # Only photos, not clipart
+                max_results=max_results * 2,  # Fetch extra to filter
+            ))
+        
+        results = []
+        for r in raw_results:
+            image_url = r.get('image', '')
+            thumbnail = r.get('thumbnail', '')
+            title = r.get('title', '')
+            source = r.get('source', '')
+            width = r.get('width', 0)
+            height = r.get('height', 0)
+            
+            # Skip blocked domains
+            if any(d in image_url.lower() for d in _IMAGE_BLOCKED_DOMAINS):
+                continue
+            
+            # Skip small images
+            if width and height and (width < 400 or height < 300):
+                continue
+            
+            # Classify license
+            license_type = _classify_license(image_url, source)
+            is_press = license_type == 'editorial'
+            
+            results.append({
+                'title': title,
+                'url': image_url,
+                'thumbnail': thumbnail or image_url,
+                'source': source,
+                'width': width or 0,
+                'height': height or 0,
+                'is_press': is_press,
+                'license': license_type,
+            })
+            
+            if len(results) >= max_results:
+                break
+        
+        # Sort: editorial first, then CC, then unknown; within each group by resolution
+        license_order = {'editorial': 0, 'cc': 1, 'unknown': 2}
+        results.sort(key=lambda x: (license_order.get(x['license'], 2), -(x['width'] * x['height'])))
+        
+        logger.info(f"Image search for '{query}': {len(results)} results")
+        return results
+        
+    except Exception as e:
+        logger.warning(f"Image search failed: {e}")
+        return []
+

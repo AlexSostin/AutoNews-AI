@@ -47,6 +47,10 @@ export interface Article {
   gallery: ArticleImage[];
   images: ArticleImage[]; // API returns 'images' field
   comments: Comment[];
+  // Visibility toggles
+  show_source?: boolean;
+  show_youtube?: boolean;
+  show_price?: boolean;
 }
 
 export interface CarSpecification {

@@ -6,6 +6,7 @@ import MaintenancePage from '@/components/public/MaintenancePage';
 import MaintenanceGuard from '@/components/public/MaintenanceGuard';
 import Hero from '@/components/public/Hero';
 import InfiniteArticleList from '@/components/public/InfiniteArticleList';
+import JsonLd from '@/components/public/JsonLd';
 import Link from 'next/link';
 import { fixImageUrl } from '@/lib/config';
 import type { Metadata } from 'next';
@@ -132,12 +133,42 @@ export default async function Home() {
       fallback={<MaintenancePage message={settings?.maintenance_message} />}
     >
       <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
+        {/* Schema.org JSON-LD for Home Page */}
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Fresh Motors",
+          "url": "https://www.freshmotors.net",
+          "description": "AI-powered automotive news, reviews, and vehicle specifications",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://www.freshmotors.net/articles?search={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        }} />
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "Fresh Motors",
+          "url": "https://www.freshmotors.net",
+          "logo": "https://www.freshmotors.net/logo.png",
+          "description": "AI-powered automotive news and vehicle reviews",
+          "sameAs": [],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer service",
+            "url": "https://www.freshmotors.net/contact"
+          }
+        }} />
         {/* Hero Section */}
         <Hero articles={articles} settings={settings} />
 
         {/* Top Leaderboard Ad */}
         <div className="container mx-auto px-4 py-8 flex justify-center">
-          <AdBanner format="leaderboard" />
+          <AdBanner position="header" />
         </div>
 
         {/* Categories Section - Refined & Premium */}
@@ -253,15 +284,16 @@ export default async function Home() {
             </div>
 
             {/* Sidebar - Trending */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-6">
               <TrendingSection />
+              <AdBanner position="sidebar" />
             </div>
           </div>
         </section>
 
         {/* Bottom Ad before Footer */}
         <div className="container mx-auto px-4 pb-12 flex justify-center">
-          <AdBanner format="leaderboard" />
+          <AdBanner position="footer" />
         </div>
       </main>
     </MaintenanceGuard>

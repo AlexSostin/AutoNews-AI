@@ -123,14 +123,21 @@ class VectorSearchEngine:
             
             article = Article.objects.get(id=article_id)
             
-            ArticleEmbedding.objects.update_or_create(
-                article=article,
-                defaults={
-                    'embedding_vector': embedding,
-                    'model_name': 'models/gemini-embedding-001',
-                    'text_hash': text_hash
-                }
-            )
+            # Use explicit filter+save instead of update_or_create
+            # to avoid SELECT FOR UPDATE sequential scans
+            existing = ArticleEmbedding.objects.filter(article=article).first()
+            if existing:
+                existing.embedding_vector = embedding
+                existing.model_name = 'models/gemini-embedding-001'
+                existing.text_hash = text_hash
+                existing.save(update_fields=['embedding_vector', 'model_name', 'text_hash', 'updated_at'])
+            else:
+                ArticleEmbedding.objects.create(
+                    article=article,
+                    embedding_vector=embedding,
+                    model_name='models/gemini-embedding-001',
+                    text_hash=text_hash,
+                )
             print(f"✓ Saved embedding to database for article {article_id}")
             
         except Exception as e:

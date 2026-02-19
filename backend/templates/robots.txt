@@ -5,5 +5,6 @@ Allow: /
 Disallow: /admin/
 Disallow: /api/private/
 
-# Point to sitemap
+# Point to sitemaps
 Sitemap: {{ request.scheme }}://{{ request.get_host }}/sitemap.xml
+Sitemap: {{ request.scheme }}://{{ request.get_host }}/sitemap-news.xml

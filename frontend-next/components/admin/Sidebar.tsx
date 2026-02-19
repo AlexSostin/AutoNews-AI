@@ -28,7 +28,8 @@ import {
   ArrowRightLeft,
   Globe,
   MessageSquareWarning,
-  FlaskConical
+  FlaskConical,
+  Megaphone
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
@@ -52,6 +53,7 @@ const menuItems = [
   { href: '/admin/rss-feeds', icon: Rss, label: 'RSS Feeds' },
   { href: '/admin/rss-pending', icon: FileStack, label: 'RSS News' },
   { href: '/admin/pages', icon: FileStack, label: 'Pages' },
+  { href: '/admin/ads', icon: Megaphone, label: 'Ads / Sponsors' },
   { href: '/admin/settings', icon: Settings, label: 'Site Settings' },
   { href: '/admin/account', icon: UserCog, label: 'Account Settings' },
 ];

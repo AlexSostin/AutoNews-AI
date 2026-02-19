@@ -698,9 +698,12 @@ class ArticleViewSet(viewsets.ModelViewSet):
             val = request.data.get(key)
             return val and str(val).lower() == 'true'
 
-        # Perform update first
+        # Perform update in atomic transaction (M2M category updates do DELETE+INSERT,
+        # wrapping in transaction prevents lock contention — was causing 41s max query time)
         try:
-            response = super().update(request, *args, **kwargs)
+            from django.db import transaction
+            with transaction.atomic():
+                response = super().update(request, *args, **kwargs)
         except Exception as e:
             logger.error(f"Error in ArticleViewSet.update super().update: {e}")
             raise
@@ -1604,6 +1607,131 @@ Return ONLY the reformatted HTML."""
 
         except Exception as e:
             logger.error(f'Reformat content failed: {e}')
+            return Response({
+                'success': False,
+                'message': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+            url_path='regenerate')
+    def regenerate(self, request, slug=None):
+        """
+        Regenerate article content using AI from the original YouTube URL.
+        POST /api/v1/articles/{slug}/regenerate/
+        Body: { "provider": "gemini"|"groq" }
+        
+        Updates existing article in-place (preserves slug, images, publish status).
+        Backs up original content to content_original.
+        """
+        article = self.get_object()
+        
+        youtube_url = article.youtube_url
+        if not youtube_url:
+            return Response({
+                'success': False,
+                'message': 'Article has no YouTube URL — cannot regenerate',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        provider = request.data.get('provider', 'gemini')
+        if provider not in ['groq', 'gemini']:
+            return Response({
+                'success': False,
+                'message': 'Provider must be "groq" or "gemini"',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from ai_engine.main import _generate_article_content, generate_title_variants
+            
+            result = _generate_article_content(youtube_url, provider=provider)
+            
+            if not result.get('success'):
+                return Response({
+                    'success': False,
+                    'message': f"AI generation failed: {result.get('error', 'Unknown error')}",
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Backup current content
+            article.content_original = article.content
+            
+            # Update article fields
+            article.title = result['title']
+            article.content = result['content']
+            article.summary = result['summary']
+            article.generation_metadata = result.get('generation_metadata')
+            
+            # Update SEO keywords
+            if result.get('meta_keywords'):
+                article.meta_keywords = result['meta_keywords']
+            
+            # Update author info if available
+            if result.get('author_name'):
+                article.author_name = result['author_name']
+            if result.get('author_channel_url'):
+                article.author_channel_url = result['author_channel_url']
+            
+            # Update price if extracted
+            specs = result.get('specs') or {}
+            if specs.get('price'):
+                import re
+                price_str = specs['price']
+                price_match = re.search(r'[\$€£]?([\d,]+)', price_str.replace(',', ''))
+                if price_match:
+                    try:
+                        article.price_usd = int(price_match.group(1))
+                    except (ValueError, TypeError):
+                        pass
+            
+            article.save()
+            
+            # Update tags
+            if result.get('tag_names'):
+                from news.models import Tag
+                new_tags = []
+                for tag_name in result['tag_names']:
+                    tag, _ = Tag.objects.get_or_create(
+                        name=tag_name,
+                        defaults={'slug': tag_name.lower().replace(' ', '-')}
+                    )
+                    new_tags.append(tag)
+                article.tags.set(new_tags)
+            
+            # Update CarSpecification
+            if specs and (specs.get('make') or specs.get('model')):
+                try:
+                    from news.models import CarSpecification
+                    car_spec, created = CarSpecification.objects.get_or_create(article=article)
+                    for field in ['make', 'model', 'trim', 'horsepower', 'torque', 
+                                  'zero_to_sixty', 'top_speed', 'drivetrain', 'price']:
+                        if specs.get(field):
+                            setattr(car_spec, field, str(specs[field]))
+                    if specs.get('year'):
+                        car_spec.release_date = str(specs['year'])
+                    car_spec.save()
+                except Exception as spec_err:
+                    logger.warning(f'CarSpecification update failed: {spec_err}')
+            
+            # Regenerate A/B title variants
+            try:
+                from news.models import ArticleTitleVariant
+                ArticleTitleVariant.objects.filter(article=article).delete()
+                generate_title_variants(article, provider=provider)
+            except Exception as ab_err:
+                logger.warning(f'A/B title regeneration failed: {ab_err}')
+            
+            # Invalidate cache
+            invalidate_article_cache(article_id=article.id, slug=article.slug)
+            
+            serializer = self.get_serializer(article)
+            return Response({
+                'success': True,
+                'message': f'Article regenerated with {provider}',
+                'article': serializer.data,
+                'generation_metadata': result.get('generation_metadata'),
+            })
+            
+        except Exception as e:
+            import traceback
+            logger.error(f'Regenerate failed: {e}\n{traceback.format_exc()}')
             return Response({
                 'success': False,
                 'message': str(e),
@@ -4558,3 +4686,309 @@ class ArticleFeedbackViewSet(viewsets.ModelViewSet):
         fb.is_resolved = False
         fb.save(update_fields=['is_resolved'])
         return Response({'success': True})
+
+
+class GenerateAIImageView(APIView):
+    """Generate AI car photo using Gemini Image API and save to article."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Return available scene styles."""
+        from ai_engine.modules.image_generator import get_available_styles
+        return Response({'styles': get_available_styles()})
+    
+    def post(self, request, identifier=None):
+        """Generate AI image for an article."""
+        if not request.user.is_staff:
+            return Response({'error': 'Staff access required'}, status=403)
+        
+        try:
+            # Support both numeric pk and slug
+            if identifier and identifier.isdigit():
+                article = Article.objects.get(pk=int(identifier), is_deleted=False)
+            else:
+                article = Article.objects.get(slug=identifier, is_deleted=False)
+        except Article.DoesNotExist:
+            return Response({'error': 'Article not found'}, status=404)
+        
+        style = request.data.get('style', 'scenic_road')
+        image_slot = int(request.data.get('image_slot', 1))
+        
+        # Get reference image URL
+        image_url = None
+        if article.image and str(article.image):
+            img_str = str(article.image)
+            if img_str.startswith('http'):
+                image_url = img_str
+            else:
+                # Try to build full URL
+                image_url = request.build_absolute_uri(f'/media/{img_str}')
+        
+        if not image_url:
+            return Response({'error': 'No reference image found on this article. Upload an image first.'}, status=400)
+        
+        # Get car name from CarSpecification or title
+        car_name = article.title
+        try:
+            spec = article.car_specification
+            if spec and spec.make and spec.model:
+                year = spec.year or ''
+                car_name = f"{year} {spec.make} {spec.model}".strip()
+        except Exception:
+            pass
+        
+        # Generate AI image
+        from ai_engine.modules.image_generator import generate_car_image
+        result = generate_car_image(image_url, car_name, style)
+        
+        if not result['success']:
+            return Response({'error': result['error']}, status=500)
+        
+        # Save the generated image to the article
+        import base64
+        from django.core.files.base import ContentFile
+        
+        image_bytes = base64.b64decode(result['image_data'])
+        ext = 'png' if 'png' in result.get('mime_type', '') else 'jpg'
+        filename = f"ai_generated_{article.id}_{style}.{ext}"
+        image_file = ContentFile(image_bytes, name=filename)
+        
+        # Save to the correct image slot
+        if image_slot == 1:
+            article.image.save(filename, image_file, save=True)
+        elif image_slot == 2:
+            article.image_2.save(filename, image_file, save=True)
+        elif image_slot == 3:
+            article.image_3.save(filename, image_file, save=True)
+        
+        # Get the saved URL for response
+        saved_field = getattr(article, f'image{"" if image_slot == 1 else f"_{image_slot}"}')
+        saved_url = str(saved_field) if saved_field else ''
+        if saved_url and not saved_url.startswith('http'):
+            saved_url = request.build_absolute_uri(f'/media/{saved_url}')
+        
+        return Response({
+            'success': True,
+            'image_url': saved_url,
+            'image_slot': image_slot,
+            'style': style,
+        })
+
+
+class SearchPhotosView(APIView):
+    """Search for car press photos online using DuckDuckGo Image Search."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, identifier=None):
+        """Search for press photos for an article's car."""
+        if not request.user.is_staff:
+            return Response({'error': 'Staff access required'}, status=403)
+        
+        # Look up article
+        try:
+            if identifier and identifier.isdigit():
+                article = Article.objects.get(pk=int(identifier), is_deleted=False)
+            else:
+                article = Article.objects.get(slug=identifier, is_deleted=False)
+        except Article.DoesNotExist:
+            return Response({'error': 'Article not found'}, status=404)
+        
+        # Build search query from CarSpecification or title
+        custom_query = request.query_params.get('q', '').strip()
+        if custom_query:
+            query = custom_query
+        else:
+            car_name = article.title
+            try:
+                spec = article.car_specification
+                if spec and spec.make and spec.model:
+                    year = spec.year or ''
+                    car_name = f"{year} {spec.make} {spec.model}".strip()
+            except Exception:
+                # Clean up title: remove noise words for better search
+                import re
+                # Remove common noise terms from car article titles
+                noise_words = ['EV', 'PHEV', 'BEV', 'SUV', 'Review', 'Test', 'Drive', 
+                             'Range', 'Specs', 'Price', 'vs', 'and', 'the', 'new', 'all-new']
+                cleaned = car_name
+                for word in noise_words:
+                    cleaned = re.sub(rf'\b{word}\b', '', cleaned, flags=re.IGNORECASE)
+                # Remove numbers with units (725km, 300hp, etc) but keep year numbers
+                cleaned = re.sub(r'\b\d{2,4}(km|hp|kw|ps|mph|kph|kwh|mi)\b', '', cleaned, flags=re.IGNORECASE)
+                # Clean up extra whitespace
+                cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+                if len(cleaned) > 5:
+                    car_name = cleaned
+            query = f"{car_name} press photo official"
+        
+        from ai_engine.modules.searcher import search_car_images
+        results = search_car_images(query, max_results=20)
+        
+        return Response({
+            'query': query,
+            'results': results,
+            'count': len(results),
+        })
+
+
+class SaveExternalImageView(APIView):
+    """Download an external image URL and save it to an article's image slot."""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, identifier=None):
+        """Save an external image to an article."""
+        if not request.user.is_staff:
+            return Response({'error': 'Staff access required'}, status=403)
+        
+        # Look up article
+        try:
+            if identifier and identifier.isdigit():
+                article = Article.objects.get(pk=int(identifier), is_deleted=False)
+            else:
+                article = Article.objects.get(slug=identifier, is_deleted=False)
+        except Article.DoesNotExist:
+            return Response({'error': 'Article not found'}, status=404)
+        
+        image_url = request.data.get('image_url', '').strip()
+        image_slot = int(request.data.get('image_slot', 1))
+        
+        if not image_url:
+            return Response({'error': 'image_url is required'}, status=400)
+        
+        if image_slot not in (1, 2, 3):
+            return Response({'error': 'image_slot must be 1, 2, or 3'}, status=400)
+        
+        # Download the image
+        import requests as http_requests
+        try:
+            resp = http_requests.get(image_url, timeout=15, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'image/*,*/*;q=0.8',
+            })
+            resp.raise_for_status()
+            
+            content_type = resp.headers.get('Content-Type', 'image/jpeg')
+            if 'image' not in content_type:
+                return Response({'error': f'URL does not point to an image (Content-Type: {content_type})'}, status=400)
+            
+        except http_requests.RequestException as e:
+            return Response({'error': f'Failed to download image: {str(e)}'}, status=400)
+        
+        # Determine file extension
+        from django.core.files.base import ContentFile
+        ext = 'jpg'
+        if 'png' in content_type:
+            ext = 'png'
+        elif 'webp' in content_type:
+            ext = 'webp'
+        
+        # Build filename from article slug
+        slug_short = article.slug[:60] if article.slug else f'article_{article.id}'
+        filename = f"{slug_short}_{image_slot}.{ext}"
+        image_file = ContentFile(resp.content, name=filename)
+        
+        # Save to the correct image slot
+        if image_slot == 1:
+            article.image.save(filename, image_file, save=True)
+        elif image_slot == 2:
+            article.image_2.save(filename, image_file, save=True)
+        elif image_slot == 3:
+            article.image_3.save(filename, image_file, save=True)
+        
+        # Get the saved URL for response
+        saved_field = getattr(article, f'image{"" if image_slot == 1 else f"_{image_slot}"}')
+        saved_url = str(saved_field) if saved_field else ''
+        if saved_url and not saved_url.startswith('http'):
+            saved_url = request.build_absolute_uri(f'/media/{saved_url}')
+        
+        return Response({
+            'success': True,
+            'image_url': saved_url,
+            'image_slot': image_slot,
+        })
+
+
+class AdPlacementViewSet(viewsets.ModelViewSet):
+    """Admin ViewSet for managing ad placements.
+    
+    GET /api/v1/ads/                  — list all ads (admin)
+    POST /api/v1/ads/                 — create ad (admin)
+    GET /api/v1/ads/{id}/             — get ad details (admin)
+    PUT /api/v1/ads/{id}/             — update ad (admin)
+    DELETE /api/v1/ads/{id}/          — delete ad (admin)
+    POST /api/v1/ads/{id}/track_click/ — track click (public)
+    GET /api/v1/ads/active/           — get active ads for position (public)
+    """
+    
+    def get_serializer_class(self):
+        from news.serializers import AdPlacementSerializer
+        return AdPlacementSerializer
+    
+    def get_permissions(self):
+        if self.action in ('active', 'track_click'):
+            return [AllowAny()]
+        return [IsAdminUser()]
+    
+    def get_queryset(self):
+        from news.models import AdPlacement
+        qs = AdPlacement.objects.all()
+        
+        # Filter by position
+        position = self.request.query_params.get('position')
+        if position:
+            qs = qs.filter(position=position)
+        
+        # Filter by active status
+        active = self.request.query_params.get('active')
+        if active == 'true':
+            qs = qs.filter(is_active=True)
+        elif active == 'false':
+            qs = qs.filter(is_active=False)
+        
+        # Filter by ad type
+        ad_type = self.request.query_params.get('ad_type')
+        if ad_type:
+            qs = qs.filter(ad_type=ad_type)
+        
+        return qs
+    
+    @action(detail=False, methods=['get'], url_path='active')
+    def active(self, request):
+        """Public endpoint: get currently active ads for a position.
+        GET /api/v1/ads/active/?position=header
+        """
+        from news.models import AdPlacement
+        from django.utils import timezone
+        from django.db.models import Q, F
+        
+        position = request.query_params.get('position')
+        if not position:
+            return Response({'results': []})
+        
+        now = timezone.now()
+        qs = AdPlacement.objects.filter(
+            is_active=True,
+            position=position,
+        ).filter(
+            Q(start_date__isnull=True) | Q(start_date__lte=now)
+        ).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=now)
+        ).order_by('-priority')
+        
+        # Track impressions
+        qs.update(impressions=F('impressions') + 1)
+        
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'results': serializer.data})
+    
+    @action(detail=True, methods=['post'], url_path='track-click')
+    def track_click(self, request, pk=None):
+        """Public endpoint: track ad click.
+        POST /api/v1/ads/{id}/track-click/
+        """
+        from news.models import AdPlacement
+        from django.db.models import F
+        ad = self.get_object()
+        AdPlacement.objects.filter(pk=ad.pk).update(clicks=F('clicks') + 1)
+        return Response({'success': True, 'redirect': ad.link})
+
