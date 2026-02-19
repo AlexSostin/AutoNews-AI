@@ -127,7 +127,7 @@ export default function AutomationPage() {
             });
             if (res.ok) {
                 toast.success(`${taskType} triggered!`);
-                setTimeout(fetchData, 5000); // Refresh after 5s
+                setTimeout(fetchData, 5000);
             } else {
                 toast.error('Trigger failed');
             }
@@ -140,52 +140,48 @@ export default function AutomationPage() {
 
     if (loading) {
         return (
-            <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-                <div style={{ fontSize: '1.2rem', color: '#a0a0b0' }}>Loading automation settings...</div>
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             </div>
         );
     }
 
     if (!settings) {
         return (
-            <div style={{ padding: '2rem', color: '#ff6b6b' }}>
-                Failed to load automation settings. Make sure the backend is running and migrations are applied.
+            <div className="p-8 text-center">
+                <p className="text-red-600 font-semibold">
+                    Failed to load automation settings. Make sure the backend is running and migrations are applied.
+                </p>
             </div>
         );
     }
 
     return (
-        <div style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
+        <div>
             {/* Header */}
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '1.8rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    🤖 Automation Control Panel
-                </h1>
-                <p style={{ color: '#a0a0b0', marginTop: '0.5rem' }}>
-                    Control RSS scanning, YouTube scanning, and auto-publishing from one place.
-                    Changes take effect on the next scheduler cycle.
-                </p>
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-950">🤖 Automation</h1>
+                    <p className="text-sm text-gray-500 font-medium mt-1">
+                        Control RSS, YouTube, auto-publish, and AI image generation. Changes take effect on next cycle.
+                    </p>
+                </div>
             </div>
 
             {/* Stats Overview */}
             {stats && (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-                    gap: '1rem',
-                    marginBottom: '2rem'
-                }}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
                     <StatCard label="Pending Total" value={stats.pending_total} icon="📋" />
-                    <StatCard label="High Quality" value={stats.pending_high_quality} icon="⭐" color="#4ade80" />
-                    <StatCard label="Published Today" value={stats.published_today} icon="📰" color="#60a5fa" />
-                    <StatCard label="Auto-Published" value={stats.auto_published_today} icon="🤖" color="#a78bfa" />
-                    <StatCard label="RSS Today" value={stats.rss_articles_today} icon="📡" color="#fb923c" />
-                    <StatCard label="YouTube Today" value={stats.youtube_articles_today} icon="🎬" color="#f87171" />
+                    <StatCard label="High Quality" value={stats.pending_high_quality} icon="⭐" color="text-emerald-600" />
+                    <StatCard label="Published Today" value={stats.published_today} icon="📰" color="text-blue-600" />
+                    <StatCard label="Auto-Published" value={stats.auto_published_today} icon="🤖" color="text-purple-600" />
+                    <StatCard label="RSS Today" value={stats.rss_articles_today} icon="📡" color="text-orange-600" />
+                    <StatCard label="YouTube Today" value={stats.youtube_articles_today} icon="🎬" color="text-red-600" />
                 </div>
             )}
 
-            {/* Module Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem' }}>
+            {/* Module Cards Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
                 {/* RSS Scanning */}
                 <ModuleCard
@@ -202,7 +198,7 @@ export default function AutomationPage() {
                         <select
                             value={settings.rss_scan_interval_minutes}
                             onChange={(e) => updateSetting('rss_scan_interval_minutes', parseInt(e.target.value))}
-                            style={selectStyle}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                         >
                             <option value={15}>Every 15 min</option>
                             <option value={30}>Every 30 min</option>
@@ -210,14 +206,14 @@ export default function AutomationPage() {
                             <option value={120}>Every 2 hours</option>
                         </select>
                     </SettingRow>
-                    <SettingRow label="Max articles per scan">
+                    <SettingRow label="Max per scan">
                         <input
                             type="number"
                             min={1}
                             max={50}
                             value={settings.rss_max_articles_per_scan}
                             onChange={(e) => updateSetting('rss_max_articles_per_scan', parseInt(e.target.value) || 10)}
-                            style={inputStyle}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                         />
                     </SettingRow>
                 </ModuleCard>
@@ -237,21 +233,21 @@ export default function AutomationPage() {
                         <select
                             value={settings.youtube_scan_interval_minutes}
                             onChange={(e) => updateSetting('youtube_scan_interval_minutes', parseInt(e.target.value))}
-                            style={selectStyle}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                         >
                             <option value={60}>Every 1 hour</option>
                             <option value={120}>Every 2 hours</option>
                             <option value={240}>Every 4 hours</option>
                         </select>
                     </SettingRow>
-                    <SettingRow label="Max videos per scan">
+                    <SettingRow label="Max per scan">
                         <input
                             type="number"
                             min={1}
                             max={20}
                             value={settings.youtube_max_videos_per_scan}
                             onChange={(e) => updateSetting('youtube_max_videos_per_scan', parseInt(e.target.value) || 3)}
-                            style={inputStyle}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                         />
                     </SettingRow>
                 </ModuleCard>
@@ -267,23 +263,19 @@ export default function AutomationPage() {
                     onTrigger={() => triggerTask('auto-publish')}
                     triggering={triggering === 'auto-publish'}
                 >
-                    <SettingRow label="Min quality score">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <SettingRow label="Min quality">
+                        <div className="flex items-center gap-3">
                             <input
                                 type="range"
                                 min={1}
                                 max={10}
                                 value={settings.auto_publish_min_quality}
                                 onChange={(e) => updateSetting('auto_publish_min_quality', parseInt(e.target.value))}
-                                style={{ flex: 1 }}
+                                className="flex-1 accent-indigo-600"
                             />
-                            <span style={{
-                                fontSize: '1.1rem',
-                                fontWeight: 700,
-                                color: settings.auto_publish_min_quality >= 7 ? '#4ade80' : settings.auto_publish_min_quality >= 5 ? '#fbbf24' : '#f87171',
-                                minWidth: '2.5rem',
-                                textAlign: 'center'
-                            }}>
+                            <span className={`text-lg font-black min-w-[3rem] text-center ${settings.auto_publish_min_quality >= 7 ? 'text-emerald-600' :
+                                    settings.auto_publish_min_quality >= 5 ? 'text-amber-600' : 'text-red-600'
+                                }`}>
                                 {settings.auto_publish_min_quality}/10
                             </span>
                         </div>
@@ -295,7 +287,7 @@ export default function AutomationPage() {
                             max={20}
                             value={settings.auto_publish_max_per_hour}
                             onChange={(e) => updateSetting('auto_publish_max_per_hour', parseInt(e.target.value) || 3)}
-                            style={inputStyle}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                         />
                     </SettingRow>
                     <SettingRow label="Max per day">
@@ -305,7 +297,7 @@ export default function AutomationPage() {
                             max={100}
                             value={settings.auto_publish_max_per_day}
                             onChange={(e) => updateSetting('auto_publish_max_per_day', parseInt(e.target.value) || 20)}
-                            style={inputStyle}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                         />
                     </SettingRow>
                     <SettingRow label="Require image">
@@ -316,7 +308,7 @@ export default function AutomationPage() {
                     </SettingRow>
                 </ModuleCard>
 
-                {/* Auto-Image */}
+                {/* Auto-Image (AI) */}
                 <ModuleCard
                     title="📸 Auto-Image (AI)"
                     enabled={settings.auto_image_mode !== 'off'}
@@ -331,24 +323,16 @@ export default function AutomationPage() {
                             onChange={(v) => updateSetting('auto_image_prefer_press', v)}
                         />
                     </SettingRow>
-                    <div style={{
-                        background: '#13132a',
-                        borderRadius: '8px',
-                        padding: '0.75rem',
-                        fontSize: '0.8rem',
-                        color: '#a0a0b0',
-                        lineHeight: 1.5,
-                    }}>
-                        <div style={{ marginBottom: '0.3rem' }}>
-                            <strong style={{ color: '#c0c0d0' }}>Как работает:</strong>
+                    <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 leading-relaxed border border-gray-100">
+                        <p className="font-bold text-gray-700 mb-1">Как работает:</p>
+                        <div className="space-y-0.5">
+                            <p>1️⃣ Ищет фото авто (зелёные press или жёлтые)</p>
+                            <p>2️⃣ Использует как <strong>reference</strong> для AI</p>
+                            <p>3️⃣ Публикует <strong>только AI картинку</strong> (без копирайта)</p>
+                            <p>4️⃣ Если фото не найдено → пропускает</p>
                         </div>
-                        1️⃣ Ищет фото авто (зелёные press или жёлтые)<br />
-                        2️⃣ Использует как <strong>reference</strong> для AI генерации<br />
-                        3️⃣ Публикует <strong>только AI картинку</strong> (без копирайта)<br />
-                        4️⃣ Если фото не найдено → пропускает
                     </div>
                 </ModuleCard>
-
 
                 {/* Google Indexing */}
                 <ModuleCard
@@ -356,42 +340,33 @@ export default function AutomationPage() {
                     enabled={settings.google_indexing_enabled}
                     onToggle={(v) => updateSetting('google_indexing_enabled', v)}
                     lastRun={null}
-                    lastStatus="Submits to Google on publish"
+                    lastStatus="Submits on publish"
                     saving={saving}
                 >
-                    <p style={{ color: '#a0a0b0', fontSize: '0.85rem', margin: 0 }}>
+                    <p className="text-sm text-gray-500">
                         When enabled, newly published articles are automatically submitted to the Google Indexing API
                         for faster crawling and indexing.
                     </p>
                 </ModuleCard>
-            </div>
 
-            {/* Quality Scoring */}
-            <div style={{ marginTop: '1.5rem' }}>
-                <div style={{
-                    background: '#1a1a2e',
-                    borderRadius: '12px',
-                    border: '1px solid #2a2a4a',
-                    padding: '1.25rem',
-                }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>📊 Quality Scoring</h3>
+                {/* Quality Scoring */}
+                <div className="bg-white rounded-lg shadow-md border border-gray-200 p-5">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-base font-black text-gray-900">📊 Quality Scoring</h3>
                         <button
                             onClick={() => triggerTask('score')}
                             disabled={triggering === 'score'}
-                            style={{
-                                ...btnStyle,
-                                background: triggering === 'score' ? '#333' : '#3b3b5c',
-                                fontSize: '0.8rem',
-                                padding: '0.4rem 0.8rem',
-                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${triggering === 'score'
+                                    ? 'bg-gray-100 text-gray-400 cursor-wait'
+                                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                                }`}
                         >
                             {triggering === 'score' ? '⏳ Scoring...' : '🔄 Score Unscored'}
                         </button>
                     </div>
-                    <p style={{ color: '#a0a0b0', fontSize: '0.85rem', margin: 0 }}>
-                        Automatically evaluates pending articles on: content length, title quality, structure,
-                        images, specs, tags, and red flags. Score range: 1-10. Articles scoring ≥ {settings.auto_publish_min_quality} are
+                    <p className="text-sm text-gray-500 leading-relaxed">
+                        Evaluates pending articles on: content length, title quality, structure,
+                        images, specs, tags, and red flags. Score 1-10. Articles ≥ <strong className="text-gray-700">{settings.auto_publish_min_quality}</strong> are
                         eligible for auto-publishing.
                     </p>
                 </div>
@@ -399,38 +374,23 @@ export default function AutomationPage() {
 
             {/* Recent Auto-Published */}
             {stats && stats.recent_auto_published.length > 0 && (
-                <div style={{ marginTop: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>🕐 Recently Auto-Published</h3>
-                    <div style={{
-                        background: '#1a1a2e',
-                        borderRadius: '12px',
-                        border: '1px solid #2a2a4a',
-                        overflow: 'hidden',
-                    }}>
+                <div className="mt-6">
+                    <h3 className="text-lg font-black text-gray-950 mb-3">🕐 Recently Auto-Published</h3>
+                    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
                         {stats.recent_auto_published.map((item, i) => (
-                            <div key={item.id} style={{
-                                padding: '0.75rem 1rem',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                borderBottom: i < stats.recent_auto_published.length - 1 ? '1px solid #2a2a4a' : 'none',
-                            }}>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {item.title}
-                                    </div>
+                            <div key={item.id} className={`px-4 py-3 flex items-center justify-between ${i < stats.recent_auto_published.length - 1 ? 'border-b border-gray-100' : ''
+                                }`}>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-gray-900 truncate">{item.title}</p>
                                 </div>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexShrink: 0, marginLeft: '1rem' }}>
-                                    <span style={{
-                                        fontSize: '0.75rem',
-                                        padding: '0.2rem 0.5rem',
-                                        borderRadius: '4px',
-                                        background: item.quality_score >= 7 ? '#064e3b' : '#7c2d12',
-                                        color: item.quality_score >= 7 ? '#4ade80' : '#fb923c',
-                                    }}>
+                                <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${item.quality_score >= 7
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : 'bg-amber-100 text-amber-700'
+                                        }`}>
                                         Q: {item.quality_score}/10
                                     </span>
-                                    <span style={{ fontSize: '0.75rem', color: '#a0a0b0' }}>
+                                    <span className="text-xs text-gray-400 font-medium">
                                         {timeAgo(item.published_at)}
                                     </span>
                                 </div>
@@ -450,16 +410,10 @@ export default function AutomationPage() {
 
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: string; color?: string }) {
     return (
-        <div style={{
-            background: '#1a1a2e',
-            borderRadius: '12px',
-            border: '1px solid #2a2a4a',
-            padding: '1rem',
-            textAlign: 'center',
-        }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{icon}</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 700, color: color || '#fff' }}>{value}</div>
-            <div style={{ fontSize: '0.75rem', color: '#a0a0b0' }}>{label}</div>
+        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 text-center">
+            <div className="text-2xl mb-1">{icon}</div>
+            <div className={`text-2xl font-black ${color || 'text-gray-900'}`}>{value}</div>
+            <div className="text-xs text-gray-500 font-semibold mt-0.5">{label}</div>
         </div>
     );
 }
@@ -486,41 +440,22 @@ function ModuleCard({
     triggering?: boolean;
 }) {
     return (
-        <div style={{
-            background: '#1a1a2e',
-            borderRadius: '12px',
-            border: `1px solid ${enabled ? '#3b5bdb' : '#2a2a4a'}`,
-            padding: '1.25rem',
-            transition: 'border-color 0.2s ease',
-        }}>
+        <div className={`bg-white rounded-lg shadow-md border-2 p-5 transition-colors ${enabled ? 'border-indigo-400' : 'border-gray-200'
+            }`}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{title}</h3>
+            <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-black text-gray-900">{title}</h3>
                 <ToggleSwitch checked={enabled} onChange={onToggle} disabled={saving} />
             </div>
 
-            {/* Status */}
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: '0.8rem',
-                color: '#a0a0b0',
-                marginBottom: '1rem',
-                padding: '0.5rem 0.75rem',
-                background: '#13132a',
-                borderRadius: '8px',
-            }}>
-                <span>
-                    {lastStatus || 'No runs yet'}
-                </span>
-                <span>
-                    {timeAgo(lastRun)}
-                </span>
+            {/* Status bar */}
+            <div className="flex items-center justify-between text-xs font-semibold bg-gray-50 rounded-lg px-3 py-2 mb-4 border border-gray-100">
+                <span className="text-gray-500">{lastStatus || 'No runs yet'}</span>
+                <span className="text-gray-400">{timeAgo(lastRun)}</span>
             </div>
 
             {/* Settings */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', opacity: enabled ? 1 : 0.5 }}>
+            <div className={`flex flex-col gap-3 ${enabled ? '' : 'opacity-40 pointer-events-none'}`}>
                 {children}
             </div>
 
@@ -529,13 +464,12 @@ function ModuleCard({
                 <button
                     onClick={onTrigger}
                     disabled={triggering || !enabled}
-                    style={{
-                        ...btnStyle,
-                        marginTop: '1rem',
-                        width: '100%',
-                        background: triggering ? '#333' : enabled ? '#3b3b5c' : '#222',
-                        opacity: enabled ? 1 : 0.5,
-                    }}
+                    className={`mt-4 w-full py-2.5 rounded-lg font-bold text-sm transition-all ${triggering
+                            ? 'bg-gray-100 text-gray-400 cursor-wait'
+                            : enabled
+                                ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
                 >
                     {triggering ? '⏳ Running...' : '▶️ Run Now'}
                 </button>
@@ -546,9 +480,9 @@ function ModuleCard({
 
 function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
     return (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-            <label style={{ fontSize: '0.85rem', color: '#c0c0d0', whiteSpace: 'nowrap' }}>{label}</label>
-            <div style={{ minWidth: '140px' }}>{children}</div>
+        <div className="flex items-center justify-between gap-4">
+            <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">{label}</label>
+            <div className="min-w-[140px]">{children}</div>
         </div>
     );
 }
@@ -557,65 +491,11 @@ function ToggleSwitch({ checked, onChange, disabled }: { checked: boolean; onCha
     return (
         <button
             onClick={() => !disabled && onChange(!checked)}
-            style={{
-                width: '48px',
-                height: '26px',
-                borderRadius: '13px',
-                border: 'none',
-                background: checked ? '#3b5bdb' : '#3a3a5a',
-                position: 'relative',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                transition: 'background 0.2s ease',
-                flexShrink: 0,
-            }}
+            className={`relative w-12 h-7 rounded-full flex-shrink-0 transition-colors ${checked ? 'bg-indigo-600' : 'bg-gray-300'
+                } ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
         >
-            <div style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                background: '#fff',
-                position: 'absolute',
-                top: '3px',
-                left: checked ? '25px' : '3px',
-                transition: 'left 0.2s ease',
-            }} />
+            <div className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow-md transition-all ${checked ? 'left-[26px]' : 'left-[3px]'
+                }`} />
         </button>
     );
 }
-
-
-// ========================
-// Styles
-// ========================
-
-const selectStyle: React.CSSProperties = {
-    background: '#13132a',
-    border: '1px solid #3a3a5a',
-    borderRadius: '6px',
-    color: '#e0e0f0',
-    padding: '0.4rem 0.5rem',
-    fontSize: '0.85rem',
-    width: '100%',
-};
-
-const inputStyle: React.CSSProperties = {
-    background: '#13132a',
-    border: '1px solid #3a3a5a',
-    borderRadius: '6px',
-    color: '#e0e0f0',
-    padding: '0.4rem 0.5rem',
-    fontSize: '0.85rem',
-    width: '100%',
-    textAlign: 'center',
-};
-
-const btnStyle: React.CSSProperties = {
-    background: '#3b3b5c',
-    border: '1px solid #4a4a7a',
-    borderRadius: '8px',
-    color: '#e0e0f0',
-    padding: '0.5rem 1rem',
-    fontSize: '0.85rem',
-    cursor: 'pointer',
-    transition: 'background 0.2s ease',
-};
