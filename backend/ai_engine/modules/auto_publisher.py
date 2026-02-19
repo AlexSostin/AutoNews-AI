@@ -92,8 +92,11 @@ def auto_publish_pending():
             )
             
             if article:
-                # Auto-attach image if needed
-                if settings.auto_image_mode != 'off':
+                # Auto-attach image only for RSS articles (no video = RSS source)
+                # YouTube articles already have thumbnails — no AI generation needed
+                is_youtube = bool(pending.video_url)
+                
+                if settings.auto_image_mode != 'off' and not is_youtube:
                     try:
                         from ai_engine.modules.auto_image_finder import find_and_attach_image
                         img_result = find_and_attach_image(article, pending_article=pending)
@@ -112,6 +115,8 @@ def auto_publish_pending():
                                 continue
                     except Exception as e:
                         logger.error(f"[AUTO-PUBLISHER/IMAGE] ❌ Error: {e}", exc_info=True)
+                elif is_youtube:
+                    logger.info(f"[AUTO-PUBLISHER] 🎬 YouTube article — using video thumbnail, skipping AI image")
                 
                 # Update pending article status
                 pending.status = 'published'
