@@ -83,6 +83,8 @@ class Command(BaseCommand):
                         channel.videos_processed += 1
                         channel.save()
                         
+                    elif result.get('reason') in ('duplicate', 'duplicate_pending'):
+                        self.stdout.write(f"     ⏭️  Skipped (same car already covered): {result.get('error', 'duplicate')}")
                     else:
                         self.stdout.write(f"     ❌ Failed: {result.get('error')}")
                         
