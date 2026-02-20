@@ -38,7 +38,7 @@ class SearchAPIView(APIView):
         
         # Filter by category
         if category_slug:
-            articles = articles.filter(category__slug=category_slug)
+            articles = articles.filter(categories__slug=category_slug)
         
         # Filter by tags
         if tags_str:
@@ -397,3 +397,176 @@ class AnalyticsAIStatsAPIView(APIView):
             'sources': sources,
         })
 
+
+class AnalyticsAIGenerationAPIView(APIView):
+    """
+    AI Generation Quality Metrics
+    GET /api/v1/analytics/ai-generation/
+
+    Returns:
+    - spec_coverage: per-field fill rates for CarSpecification
+    - generation_time: avg/median/max seconds from generation to publication
+    - edit_rates: % of content changed between AI original and published version
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        import re
+        from django.db.models import Avg, Max
+        from news.models import CarSpecification
+
+        published = Article.objects.filter(is_published=True, is_deleted=False)
+        total = published.count()
+
+        # ── 1. Spec Field Coverage ──────────────────────────────────
+        spec_fields = [
+            'make', 'model', 'engine', 'horsepower', 'torque',
+            'zero_to_sixty', 'top_speed', 'drivetrain', 'price', 'release_date',
+        ]
+        specs_qs = CarSpecification.objects.filter(article__in=published)
+        total_specs = specs_qs.count()
+
+        field_coverage = {}
+        if total_specs > 0:
+            for field in spec_fields:
+                filled = specs_qs.exclude(**{field: ''}).exclude(**{f'{field}__isnull': True}).count()
+                field_coverage[field] = round(filled / total_specs * 100, 1)
+        overall_spec_coverage = round(
+            sum(field_coverage.values()) / len(spec_fields), 1
+        ) if field_coverage else 0
+
+        # ── 2. Generation → Publication Time ────────────────────────
+        gen_times = []
+        articles_with_meta = published.filter(
+            generation_metadata__isnull=False,
+        ).values_list('generation_metadata', 'created_at')
+
+        for meta, created_at in articles_with_meta:
+            if isinstance(meta, dict):
+                ts = meta.get('timestamp') or meta.get('generated_at')
+                if ts:
+                    try:
+                        from django.utils.dateparse import parse_datetime
+                        gen_dt = parse_datetime(str(ts))
+                        if gen_dt and created_at:
+                            diff = (created_at - gen_dt).total_seconds()
+                            if 0 < diff < 86400 * 7:  # sanity: <7 days
+                                gen_times.append(diff)
+                    except (ValueError, TypeError):
+                        pass
+
+        gen_time_stats = {}
+        if gen_times:
+            gen_times.sort()
+            gen_time_stats = {
+                'avg_seconds': round(sum(gen_times) / len(gen_times), 1),
+                'median_seconds': round(gen_times[len(gen_times) // 2], 1),
+                'max_seconds': round(max(gen_times), 1),
+                'sample_size': len(gen_times),
+            }
+
+        # ── 3. Content Edit Percentage ──────────────────────────────
+        strip_html = re.compile(r'<[^>]+>')
+        edit_samples = []
+        edited_articles = published.exclude(
+            content_original=''
+        ).exclude(
+            content_original__isnull=True
+        ).values_list('id', 'content', 'content_original')[:200]
+
+        for article_id, content, original in edited_articles:
+            clean_c = strip_html.sub('', content or '').strip()
+            clean_o = strip_html.sub('', original or '').strip()
+            if not clean_o:
+                continue
+            # Simple char-level diff ratio
+            from difflib import SequenceMatcher
+            ratio = SequenceMatcher(None, clean_o, clean_c).ratio()
+            edit_pct = round((1 - ratio) * 100, 1)
+            edit_samples.append(edit_pct)
+
+        edit_stats = {}
+        if edit_samples:
+            edit_samples.sort()
+            edit_stats = {
+                'avg_edit_pct': round(sum(edit_samples) / len(edit_samples), 1),
+                'median_edit_pct': round(edit_samples[len(edit_samples) // 2], 1),
+                'max_edit_pct': round(max(edit_samples), 1),
+                'unedited_count': sum(1 for p in edit_samples if p < 1),
+                'sample_size': len(edit_samples),
+            }
+
+        return Response({
+            'spec_coverage': {
+                'total_with_specs': total_specs,
+                'total_articles': total,
+                'overall_pct': overall_spec_coverage,
+                'per_field': field_coverage,
+            },
+            'generation_time': gen_time_stats,
+            'edit_rates': edit_stats,
+        })
+
+
+class AnalyticsPopularModelsAPIView(APIView):
+    """
+    Popular Car Models by Views
+    GET /api/v1/analytics/popular-models/
+
+    Returns top car make+model combinations ranked by total article views.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from news.models import CarSpecification
+
+        # Aggregate views by make + model
+        models_qs = CarSpecification.objects.filter(
+            article__is_published=True,
+            article__is_deleted=False,
+        ).exclude(
+            make=''
+        ).exclude(
+            model=''
+        ).values(
+            'make', 'model'
+        ).annotate(
+            total_views=Sum('article__views'),
+            article_count=Count('article', distinct=True),
+        ).order_by('-total_views')[:15]
+
+        models_data = [{
+            'make': m['make'],
+            'model': m['model'],
+            'label': f"{m['make']} {m['model']}",
+            'total_views': m['total_views'] or 0,
+            'article_count': m['article_count'],
+        } for m in models_qs]
+
+        return Response({
+            'models': models_data,
+            'count': len(models_data),
+        })
+
+
+class AnalyticsProviderStatsAPIView(APIView):
+    """
+    AI Provider Performance Stats
+    GET /api/v1/analytics/provider-stats/
+
+    Returns per-provider quality averages and per-brand breakdown.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            from ai_engine.modules.provider_tracker import get_provider_summary
+            summary = get_provider_summary()
+            return Response(summary)
+        except Exception as e:
+            return Response({
+                'providers': {},
+                'by_brand': {},
+                'total_records': 0,
+                'error': str(e),
+            })

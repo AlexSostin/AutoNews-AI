@@ -43,10 +43,25 @@ _BANNED_SENTENCE_PATTERNS = re.compile(
     r'|some assumptions can be made'
     r'|specific .{3,30} figures are still emerging'
     r'|specific .{3,30} figures are not available'
+    r'|specific .{3,30} figures .{3,30} not .{3,30} released'
     r'|horsepower and torque figures are not specified'
     r'|exact battery capacity is not specified'
     r'|further details .{3,30} will be released'
     r'|pricing details .{3,30} have not been officially announced'
+    r'|details .{3,30} are .{0,20}under wraps'
+    r'|details .{3,30} are .{0,20}currently confidential'
+    r'|details .{3,30} are yet to be .{3,30} detailed'
+    r'|I wish I could dive'
+    r'|the truth is, .{3,50} not .{3,30} released'
+    r'|without official confirmation'
+    r'|without concrete information'
+    r'|we cannot .{3,30} any specific'
+    r'|we can\'t speak to the'
+    r'|information .{3,30} currently unavailable'
+    r'|have not yet been officially released'
+    r'|are currently confidential'
+    r'|we\'d anticipate'
+    r'|it\'s reasonable to expect'
     r')[^<]*?</p>',
     re.IGNORECASE
 )
@@ -62,6 +77,12 @@ _BANNED_INLINE_REPLACEMENTS = [
     (re.compile(r'potentially with', re.I), 'with'),
     (re.compile(r'likely running', re.I), 'running'),
     (re.compile(r'is expected to feature', re.I), 'features'),
+    (re.compile(r'it\'s reasonable to expect', re.I), 'we expect'),
+    (re.compile(r'we can expect', re.I), 'expect'),
+    (re.compile(r'we\'d anticipate', re.I), 'we expect'),
+    (re.compile(r'As a journalist, I wish I could[^.]*\.\s*', re.I), ''),
+    (re.compile(r'However, the truth is,?\s*', re.I), ''),
+    (re.compile(r'details .{3,30} under wraps', re.I), 'details pending'),
 ]
 
 
@@ -85,7 +106,7 @@ def _clean_banned_phrases(html: str) -> str:
     
     return html
 
-def generate_article(analysis_data, provider='groq', web_context=None):
+def generate_article(analysis_data, provider='gemini', web_context=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
     
@@ -113,157 +134,163 @@ TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current
 Create a professional, SEO-optimized automotive article based on the analysis below.
 Output ONLY clean HTML content (use <h2>, <p>, <ul>, etc.) - NO <html>, <head>, or <body> tags.
 
+═══════════════════════════════════════════════
+GOLDEN RULE — TRUTH OVER COMPLETENESS
+═══════════════════════════════════════════════
+- ONLY state facts that come from the analysis data, web context, or your VERIFIED training knowledge
+- If a spec (HP, price, range, torque) is NOT in the source data and you are NOT confident about it → SKIP IT. Do not guess.
+- Clearly separate CONFIRMED facts from EXPECTED/RUMORED information:
+  ✅ "The BYD Seal produces 313 hp" (confirmed, on sale)
+  ✅ "The interior is expected to feature a 15-inch display, based on spy shots" (clearly marked as expected)
+  ❌ "The MG7 Electric produces 250 hp and 300 Nm" (fabricated numbers)
+- It is BETTER to write a shorter, accurate article than a longer one full of made-up specs
+- When comparing to competitors, ONLY use numbers you are confident about
+
 CRITICAL REQUIREMENTS:
-1. Title MUST be descriptive, engaging, and unique.
-   Include: YEAR, BRAND, MODEL, and if available, PRICE or specific VERSION/TRIM.
-   NO static prefixes like "First Drive:".
-   Example: "2025 BYD Seal 06 GT Review: A Powerful Electric Hatchback for $25,000"
-   Example: "Testing the 2024 Tesla Model 3 Highland: Significant Updates to a Best-Seller"
-2. NO HTML entities in title (use plain text, no &quot; or &amp;)
-3. Structure with clear sections using <h2> headings
-4. Include specific numbers, stats, and comparisons for SEO
-5. Use natural keywords related to the car brand, model, year
-6. Write engaging, informative content — MINIMUM 800 words, ideally 1000-1200 words. Articles under 600 words will be REJECTED.
-7. ALWAYS include these sections: Introduction, Design/Exterior, Interior/Tech, Performance/Powertrain, Competitors, Verdict/Pricing
+1. **Title** — descriptive, engaging, unique
+   Include: YEAR, BRAND, MODEL, and if available PRICE or VERSION
+   NO static prefixes like "First Drive:". NO HTML entities.
+   Example: "2025 BYD Seal 06 GT: A Powerful Electric Hatchback for $25,000"
+
+2. **Engaging Opening** — start with an INTRIGUING hook, not a dry summary:
+   ✅ "MG just pulled the covers off spy shots of what could be one of the most affordable electric sedans in 2026"
+   ✅ "Forget everything you knew about Chinese EVs — the Zeekr 7X rewrites the rulebook"
+   ❌ "The 2026 MG7 Electric Sedan is a new vehicle that promises to deliver..." (boring, generic)
+
+3. **Write for car enthusiasts** — make readers feel the car:
+   - Use SENSORY language: "The dashboard wraps around you like a cockpit" not "The interior is spacious"
+   - Give the car a PERSONALITY: "This is the daily driver for someone who's outgrown their Model 3"
+   - Add real-world context: "600 km WLTP range means weekend trips without touching a charger"
+   - Explain what specs MEAN for the buyer, not just list numbers
+
+4. **Competitor comparisons** — use them ONLY when you have REAL data:
+   - 1-2 well-chosen comparisons are better than 4 forced ones
+   - ONLY compare specs you are confident about
+   ✅ "At $28,100, it costs nearly half what a Model Y does in Europe"
+   ❌ "It competes with the Tesla Model 3 (250 hp), BMW i4 (335 hp), Hyundai Ioniq 5 (320 hp), Audi e-tron (355 hp)..." (list spam)
+
+5. **Word count**: HARD LIMIT 400-750 words. NEVER exceed 750 words.
+   If source data is thin (spy shots, teaser), a 400-500 word article is PERFECTLY FINE.
+   QUALITY always beats QUANTITY. Every sentence should earn its place.
+   Do NOT pad with long feature lists or exhaustive option packages.
+   Count your words. If you're over 750, CUT the weakest paragraphs.
+
+7. **ANTI-REPETITION**: Do NOT repeat the same fact, number, or claim more than ONCE.
+   If you've stated "92% efficiency" in the introduction → do NOT restate it in later sections.
+   Each paragraph must add NEW information, not rephrase previous paragraphs.
+   The "Why This Matters" section must provide NEW market insights, not repeat the introduction.
+   ❌ BAD: Mentioning the same spec in Introduction, Technology, Why This Matters, AND Conclusion.
+   ✅ GOOD: State the spec once, then build on it with context, comparisons, or implications.
+
+6. **REGION-NEUTRAL writing**:
+   - Do NOT focus on a single country's market (no "in Australia", "in the US", etc.)
+   - Present prices in the ORIGINAL currency from the source, but don't frame the article around one country
+   - Do NOT reference country-specific safety ratings (ANCAP, IIHS, NHTSA) as the main focus — mention briefly if relevant
+   - Do NOT include country-specific warranty terms, servicing plans, or dealer networks
+   - Write for a GLOBAL car enthusiast audience
+   - If the source is from one country (e.g. an Australian review), extract the universal car facts and skip the local market commentary
 
 ⚠️ CRITICAL MODEL ACCURACY WARNING:
 - CAREFULLY verify the EXACT car model from the video title and transcript
 - DO NOT confuse similar model names (e.g., "Zeekr 7X" vs "Zeekr 007" are DIFFERENT cars)
-- Pay attention to spaces, numbers, and letters in model names
-- If the video title says "Zeekr 7X", write "Zeekr 7X" NOT "Zeekr 007"
-- If uncertain about the model, use the EXACT name from the video title
-- Double-check model names before writing - accuracy is CRITICAL
+- If uncertain, use the EXACT name from the video title
 
-NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
+NEGATIVE CONSTRAINTS:
 - NO "Advertisement", "Ad Space", or "Sponsor" blocks
-- NO placeholder text like "Article image 1" or "[Insert Image Here]"
-- NO social media links (Subscribe, Follow us)
-- NO navigation menus or headers/footers
-- NO "Read more" links
+- NO placeholder text like "[Insert Image Here]"
+- NO social media links, navigation menus, or "Read more" links
 - NO HTML <html>, <head>, or <body> tags
 
-BANNED PHRASES — using ANY of these will make the article REJECTED:
-- "specific horsepower figures are not available"
-- "horsepower and torque figures are not specified"
-- "exact battery capacity is not specified"
-- "expected to be equipped"
-- "anticipated to be a key component"
-- "potentially with"
-- "likely running"
-- "is expected to feature"
-- Any form of "not specified" for HP, torque, battery, or range
-- Listing "HP not specified" as a Con
-If a car EXISTS and is on SALE, do NOT use speculative language. Write as FACT.
+═══════════════════════════════════════════════
+CRITICAL — OMIT EMPTY SECTIONS
+═══════════════════════════════════════════════
+If you have NO real data for a section → DO NOT INCLUDE THAT SECTION AT ALL.
+Do NOT write a section that says "details are under wraps" or "figures have not been released".
+❌ NEVER write a paragraph explaining WHY you don't have data.
+❌ NEVER write "As a journalist, I wish I could..." or "the truth is..."
+❌ NEVER write an entire section about what MIGHT be or what we CAN EXPECT.
+If Performance has no confirmed specs → OMIT the Performance section entirely.
+If Technology has no confirmed features → OMIT the Technology section entirely.
+A 500-word article with 4 solid sections > 1200-word article with 8 empty ones.
 
-BANNED FILLER PATTERNS — these make articles feel FAKE and AI-generated:
-- "While a comprehensive driving review is pending" → WRITE a driving section based on specs and your knowledge
-- "specific [X] figures are still emerging" → USE YOUR KNOWLEDGE or omit the claim entirely
-- "The [brand] is committed to [generic goal]" → GIVE A CONCRETE EXAMPLE instead
-- "making waves in the [X] segment" → REPLACE with a specific comparison
-- "setting a new benchmark" → SAY what benchmark and compared to WHOM
-- "The overall design reflects [brand]'s commitment to..." → DESCRIBE what it actually looks like
-- Never write a paragraph that says you don't have data — either provide data or skip that point
-- Never pad sections with obvious filler just to hit word count
-- If you truly lack data for a section, write 2 strong sentences instead of 5 weak ones
+BANNED PHRASES — article will be REJECTED if these appear:
+- "specific horsepower figures are not available" or any "not specified" for specs
+- "have not yet been officially released" / "are currently confidential"
+- "details are under wraps" / "details are yet to be revealed"
+- "expected to be equipped" / "anticipated to be" / "potentially with"
+- "While a comprehensive driving review is pending"
+- "specific [X] figures are still emerging"
+- "The [brand] is committed to [generic goal]"
+- "making waves in the [X] segment" / "setting a new benchmark"
+- "I wish I could" / "the truth is" / "without concrete information"
+- "it's reasonable to expect" / "we'd anticipate" / "we can expect"
+- "As a journalist" / "While I haven't personally"
+- Any sentence that says you DON'T HAVE information → DELETE that sentence
+- If you don't know a spec → SKIP the claim. Don't pad with filler.
 
-WRITING PERSONALITY — make articles feel ALIVE, inspired by CarWow and Doug DeMuro style:
-- COMPARE the design to recognizable cars: "The rear silhouette echoes the BMW iX, but with sharper, more aggressive character lines"
-- Use SENSORY language: "The dashboard wraps around you like a cockpit" instead of "The interior is spacious"
-- Give the car a PERSONALITY: "This is the car for someone who wants Tesla range without the Tesla minimalism"
-- Be OPINIONATED: "The ride quality is genuinely impressive — better than the Model Y, not quite BMW iX3 level"
-- Use the CarWow breakdown approach: break complex specs into what they MEAN for the buyer
-- Add real-world context: "1602 km CLTC range means roughly 1000 km on the highway — that's London to Edinburgh and back without charging"
-- Reference competing models BY NAME in every section — readers want context, not generic praise
-- Use humor and personality when appropriate, like Mat Watson would: "The boot is enormous — you could probably fit a small family in there. Not that you should."
+PROS & CONS RULES:
+- ONLY list things that are KNOWN and REAL.
+- Cons must describe REAL WEAKNESSES of the product/technology itself:
+  ✅ "No Apple CarPlay — a dealbreaker for many"
+  ✅ "Heavy 2.5-ton curb weight hurts handling"
+  ✅ "Interior plastics feel cheap for the price point"
+  ❌ "Currently in research phase" — NOT a con (it's the product's stage, not a flaw)
+  ❌ "No commercial availability" — NOT a con
+  ❌ "Further details not yet public" — NOT a con (it's missing info)
+  ❌ "Limited charging infrastructure" — NOT a con of the CAR itself
+  ❌ "Specs are unknown" or "pricing unavailable" — NOT a con, it's missing data
+  ❌ "No international availability confirmed" — NOT a con unless competitors ARE available globally
+- If you cannot find 3 real Cons → list only what you have.
+  2 genuine Cons > 4 filler Cons. NEVER pad the list.
+- Cons should be about the CAR's actual weaknesses, not about missing press info.
 
-MANDATORY COMPETITOR REFERENCES (at least ONE comparison per section):
-- Performance: compare HP, torque, 0-60 directly to 2-3 rivals by name
-  Example: "268 hp puts it against the Tesla Model Y Long Range (299 hp) and IONIQ 5 (320 hp) — slightly less power, but at a fraction of the price"
-- Design: compare styling and proportions to recognizable cars
-  Example: "Unlike the boxy NIO ES6, the G7 REV goes for sleek coupe-SUV lines similar to the Mercedes EQE SUV"
-- Technology: compare infotainment, ADAS, features to established benchmarks
-  Example: "The 15-inch screen matches Tesla's approach, but XPENG adds physical climate buttons that Tesla controversially removed"
-- Price: always compare to at least 2 rivals with concrete numbers
-  Example: "At $28,100, it undercuts the Model Y ($44,990) by over $16,000"
+WHY THIS MATTERS section — add context about the car's significance:
+- What gap does this car fill in the market?
+- Why should someone pay attention to this model?
+- What does this mean for the brand's lineup?
 
-Required Structure:
-- <h2>[Year] [Brand] [Model] [Version] Review: [Hook/Description]</h2>
-- Introduction paragraph (2-3 sentences with key specs)
-- <h2>Performance & Specs</h2> - MUST include ALL of these with CONCRETE NUMBERS:
-  * Horsepower (HP) and kilowatts (kW) — MANDATORY, no excuses
-  * Torque in Nm or lb-ft
-  * 0-60 mph or 0-100 km/h time
-  * Battery capacity in kWh (for EVs)
-  * Range in km and miles
-  * Starting price
-  HOW TO FIND HP: Check the analysis data, web context, AND your own training knowledge.
-  You are an automotive expert — you KNOW the specs of major car models (BYD, Tesla, Zeekr, NIO, Li Auto, etc.).
-  If HP is in kW, convert: 1 kW ≈ 1.34 hp (e.g., 200 kW = 268 hp).
-  NEVER write that specs are "unavailable" or "not specified" — USE YOUR KNOWLEDGE.
-- <h2>Design & Interior</h2> - Describe styling, materials, space, cargo volume.
-  MUST include at least ONE comparison to a well-known car's design language.
-- <h2>Technology & Features</h2> - This section MUST include at least 4-5 SPECIFIC, CONCRETE items:
-  * Infotainment screen size and system name (e.g., "15.4-inch AMOLED touchscreen")
-  * ADAS / driver assistance features (name them specifically)
-  * Connectivity (Apple CarPlay, Android Auto, wireless charging)
-  * OTA update capability
-  * Digital instrument cluster details
-  * Sound system (brand, speakers count)
-  * Safety tech (collision avoidance, blind spot monitoring, etc.)
-  CRITICAL: Do NOT write "likely" or "potentially" — state features as FACTS.
-  If not in the transcript, use the web context or your training knowledge. Write at least 2 full paragraphs.
-- <h2>Driving Experience</h2> - Handling, comfort, real-world performance.
-  NEVER write "a driving review is pending". You are an automotive expert — describe the expected drive based on platform, weight, motor setup, and your knowledge of similar cars.
-- <h2>Pricing & Availability</h2> - Keep this section CONCISE (3-5 bullet points max):
-  <ul>
-    <li>Starting price in USD, EUR, and CNY (where applicable)</li>
-    <li>Key trim levels with prices if known</li>
-    <li>Markets where confirmed available (do NOT fabricate launch dates)</li>
-    <li>2-3 competitors with prices for comparison</li>
-  </ul>
-  Do NOT focus on any single market (US, Europe, China). Write as a GLOBAL automotive news article.
-  Do NOT fabricate specific MSRP prices or launch dates — use only confirmed data.
-  Use ONLY <ul><li> HTML tags, never asterisks (*) or markdown.
-- <h2>Pros & Cons</h2> - CRITICAL: Use <ul> and <li> tags. Each pro/con MUST be a separate <li> item.
-  Write pros/cons like a CarWow video summary — punchy, specific, comparative:
-  Good: "1602 km range crushes everything in its class"
-  Bad: "Range is impressive" (too vague)
-  Good: "No Apple CarPlay — a dealbreaker for many"
-  Bad: "Limited connectivity options" (too generic)
-- Conclusion paragraph with recommendation and target buyer. Be specific about WHO should buy this car and WHY.
+Required Structure (OMIT any section where you have NO data):
+- <h2>[Year] [Brand] [Model] [Version]: [Engaging Hook]</h2>
+- Introduction paragraph with hook + key confirmed specs
+- <h2>Performance & Specs</h2> — ONLY if you have real numbers.
+  Include ONLY specs you have data for. Skip unknown ones entirely.
+  If HP is in kW, convert: 1 kW ≈ 1.34 hp.
+  If NO specs are available → OMIT this section.
+- <h2>Design & Interior</h2> — Styling, materials, space.
+  Compare design language to ONE well-known car if the comparison is genuine and insightful.
+  Focus on what IS visible/confirmed, not what might be.
+- <h2>Technology & Features</h2> — List SPECIFIC items from the source data.
+  Only mention features that are confirmed. If NO features are confirmed → OMIT this section.
+- <h2>Pricing & Availability</h2> — CONCISE, 3-5 bullet points:
+  <ul><li>Only confirmed prices and markets</li></ul>
+  Do NOT fabricate MSRP prices. If pricing is unknown, say "pricing has not been announced yet."
+- <h2>Pros & Cons</h2> — Use <ul><li> tags. Punchy, specific, based on REAL attributes:
+  ✅ "1602 km range crushes everything in its class"
+  ✅ "No Apple CarPlay — a dealbreaker for many"
+  ❌ "Range is impressive" (too vague)
+  ❌ "Specs are unknown" (NOT a con — it's missing info)
+- Conclusion: who should buy this car and why. Be specific.
 
-AT THE VERY END, after the conclusion, add this block:
+AT THE VERY END, add:
 <div class="alt-texts" style="display:none">
-ALT_TEXT_1: [descriptive alt text for a hero/exterior image]
-ALT_TEXT_2: [descriptive alt text for an interior image]
-ALT_TEXT_3: [descriptive alt text for a detail/tech image]
+ALT_TEXT_1: [descriptive alt text for hero/exterior image]
+ALT_TEXT_2: [descriptive alt text for interior image]
+ALT_TEXT_3: [descriptive alt text for detail/tech image]
 </div>
-
-Writing Style:
-- Write like the best automotive YouTubers (CarWow, Doug DeMuro) — technically precise but with personality
-- Explain what specs mean for the driver in real life (e.g., "314 hp means 0-60 in 5.9s — enough to merge confidently on any highway")
-- ALWAYS include comparisons to competitors — this is what readers care about most
-- Mention target audience (families, enthusiasts, eco-conscious, etc.)
-- Natural keyword placement for SEO
-- Be factual — never invent specs, prices, or release dates
-- WRITE WITH AUTHORITY — you are an automotive expert, not a speculator
-- NEVER use "is expected to", "is anticipated", "potentially", "likely" for cars that are already on sale
-- If the car is already available in any market, describe its features as FACTS, not predictions
-- Be OPINIONATED — readers want your expert take, not a bland press release rewrite
 
 Analysis Data:
 {analysis_data}
 
-Remember: Write like you're explaining to a friend who's considering buying this car. Be helpful, specific, and entertaining!
+Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, accurate, and entertaining. Quality over quantity — every sentence should earn its place.
 """
     
-    system_prompt = """You are a senior automotive journalist at FreshMotors with 15+ years of hands-on experience testing vehicles worldwide. You write like a mix of CarWow's Mat Watson and Doug DeMuro — technically precise but with genuine personality, humor, and strong opinions. You ALWAYS compare cars to their competitors because that's what readers actually care about. You have extensive knowledge of ALL major car brands including Chinese EVs (BYD, Zeekr, NIO, Li Auto, XPeng, Chery, Geely, GAC). You KNOW their specs from memory. When writing, ALWAYS include concrete HP/kW numbers — you are NEVER allowed to write that specs are 'not specified'. Your articles should feel like a conversation with a knowledgeable friend, not a corporate press release. Be opinionated, be specific, be entertaining. If a car is already on sale, describe it as FACT, not prediction."""
+    system_prompt = """You are a senior automotive journalist at FreshMotors. You write like CarWow's Mat Watson — technically precise, with genuine personality and humor. You prioritize ACCURACY over completeness: if you don't know a spec, you skip it rather than guess. You write for car enthusiasts who want honest, engaging analysis. You compare to competitors ONLY when you have real data. Your articles feel like a conversation with a knowledgeable friend, not a corporate press release. You know major car brands well (including Chinese EVs), but you never fabricate specs you're unsure about. Be entertaining, be accurate, be opinionated where you have real basis for opinions."""
     
     try:
         # Use AI provider factory
         ai = get_ai_provider(provider)
         
-        MIN_WORD_COUNT = 400  # Minimum acceptable article length
+        MIN_WORD_COUNT = 300  # Minimum acceptable article length (lowered to allow shorter accurate articles)
         MAX_RETRIES = 2       # Retry if too short
         
         article_content = None
@@ -284,7 +311,7 @@ Remember: Write like you're explaining to a friend who's considering buying this
                 prompt=current_prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
-                max_tokens=4096
+                max_tokens=6000
             )
             
             if not article_content:
@@ -417,9 +444,9 @@ def ensure_html_only(content):
     return content
 
 
-def expand_press_release(press_release_text, source_url, provider='groq', web_context=None):
+def expand_press_release(press_release_text, source_url, provider='gemini', web_context=None):
     """
-    Expands a short press release (200-300 words) into a full automotive article (800-1200 words).
+    Expands a short press release (200-300 words) into a full automotive article (600-800 words).
     
     Args:
         press_release_text: The original press release content
@@ -443,107 +470,121 @@ def expand_press_release(press_release_text, source_url, provider='groq', web_co
 {web_data_section}
 TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
 
-You are a professional automotive journalist. Expand the following press release into a comprehensive, SEO-optimized article.
+Expand the following press release into a comprehensive, SEO-optimized automotive article.
 
 PRESS RELEASE:
 {press_release_text}
 
 SOURCE: {source_url}
 
+═══════════════════════════════════════════════
+GOLDEN RULE — TRUTH OVER COMPLETENESS
+═══════════════════════════════════════════════
+- ONLY use facts that are IN the press release, in the web context, or that you are CONFIDENT about
+- If a spec (HP, price, range) is NOT in the press release and you don't KNOW it → SKIP IT
+- Clearly mark CONFIRMED vs EXPECTED information:
+  ✅ "The BYD Seal produces 313 hp" (confirmed, from press release)
+  ✅ "Based on spy shots, the interior appears to feature a large central display" (marked as observation)
+  ❌ "The MG7 produces 250 hp and 300 Nm of torque" (fabricated)
+- A shorter ACCURATE article is always better than a longer FABRICATED one
+- Do NOT invent specs, prices, 0-60 times, or range figures
+
 CRITICAL REQUIREMENTS:
-1. **Create UNIQUE content** - DO NOT copy text from the press release verbatim
-   - Rephrase all information in your own words
-   - Add context, analysis, and comparisons
-   - Expand on technical details
-   
-2. **Title MUST be descriptive and engaging**
-   - Include: YEAR, BRAND, MODEL, and key feature or price
-   - Example: "2025 BYD Seal 06 GT Review: A Powerful Electric Hatchback for $25,000"
-   - NO HTML entities in title (use plain text)
+1. **Create UNIQUE content** — do NOT copy press release text verbatim
+   - Rephrase in your own voice
+   - Add context and analysis
+   - Expand on technical details that ARE in the source
 
-BANNED FILLER PATTERNS — these make articles feel FAKE and AI-generated:
-- "While a comprehensive driving review is pending" → WRITE about it using your expertise
-- "specific [X] figures are still emerging" → USE YOUR KNOWLEDGE or omit the claim
-- "The [brand] is committed to [generic goal]" → GIVE A CONCRETE EXAMPLE instead
-- "making waves in the [X] segment" → REPLACE with a specific comparison
-- "setting a new benchmark" → SAY what benchmark and compared to WHOM
-- Never write a paragraph that says you don't have data — either provide data or skip that point
-- If you truly lack data for a section, write 2 strong sentences instead of 5 weak ones
+2. **Title** — descriptive, engaging, includes YEAR, BRAND, MODEL
+   Example: "2025 BYD Seal 06 GT: A Powerful Electric Hatchback for $25,000"
+   NO HTML entities (no &quot; or &amp;)
 
-WRITING PERSONALITY — make articles feel ALIVE, like CarWow and Doug DeMuro:
-- COMPARE the design to recognizable cars: "The rear silhouette echoes the BMW iX, but sharper"
-- Use SENSORY language instead of generic descriptions
-- Give the car a PERSONALITY: "This is the car for someone who wants Tesla range without Tesla minimalism"
-- Be OPINIONATED: give your expert take, not a bland rewrite
-- Reference competing models BY NAME in every section — readers want context
-- Break complex specs into what they MEAN for the buyer
+3. **Engaging Opening** — hook the reader immediately:
+   ✅ "MG just dropped spy shots of what could reshape the affordable EV sedan segment"
+   ❌ "The 2026 MG7 Electric Sedan is a new vehicle that promises to deliver..." (boring)
 
-MANDATORY COMPETITOR REFERENCES (at least ONE per section):
-- Performance: compare HP, torque, 0-60 to named rivals
-- Design: compare to recognizable cars by name
-- Price: compare to at least 2 rivals with concrete numbers
+4. **Competitor comparisons** — ONLY where you have REAL data:
+   - 1-2 genuine comparisons are better than 4 forced ones
+   ✅ "At $28,100, it costs nearly half what a Model Y does"
+   ❌ "Competing with Tesla Model 3, BMW i4, Hyundai Ioniq 5, Audi e-tron, Porsche Taycan..." (spam)
 
-3. **Article Structure** (Output ONLY clean HTML - NO <html>, <head>, or <body> tags):
-   - <h2>[Year] [Brand] [Model] [Version]: [Engaging Hook]</h2>
-   - Introduction paragraph (2-3 sentences with key specs)
-   - <h2>Performance & Specifications</h2> - Detailed specs with CONCRETE NUMBERS. Include comparisons.
-   - <h2>Design & Interior</h2> - Styling, materials, space. MUST compare to at least one well-known car.
-   - <h2>Technology & Features</h2> - 4-5 SPECIFIC items. Compare to competitors.
-   - <h2>Driving Experience</h2> - Based on specs, platform, and your knowledge. NEVER say "review is pending".
-   - <h2>Pricing & Availability</h2> - CONCISE (3-5 bullet points max):
-      <ul>
-        <li>Starting price in USD, EUR, CNY (where applicable)</li>
-        <li>Markets where confirmed available</li>
-        <li>2-3 competitors with prices for comparison</li>
-      </ul>
-      Do NOT focus on any single market. Write as global automotive news.
-      Do NOT fabricate prices or dates. Use ONLY <ul><li> HTML tags.
-   - <h2>Pros & Cons</h2> - Punchy, specific, comparative (CarWow style):
-     * Good: "1602 km range crushes everything in its class"
-     * Bad: "Range is impressive" (too vague — REJECTED)
-   - Conclusion paragraph with recommendation and specific target buyer
-   
-   AT THE VERY END, after the conclusion and source attribution, add:
-   <div class="alt-texts" style="display:none">
-   ALT_TEXT_1: [descriptive alt text for hero/exterior image]
-   ALT_TEXT_2: [descriptive alt text for interior image]
-   ALT_TEXT_3: [descriptive alt text for detail/tech image]
-   </div>
-   - <p class="source-attribution" style="margin-top: 2rem; padding: 1rem; background: #f3f4f6; border-left: 4px solid #3b82f6; font-size: 0.875rem;">
-       <strong>Source:</strong> Information based on official press release. 
-       <a href="{source_url}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">View original press release</a>
-     </p>
+BANNED PHRASES — article REJECTED if these appear:
+- "While a comprehensive driving review is pending"
+- "specific [X] figures are still emerging"
+- "have not yet been officially released" / "are currently confidential"
+- "details are under wraps" / "details are yet to be revealed"
+- "expected to be equipped" / "anticipated to be" / "potentially with"
+- "The [brand] is committed to [generic goal]"
+- "making waves in the [X] segment" / "setting a new benchmark"
+- "I wish I could" / "the truth is" / "without concrete information"
+- "it's reasonable to expect" / "we'd anticipate" / "we can expect"
+- "As a journalist" / "While I haven't personally"
+- Any sentence that says you DON'T HAVE information → DELETE that sentence
+- If unknown → SKIP the claim entirely
 
-4. **Content Expansion Guidelines**:
-   - Target length: 800-1200 words
-   - Add industry context (market trends, competition)
-   - Include comparisons to similar vehicles BY NAME with specific numbers
-   - Explain technical features in real-world terms
-   - Discuss target audience and use cases
-   - Add expert analysis and strong opinions
+═══════════════════════════════════════════════
+CRITICAL — OMIT EMPTY SECTIONS
+═══════════════════════════════════════════════
+If you have NO real data for a section → DO NOT INCLUDE THAT SECTION AT ALL.
+Do NOT write a section that says "details are under wraps" or "figures have not been released".
+❌ NEVER write a paragraph explaining WHY you don't have data.
+❌ NEVER write "As a journalist, I wish I could..." or "the truth is..."
+If Performance has no confirmed specs → OMIT the Performance section entirely.
+If Technology has no confirmed features → OMIT the Technology section entirely.
+A 500-word article with 4 solid sections > 1200-word article with 8 empty ones.
 
-5. **SEO Optimization**:
-   - Natural keyword placement (brand, model, year, EV/hybrid)
-   - Include specific numbers and stats
-   - Use descriptive headings
-   - Write engaging, opinionated content
+Article Structure (Output ONLY clean HTML — NO <html>/<head>/<body> tags):
+OMIT any section where you have NO real data.
+- <h2>[Year] [Brand] [Model]: [Engaging Hook]</h2>
+- Introduction with hook + key CONFIRMED specs from the press release
+- <h2>Performance & Specifications</h2> — ONLY if you have real numbers. If NO specs → OMIT.
+- <h2>Design & Interior</h2> — Only what is visible/confirmed. Compare to ONE car if genuine.
+- <h2>Technology & Features</h2> — SPECIFIC items from the press release. If NONE confirmed → OMIT.
+- <h2>Why This Matters</h2> — Market context: what gap does this fill? Why should readers care?
+- <h2>Pricing & Availability</h2> — ONLY confirmed data. Use <ul><li> tags.
+  If pricing unknown, say "pricing has not yet been announced."
+- <h2>Pros & Cons</h2> — Punchy, specific, REAL attributes only. Use <ul><li> tags.
+  Cons must describe REAL WEAKNESSES — not missing info or product stage:
+  ✅ "1602 km range crushes everything in its class"
+  ✅ "Interior plastics feel cheap for the price"
+  ❌ "Range is impressive" (too vague)
+  ❌ "Specs are unknown" (NOT a con — it's missing data, not a car weakness)
+  ❌ "No international availability confirmed" (NOT a con unless competitors have it)
+  ❌ "Currently in research phase" (NOT a con — it's a product stage)
+  ❌ "Further details not yet public" (NOT a con)
+  If you cannot find 3 real Cons → list only what you have. 2 genuine > 4 filler.
+- Conclusion: who should care and why
 
-⚠️ CRITICAL MODEL ACCURACY WARNING:
-- CAREFULLY verify the EXACT car model from the press release
-- DO NOT confuse similar model names (e.g., "Zeekr 7X" vs "Zeekr 007")
-- Use the EXACT name from the press release
+AT THE VERY END, add:
+<div class="alt-texts" style="display:none">
+ALT_TEXT_1: [descriptive alt text for hero/exterior image]
+ALT_TEXT_2: [descriptive alt text for interior image]
+ALT_TEXT_3: [descriptive alt text for detail/tech image]
+</div>
+<p class="source-attribution" style="margin-top: 2rem; padding: 1rem; background: #f3f4f6; border-left: 4px solid #3b82f6; font-size: 0.875rem;">
+    <strong>Source:</strong> Information based on official press release. 
+    <a href="{source_url}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">View original press release</a>
+</p>
 
-NEGATIVE CONSTRAINTS (DO NOT INCLUDE):
-- NO copied text from the press release
-- NO "Advertisement" or "Sponsor" blocks
-- NO placeholder text or [Insert Image Here]
-- NO social media links
-- NO HTML <html>, <head>, or <body> tags
+Content Guidelines:
+- HARD WORD LIMIT: 400-750 words. NEVER exceed 750. Count your words. Cut weakest paragraphs if over.
+- ANTI-REPETITION: Do NOT repeat the same fact/number more than ONCE. Each paragraph must add NEW info.
+  The "Why This Matters" section must provide NEW market insights, not repeat the introduction.
+- Write for car enthusiasts — sensory language, personality, real-world context
+- Explain what specs MEAN for the buyer
+- Natural SEO keyword placement (brand, model, year)
+- NO placeholder text, ads, social links, or navigation
+- REGION-NEUTRAL: Do NOT focus on one country's market. No "in Australia" or "in the US" framing.
+  Present prices in the original currency from the source but write for a GLOBAL audience.
+  Skip country-specific safety ratings (ANCAP, IIHS), local warranty terms, and dealer-level details.
+  Extract universal car facts from region-specific reviews.
 
-Remember: Write like you're explaining to a friend who's considering this car. Be helpful, specific, and entertaining!
+⚠️ MODEL ACCURACY: Use the EXACT car model name from the press release.
+
+Remember: Every sentence should earn its place. Be accurate, engaging, and helpful.
 """
     
-    system_prompt = "You are a senior automotive journalist at FreshMotors. You write like CarWow's Mat Watson and Doug DeMuro — technically precise but with personality, humor, and strong opinions. Transform press releases into engaging, unique articles. ALWAYS compare to competitors by name. Explain what specs mean in real life. Be factual, never fabricate data. Be opinionated — readers want your expert take. Provide proper source attribution."
+    system_prompt = "You are a senior automotive journalist at FreshMotors. You transform press releases into engaging, unique articles with personality and genuine insight. You prioritize ACCURACY: if a spec isn't in the source and you don't know it for certain, you skip it rather than guess. You compare to competitors ONLY when you have real data. Your writing feels like a knowledgeable friend explaining a car, not a corporate rewrite. Be entertaining, accurate, and opinionated where you have basis."
     
     try:
         # Use AI provider factory
@@ -552,7 +593,7 @@ Remember: Write like you're explaining to a friend who's considering this car. B
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.65,
-            max_tokens=4096  # Longer for expanded content
+            max_tokens=6000  # Increased for better quality content
         )
         
         if not article_content:

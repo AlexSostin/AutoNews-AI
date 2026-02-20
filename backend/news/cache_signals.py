@@ -33,6 +33,10 @@ def invalidate_article_cache(sender, instance, **kwargs):
     if hasattr(cache, 'delete_pattern'):
         cache.delete_pattern('article_list*')
         cache.delete_pattern('articles*')
+        # CRITICAL: Also clear @cache_page responses from API views
+        # Django's cache_page uses this key format internally
+        cache.delete_pattern('views.decorators.cache.cache_page*')
+        cache.delete_pattern(':1:views.decorators.cache.cache_page*')
 
 
 @receiver([post_save, post_delete], sender=Category)

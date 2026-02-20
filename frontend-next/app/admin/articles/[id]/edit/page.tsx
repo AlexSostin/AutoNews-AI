@@ -58,6 +58,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [slugEditable, setSlugEditable] = useState(false);
   const [generatingAI, setGeneratingAI] = useState<number | null>(null);
   const [aiStyle, setAiStyle] = useState('scenic_road');
+  const [aiCustomPrompt, setAiCustomPrompt] = useState('');
+  const [aiMode, setAiMode] = useState<'auto' | 'custom'>('auto');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   // Find Photo state
   const [photoSearchOpen, setPhotoSearchOpen] = useState(false);
@@ -85,6 +87,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       const response = await api.post(`/articles/${articleId}/generate-ai-image/`, {
         style: aiStyle,
         image_slot: slot,
+        custom_prompt: aiMode === 'custom' ? aiCustomPrompt : '',
       });
       if (response.data.success) {
         const url = response.data.image_url;
@@ -660,19 +663,20 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!articleId || !formData.youtube_url) {
-                      alert('❌ No YouTube URL — cannot regenerate');
-                      return;
-                    }
-                    if (!confirm('🔄 REGENERATE ARTICLE?\n\nThis will:\n• Re-download YouTube transcript\n• Re-generate title, content, summary\n• Update tags, specs, A/B titles\n\n⚠️ Current content will be backed up but REPLACED!\n\nContinue?')) return;
+                    if (!articleId) return;
+                    const isYoutube = !!formData.youtube_url;
+                    const confirmMsg = isYoutube
+                      ? '🔄 REGENERATE ARTICLE?\n\nThis will:\n• Re-download YouTube transcript\n• Re-generate title, content, summary\n• Update tags, specs, A/B titles\n\n⚠️ Current content will be backed up but REPLACED!\n\nContinue?'
+                      : '🔄 REGENERATE RSS ARTICLE?\n\nThis will:\n• Re-expand the original press release with AI\n• Re-generate title, content, summary\n• Update A/B titles\n\n⚠️ Current content will be backed up but REPLACED!\n\nContinue?';
+                    if (!confirm(confirmMsg)) return;
                     setRegenerating(true);
                     try {
                       const { data } = await api.post(`/articles/${articleId}/regenerate/`, {
                         provider: 'gemini',
                       });
                       if (data.success) {
-                        const timing = data.generation_metadata?.timings?.total || '?';
-                        alert(`✅ Article regenerated! (${timing}s)\n\nNew title: ${data.article?.title || 'N/A'}\n\nPage will reload to show new content.`);
+                        const timing = data.generation_metadata?.timings?.total || data.generation_metadata?.word_count || '?';
+                        alert(`✅ Article regenerated! (${timing}${typeof timing === 'number' ? ' words' : 's'})\n\nNew title: ${data.article?.title || 'N/A'}\n\nPage will reload to show new content.`);
                         window.location.reload();
                       } else {
                         alert(`❌ ${data.message || 'Regeneration failed'}`);
@@ -682,9 +686,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     }
                     setRegenerating(false);
                   }}
-                  disabled={regenerating || reformatting || enriching || !formData.youtube_url}
+                  disabled={regenerating || reformatting || enriching}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg text-xs font-bold hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                  title={!formData.youtube_url ? 'No YouTube URL — cannot regenerate' : 'Regenerate article from YouTube'}
+                  title={formData.youtube_url ? 'Regenerate article from YouTube' : 'Regenerate article from RSS source'}
                 >
                   {regenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   {regenerating ? 'Regenerating...' : '🔄 Regenerate'}
@@ -704,21 +708,63 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               <h3 className="text-lg font-bold text-gray-900 mb-2">Images</h3>
               <p className="text-sm text-gray-600 mb-3">Replace images or keep existing ones from AI generation</p>
 
-              {/* AI Style Selector */}
+              {/* AI Image Generation Mode */}
               <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-sm font-semibold text-purple-800 flex items-center gap-1"><Wand2 className="w-4 h-4" /> AI Style:</span>
-                  <select
-                    value={aiStyle}
-                    onChange={(e) => setAiStyle(e.target.value)}
-                    className="px-3 py-1.5 text-sm border border-purple-300 rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent outline-none"
+                {/* Mode Tabs */}
+                <div className="flex items-center gap-1 mb-3">
+                  <Wand2 className="w-4 h-4 text-purple-700" />
+                  <span className="text-sm font-semibold text-purple-800 mr-2">AI Photo:</span>
+                  <button
+                    type="button"
+                    onClick={() => setAiMode('auto')}
+                    className={`px-3 py-1 text-xs font-bold rounded-l-lg border transition-all ${aiMode === 'auto'
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                      : 'bg-white text-purple-600 border-purple-300 hover:bg-purple-50'
+                      }`}
                   >
-                    {aiStyles.map(s => (
-                      <option key={s.key} value={s.key}>{s.label}</option>
-                    ))}
-                  </select>
-                  <span className="text-xs text-purple-600">Select a scene style, then click 🎨 AI Photo on any image slot</span>
+                    🚗 Auto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiMode('custom')}
+                    className={`px-3 py-1 text-xs font-bold rounded-r-lg border-t border-b border-r transition-all ${aiMode === 'custom'
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                      : 'bg-white text-purple-600 border-purple-300 hover:bg-purple-50'
+                      }`}
+                  >
+                    ✏️ Custom
+                  </button>
                 </div>
+
+                {/* Auto Mode — Scene Style Selector */}
+                {aiMode === 'auto' && (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <select
+                      value={aiStyle}
+                      onChange={(e) => setAiStyle(e.target.value)}
+                      className="px-3 py-1.5 text-sm border border-purple-300 rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent outline-none"
+                    >
+                      {aiStyles.map(s => (
+                        <option key={s.key} value={s.key}>{s.label}</option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-purple-600">AI generates a car photo with the selected scene style</span>
+                  </div>
+                )}
+
+                {/* Custom Mode — Free-form Prompt */}
+                {aiMode === 'custom' && (
+                  <div>
+                    <input
+                      type="text"
+                      value={aiCustomPrompt}
+                      onChange={(e) => setAiCustomPrompt(e.target.value)}
+                      placeholder="e.g. Futuristic steering yoke in a car cockpit, close-up, ambient blue lighting..."
+                      className="w-full px-3 py-2 text-sm border border-purple-300 rounded-lg bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent outline-none placeholder:text-gray-400"
+                    />
+                    <span className="text-[10px] text-purple-500 mt-1 block">Describe what you want — AI will generate any image using the reference photo as context</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

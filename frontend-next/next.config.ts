@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
         hostname: 'images.unsplash.com',
       },
     ],
-    unoptimized: true,
+    // Image optimization enabled — Next.js auto-converts to WebP, resizes, and lazy-loads
   },
   async rewrites() {
     return [

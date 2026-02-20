@@ -45,7 +45,9 @@ def sample_article_data():
 def api_client():
     """Django REST framework test client"""
     from rest_framework.test import APIClient
-    return APIClient()
+    client = APIClient()
+    client.defaults['HTTP_USER_AGENT'] = 'TestClient/1.0'
+    return client
 
 
 @pytest.fixture
@@ -57,7 +59,8 @@ def authenticated_client(api_client, django_user_model):
         username='testuser',
         email='test@example.com',
         password='testpass123',
-        is_staff=True  # For analytics access
+        is_staff=True,
+        is_superuser=True,  # For admin-only endpoints
     )
     
     # Create JWT token

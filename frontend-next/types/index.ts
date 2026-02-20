@@ -51,6 +51,9 @@ export interface Article {
   show_source?: boolean;
   show_youtube?: boolean;
   show_price?: boolean;
+  // A/B testing
+  display_title?: string;
+  ab_variant_id?: number | null;
 }
 
 export interface CarSpecification {

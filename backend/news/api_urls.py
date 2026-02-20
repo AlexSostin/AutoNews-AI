@@ -6,7 +6,7 @@ from django_ratelimit.decorators import ratelimit
 from .api_views import (
     ArticleViewSet, CategoryViewSet, TagViewSet, TagGroupViewSet, 
     CommentViewSet, RatingViewSet, CarSpecificationViewSet, 
-    ArticleImageViewSet, SiteSettingsViewSet, UserViewSet,
+    ArticleImageViewSet, SiteSettingsViewSet, UserViewSet, AdminUserManagementViewSet,
     FavoriteViewSet, SubscriberViewSet,
     YouTubeChannelViewSet, RSSFeedViewSet, RSSNewsItemViewSet, PendingArticleViewSet, AutoPublishScheduleViewSet,
     AdminNotificationViewSet, VehicleSpecsViewSet, BrandAliasViewSet,
@@ -16,6 +16,10 @@ from .api_views import (
     AutomationSettingsView, AutomationStatsView, AutomationTriggerView
 )
 from .health import health_check, health_check_detailed, readiness_check
+from .ab_testing_views import (
+    ABImpressionView, ABClickView, ABTestsListView,
+    ABPickWinnerView, ABAutoPickView
+)
 
 
 # Rate-limited token views for security
@@ -63,7 +67,8 @@ from .api_views import (
 from .search_analytics_views import (
     SearchAPIView, AnalyticsOverviewAPIView, AnalyticsTopArticlesAPIView,
     AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView, GSCAnalyticsAPIView,
-    AnalyticsAIStatsAPIView
+    AnalyticsAIStatsAPIView, AnalyticsAIGenerationAPIView, AnalyticsPopularModelsAPIView,
+    AnalyticsProviderStatsAPIView
 )
 from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet
 
@@ -106,6 +111,9 @@ urlpatterns = [
     path('analytics/categories/', AnalyticsCategoriesAPIView.as_view(), name='analytics_categories'),
     path('analytics/gsc/', GSCAnalyticsAPIView.as_view(), name='analytics_gsc'),
     path('analytics/ai-stats/', AnalyticsAIStatsAPIView.as_view(), name='analytics_ai_stats'),
+    path('analytics/ai-generation/', AnalyticsAIGenerationAPIView.as_view(), name='analytics_ai_generation'),
+    path('analytics/popular-models/', AnalyticsPopularModelsAPIView.as_view(), name='analytics_popular_models'),
+    path('analytics/provider-stats/', AnalyticsProviderStatsAPIView.as_view(), name='analytics_provider_stats'),
     
     # Car Catalog endpoints
     path('cars/brands/', CarBrandsListView.as_view(), name='car_brands_list'),
@@ -118,6 +126,11 @@ urlpatterns = [
     path('admin/brands/<int:pk>/', BrandViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'put': 'update', 'delete': 'destroy'}), name='admin_brands_detail'),
     path('admin/brands/<int:pk>/merge/', BrandViewSet.as_view({'post': 'merge'}), name='admin_brands_merge'),
     
+    # Admin user management
+    path('admin/users/', AdminUserManagementViewSet.as_view({'get': 'list'}), name='admin_users_list'),
+    path('admin/users/<int:pk>/', AdminUserManagementViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='admin_users_detail'),
+    path('admin/users/<int:pk>/reset-password/', AdminUserManagementViewSet.as_view({'post': 'reset_password'}), name='admin_users_reset_password'),
+    
     # AI Image Generation
     path('articles/<str:identifier>/generate-ai-image/', GenerateAIImageView.as_view(), name='generate_ai_image'),
     path('articles/<str:identifier>/search-photos/', SearchPhotosView.as_view(), name='search_photos'),
@@ -129,6 +142,13 @@ urlpatterns = [
     path('automation/settings/', AutomationSettingsView.as_view(), name='automation_settings'),
     path('automation/stats/', AutomationStatsView.as_view(), name='automation_stats'),
     path('automation/trigger/<str:task_type>/', AutomationTriggerView.as_view(), name='automation_trigger'),
+    
+    # A/B Testing
+    path('ab/impression/', ABImpressionView.as_view(), name='ab_impression'),
+    path('ab/click/', ABClickView.as_view(), name='ab_click'),
+    path('ab/tests/', ABTestsListView.as_view(), name='ab_tests'),
+    path('ab/pick-winner/', ABPickWinnerView.as_view(), name='ab_pick_winner'),
+    path('ab/auto-pick/', ABAutoPickView.as_view(), name='ab_auto_pick'),
     
     # API endpoints
     path('', include(router.urls)),

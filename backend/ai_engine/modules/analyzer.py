@@ -25,7 +25,7 @@ except ImportError:
 # Legacy client for backwards compatibility
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-def analyze_transcript(transcript_text, video_title=None, provider='groq'):
+def analyze_transcript(transcript_text, video_title=None, provider='gemini'):
     """
     Analyzes the transcript to extract car details using selected AI provider.
     

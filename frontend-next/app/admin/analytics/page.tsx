@@ -18,7 +18,14 @@ import {
   CheckCircle2,
   Youtube,
   Rss,
-  Languages
+  Languages,
+  Wrench,
+  Timer,
+  Pencil,
+  Car,
+  FlaskConical,
+  Trophy,
+  MousePointerClick
 } from 'lucide-react';
 import api from '@/lib/api';
 import {
@@ -125,12 +132,77 @@ interface AIStats {
   };
 }
 
+interface AIGenerationStats {
+  spec_coverage: {
+    total_with_specs: number;
+    total_articles: number;
+    overall_pct: number;
+    per_field: Record<string, number>;
+  };
+  generation_time: {
+    avg_seconds?: number;
+    median_seconds?: number;
+    max_seconds?: number;
+    sample_size?: number;
+  };
+  edit_rates: {
+    avg_edit_pct?: number;
+    median_edit_pct?: number;
+    max_edit_pct?: number;
+    unedited_count?: number;
+    sample_size?: number;
+  };
+}
+
+interface PopularModel {
+  make: string;
+  model: string;
+  label: string;
+  total_views: number;
+  article_count: number;
+}
+
+interface ProviderStatsData {
+  providers: Record<string, {
+    avg_quality: number;
+    avg_coverage: number;
+    avg_time: number;
+    count: number;
+  }>;
+  total_records: number;
+}
+
+interface ABVariant {
+  id: number;
+  variant: string;
+  title: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  is_winner: boolean;
+  is_active: boolean;
+}
+
+interface ABTest {
+  article_id: number;
+  article_title: string;
+  article_slug: string;
+  is_active: boolean;
+  total_impressions: number;
+  winner: string | null;
+  variants: ABVariant[];
+}
+
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [timeline, setTimeline] = useState<TimelineData | null>(null);
   const [categories, setCategories] = useState<CategoriesData | null>(null);
   const [gscStats, setGscStats] = useState<GSCStats | null>(null);
   const [aiStats, setAiStats] = useState<AIStats | null>(null);
+  const [aiGenStats, setAiGenStats] = useState<AIGenerationStats | null>(null);
+  const [popularModels, setPopularModels] = useState<PopularModel[]>([]);
+  const [providerStats, setProviderStats] = useState<ProviderStatsData | null>(null);
+  const [abTests, setAbTests] = useState<ABTest[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -145,14 +217,22 @@ export default function AnalyticsPage() {
         timelineRes,
         categoriesRes,
         gscRes,
-        aiRes
+        aiRes,
+        aiGenRes,
+        modelsRes,
+        providerRes,
+        abRes
       ] = await Promise.all([
         api.get('/analytics/overview/'),
         api.get('/analytics/articles/top/?limit=10'),
         api.get('/analytics/views/timeline/?days=30'),
         api.get('/analytics/categories/'),
         api.get('/analytics/gsc/?days=30').catch(() => ({ data: null })),
-        api.get('/analytics/ai-stats/').catch(() => ({ data: null }))
+        api.get('/analytics/ai-stats/').catch(() => ({ data: null })),
+        api.get('/analytics/ai-generation/').catch(() => ({ data: null })),
+        api.get('/analytics/popular-models/').catch(() => ({ data: { models: [] } })),
+        api.get('/analytics/provider-stats/').catch(() => ({ data: null })),
+        api.get('/ab/tests/').catch(() => ({ data: { tests: [] } }))
       ]);
 
       setStats({
@@ -171,6 +251,10 @@ export default function AnalyticsPage() {
       setCategories(categoriesRes.data);
       setGscStats(gscRes.data);
       setAiStats(aiRes.data);
+      setAiGenStats(aiGenRes.data);
+      setPopularModels(modelsRes.data?.models || []);
+      setProviderStats(providerRes.data);
+      setAbTests(abRes.data?.tests || []);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -491,6 +575,234 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {/* AI Generation Quality Section */}
+      {aiGenStats && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-gray-900 border-l-4 border-amber-600 pl-4 mt-12">⚙️ AI Generation Quality</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Spec Field Coverage */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:col-span-2">
+              <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <Wrench className="text-amber-600" size={20} />
+                Spec Field Coverage
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                {aiGenStats.spec_coverage.total_with_specs} / {aiGenStats.spec_coverage.total_articles} articles have specs · Overall: <span className="font-bold text-gray-700">{aiGenStats.spec_coverage.overall_pct}%</span>
+              </p>
+              {Object.keys(aiGenStats.spec_coverage.per_field).length > 0 ? (
+                <div className="h-[280px]">
+                  <Bar
+                    data={{
+                      labels: Object.keys(aiGenStats.spec_coverage.per_field).map(f =>
+                        f.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
+                      ),
+                      datasets: [{
+                        label: 'Fill Rate %',
+                        data: Object.values(aiGenStats.spec_coverage.per_field),
+                        backgroundColor: Object.values(aiGenStats.spec_coverage.per_field).map(v =>
+                          v >= 80 ? 'rgba(16, 185, 129, 0.75)' :
+                            v >= 50 ? 'rgba(245, 158, 11, 0.75)' :
+                              'rgba(239, 68, 68, 0.75)'
+                        ),
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: Object.values(aiGenStats.spec_coverage.per_field).map(v =>
+                          v >= 80 ? 'rgb(16, 185, 129)' :
+                            v >= 50 ? 'rgb(245, 158, 11)' :
+                              'rgb(239, 68, 68)'
+                        ),
+                      }],
+                    }}
+                    options={{
+                      indexAxis: 'y',
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: { legend: { display: false } },
+                      scales: {
+                        x: { beginAtZero: true, max: 100, title: { display: true, text: '%' } },
+                        y: { ticks: { font: { weight: 'bold' } } },
+                      },
+                    }}
+                  />
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No spec data available</p>
+              )}
+            </div>
+
+            {/* Time & Edit Stats */}
+            <div className="space-y-6">
+              {/* Generation Time */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Timer className="text-blue-600" size={20} />
+                  Generation → Publish
+                </h3>
+                {aiGenStats.generation_time.sample_size ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Average</span>
+                      <span className="font-bold text-gray-900">{Math.round(aiGenStats.generation_time.avg_seconds! / 60)}m</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Median</span>
+                      <span className="font-bold text-gray-900">{Math.round(aiGenStats.generation_time.median_seconds! / 60)}m</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Max</span>
+                      <span className="font-bold text-gray-900">{Math.round(aiGenStats.generation_time.max_seconds! / 3600)}h</span>
+                    </div>
+                    <p className="text-xs text-gray-400 pt-2 border-t">ℹ️ {aiGenStats.generation_time.sample_size} articles</p>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No generation metadata available yet</p>
+                )}
+              </div>
+
+              {/* Edit Rates */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Pencil className="text-rose-600" size={20} />
+                  Content Editing
+                </h3>
+                {aiGenStats.edit_rates.sample_size ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Avg Edit %</span>
+                      <span className="font-bold text-gray-900">{aiGenStats.edit_rates.avg_edit_pct}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Median</span>
+                      <span className="font-bold text-gray-900">{aiGenStats.edit_rates.median_edit_pct}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Untouched</span>
+                      <span className="font-bold text-emerald-600">{aiGenStats.edit_rates.unedited_count} articles</span>
+                    </div>
+                    <p className="text-xs text-gray-400 pt-2 border-t">ℹ️ {aiGenStats.edit_rates.sample_size} articles with AI originals</p>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No content_original data yet</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popular Car Models */}
+      {popularModels.length > 0 && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-gray-900 border-l-4 border-cyan-600 pl-4 mt-12">🏎️ Popular Car Models</h2>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <Car className="text-cyan-600" size={20} />
+              Top Models by Views
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Aggregated from CarSpecification make + model fields
+            </p>
+            <div className="h-[350px]">
+              <Bar
+                data={{
+                  labels: popularModels.map(m => m.label),
+                  datasets: [
+                    {
+                      label: 'Total Views',
+                      data: popularModels.map(m => m.total_views),
+                      backgroundColor: 'rgba(8, 145, 178, 0.75)',
+                      borderColor: 'rgb(8, 145, 178)',
+                      borderWidth: 1,
+                      borderRadius: 6,
+                    },
+                    {
+                      label: 'Articles',
+                      data: popularModels.map(m => m.article_count),
+                      backgroundColor: 'rgba(139, 92, 246, 0.75)',
+                      borderColor: 'rgb(139, 92, 246)',
+                      borderWidth: 1,
+                      borderRadius: 6,
+                      yAxisID: 'y1',
+                    },
+                  ],
+                }}
+                options={{
+                  indexAxis: 'y',
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: {
+                    mode: 'index' as const,
+                    intersect: false,
+                  },
+                  plugins: {
+                    legend: { position: 'top' as const },
+                  },
+                  scales: {
+                    x: {
+                      type: 'linear' as const,
+                      display: true,
+                      position: 'bottom' as const,
+                      title: { display: true, text: 'Views' },
+                      beginAtZero: true,
+                    },
+                    y: {
+                      ticks: { font: { weight: 'bold' as const, size: 11 } },
+                    },
+                    y1: {
+                      type: 'linear' as const,
+                      display: true,
+                      position: 'top' as const,
+                      title: { display: true, text: 'Articles' },
+                      grid: { drawOnChartArea: false },
+                      beginAtZero: true,
+                      ticks: { precision: 0 },
+                    },
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Provider Performance */}
+      {providerStats && providerStats.total_records > 0 && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-gray-900 border-l-4 border-amber-500 pl-4 mt-12">🤖 AI Provider Performance</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(providerStats.providers).map(([name, data]) => (
+              <div key={name} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`p-2.5 rounded-lg text-white shadow-sm ${name === 'gemini' ? 'bg-gradient-to-br from-blue-500 to-cyan-500' : 'bg-gradient-to-br from-orange-500 to-red-500'
+                    }`}>
+                    <Cpu size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 capitalize">{name}</h3>
+                    <p className="text-xs text-gray-400">{data.count} generations</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Avg Quality</span>
+                    <span className="font-semibold text-gray-900">{data.avg_quality}/10</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Spec Coverage</span>
+                    <span className="font-semibold text-gray-900">{data.avg_coverage}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Avg Time</span>
+                    <span className="font-semibold text-gray-900">{data.avg_time}s</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* GSC Section */}
       {gscStats && (
         <div className="space-y-6">
@@ -704,6 +1016,102 @@ export default function AnalyticsPage() {
           </table>
         </div>
       </div>
+
+      {/* A/B Title Testing Insights */}
+      {abTests.length > 0 && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-gray-900 border-l-4 border-emerald-500 pl-4 mt-12">🧪 A/B Title Tests</h2>
+
+          {/* Summary cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-100 p-2.5 rounded-lg"><FlaskConical className="text-emerald-600" size={20} /></div>
+                <div>
+                  <p className="text-2xl font-black text-gray-900">{abTests.length}</p>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Total Tests</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-100 p-2.5 rounded-lg"><Eye className="text-amber-600" size={20} /></div>
+                <div>
+                  <p className="text-2xl font-black text-gray-900">{abTests.filter(t => t.is_active).length}</p>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Active</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center gap-3">
+                <div className="bg-purple-100 p-2.5 rounded-lg"><Trophy className="text-purple-600" size={20} /></div>
+                <div>
+                  <p className="text-2xl font-black text-gray-900">{abTests.filter(t => t.winner).length}</p>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Winners Picked</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Per-test variant tables */}
+          {abTests.map(test => (
+            <div key={test.article_id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <FlaskConical size={18} className={test.is_active ? 'text-emerald-500' : 'text-gray-400'} />
+                  <h3 className="text-sm font-bold text-gray-900 truncate max-w-[500px]">{test.article_title}</h3>
+                </div>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${test.is_active
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-gray-100 text-gray-500'
+                  }`}>
+                  {test.is_active ? 'Active' : 'Completed'}
+                </span>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="pb-2 text-left text-gray-400 font-medium">Variant</th>
+                    <th className="pb-2 text-left text-gray-400 font-medium">Title</th>
+                    <th className="pb-2 text-right text-gray-400 font-medium">Impressions</th>
+                    <th className="pb-2 text-right text-gray-400 font-medium">Clicks</th>
+                    <th className="pb-2 text-right text-gray-400 font-medium">CTR</th>
+                    <th className="pb-2 text-right text-gray-400 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {test.variants.map(v => (
+                    <tr key={v.id} className={v.is_winner ? 'bg-emerald-50/50' : ''}>
+                      <td className="py-2.5 font-mono text-xs text-gray-500">{v.variant}</td>
+                      <td className="py-2.5 text-gray-800 truncate max-w-[300px]">{v.title}</td>
+                      <td className="py-2.5 text-right font-semibold text-gray-700">{v.impressions.toLocaleString()}</td>
+                      <td className="py-2.5 text-right font-semibold text-gray-700">
+                        <span className="inline-flex items-center gap-1">
+                          <MousePointerClick size={12} className="text-gray-400" />
+                          {v.clicks.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <span className={`font-bold ${v.ctr >= 5 ? 'text-emerald-600' : v.ctr >= 2 ? 'text-amber-600' : 'text-gray-500'
+                          }`}>
+                          {v.ctr.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right">
+                        {v.is_winner && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            <Trophy size={12} /> Winner
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

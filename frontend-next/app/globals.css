@@ -269,7 +269,12 @@ textarea::placeholder {
   @apply my-10 border-t-2 border-gray-300;
 }
 
-/* Images in content */
-.article-content-wrapper img {
+/* Images in content (exclude Next.js Image inside lightbox buttons) */
+.article-content-wrapper img:not(button img) {
   @apply rounded-lg shadow-lg my-6 mx-auto;
+}
+
+/* Reset margins for images inside interactive containers (lightbox, etc.) */
+.article-content-wrapper button img {
+  margin: 0 !important;
 }

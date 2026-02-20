@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   FileText,
@@ -20,7 +21,6 @@ import {
   Rss,
   ChevronLeft,
   ChevronRight,
-  Menu,
   Bell,
   Languages,
   Car,
@@ -30,34 +30,84 @@ import {
   MessageSquareWarning,
   FlaskConical,
   Megaphone,
-  Bot
+  Bot,
+  Users,
+  LucideIcon
 } from 'lucide-react';
-import { logout } from '@/lib/auth';
+import { logout, isSuperuser } from '@/lib/auth';
 
-const menuItems = [
-  { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/admin/notifications', icon: Bell, label: 'Notifications' },
-  { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
-  { href: '/admin/automation', icon: Bot, label: 'Automation' },
-  { href: '/admin/articles', icon: FileText, label: 'Articles' },
-  { href: '/admin/translate', icon: Languages, label: 'Translate & Enhance' },
-  { href: '/admin/categories', icon: Folder, label: 'Categories' },
-  { href: '/admin/tags', icon: Tag, label: 'Tags' },
-  { href: '/admin/car-specs', icon: Car, label: 'Car Specs' },
-  { href: '/admin/vehicle-specs', icon: Wrench, label: 'Vehicle Specs' },
-  { href: '/admin/brand-aliases', icon: ArrowRightLeft, label: 'Brand Aliases' },
-  { href: '/admin/brands', icon: Globe, label: 'Brands' },
-  { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },
-  { href: '/admin/feedback', icon: MessageSquareWarning, label: 'Feedback' },
-  { href: '/admin/ab-testing', icon: FlaskConical, label: 'A/B Testing' },
-  { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
-  { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },
-  { href: '/admin/rss-feeds', icon: Rss, label: 'RSS Feeds' },
-  { href: '/admin/rss-pending', icon: FileStack, label: 'RSS News' },
-  { href: '/admin/pages', icon: FileStack, label: 'Pages' },
-  { href: '/admin/ads', icon: Megaphone, label: 'Ads / Sponsors' },
-  { href: '/admin/settings', icon: Settings, label: 'Site Settings' },
-  { href: '/admin/account', icon: UserCog, label: 'Account Settings' },
+interface MenuItem {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  superuserOnly?: boolean;
+}
+
+interface MenuSection {
+  title: string;
+  items: MenuItem[];
+}
+
+const menuSections: MenuSection[] = [
+  {
+    title: 'Overview',
+    items: [
+      { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '/admin/notifications', icon: Bell, label: 'Notifications' },
+    ],
+  },
+  {
+    title: 'Content',
+    items: [
+      { href: '/admin/articles', icon: FileText, label: 'Articles' },
+      { href: '/admin/categories', icon: Folder, label: 'Categories' },
+      { href: '/admin/tags', icon: Tag, label: 'Tags' },
+      { href: '/admin/pages', icon: FileStack, label: 'Pages' },
+      { href: '/admin/translate', icon: Languages, label: 'Translate & Enhance' },
+    ],
+  },
+  {
+    title: 'Automotive',
+    items: [
+      { href: '/admin/brands', icon: Globe, label: 'Brands' },
+      { href: '/admin/brand-aliases', icon: ArrowRightLeft, label: 'Brand Aliases' },
+      { href: '/admin/car-specs', icon: Car, label: 'Car Specs' },
+      { href: '/admin/vehicle-specs', icon: Wrench, label: 'Vehicle Specs' },
+    ],
+  },
+  {
+    title: 'Sources',
+    items: [
+      { href: '/admin/rss-feeds', icon: Rss, label: 'RSS Feeds' },
+      { href: '/admin/rss-pending', icon: FileStack, label: 'RSS News' },
+      { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },
+    ],
+  },
+  {
+    title: 'Audience',
+    items: [
+      { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },
+      { href: '/admin/feedback', icon: MessageSquareWarning, label: 'Feedback' },
+      { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
+    ],
+  },
+  {
+    title: 'Tools',
+    items: [
+      { href: '/admin/automation', icon: Bot, label: 'Automation' },
+      { href: '/admin/ab-testing', icon: FlaskConical, label: 'A/B Testing' },
+      { href: '/admin/ads', icon: Megaphone, label: 'Ads / Sponsors' },
+    ],
+  },
+  {
+    title: 'Settings',
+    items: [
+      { href: '/admin/settings', icon: Settings, label: 'Site Settings' },
+      { href: '/admin/account', icon: UserCog, label: 'Account Settings' },
+      { href: '/admin/users', icon: Users, label: 'Users', superuserOnly: true },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -69,6 +119,11 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const [isSuperuserState, setIsSuperuserState] = useState(false);
+
+  useEffect(() => {
+    setIsSuperuserState(isSuperuser());
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -91,7 +146,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
         transform transition-all duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        {/* Header with Close Button (Mobile) & Toggle (Desktop) */}
+        {/* Header */}
         <div className={`p-4 sm:p-6 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} border-b border-gray-800/50`}>
           {!isCollapsed && (
             <h2 className="text-xl sm:text-2xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent truncate">
@@ -100,7 +155,6 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
           )}
 
           <div className="flex items-center gap-1">
-            {/* Desktop Toggle Button */}
             <button
               onClick={onToggle}
               className="hidden lg:flex p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white"
@@ -108,8 +162,6 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
             >
               {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
             </button>
-
-            {/* Mobile Close Button */}
             <button
               onClick={onClose}
               className="lg:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white"
@@ -120,6 +172,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
         </div>
 
         <nav className="flex-1 overflow-y-auto overflow-x-hidden pt-4">
+          {/* View Public Site */}
           <Link
             href="/"
             onClick={onClose}
@@ -130,33 +183,60 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
             {!isCollapsed && <span>View Public Site</span>}
           </Link>
 
-          <div className={`my-4 border-t border-gray-800 mx-4 ${isCollapsed ? 'mx-6' : ''}`}></div>
+          {/* Menu Sections */}
+          {menuSections.map((section) => {
+            const visibleItems = section.items.filter(item => {
+              if (item.superuserOnly) return isSuperuserState;
+              return true;
+            });
 
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
+            if (visibleItems.length === 0) return null;
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={`flex items-center gap-3 px-4 sm:px-6 py-3 transition-colors font-medium text-sm sm:text-base ${isActive
-                  ? 'bg-indigo-600 text-white font-bold'
-                  : 'hover:bg-gray-800 text-gray-400 hover:text-white'
-                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? item.label : ""}
-              >
-                <Icon size={20} className="flex-shrink-0" />
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
-              </Link>
+              <div key={section.title}>
+                {/* Section Divider */}
+                <div className={`my-2 border-t border-gray-800/50 mx-4`} />
+
+                {/* Section Label */}
+                {!isCollapsed && (
+                  <div className="px-6 pt-2 pb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                      {section.title}
+                    </span>
+                  </div>
+                )}
+
+                {/* Section Items */}
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onClose}
+                      className={`flex items-center gap-3 px-4 sm:px-6 py-2.5 transition-colors font-medium text-sm ${isActive
+                        ? 'bg-indigo-600 text-white font-bold'
+                        : 'hover:bg-gray-800 text-gray-400 hover:text-white'
+                        } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                      title={isCollapsed ? item.label : ""}
+                    >
+                      <Icon size={18} className="flex-shrink-0" />
+                      {!isCollapsed && <span className="truncate">{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
 
+        {/* Logout */}
+        <div className="border-t border-gray-800/50 mx-4 mt-2" />
         <button
           onClick={handleLogout}
-          className={`flex items-center gap-3 px-4 sm:px-6 py-4 hover:bg-red-600 transition-colors mt-auto mb-2 text-sm sm:text-base text-gray-400 hover:text-white ${isCollapsed ? 'justify-center px-0' : ''}`}
+          className={`flex items-center gap-3 px-4 sm:px-6 py-4 hover:bg-red-600 transition-colors mt-2 mb-2 text-sm sm:text-base text-gray-400 hover:text-white ${isCollapsed ? 'justify-center px-0' : ''}`}
           title={isCollapsed ? "Logout" : ""}
         >
           <LogOut size={20} className="flex-shrink-0" />

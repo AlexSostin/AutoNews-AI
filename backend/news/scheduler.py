@@ -6,6 +6,8 @@ import threading
 import logging
 import os
 
+from django.db.models import F
+
 logger = logging.getLogger('news')
 
 # Interval: 6 hours in seconds
@@ -81,6 +83,11 @@ def _run_rss_scan():
             _schedule_rss_scan(DISABLED_CHECK_INTERVAL)
             return
         
+        if not AutomationSettings.acquire_lock('rss'):
+            logger.warning("[SCHEDULER/RSS] ⏳ Skipped — another RSS scan is already running")
+            _schedule_rss_scan(60)  # retry in 1 minute
+            return
+        
         settings.reset_daily_counters()
         
         logger.info("[SCHEDULER/RSS] 📡 Auto RSS scan starting...")
@@ -102,12 +109,12 @@ def _run_rss_scan():
         _score_new_pending_articles()
         
         # Update settings
-        settings.rss_last_run = timezone.now()
-        settings.rss_last_status = f"✅ {total_created} articles from {feeds.count()} feeds"
-        settings.rss_articles_today += total_created
-        settings.save(update_fields=[
-            'rss_last_run', 'rss_last_status', 'rss_articles_today'
-        ])
+        AutomationSettings.objects.filter(pk=1).update(
+            rss_last_run=timezone.now(),
+            rss_last_status=f"✅ {total_created} articles from {feeds.count()} feeds",
+            rss_articles_today=F('rss_articles_today') + total_created
+        )
+        settings.refresh_from_db()
         
         logger.info(f"[SCHEDULER/RSS] ✅ Done: {total_created} articles from {feeds.count()} feeds")
         
@@ -199,12 +206,12 @@ def _run_youtube_scan():
         _score_new_pending_articles()
         
         # Update settings
-        settings.youtube_last_run = timezone.now()
-        settings.youtube_last_status = f"✅ {total_created} articles from {channels.count()} channels"
-        settings.youtube_articles_today += total_created
-        settings.save(update_fields=[
-            'youtube_last_run', 'youtube_last_status', 'youtube_articles_today'
-        ])
+        AutomationSettings.objects.filter(pk=1).update(
+            youtube_last_run=timezone.now(),
+            youtube_last_status=f"✅ {total_created} articles from {channels.count()} channels",
+            youtube_articles_today=F('youtube_articles_today') + total_created
+        )
+        settings.refresh_from_db()
         
         logger.info(f"[SCHEDULER/YOUTUBE] ✅ Done: {total_created} articles from {channels.count()} channels")
         
@@ -278,6 +285,59 @@ def _score_new_pending_articles():
         logger.error(f"[SCHEDULER/SCORING] ❌ Fatal error: {e}", exc_info=True)
 
 
+def _check_overdue_tasks():
+    """
+    Startup recovery: check if tasks are overdue and run them immediately.
+    Called once shortly after server start to handle tasks that were missed
+    during downtime/deploys.
+    """
+    try:
+        from news.models import AutomationSettings
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        settings = AutomationSettings.load()
+        now = timezone.now()
+        
+        # Clear any stale locks from a previous crash
+        AutomationSettings.objects.filter(pk=1).update(
+            rss_lock=False, rss_lock_at=None,
+            youtube_lock=False, youtube_lock_at=None,
+            auto_publish_lock=False, auto_publish_lock_at=None,
+            score_lock=False, score_lock_at=None,
+        )
+        logger.info("[SCHEDULER] 🔓 Cleared stale locks from previous session")
+        
+        overdue = []
+        
+        # Check RSS
+        if settings.rss_scan_enabled and settings.rss_last_run:
+            rss_interval = timedelta(minutes=settings.rss_scan_interval_minutes)
+            if now - settings.rss_last_run > rss_interval:
+                overdue.append('rss')
+                threading.Thread(target=_run_rss_scan, daemon=True).start()
+        
+        # Check YouTube  
+        if settings.youtube_scan_enabled and settings.youtube_last_run:
+            yt_interval = timedelta(minutes=settings.youtube_scan_interval_minutes)
+            if now - settings.youtube_last_run > yt_interval:
+                overdue.append('youtube')
+                threading.Thread(target=_run_youtube_scan, daemon=True).start()
+        
+        # Check Auto-publish (every 10 mins, so likely always overdue after restart)
+        if settings.auto_publish_enabled:
+            overdue.append('auto-publish')
+            threading.Thread(target=_run_auto_publish, daemon=True).start()
+        
+        if overdue:
+            logger.info(f"[SCHEDULER] 🔄 Startup recovery: triggered overdue tasks: {', '.join(overdue)}")
+        else:
+            logger.info("[SCHEDULER] ✅ Startup recovery: no overdue tasks found")
+            
+    except Exception as e:
+        logger.error(f"[SCHEDULER] ❌ Startup recovery error: {e}", exc_info=True)
+
+
 def start_scheduler():
     """
     Start background scheduler. Called once from AppConfig.ready().
@@ -292,6 +352,11 @@ def start_scheduler():
     if os.environ.get('RUN_MAIN') == 'true' or not os.environ.get('RUN_MAIN'):
         logger.info("🕐 Starting background scheduler (GSC 6h, currency 7d, RSS/YouTube/auto-publish from settings)")
         
+        # --- Startup recovery: check for overdue tasks ---
+        recovery_timer = threading.Timer(30, _check_overdue_tasks)
+        recovery_timer.daemon = True
+        recovery_timer.start()
+        
         # --- Existing tasks ---
         
         # Run first GSC sync after 60 seconds (let app finish starting)
@@ -304,7 +369,7 @@ def start_scheduler():
         currency_timer.daemon = True
         currency_timer.start()
         
-        # --- New automation tasks ---
+        # --- New automation tasks (only start if NOT triggered by recovery) ---
         
         # RSS scan — start after 180 seconds
         rss_timer = threading.Timer(180, _run_rss_scan)

@@ -584,6 +584,62 @@ class RSSFeed(models.Model):
     logo_url = models.URLField(blank=True, help_text="Brand/source logo URL")
     description = models.TextField(blank=True)
     
+    # Content License Status
+    LICENSE_STATUS_CHOICES = [
+        ('unchecked', 'Not Checked'),
+        ('green', 'Free to Use'),
+        ('yellow', 'Use with Caution'),
+        ('red', 'Restricted'),
+    ]
+    license_status = models.CharField(
+        max_length=20, choices=LICENSE_STATUS_CHOICES, default='unchecked',
+        help_text="Content license status based on robots.txt and Terms of Use analysis"
+    )
+    license_details = models.TextField(blank=True, help_text="AI analysis of the site's content licensing terms")
+    license_checked_at = models.DateTimeField(null=True, blank=True)
+    
+    # Safety Check Results (per-step breakdown)
+    safety_checks = models.JSONField(
+        default=dict, blank=True,
+        help_text="Step-by-step safety evaluation: robots_txt, press_portal, tos_analysis, image_rights"
+    )
+    
+    # Image Policy
+    IMAGE_POLICY_CHOICES = [
+        ('original', 'Use Original Images'),          # Press portals — images are for media
+        ('pexels_only', 'Use Pexels Only'),            # Media sites — replace all images with stock
+        ('pexels_fallback', 'Original + Pexels Fallback'),  # Use original if available, else Pexels
+    ]
+    image_policy = models.CharField(
+        max_length=20, choices=IMAGE_POLICY_CHOICES, default='pexels_fallback',
+        help_text="How to source images: original (press), pexels_only (media), or fallback"
+    )
+    
+    @property
+    def safety_score(self):
+        """Computed safety for automation: safe / review / unsafe"""
+        if self.license_status == 'red':
+            return 'unsafe'
+        
+        checks = self.safety_checks or {}
+        if not checks:
+            # No checks performed yet
+            return 'review'
+        
+        passed = sum(1 for c in checks.values() if isinstance(c, dict) and c.get('passed'))
+        total = len([c for c in checks.values() if isinstance(c, dict)])
+        
+        if total == 0:
+            return 'review'
+        
+        # All checks passed = safe, any failed = review
+        if passed == total and self.license_status == 'green':
+            return 'safe'
+        elif passed >= total - 1 and self.license_status == 'green':
+            # One failed check but still green overall
+            return 'review'
+        return 'review'
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -702,6 +758,9 @@ class PendingArticle(models.Model):
     published_article = models.ForeignKey(
         'Article', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='source_pending'
+    )
+    is_auto_published = models.BooleanField(
+        default=False, help_text="Was this article auto-published (vs manually reviewed)"
     )
     
     # Review
@@ -1427,6 +1486,11 @@ class ArticleTitleVariant(models.Model):
     impressions = models.PositiveIntegerField(default=0, help_text="Number of times shown")
     clicks = models.PositiveIntegerField(default=0, help_text="Number of click-throughs")
     is_winner = models.BooleanField(default=False, help_text="Winning variant (applied as main title)")
+    is_active = models.BooleanField(default=True, help_text="Is this test still running?")
+    auto_pick_threshold = models.PositiveIntegerField(
+        default=100,
+        help_text="Minimum impressions per variant before auto-picking winner"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -1444,6 +1508,54 @@ class ArticleTitleVariant(models.Model):
     
     def __str__(self):
         return f"[{self.variant}] {self.title[:60]} (CTR: {self.ctr}%)"
+    
+    @classmethod
+    def check_and_pick_winners(cls):
+        """Auto-pick winners for tests that have enough data.
+        Returns list of (article_id, winning_variant) tuples."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        winners = []
+        # Get articles with active tests
+        active_article_ids = cls.objects.filter(
+            is_active=True, is_winner=False
+        ).values_list('article_id', flat=True).distinct()
+        
+        for article_id in active_article_ids:
+            variants = list(cls.objects.filter(article_id=article_id, is_active=True))
+            if len(variants) < 2:
+                continue
+            
+            threshold = variants[0].auto_pick_threshold
+            # Check if all variants have enough impressions
+            if any(v.impressions < threshold for v in variants):
+                continue
+            
+            # Find the best variant by CTR
+            best = max(variants, key=lambda v: v.ctr)
+            runner_up = sorted(variants, key=lambda v: v.ctr, reverse=True)[1]
+            
+            # Require meaningful CTR difference (>= 0.5 percentage points)
+            if best.ctr - runner_up.ctr < 0.5:
+                continue
+            
+            # Pick winner
+            best.is_winner = True
+            best.save(update_fields=['is_winner'])
+            
+            # Deactivate all variants for this article
+            cls.objects.filter(article_id=article_id).update(is_active=False)
+            
+            # Apply winning title to the article
+            article = Article.objects.get(id=article_id)
+            article.title = best.title
+            article.save(update_fields=['title'])
+            
+            winners.append((article_id, best.variant))
+            logger.info(f"A/B winner picked: Article {article_id} → Variant {best.variant} ({best.ctr}% CTR)")
+        
+        return winners
 
 
 class AdPlacement(models.Model):
@@ -1593,11 +1705,11 @@ class AutomationSettings(models.Model):
     auto_publish_today_count = models.IntegerField(
         default=0, help_text="Counter: articles auto-published today"
     )
-    auto_publish_today_date = models.DateField(
-        null=True, blank=True, help_text="Date for today's counter"
-    )
     auto_publish_last_run = models.DateTimeField(
         null=True, blank=True, help_text="When auto-publish last checked"
+    )
+    auto_publish_require_safe_feed = models.BooleanField(
+        default=True, help_text="Only auto-publish articles from feeds with safety_score != 'unsafe'"
     )
     
     # === Auto-Image ===
@@ -1617,6 +1729,38 @@ class AutomationSettings(models.Model):
     google_indexing_enabled = models.BooleanField(
         default=True, help_text="Auto-submit published articles to Google Indexing API"
     )
+    google_indexing_last_run = models.DateTimeField(
+        null=True, blank=True, help_text="When Google Indexing last submitted"
+    )
+    google_indexing_last_status = models.CharField(
+        max_length=500, blank=True, default='', help_text="Last indexing result"
+    )
+    google_indexing_today_count = models.IntegerField(
+        default=0, help_text="Articles indexed today"
+    )
+    
+    # === Auto-Image tracking ===
+    auto_image_last_run = models.DateTimeField(
+        null=True, blank=True, help_text="When auto-image last ran"
+    )
+    auto_image_last_status = models.CharField(
+        max_length=500, blank=True, default='', help_text="Last auto-image result"
+    )
+    auto_image_today_count = models.IntegerField(
+        default=0, help_text="Images generated today"
+    )
+    
+    # === Task Locks (prevent concurrent execution) ===
+    rss_lock = models.BooleanField(default=False)
+    rss_lock_at = models.DateTimeField(null=True, blank=True)
+    youtube_lock = models.BooleanField(default=False)
+    youtube_lock_at = models.DateTimeField(null=True, blank=True)
+    auto_publish_lock = models.BooleanField(default=False)
+    auto_publish_lock_at = models.DateTimeField(null=True, blank=True)
+    score_lock = models.BooleanField(default=False)
+    score_lock_at = models.DateTimeField(null=True, blank=True)
+    
+    LOCK_STALE_MINUTES = 10  # Release lock if older than this
     
     # === Counters reset tracking ===
     counters_reset_date = models.DateField(
@@ -1653,12 +1797,102 @@ class AutomationSettings(models.Model):
         today = timezone.now().date()
         if self.counters_reset_date != today:
             self.auto_publish_today_count = 0
-            self.auto_publish_today_date = today
             self.rss_articles_today = 0
             self.youtube_articles_today = 0
+            self.auto_image_today_count = 0
+            self.google_indexing_today_count = 0
             self.counters_reset_date = today
             self.save(update_fields=[
-                'auto_publish_today_count', 'auto_publish_today_date',
+                'auto_publish_today_count',
                 'rss_articles_today', 'youtube_articles_today',
+                'auto_image_today_count', 'google_indexing_today_count',
                 'counters_reset_date'
             ])
+    
+    @classmethod
+    def acquire_lock(cls, task_name: str) -> bool:
+        """
+        Atomically acquire a task lock. Returns True if acquired.
+        Auto-releases stale locks older than LOCK_STALE_MINUTES.
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        lock_field = f'{task_name}_lock'
+        lock_at_field = f'{task_name}_lock_at'
+        now = timezone.now()
+        stale_cutoff = now - timedelta(minutes=cls.LOCK_STALE_MINUTES)
+        
+        # Try to acquire: only succeed if lock is False OR lock is stale
+        from django.db.models import Q
+        updated = cls.objects.filter(
+            Q(pk=1) & (
+                Q(**{lock_field: False}) |
+                Q(**{lock_at_field + '__lt': stale_cutoff})
+            )
+        ).update(**{lock_field: True, lock_at_field: now})
+        
+        return updated > 0
+    
+    @classmethod
+    def release_lock(cls, task_name: str):
+        """Release a task lock."""
+        lock_field = f'{task_name}_lock'
+        lock_at_field = f'{task_name}_lock_at'
+        cls.objects.filter(pk=1).update(**{lock_field: False, lock_at_field: None})
+
+
+class AutoPublishLog(models.Model):
+    """Logs every auto-publish decision for transparency and ML training data."""
+    DECISION_CHOICES = [
+        ('published', 'Published'),
+        ('skipped_quality', 'Skipped: Low Quality'),
+        ('skipped_safety', 'Skipped: Feed Unsafe'),
+        ('skipped_no_image', 'Skipped: No Image'),
+        ('skipped_limit', 'Skipped: Rate Limit'),
+        ('failed', 'Failed: Error'),
+    ]
+    
+    pending_article = models.ForeignKey(
+        PendingArticle, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='publish_logs'
+    )
+    published_article = models.ForeignKey(
+        'Article', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='publish_logs'
+    )
+    
+    decision = models.CharField(max_length=30, choices=DECISION_CHOICES)
+    reason = models.TextField(help_text="Human-readable explanation")
+    
+    # Snapshot of scores at decision time
+    quality_score = models.IntegerField(default=0)
+    safety_score = models.CharField(max_length=20, blank=True, default='')
+    image_policy = models.CharField(max_length=20, blank=True, default='')
+    
+    # Source info
+    feed_name = models.CharField(max_length=300, blank=True, default='')
+    source_type = models.CharField(max_length=20, blank=True, default='')
+    article_title = models.CharField(max_length=500, blank=True, default='')
+    
+    # ML training features
+    content_length = models.IntegerField(default=0, help_text="Article content length in chars")
+    has_image = models.BooleanField(default=False)
+    has_specs = models.BooleanField(default=False)
+    tag_count = models.IntegerField(default=0)
+    category_name = models.CharField(max_length=100, blank=True, default='')
+    source_is_youtube = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Auto-Publish Log'
+        verbose_name_plural = 'Auto-Publish Logs'
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['decision']),
+        ]
+    
+    def __str__(self):
+        return f"{self.decision}: {self.article_title[:50]}"

@@ -8,7 +8,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # Optional, not used by default
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")  # Main AI provider (free, fast)
 
 # AI Provider: 'groq' (recommended) or 'openai'
-AI_PROVIDER = os.getenv("AI_PROVIDER", "groq")
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

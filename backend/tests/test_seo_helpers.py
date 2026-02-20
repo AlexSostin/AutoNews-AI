@@ -128,3 +128,26 @@ class TestExtractKeywordsFromContent:
         
         assert isinstance(keywords, list)
         assert len(keywords) == 0
+
+
+class TestSEOEdgeCases:
+    """Edge case tests for SEO helpers"""
+
+    def test_unicode_title_keywords(self, sample_analysis):
+        """Should handle Unicode characters in titles"""
+        keywords = generate_seo_keywords(sample_analysis, "2024 Citroën ë-C4 X Review")
+        assert isinstance(keywords, str)
+        assert len(keywords) > 0
+
+    def test_very_long_title(self, sample_analysis):
+        """Should handle very long titles"""
+        long_title = "A " * 100 + "Title"
+        keywords = generate_seo_keywords(sample_analysis, long_title)
+        assert isinstance(keywords, str)
+        assert len(keywords) > 0
+
+    def test_special_characters_content(self):
+        """Should handle special characters in content"""
+        content = "BMW's M3 – the #1 car for $50,000 & under! <em>Amazing.</em>"
+        keywords = extract_keywords_from_content(content)
+        assert isinstance(keywords, list)

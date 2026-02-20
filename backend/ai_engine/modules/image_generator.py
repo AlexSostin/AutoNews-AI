@@ -48,7 +48,7 @@ SCENE_STYLES = {
 IMAGE_MODEL = os.getenv('GEMINI_IMAGE_MODEL', 'gemini-2.0-flash-exp-image-generation')
 
 
-def generate_car_image(image_url: str, car_name: str, style: str = 'scenic_road') -> dict:
+def generate_car_image(image_url: str, car_name: str, style: str = 'scenic_road', custom_prompt: str = '') -> dict:
     """
     Generate a photorealistic car image based on a reference image.
     
@@ -56,6 +56,7 @@ def generate_car_image(image_url: str, car_name: str, style: str = 'scenic_road'
         image_url: URL of the reference image (existing thumbnail)
         car_name: e.g., "2025 BYD Seal EV"
         style: key from SCENE_STYLES dict
+        custom_prompt: Optional custom prompt to override the default car photo prompt
         
     Returns:
         dict with 'success', 'image_data' (base64), 'mime_type', or 'error'
@@ -70,24 +71,39 @@ def generate_car_image(image_url: str, car_name: str, style: str = 'scenic_road'
     if not api_key:
         return {'success': False, 'error': 'GEMINI_API_KEY not set'}
     
-    scene_desc = SCENE_STYLES.get(style, SCENE_STYLES['scenic_road'])
-    
-    prompt = (
-        f"Create a stunning photorealistic automotive photograph of this exact car: {car_name}. "
-        f"\n\nScene: Place the car {scene_desc}. "
-        f"\n\nPhotography direction: "
-        f"Shot with a Canon EOS R5, 85mm f/1.4 lens at eye level, three-quarter front angle. "
-        f"Professional 3-point automotive lighting setup. Shallow depth of field with the car "
-        f"in tack-sharp focus. Rule of thirds composition. "
-        f"Rich, vibrant color grading with cinematic warmth. "
-        f"Ultra-realistic reflections on paint and glass surfaces. "
-        f"Visible microdetails: panel gaps, badge lettering, tire tread. "
-        f"\n\nCritical requirements: "
-        f"The car must match the EXACT make, model, body shape, headlights, grille, and color "
-        f"from the reference image. Do NOT change the car's design. "
-        f"NO text, watermarks, logos, or license plates. "
-        f"Output a single hero shot, magazine cover quality."
-    )
+    if custom_prompt and custom_prompt.strip():
+        # User provided a custom prompt — use it with photography enhancements
+        prompt = (
+            f"{custom_prompt.strip()}"
+            f"\n\nPhotography direction: "
+            f"Shot with a Canon EOS R5, 85mm f/1.4 lens. Professional lighting setup. "
+            f"Shallow depth of field, tack-sharp focus on the main subject. "
+            f"Rich, vibrant color grading with cinematic warmth. Ultra-realistic details. "
+            f"\n\nCritical requirements: "
+            f"Use the reference image as visual context/inspiration. "
+            f"NO text, watermarks, or logos. "
+            f"Output a single stunning, magazine-quality photograph."
+        )
+    else:
+        # Default auto-prompt for car photos
+        scene_desc = SCENE_STYLES.get(style, SCENE_STYLES['scenic_road'])
+        
+        prompt = (
+            f"Create a stunning photorealistic automotive photograph of this exact car: {car_name}. "
+            f"\n\nScene: Place the car {scene_desc}. "
+            f"\n\nPhotography direction: "
+            f"Shot with a Canon EOS R5, 85mm f/1.4 lens at eye level, three-quarter front angle. "
+            f"Professional 3-point automotive lighting setup. Shallow depth of field with the car "
+            f"in tack-sharp focus. Rule of thirds composition. "
+            f"Rich, vibrant color grading with cinematic warmth. "
+            f"Ultra-realistic reflections on paint and glass surfaces. "
+            f"Visible microdetails: panel gaps, badge lettering, tire tread. "
+            f"\n\nCritical requirements: "
+            f"The car must match the EXACT make, model, body shape, headlights, grille, and color "
+            f"from the reference image. Do NOT change the car's design. "
+            f"NO text, watermarks, logos, or license plates. "
+            f"Output a single hero shot, magazine cover quality."
+        )
     
     try:
         # 1. Download reference image

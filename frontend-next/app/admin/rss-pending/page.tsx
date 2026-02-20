@@ -123,7 +123,7 @@ export default function RSSNewsPage() {
         setGeneratingId(itemId);
         try {
             const response = await api.post(`/rss-news-items/${itemId}/generate/`, {
-                provider: 'groq',
+                provider: 'gemini',
             });
             if (response.data.success) {
                 alert(`✅ Article generated: ${response.data.message}`);

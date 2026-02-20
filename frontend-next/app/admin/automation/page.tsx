@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getApiUrl } from '@/lib/api';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 const API_URL = getApiUrl();
@@ -24,12 +25,37 @@ interface AutomationSettings {
     auto_publish_max_per_hour: number;
     auto_publish_max_per_day: number;
     auto_publish_require_image: boolean;
+    auto_publish_require_safe_feed: boolean;
     auto_publish_today_count: number;
-    auto_publish_today_date: string | null;
     auto_publish_last_run: string | null;
     auto_image_mode: string;
     auto_image_prefer_press: boolean;
+    auto_image_last_run: string | null;
+    auto_image_last_status: string;
+    auto_image_today_count: number;
     google_indexing_enabled: boolean;
+    google_indexing_last_run: string | null;
+    google_indexing_last_status: string;
+    google_indexing_today_count: number;
+    rss_lock: boolean;
+    youtube_lock: boolean;
+    auto_publish_lock: boolean;
+    score_lock: boolean;
+}
+
+interface DecisionEntry {
+    id: number;
+    title: string;
+    decision: string;
+    reason: string;
+    quality_score: number;
+    safety_score: string;
+    image_policy: string;
+    feed_name: string;
+    source_type: string;
+    has_image: boolean;
+    source_is_youtube: boolean;
+    created_at: string;
 }
 
 interface AutomationStats {
@@ -39,6 +65,20 @@ interface AutomationStats {
     auto_published_today: number;
     rss_articles_today: number;
     youtube_articles_today: number;
+    safety_overview: {
+        safety_counts: { safe: number; review: number; unsafe: number };
+        image_policy_counts: { original: number; pexels_only: number; pexels_fallback: number; unchecked: number };
+        total_feeds: number;
+    };
+    eligible: {
+        total: number;
+        safe: number;
+        review: number;
+        unsafe: number;
+    };
+    recent_decisions: DecisionEntry[];
+    decision_breakdown: Record<string, number>;
+    total_decisions: number;
     recent_auto_published: Array<{
         id: number;
         title: string;
@@ -65,6 +105,7 @@ export default function AutomationPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [triggering, setTriggering] = useState<string | null>(null);
+    const [decisionFilter, setDecisionFilter] = useState<string>('all');
 
     const fetchData = useCallback(async () => {
         try {
@@ -128,6 +169,8 @@ export default function AutomationPage() {
             if (res.ok) {
                 toast.success(`${taskType} triggered!`);
                 setTimeout(fetchData, 5000);
+            } else if (res.status === 409) {
+                toast.error(`${taskType} is already running`);
             } else {
                 toast.error('Trigger failed');
             }
@@ -156,6 +199,10 @@ export default function AutomationPage() {
         );
     }
 
+    const filteredDecisions = stats?.recent_decisions?.filter(d =>
+        decisionFilter === 'all' ? true : d.decision === decisionFilter
+    ) || [];
+
     return (
         <div>
             {/* Header */}
@@ -177,6 +224,55 @@ export default function AutomationPage() {
                     <StatCard label="Auto-Published" value={stats.auto_published_today} icon="🤖" color="text-purple-600" />
                     <StatCard label="RSS Today" value={stats.rss_articles_today} icon="📡" color="text-orange-600" />
                     <StatCard label="YouTube Today" value={stats.youtube_articles_today} icon="🎬" color="text-red-600" />
+                </div>
+            )}
+
+            {/* Safety Overview Bar */}
+            {stats?.safety_overview && (
+                <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-black text-gray-900">🛡️ Feed Safety Overview</h3>
+                        <Link href="/admin/rss-feeds" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
+                            Manage Feeds →
+                        </Link>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        {/* Safety counts */}
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-200">
+                            <span className="text-sm">✅</span>
+                            <span className="text-sm font-bold text-emerald-800">Safe: {stats.safety_overview.safety_counts.safe}</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 rounded-lg border border-amber-200">
+                            <span className="text-sm">🟡</span>
+                            <span className="text-sm font-bold text-amber-800">Review: {stats.safety_overview.safety_counts.review}</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 rounded-lg border border-red-200">
+                            <span className="text-sm">🔴</span>
+                            <span className="text-sm font-bold text-red-800">Unsafe: {stats.safety_overview.safety_counts.unsafe}</span>
+                        </div>
+
+                        <div className="w-px bg-gray-300 mx-1 self-stretch"></div>
+
+                        {/* Image policy counts */}
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
+                            <span className="text-sm">📷</span>
+                            <span className="text-sm font-bold text-blue-800">Original: {stats.safety_overview.image_policy_counts.original}</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg border border-purple-200">
+                            <span className="text-sm">🖼️</span>
+                            <span className="text-sm font-bold text-purple-800">Pexels: {stats.safety_overview.image_policy_counts.pexels_only}</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-200">
+                            <span className="text-sm">📷+🖼️</span>
+                            <span className="text-sm font-bold text-indigo-800">Fallback: {stats.safety_overview.image_policy_counts.pexels_fallback}</span>
+                        </div>
+                        {stats.safety_overview.image_policy_counts.unchecked > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                                <span className="text-sm">⚠️</span>
+                                <span className="text-sm font-bold text-gray-600">Unchecked: {stats.safety_overview.image_policy_counts.unchecked}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -207,15 +303,18 @@ export default function AutomationPage() {
                         </select>
                     </SettingRow>
                     <SettingRow label="Max per scan">
-                        <input
-                            type="number"
+                        <NumberInput
                             min={1}
                             max={50}
                             value={settings.rss_max_articles_per_scan}
-                            onChange={(e) => updateSetting('rss_max_articles_per_scan', parseInt(e.target.value) || 10)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                            onSave={(v) => updateSetting('rss_max_articles_per_scan', v)}
+                            fallback={10}
                         />
                     </SettingRow>
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-3">
+                        <Link href="/admin/rss-feeds" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">📡 Manage Feeds →</Link>
+                        <Link href="/admin/rss-pending" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">📰 View RSS News →</Link>
+                    </div>
                 </ModuleCard>
 
                 {/* YouTube Scanning */}
@@ -241,18 +340,20 @@ export default function AutomationPage() {
                         </select>
                     </SettingRow>
                     <SettingRow label="Max per scan">
-                        <input
-                            type="number"
+                        <NumberInput
                             min={1}
                             max={20}
                             value={settings.youtube_max_videos_per_scan}
-                            onChange={(e) => updateSetting('youtube_max_videos_per_scan', parseInt(e.target.value) || 3)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                            onSave={(v) => updateSetting('youtube_max_videos_per_scan', v)}
+                            fallback={3}
                         />
                     </SettingRow>
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                        <Link href="/admin/youtube-channels" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">🎬 Manage Channels →</Link>
+                    </div>
                 </ModuleCard>
 
-                {/* Auto-Publish */}
+                {/* Auto-Publish (upgraded) */}
                 <ModuleCard
                     title="📝 Auto-Publish"
                     enabled={settings.auto_publish_enabled}
@@ -281,23 +382,21 @@ export default function AutomationPage() {
                         </div>
                     </SettingRow>
                     <SettingRow label="Max per hour">
-                        <input
-                            type="number"
+                        <NumberInput
                             min={1}
                             max={20}
                             value={settings.auto_publish_max_per_hour}
-                            onChange={(e) => updateSetting('auto_publish_max_per_hour', parseInt(e.target.value) || 3)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                            onSave={(v) => updateSetting('auto_publish_max_per_hour', v)}
+                            fallback={3}
                         />
                     </SettingRow>
                     <SettingRow label="Max per day">
-                        <input
-                            type="number"
+                        <NumberInput
                             min={1}
                             max={100}
                             value={settings.auto_publish_max_per_day}
-                            onChange={(e) => updateSetting('auto_publish_max_per_day', parseInt(e.target.value) || 20)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                            onSave={(v) => updateSetting('auto_publish_max_per_day', v)}
+                            fallback={20}
                         />
                     </SettingRow>
                     <SettingRow label="Require image">
@@ -306,6 +405,34 @@ export default function AutomationPage() {
                             onChange={(v) => updateSetting('auto_publish_require_image', v)}
                         />
                     </SettingRow>
+                    <SettingRow label="Only safe feeds">
+                        <ToggleSwitch
+                            checked={settings.auto_publish_require_safe_feed}
+                            onChange={(v) => updateSetting('auto_publish_require_safe_feed', v)}
+                        />
+                    </SettingRow>
+
+                    {/* Eligibility indicator */}
+                    {stats?.eligible && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-100">
+                                <p className="text-sm font-bold text-indigo-900 mb-1">
+                                    📊 {stats.eligible.total} articles eligible
+                                </p>
+                                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                                    <span className="text-emerald-700">✅ {stats.eligible.safe} safe</span>
+                                    <span className="text-amber-700">🟡 {stats.eligible.review} review</span>
+                                    {stats.eligible.unsafe > 0 && (
+                                        <span className="text-red-700">🔴 {stats.eligible.unsafe} unsafe{settings.auto_publish_require_safe_feed ? ' (blocked)' : ''}</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                        <Link href="/admin/articles" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">📝 View Articles →</Link>
+                    </div>
                 </ModuleCard>
 
                 {/* Auto-Image (AI) */}
@@ -313,8 +440,8 @@ export default function AutomationPage() {
                     title="📸 Auto-Image (AI)"
                     enabled={settings.auto_image_mode !== 'off'}
                     onToggle={(v) => updateSetting('auto_image_mode', v ? 'search_first' : 'off')}
-                    lastRun={null}
-                    lastStatus={settings.auto_image_mode === 'off' ? 'Disabled' : 'Find reference → AI generate'}
+                    lastRun={settings.auto_image_last_run}
+                    lastStatus={settings.auto_image_mode === 'off' ? 'Disabled' : (settings.auto_image_last_status || `${settings.auto_image_today_count || 0} images today`)}
                     saving={saving}
                 >
                     <SettingRow label="Prefer press photos">
@@ -326,10 +453,10 @@ export default function AutomationPage() {
                     <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 leading-relaxed border border-gray-100">
                         <p className="font-bold text-gray-800 mb-1">How it works:</p>
                         <div className="space-y-0.5">
-                            <p>1️⃣ Searches for car photos (press or any available)</p>
-                            <p>2️⃣ Uses found photo as <strong>reference</strong> for AI</p>
-                            <p>3️⃣ Publishes <strong>only the AI-generated image</strong> (no copyright)</p>
-                            <p>4️⃣ If no reference found → skips</p>
+                            <p>1️⃣ Uses feed&apos;s <strong>image_policy</strong> to decide source</p>
+                            <p>2️⃣ <strong>Original</strong>: uses press photos directly</p>
+                            <p>3️⃣ <strong>Pexels</strong>: searches Pexels for matching photo</p>
+                            <p>4️⃣ <strong>Fallback</strong>: tries original, falls back to Pexels</p>
                         </div>
                     </div>
                 </ModuleCard>
@@ -339,14 +466,17 @@ export default function AutomationPage() {
                     title="🔍 Google Indexing"
                     enabled={settings.google_indexing_enabled}
                     onToggle={(v) => updateSetting('google_indexing_enabled', v)}
-                    lastRun={null}
-                    lastStatus="Submits on publish"
+                    lastRun={settings.google_indexing_last_run}
+                    lastStatus={settings.google_indexing_last_status || `${settings.google_indexing_today_count || 0} indexed today`}
                     saving={saving}
                 >
                     <p className="text-sm text-gray-600">
                         When enabled, newly published articles are automatically submitted to the Google Indexing API
                         for faster crawling and indexing.
                     </p>
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                        <Link href="/admin/analytics" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">📊 View Analytics →</Link>
+                    </div>
                 </ModuleCard>
 
                 {/* Quality Scoring */}
@@ -372,30 +502,130 @@ export default function AutomationPage() {
                 </div>
             </div>
 
-            {/* Recent Auto-Published */}
-            {stats && stats.recent_auto_published.length > 0 && (
+            {/* Decision Log */}
+            {stats && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-black text-gray-950 mb-3">🕐 Recently Auto-Published</h3>
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-black text-gray-950">📋 Auto-Publish Decision Log</h3>
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={decisionFilter}
+                                onChange={(e) => setDecisionFilter(e.target.value)}
+                                className="px-3 py-1.5 text-sm text-gray-800 font-medium border rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="all">All Decisions</option>
+                                <option value="published">✅ Published</option>
+                                <option value="skipped_quality">⏭️ Low Quality</option>
+                                <option value="skipped_safety">🛡️ Unsafe Feed</option>
+                                <option value="skipped_no_image">📷 No Image</option>
+                                <option value="failed">❌ Failed</option>
+                            </select>
+                        </div>
+                    </div>
                     <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                        {stats.recent_auto_published.map((item, i) => (
-                            <div key={item.id} className={`px-4 py-3 flex items-center justify-between ${i < stats.recent_auto_published.length - 1 ? 'border-b border-gray-100' : ''
-                                }`}>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-gray-900 truncate">{item.title}</p>
-                                </div>
-                                <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${item.quality_score >= 7
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-amber-100 text-amber-700'
-                                        }`}>
-                                        Q: {item.quality_score}/10
-                                    </span>
-                                    <span className="text-xs text-gray-500 font-semibold">
-                                        {timeAgo(item.published_at)}
-                                    </span>
-                                </div>
+                        {filteredDecisions.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500">
+                                <p className="text-lg mb-1">📭</p>
+                                <p className="text-sm font-medium">No decisions logged yet</p>
+                                <p className="text-xs text-gray-400 mt-1">Decisions will appear here after auto-publish runs</p>
                             </div>
-                        ))}
+                        ) : (
+                            <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
+                                {filteredDecisions.map((d) => {
+                                    const isPublished = d.decision === 'published';
+                                    const isFailed = d.decision === 'failed';
+                                    const rowBg = isPublished ? 'bg-emerald-50/50' : isFailed ? 'bg-red-50/50' : '';
+
+                                    return (
+                                        <div key={d.id} className={`px-4 py-3 flex items-center gap-3 ${rowBg}`}>
+                                            {/* Decision icon */}
+                                            <span className="text-lg flex-shrink-0">
+                                                {isPublished ? '✅' : isFailed ? '❌' :
+                                                    d.decision === 'skipped_safety' ? '🛡️' :
+                                                        d.decision === 'skipped_quality' ? '⏭️' :
+                                                            d.decision === 'skipped_no_image' ? '📷' : '⏸️'}
+                                            </span>
+
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-gray-900 truncate">{d.title}</p>
+                                                <p className="text-xs text-gray-500 mt-0.5">{d.reason}</p>
+                                            </div>
+
+                                            {/* Meta badges */}
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                                {/* Quality */}
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${d.quality_score >= 7 ? 'bg-emerald-100 text-emerald-700' :
+                                                        d.quality_score >= 5 ? 'bg-amber-100 text-amber-700' :
+                                                            'bg-red-100 text-red-700'
+                                                    }`}>
+                                                    Q:{d.quality_score}
+                                                </span>
+
+                                                {/* Safety */}
+                                                {d.safety_score && (
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${d.safety_score === 'safe' ? 'bg-emerald-100 text-emerald-700' :
+                                                            d.safety_score === 'unsafe' ? 'bg-red-100 text-red-700' :
+                                                                'bg-amber-100 text-amber-700'
+                                                        }`}>
+                                                        {d.safety_score === 'safe' ? '✅' : d.safety_score === 'unsafe' ? '🔴' : '🟡'}
+                                                    </span>
+                                                )}
+
+                                                {/* Source type */}
+                                                <span className="text-xs text-gray-400">
+                                                    {d.source_is_youtube ? '🎬' : '📡'} {d.feed_name?.substring(0, 15)}
+                                                </span>
+
+                                                {/* Time */}
+                                                <span className="text-xs text-gray-500 font-semibold whitespace-nowrap">
+                                                    {timeAgo(d.created_at)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ML Training Data Indicator */}
+            {stats && stats.total_decisions > 0 && (
+                <div className="mt-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200 p-4">
+                    <div className="flex items-center gap-3">
+                        <span className="text-2xl">🧠</span>
+                        <div className="flex-1">
+                            <p className="text-sm font-black text-purple-900">ML Training Data</p>
+                            <p className="text-xs text-purple-700 mt-0.5">
+                                <strong>{stats.total_decisions.toLocaleString()}</strong> decisions logged
+                                {stats.decision_breakdown && (
+                                    <span>
+                                        {' • '}
+                                        <span className="text-emerald-700">{stats.decision_breakdown.published || 0} published</span>
+                                        {' • '}
+                                        <span className="text-amber-700">{
+                                            (stats.decision_breakdown.skipped_quality || 0) +
+                                            (stats.decision_breakdown.skipped_safety || 0) +
+                                            (stats.decision_breakdown.skipped_no_image || 0) +
+                                            (stats.decision_breakdown.skipped_limit || 0)
+                                        } skipped</span>
+                                        {(stats.decision_breakdown.failed || 0) > 0 && (
+                                            <>
+                                                {' • '}
+                                                <span className="text-red-700">{stats.decision_breakdown.failed} failed</span>
+                                            </>
+                                        )}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-purple-600 font-medium">
+                                Collecting features for future ML model
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
@@ -454,8 +684,8 @@ function ModuleCard({
                 <span className="text-gray-500">{timeAgo(lastRun)}</span>
             </div>
 
-            {/* Settings */}
-            <div className={`flex flex-col gap-3 ${enabled ? '' : 'opacity-40 pointer-events-none'}`}>
+            {/* Settings — always editable, just dimmed when OFF */}
+            <div className={`flex flex-col gap-3 ${enabled ? '' : 'opacity-60'}`}>
                 {children}
             </div>
 
@@ -497,5 +727,42 @@ function ToggleSwitch({ checked, onChange, disabled }: { checked: boolean; onCha
             <div className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow-md transition-all ${checked ? 'left-[26px]' : 'left-[3px]'
                 }`} />
         </button>
+    );
+}
+
+function NumberInput({ value, onSave, min, max, fallback }: {
+    value: number; onSave: (v: number) => void; min: number; max: number; fallback: number
+}) {
+    const [local, setLocal] = useState(String(value));
+    const prevValue = useRef(value);
+
+    // Sync from parent when settings re-fetch (e.g. 30s auto-refresh)
+    useEffect(() => {
+        if (value !== prevValue.current) {
+            setLocal(String(value));
+            prevValue.current = value;
+        }
+    }, [value]);
+
+    const commit = () => {
+        const num = parseInt(local) || fallback;
+        const clamped = Math.max(min, Math.min(max, num));
+        setLocal(String(clamped));
+        if (clamped !== value) {
+            onSave(clamped);
+        }
+    };
+
+    return (
+        <input
+            type="number"
+            min={min}
+            max={max}
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+        />
     );
 }

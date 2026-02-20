@@ -475,9 +475,152 @@ def _classify_license(image_url: str, source: str) -> str:
     return 'unknown'
 
 
+def _search_bing_images(query: str, max_results: int = 20) -> list:
+    """
+    Fallback: scrape Bing Image Search results directly.
+    More reliable than DuckDuckGo API which often returns 403 in Docker.
+    """
+    try:
+        url = f"https://www.bing.com/images/search"
+        params = {
+            'q': query,
+            'first': 1,
+            'count': max_results,
+            'qft': '+filterui:imagesize-large+filterui:photo-photo',
+        }
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+        
+        resp = requests.get(url, params=params, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            logger.warning(f"Bing image search returned status {resp.status_code}")
+            return []
+        
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        results = []
+        
+        import json as _json
+        
+        # Bing stores image data in 'm' attribute as JSON
+        for item in soup.select('a.iusc'):
+            try:
+                m_data = _json.loads(item.get('m', '{}'))
+                image_url = m_data.get('murl', '')
+                thumbnail = m_data.get('turl', '')
+                title = m_data.get('t', '') or item.get('title', '')
+                source = m_data.get('purl', '')
+                
+                if not image_url:
+                    continue
+                
+                # Skip blocked domains
+                if any(d in image_url.lower() for d in _IMAGE_BLOCKED_DOMAINS):
+                    continue
+                
+                # Classify license
+                license_type = _classify_license(image_url, source)
+                
+                results.append({
+                    'title': title,
+                    'url': image_url,
+                    'thumbnail': thumbnail or image_url,
+                    'source': source,
+                    'width': 0,
+                    'height': 0,
+                    'is_press': license_type == 'editorial',
+                    'license': license_type,
+                })
+                
+                if len(results) >= max_results:
+                    break
+            except Exception:
+                continue
+        
+        logger.info(f"Bing image search for '{query}': {len(results)} results")
+        return results
+        
+    except Exception as e:
+        logger.warning(f"Bing image search failed: {e}")
+        return []
+
+
+def _search_google_images(query: str, max_results: int = 20) -> list:
+    """
+    Fallback: scrape Google Image Search results.
+    Last resort if both DDGS and Bing fail.
+    """
+    try:
+        url = "https://www.google.com/search"
+        params = {
+            'q': query,
+            'tbm': 'isch',
+            'tbs': 'isz:l,itp:photo',  # Large photos only
+        }
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+        
+        resp = requests.get(url, params=params, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            return []
+        
+        import json as _json
+        
+        # Google embeds image data in script tags
+        results = []
+        # Try to find image URLs in the response using regex
+        # Google embeds the image data in various formats
+        image_matches = re.findall(r'\["(https?://[^"]+\.(?:jpg|jpeg|png|webp))',  resp.text, re.IGNORECASE)
+        
+        seen_urls = set()
+        for img_url in image_matches:
+            if img_url in seen_urls:
+                continue
+            seen_urls.add(img_url)
+            
+            # Skip blocked, Google internal, and tiny tracking pixels
+            if any(d in img_url.lower() for d in _IMAGE_BLOCKED_DOMAINS):
+                continue
+            if 'gstatic.com' in img_url or 'google.com' in img_url:
+                continue
+            
+            license_type = _classify_license(img_url, '')
+            
+            results.append({
+                'title': query,
+                'url': img_url,
+                'thumbnail': img_url,
+                'source': '',
+                'width': 0,
+                'height': 0,
+                'is_press': license_type == 'editorial',
+                'license': license_type,
+            })
+            
+            if len(results) >= max_results:
+                break
+        
+        logger.info(f"Google image search for '{query}': {len(results)} results")
+        return results
+        
+    except Exception as e:
+        logger.warning(f"Google image search failed: {e}")
+        return []
+
+
 def search_car_images(query: str, max_results: int = 20) -> list:
     """
-    Search for car press photos using DuckDuckGo Image Search.
+    Search for car press photos using multiple providers with fallback.
+    
+    Priority:
+    1. DuckDuckGo Image API (best metadata, but often 403 in Docker)
+    2. Bing Image scraping (reliable, good metadata)
+    3. Google Image scraping (last resort, less metadata)
     
     Args:
         query: Search query, e.g. "2025 XPeng G9 press photo"
@@ -487,64 +630,69 @@ def search_car_images(query: str, max_results: int = 20) -> list:
         List of dicts with: title, url, thumbnail, source, width, height,
         is_press, license ('editorial', 'cc', 'unknown')
     """
-    if not HAS_DDGS:
-        logger.warning("DDGS not available for image search")
-        return []
+    results = []
     
-    try:
-        with DDGS() as ddgs:
-            raw_results = list(ddgs.images(
-                query,
-                region='wt-wt',
-                safesearch='moderate',
-                size='Large',        # Only large images
-                type_image='photo',  # Only photos, not clipart
-                max_results=max_results * 2,  # Fetch extra to filter
-            ))
-        
-        results = []
-        for r in raw_results:
-            image_url = r.get('image', '')
-            thumbnail = r.get('thumbnail', '')
-            title = r.get('title', '')
-            source = r.get('source', '')
-            width = r.get('width', 0)
-            height = r.get('height', 0)
+    # ── Tier 1: DuckDuckGo API (best results when it works) ──
+    if HAS_DDGS:
+        try:
+            with DDGS() as ddgs:
+                raw_results = list(ddgs.images(
+                    query,
+                    region='wt-wt',
+                    safesearch='moderate',
+                    size='Large',
+                    type_image='photo',
+                    max_results=max_results * 2,
+                ))
             
-            # Skip blocked domains
-            if any(d in image_url.lower() for d in _IMAGE_BLOCKED_DOMAINS):
-                continue
+            for r in raw_results:
+                image_url = r.get('image', '')
+                thumbnail = r.get('thumbnail', '')
+                title = r.get('title', '')
+                source = r.get('source', '')
+                width = r.get('width', 0)
+                height = r.get('height', 0)
+                
+                if any(d in image_url.lower() for d in _IMAGE_BLOCKED_DOMAINS):
+                    continue
+                if width and height and (width < 400 or height < 300):
+                    continue
+                
+                license_type = _classify_license(image_url, source)
+                results.append({
+                    'title': title,
+                    'url': image_url,
+                    'thumbnail': thumbnail or image_url,
+                    'source': source,
+                    'width': width or 0,
+                    'height': height or 0,
+                    'is_press': license_type == 'editorial',
+                    'license': license_type,
+                })
+                
+                if len(results) >= max_results:
+                    break
             
-            # Skip small images
-            if width and height and (width < 400 or height < 300):
-                continue
-            
-            # Classify license
-            license_type = _classify_license(image_url, source)
-            is_press = license_type == 'editorial'
-            
-            results.append({
-                'title': title,
-                'url': image_url,
-                'thumbnail': thumbnail or image_url,
-                'source': source,
-                'width': width or 0,
-                'height': height or 0,
-                'is_press': is_press,
-                'license': license_type,
-            })
-            
-            if len(results) >= max_results:
-                break
-        
-        # Sort: editorial first, then CC, then unknown; within each group by resolution
+            if results:
+                logger.info(f"DDGS image search for '{query}': {len(results)} results")
+        except Exception as e:
+            logger.warning(f"DDGS image search failed (will try Bing): {e}")
+    
+    # ── Tier 2: Bing Image scraping (reliable fallback) ──
+    if not results:
+        logger.info(f"Trying Bing Image Search for '{query}'...")
+        results = _search_bing_images(query, max_results=max_results)
+    
+    # ── Tier 3: Google Image scraping (last resort) ──
+    if not results:
+        logger.info(f"Trying Google Image Search for '{query}'...")
+        results = _search_google_images(query, max_results=max_results)
+    
+    # ── Sort: editorial first, then CC, then unknown ──
+    if results:
         license_order = {'editorial': 0, 'cc': 1, 'unknown': 2}
-        results.sort(key=lambda x: (license_order.get(x['license'], 2), -(x['width'] * x['height'])))
-        
-        logger.info(f"Image search for '{query}': {len(results)} results")
-        return results
-        
-    except Exception as e:
-        logger.warning(f"Image search failed: {e}")
-        return []
+        results.sort(key=lambda x: (license_order.get(x['license'], 2), -(x.get('width', 0) * x.get('height', 0))))
+    
+    logger.info(f"Image search total for '{query}': {len(results)} results")
+    return results
 

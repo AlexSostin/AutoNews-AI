@@ -197,7 +197,6 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
                     'make': specs.get('make', ''),
                     'model': specs.get('model', ''),
                     'trim': specs.get('trim', ''),
-                    'year': specs.get('year'),
                     'engine': specs.get('engine', ''),
                     'horsepower': specs.get('horsepower'),
                     'torque': specs.get('torque', ''),
@@ -216,14 +215,33 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     # Auto-submit to Google Indexing API for instant indexing
     if is_published:
         try:
-            from news.management.commands.submit_to_google import submit_url_to_google
-            site_url = os.environ.get('SITE_URL', 'https://www.freshmotors.net')
-            article_url = f"{site_url}/articles/{article.slug}"
-            result = submit_url_to_google(article_url)
-            if result['success']:
-                print(f"  🔍 Google Indexing API: submitted {article_url}")
+            from news.models import AutomationSettings
+            from django.db.models import F as DbF
+            from django.utils import timezone as tz
+            auto_settings = AutomationSettings.load()
+            
+            if not auto_settings.google_indexing_enabled:
+                print("  🔍 Google Indexing: disabled in automation settings")
             else:
-                print(f"  ⚠️ Google Indexing API: {result.get('error', 'unknown error')[:80]}")
+                from news.management.commands.submit_to_google import submit_url_to_google
+                site_url = os.environ.get('SITE_URL', 'https://www.freshmotors.net')
+                article_url = f"{site_url}/articles/{article.slug}"
+                result = submit_url_to_google(article_url)
+                
+                if result['success']:
+                    print(f"  🔍 Google Indexing API: submitted {article_url}")
+                    AutomationSettings.objects.filter(pk=1).update(
+                        google_indexing_last_run=tz.now(),
+                        google_indexing_last_status=f"✅ {article.title[:60]}",
+                        google_indexing_today_count=DbF('google_indexing_today_count') + 1,
+                    )
+                else:
+                    err_msg = result.get('error', 'unknown error')[:80]
+                    print(f"  ⚠️ Google Indexing API: {err_msg}")
+                    AutomationSettings.objects.filter(pk=1).update(
+                        google_indexing_last_run=tz.now(),
+                        google_indexing_last_status=f"❌ {err_msg}",
+                    )
         except Exception as e:
             print(f"  ⚠️ Google Indexing API not configured: {e}")
     

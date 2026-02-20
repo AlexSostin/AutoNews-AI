@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status, filters
-from django.db.models import Avg, Count, Exists, OuterRef, Subquery
+from django.db.models import Avg, Case, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, BasePermission, AllowAny, IsAdminUser
@@ -644,7 +644,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         # Cache for anonymous users only
         return self._cached_list(request, *args, **kwargs)
     
-    @method_decorator(cache_page(30))  # Cache for 30 seconds (was 5 min - too long for fresh content)
+    @method_decorator(cache_page(300))  # Cache for 5 minutes — cache_signals handles invalidation on changes
     def _cached_list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
     
@@ -791,8 +791,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # Get AI provider from request (default to 'groq')
-        provider = request.data.get('provider', 'groq')
+        # Get AI provider from request (default to 'gemini')
+        provider = request.data.get('provider', 'gemini')
         if provider not in ['groq', 'gemini']:
             return Response(
                 {'error': 'Provider must be either "groq" or "gemini"'},
@@ -1617,7 +1617,9 @@ Return ONLY the reformatted HTML."""
             url_path='regenerate')
     def regenerate(self, request, slug=None):
         """
-        Regenerate article content using AI from the original YouTube URL.
+        Regenerate article content using AI.
+        Auto-detects source type: YouTube (re-downloads transcript) or RSS (re-expands press release).
+        
         POST /api/v1/articles/{slug}/regenerate/
         Body: { "provider": "gemini"|"groq" }
         
@@ -1625,13 +1627,6 @@ Return ONLY the reformatted HTML."""
         Backs up original content to content_original.
         """
         article = self.get_object()
-        
-        youtube_url = article.youtube_url
-        if not youtube_url:
-            return Response({
-                'success': False,
-                'message': 'Article has no YouTube URL — cannot regenerate',
-            }, status=status.HTTP_400_BAD_REQUEST)
         
         provider = request.data.get('provider', 'gemini')
         if provider not in ['groq', 'gemini']:
@@ -1641,15 +1636,122 @@ Return ONLY the reformatted HTML."""
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            from ai_engine.main import _generate_article_content, generate_title_variants
+            youtube_url = article.youtube_url
+            source_type = None
+            result = None
             
-            result = _generate_article_content(youtube_url, provider=provider)
+            # ── AUTO-DETECT SOURCE TYPE ──
+            if youtube_url:
+                # YouTube article → re-download transcript and regenerate
+                source_type = 'youtube'
+                from ai_engine.main import _generate_article_content, generate_title_variants
+                result = _generate_article_content(youtube_url, provider=provider)
+                
+                if not result.get('success'):
+                    return Response({
+                        'success': False,
+                        'message': f"AI generation failed: {result.get('error', 'Unknown error')}",
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                # RSS article → find source RSSNewsItem and re-expand press release
+                source_type = 'rss'
+                from news.models import RSSNewsItem, PendingArticle as PendingArticleModel
+                from ai_engine.modules.article_generator import expand_press_release
+                from ai_engine.modules.utils import clean_title
+                from ai_engine.main import generate_title_variants
+                import re as _re
+                
+                # Trace back: Article ← PendingArticle ← RSSNewsItem
+                rss_item = None
+                source_url = ''
+                press_release_text = ''
+                
+                # Method 1: Via PendingArticle reverse relation
+                pending = PendingArticleModel.objects.filter(published_article=article).first()
+                if pending:
+                    rss_item = RSSNewsItem.objects.filter(pending_article=pending).first()
+                    if not rss_item and pending.source_url:
+                        source_url = pending.source_url
+                
+                # Method 2: Try finding by author_channel_url (which stores the source URL)
+                if not rss_item and not source_url and article.author_channel_url:
+                    rss_item = RSSNewsItem.objects.filter(
+                        source_url=article.author_channel_url
+                    ).first()
+                    if not rss_item:
+                        source_url = article.author_channel_url
+                
+                if rss_item:
+                    # Found the original RSS item — use its content
+                    press_release_text = rss_item.content or rss_item.excerpt or ''
+                    source_url = rss_item.source_url or source_url
+                    
+                    # Strip HTML tags to get plain text
+                    if '<' in press_release_text:
+                        press_release_text = _re.sub(r'<[^>]+>', ' ', press_release_text)
+                        press_release_text = _re.sub(r'\s+', ' ', press_release_text).strip()
+                elif source_url:
+                    # No RSS item found but we have a URL — try to fetch the page
+                    try:
+                        from ai_engine.modules.web_search import search_and_extract
+                        web_results = search_and_extract(article.title, max_results=3)
+                        press_release_text = web_results if web_results else article.title
+                    except Exception:
+                        press_release_text = article.title
+                
+                if not press_release_text or len(press_release_text.strip()) < 50:
+                    return Response({
+                        'success': False,
+                        'message': 'Cannot regenerate: no source content found. '
+                                   'The original RSS news item may have been deleted, '
+                                   'and no source URL is available to re-fetch.',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                if not source_url:
+                    source_url = article.author_channel_url or 'N/A'
+                
+                # Expand the press release with the new prompt
+                expanded_content = expand_press_release(
+                    press_release_text=press_release_text,
+                    source_url=source_url,
+                    provider=provider
+                )
+                
+                if not expanded_content or len(expanded_content) < 200:
+                    return Response({
+                        'success': False,
+                        'message': 'AI returned empty or too short content',
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+                # Extract title from generated content
+                title_match = _re.search(r'<h2[^>]*>(.*?)</h2>', expanded_content)
+                ai_title = clean_title(title_match.group(1)) if title_match else article.title
+                
+                # Extract summary (first <p> tag)
+                summary_match = _re.search(r'<p>(.*?)</p>', expanded_content)
+                ai_summary = ''
+                if summary_match:
+                    ai_summary = _re.sub(r'<[^>]+>', '', summary_match.group(1))[:300]
+                
+                # Build result dict (same shape as YouTube result)
+                word_count = len(_re.sub(r'<[^>]+>', ' ', expanded_content).split())
+                result = {
+                    'success': True,
+                    'title': ai_title,
+                    'content': expanded_content,
+                    'summary': ai_summary or article.summary,
+                    'generation_metadata': {
+                        'provider': provider,
+                        'source_type': 'rss',
+                        'source_url': source_url,
+                        'word_count': word_count,
+                        'rss_item_id': rss_item.id if rss_item else None,
+                    },
+                    'specs': {},
+                    'tag_names': [],
+                }
             
-            if not result.get('success'):
-                return Response({
-                    'success': False,
-                    'message': f"AI generation failed: {result.get('error', 'Unknown error')}",
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # ── SHARED POST-PROCESSING (both YouTube and RSS) ──
             
             # Backup current content
             article.content_original = article.content
@@ -1664,7 +1766,7 @@ Return ONLY the reformatted HTML."""
             if result.get('meta_keywords'):
                 article.meta_keywords = result['meta_keywords']
             
-            # Update author info if available
+            # Update author info if available (YouTube only)
             if result.get('author_name'):
                 article.author_name = result['author_name']
             if result.get('author_channel_url'):
@@ -1725,7 +1827,7 @@ Return ONLY the reformatted HTML."""
             serializer = self.get_serializer(article)
             return Response({
                 'success': True,
-                'message': f'Article regenerated with {provider}',
+                'message': f'Article regenerated ({source_type}) with {provider}',
                 'article': serializer.data,
                 'generation_metadata': result.get('generation_metadata'),
             })
@@ -2620,6 +2722,7 @@ class SiteSettingsViewSet(viewsets.ModelViewSet):
     serializer_class = SiteSettingsSerializer
     permission_classes = [IsStaffOrReadOnly]
     
+    @method_decorator(cache_page(300))  # Cache settings for 5 minutes — rarely changes
     def list(self, request):
         """Return the single settings instance"""
         settings = SiteSettings.load()
@@ -2855,6 +2958,274 @@ class UserViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+class IsSuperUser(BasePermission):
+    """Only allow superusers."""
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and request.user.is_superuser
+
+
+class AdminUserManagementViewSet(viewsets.ViewSet):
+    """
+    Admin-only ViewSet for managing users and their permissions.
+    Only superusers can access these endpoints.
+    """
+    permission_classes = [IsSuperUser]
+
+    def list(self, request):
+        """List all users with optional search, filters, and pagination."""
+        users = User.objects.all().annotate(
+            role_order=Case(
+                When(is_superuser=True, then=Value(0)),
+                When(is_staff=True, then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField(),
+            )
+        ).order_by('role_order', '-date_joined')
+
+        # Search by username or email
+        search = request.query_params.get('search', '').strip()
+        if search:
+            users = users.filter(
+                Q(username__icontains=search) |
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
+            )
+
+        # Filter by role
+        role = request.query_params.get('role', '').strip()
+        if role == 'superuser':
+            users = users.filter(is_superuser=True)
+        elif role == 'staff':
+            users = users.filter(is_staff=True, is_superuser=False)
+        elif role == 'user':
+            users = users.filter(is_staff=False, is_superuser=False)
+
+        # Filter by active status
+        is_active = request.query_params.get('is_active', '').strip()
+        if is_active == 'true':
+            users = users.filter(is_active=True)
+        elif is_active == 'false':
+            users = users.filter(is_active=False)
+
+        # Pagination
+        total_filtered = users.count()
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(100, max(1, int(request.query_params.get('page_size', 25))))
+        except (ValueError, TypeError):
+            page = 1
+            page_size = 25
+
+        import math
+        total_pages = max(1, math.ceil(total_filtered / page_size))
+        page = min(page, total_pages)
+        offset = (page - 1) * page_size
+        paginated_users = users[offset:offset + page_size]
+
+        # Build response
+        user_list = []
+        for u in paginated_users:
+            role_label = 'Superuser' if u.is_superuser else ('Staff' if u.is_staff else 'User')
+            user_list.append({
+                'id': u.id,
+                'username': u.username,
+                'email': u.email,
+                'first_name': u.first_name,
+                'last_name': u.last_name,
+                'role': role_label,
+                'is_superuser': u.is_superuser,
+                'is_staff': u.is_staff,
+                'is_active': u.is_active,
+                'date_joined': u.date_joined.isoformat(),
+                'last_login': u.last_login.isoformat() if u.last_login else None,
+            })
+
+        # Stats (always over all users, not filtered)
+        all_users = User.objects.all()
+        stats = {
+            'total': all_users.count(),
+            'active': all_users.filter(is_active=True).count(),
+            'staff': all_users.filter(is_staff=True).count(),
+            'superusers': all_users.filter(is_superuser=True).count(),
+        }
+
+        return Response({
+            'results': user_list,
+            'stats': stats,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total_count': total_filtered,
+                'total_pages': total_pages,
+            }
+        })
+
+    def create(self, request):
+        """Create a new user."""
+        username = request.data.get('username', '').strip()
+        email = request.data.get('email', '').strip()
+        password = request.data.get('password', '').strip()
+        role = request.data.get('role', 'user').strip()
+        first_name = request.data.get('first_name', '').strip()
+        last_name = request.data.get('last_name', '').strip()
+
+        # Validation
+        if not username:
+            return Response({'error': 'Username is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not password or len(password) < 8:
+            return Response({'error': 'Password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username=username).exists():
+            return Response({'error': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        if email and User.objects.filter(email=email).exists():
+            return Response({'error': 'Email already in use.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create user
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+        )
+
+        # Set role
+        if role == 'superuser':
+            user.is_staff = True
+            user.is_superuser = True
+        elif role == 'staff':
+            user.is_staff = True
+            user.is_superuser = False
+        else:
+            user.is_staff = False
+            user.is_superuser = False
+        user.save()
+
+        role_label = 'Superuser' if user.is_superuser else ('Staff' if user.is_staff else 'User')
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': role_label,
+            'message': f'User "{username}" created successfully.',
+        }, status=status.HTTP_201_CREATED)
+
+    def retrieve(self, request, pk=None):
+        """Get a single user's details."""
+        user = get_object_or_404(User, pk=pk)
+        role_label = 'Superuser' if user.is_superuser else ('Staff' if user.is_staff else 'User')
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': role_label,
+            'is_superuser': user.is_superuser,
+            'is_staff': user.is_staff,
+            'is_active': user.is_active,
+            'date_joined': user.date_joined.isoformat(),
+            'last_login': user.last_login.isoformat() if user.last_login else None,
+        })
+
+    def partial_update(self, request, pk=None):
+        """Update a user's role, active status, or profile info."""
+        user = get_object_or_404(User, pk=pk)
+
+        # Self-protection: cannot demote or deactivate yourself
+        if user.id == request.user.id:
+            changing_role = 'is_superuser' in request.data or 'is_staff' in request.data or 'role' in request.data
+            changing_active = 'is_active' in request.data and not request.data['is_active']
+            if changing_role or changing_active:
+                return Response(
+                    {'detail': 'You cannot change your own role or deactivate yourself.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Handle role changes via 'role' field
+        role = request.data.get('role')
+        if role:
+            if role == 'superuser':
+                user.is_superuser = True
+                user.is_staff = True
+            elif role == 'staff':
+                user.is_superuser = False
+                user.is_staff = True
+            elif role == 'user':
+                user.is_superuser = False
+                user.is_staff = False
+
+        # Handle direct field updates
+        if 'is_active' in request.data:
+            user.is_active = request.data['is_active']
+        if 'first_name' in request.data:
+            user.first_name = request.data['first_name']
+        if 'last_name' in request.data:
+            user.last_name = request.data['last_name']
+        if 'email' in request.data:
+            new_email = request.data['email'].strip().lower()
+            # Check uniqueness
+            if User.objects.filter(email__iexact=new_email).exclude(pk=user.pk).exists():
+                return Response(
+                    {'detail': 'A user with this email already exists.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.email = new_email
+
+        user.save()
+        logger.info(f"Admin {request.user.username} updated user {user.username} (id={user.id})")
+
+        role_label = 'Superuser' if user.is_superuser else ('Staff' if user.is_staff else 'User')
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': role_label,
+            'is_superuser': user.is_superuser,
+            'is_staff': user.is_staff,
+            'is_active': user.is_active,
+            'date_joined': user.date_joined.isoformat(),
+            'last_login': user.last_login.isoformat() if user.last_login else None,
+        })
+
+    def destroy(self, request, pk=None):
+        """Delete a user. Cannot delete yourself."""
+        user = get_object_or_404(User, pk=pk)
+
+        if user.id == request.user.id:
+            return Response(
+                {'detail': 'You cannot delete your own account.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        username = user.username
+        user.delete()
+        logger.info(f"Admin {request.user.username} deleted user {username} (id={pk})")
+        return Response({'detail': f'User {username} has been deleted.'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def reset_password(self, request, pk=None):
+        """Reset a user's password to a random one. Returns the new password once."""
+        import secrets
+        import string
+
+        user = get_object_or_404(User, pk=pk)
+
+        # Generate a secure random password
+        alphabet = string.ascii_letters + string.digits + '!@#$%'
+        new_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+
+        user.set_password(new_password)
+        user.save()
+        logger.info(f"Admin {request.user.username} reset password for user {user.username} (id={pk})")
+
+        return Response({
+            'detail': f'Password for {user.username} has been reset.',
+            'new_password': new_password,
+        })
 
 
 class FavoriteViewSet(viewsets.ModelViewSet):
@@ -3537,6 +3908,133 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
             'count': count
         })
 
+    @action(detail=True, methods=['post'])
+    def check_license(self, request, pk=None):
+        """Check content license (robots.txt + Terms of Use) for this RSS feed's website"""
+        feed = self.get_object()
+        
+        import subprocess
+        import sys
+        from django.conf import settings
+        
+        try:
+            manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
+            if not os.path.exists(manage_py):
+                manage_py = os.path.join(os.path.dirname(settings.BASE_DIR), 'manage.py')
+
+            subprocess.Popen(
+                [sys.executable, manage_py, 'check_rss_license', '--feed-id', str(feed.id)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            message = f'License check started for {feed.name}'
+        except Exception as e:
+            print(f"❌ Error starting license check: {e}")
+            message = f'Failed to start license check: {str(e)}'
+            
+        return Response({
+            'message': message,
+            'feed_id': feed.id
+        })
+    
+    @action(detail=False, methods=['post'])
+    def check_all_licenses(self, request):
+        """Check content licenses for all RSS feeds (re-checks already checked ones too)"""
+        import subprocess
+        import sys
+        from django.conf import settings
+        
+        # Support ?unchecked_only=true to only check unchecked feeds
+        unchecked_only = request.data.get('unchecked_only', False)
+        
+        try:
+            manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
+            flag = '--all-unchecked' if unchecked_only else '--all'
+            subprocess.Popen(
+                [sys.executable, manage_py, 'check_rss_license', flag],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            if unchecked_only:
+                count = RSSFeed.objects.filter(license_status='unchecked').count()
+                message = f'License check started for {count} unchecked feeds'
+            else:
+                count = RSSFeed.objects.filter(is_enabled=True).count()
+                message = f'License re-check started for {count} feeds (all enabled)'
+        except Exception as e:
+            print(f"❌ Error starting license check: {e}")
+            message = f'Failed to start license check: {str(e)}'
+            count = 0
+            
+        return Response({
+            'message': message,
+            'count': count
+        })
+
+    @action(detail=False, methods=['post'])
+    def discover_feeds(self, request):
+        """Discover automotive RSS feeds from curated sources"""
+        from ai_engine.modules.feed_discovery import discover_feeds
+        
+        # Run discovery WITHOUT license check for speed (takes ~30s vs ~5min)
+        # License can be checked individually after adding
+        try:
+            results = discover_feeds(check_license=False)
+            
+            # For brand sources, auto-set green (press releases are for media)
+            for r in results:
+                if r['source_type'] == 'brand':
+                    r['license_status'] = 'green'
+                    r['license_details'] = 'Brand press portal — press releases are meant for media distribution'
+            
+            return Response({
+                'results': results,
+                'total': len(results),
+                'valid_feeds': sum(1 for r in results if r['feed_valid']),
+                'already_added': sum(1 for r in results if r['already_added']),
+            })
+        except Exception as e:
+            return Response({
+                'error': str(e),
+                'results': [],
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['post'])
+    def add_discovered(self, request):
+        """Add a discovered feed to the database"""
+        name = request.data.get('name')
+        feed_url = request.data.get('feed_url')
+        website_url = request.data.get('website_url', '')
+        source_type = request.data.get('source_type', 'media')
+        license_status = request.data.get('license_status', 'unchecked')
+        license_details = request.data.get('license_details', '')
+        image_policy = request.data.get('image_policy', 'pexels_fallback')
+        
+        if not feed_url:
+            return Response({'error': 'feed_url is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if RSSFeed.objects.filter(feed_url=feed_url).exists():
+            return Response({'error': 'Feed URL already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from django.utils import timezone
+            feed = RSSFeed.objects.create(
+                name=name or 'Discovered Feed',
+                feed_url=feed_url,
+                website_url=website_url,
+                source_type=source_type,
+                is_enabled=True,
+                license_status=license_status,
+                license_details=license_details,
+                image_policy=image_policy,
+                license_checked_at=timezone.now() if license_status != 'unchecked' else None,
+            )
+            serializer = self.get_serializer(feed)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def test_feed(self, request):
@@ -3689,9 +4187,9 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             if not plain_text:
                 plain_text = news_item.excerpt
             
-            provider = request.data.get('provider', 'groq')
+            provider = request.data.get('provider', 'gemini')
             if provider not in ('groq', 'gemini'):
-                provider = 'groq'
+                provider = 'gemini'
             
             # Expand with AI
             expanded_content = expand_press_release(
@@ -3724,8 +4222,18 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY
                 )
             
-            # Build images list
-            images = [news_item.image_url] if news_item.image_url else []
+            # Build images list — respect feed's image_policy
+            feed = news_item.rss_feed
+            image_policy = feed.image_policy if feed else 'pexels_fallback'
+            
+            if image_policy == 'pexels_only':
+                # Media site — don't use their images, search Pexels instead
+                images = []
+                featured_image = ''
+            else:
+                # 'original' or 'pexels_fallback' — use source image if available
+                images = [news_item.image_url] if news_item.image_url else []
+                featured_image = news_item.image_url or ''
             
             # Create PendingArticle
             pending = PendingArticle.objects.create(
@@ -3736,7 +4244,7 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 content=expanded_content,
                 excerpt=plain_text[:500],
                 images=images,
-                featured_image=news_item.image_url or '',
+                featured_image=featured_image,
                 suggested_category=news_item.rss_feed.default_category if news_item.rss_feed else None,
                 status='pending'
             )
@@ -3918,12 +4426,51 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                         # Direct assignment to ImageField doesn't work with MediaCloudinaryStorage
                         if image_path.startswith('http'):
                             logger.info(f"[APPROVE] Downloading image {i+1} from URL: {image_path[:100]}")
-                            resp = img_requests.get(image_path, timeout=15)
-                            logger.info(f"[APPROVE] Download status: {resp.status_code}, size: {len(resp.content)} bytes")
-                            if resp.status_code == 200 and len(resp.content) > 0:
-                                content_file = ContentFile(resp.content, name=file_name)
+                            
+                            # Extract domain for Referer header
+                            from urllib.parse import urlparse
+                            parsed = urlparse(image_path)
+                            domain = f"{parsed.scheme}://{parsed.netloc}"
+                            
+                            # Try multiple header combinations for resilience
+                            header_variants = [
+                                {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                    'Accept': 'image/*,*/*;q=0.8',
+                                },
+                                {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                    'Accept': 'image/*,*/*;q=0.8',
+                                    'Referer': domain,
+                                },
+                                {
+                                    'User-Agent': 'Googlebot-Image/1.0',
+                                    'Accept': 'image/*',
+                                },
+                            ]
+                            
+                            resp = None
+                            for attempt, headers in enumerate(header_variants, 1):
+                                try:
+                                    resp = img_requests.get(image_path, timeout=15, headers=headers)
+                                    logger.info(f"[APPROVE] Attempt {attempt}: status={resp.status_code}, size={len(resp.content)} bytes")
+                                    if resp.status_code == 200 and len(resp.content) > 1000:
+                                        break
+                                except Exception as dl_err:
+                                    logger.warning(f"[APPROVE] Attempt {attempt} failed: {dl_err}")
+                                    resp = None
+                            
+                            if resp and resp.status_code == 200 and len(resp.content) > 0:
+                                # Validate magic bytes — ensure downloaded content is actually an image
+                                VALID_MAGIC = [b'\xff\xd8\xff', b'\x89PNG', b'RIFF', b'GIF8']
+                                is_valid_image = any(resp.content[:4].startswith(m) for m in VALID_MAGIC)
+                                
+                                if is_valid_image:
+                                    content_file = ContentFile(resp.content, name=file_name)
+                                else:
+                                    logger.warning(f"[APPROVE] Downloaded content is not a valid image (magic bytes: {resp.content[:4]})")
                             else:
-                                logger.warning(f"[APPROVE] Failed to download image: status={resp.status_code}")
+                                logger.warning(f"[APPROVE] Failed to download image after {len(header_variants)} attempts")
                         
                         # Case C: It's a local file relative path
                         elif image_path.startswith('/media/'):
@@ -4714,16 +5261,19 @@ class GenerateAIImageView(APIView):
         
         style = request.data.get('style', 'scenic_road')
         image_slot = int(request.data.get('image_slot', 1))
+        custom_prompt = request.data.get('custom_prompt', '').strip()
         
         # Get reference image URL
         image_url = None
-        if article.image and str(article.image):
-            img_str = str(article.image)
-            if img_str.startswith('http'):
-                image_url = img_str
-            else:
-                # Try to build full URL
-                image_url = request.build_absolute_uri(f'/media/{img_str}')
+        if article.image:
+            try:
+                image_url = article.image.url  # Cloudinary returns full https:// URL
+            except Exception:
+                img_str = str(article.image)
+                if img_str.startswith('http'):
+                    image_url = img_str
+                else:
+                    image_url = request.build_absolute_uri(f'/media/{img_str}')
         
         if not image_url:
             return Response({'error': 'No reference image found on this article. Upload an image first.'}, status=400)
@@ -4740,7 +5290,7 @@ class GenerateAIImageView(APIView):
         
         # Generate AI image
         from ai_engine.modules.image_generator import generate_car_image
-        result = generate_car_image(image_url, car_name, style)
+        result = generate_car_image(image_url, car_name, style, custom_prompt=custom_prompt)
         
         if not result['success']:
             return Response({'error': result['error']}, status=500)
@@ -4763,10 +5313,17 @@ class GenerateAIImageView(APIView):
             article.image_3.save(filename, image_file, save=True)
         
         # Get the saved URL for response
+        article.refresh_from_db()
         saved_field = getattr(article, f'image{"" if image_slot == 1 else f"_{image_slot}"}')
-        saved_url = str(saved_field) if saved_field else ''
-        if saved_url and not saved_url.startswith('http'):
-            saved_url = request.build_absolute_uri(f'/media/{saved_url}')
+        if saved_field:
+            try:
+                saved_url = saved_field.url
+            except Exception:
+                saved_url = str(saved_field)
+                if saved_url and not saved_url.startswith('http'):
+                    saved_url = request.build_absolute_uri(f'/media/{saved_url}')
+        else:
+            saved_url = ''
         
         return Response({
             'success': True,
@@ -4897,10 +5454,17 @@ class SaveExternalImageView(APIView):
             article.image_3.save(filename, image_file, save=True)
         
         # Get the saved URL for response
+        article.refresh_from_db()
         saved_field = getattr(article, f'image{"" if image_slot == 1 else f"_{image_slot}"}')
-        saved_url = str(saved_field) if saved_field else ''
-        if saved_url and not saved_url.startswith('http'):
-            saved_url = request.build_absolute_uri(f'/media/{saved_url}')
+        if saved_field:
+            try:
+                saved_url = saved_field.url  # Cloudinary returns full https:// URL
+            except Exception:
+                saved_url = str(saved_field)
+                if saved_url and not saved_url.startswith('http'):
+                    saved_url = request.build_absolute_uri(f'/media/{saved_url}')
+        else:
+            saved_url = ''
         
         return Response({
             'success': True,
@@ -5018,10 +5582,12 @@ class AutomationSettingsView(APIView):
 
 
 class AutomationStatsView(APIView):
-    """GET automation statistics overview."""
+    """GET automation statistics overview with safety & decision data."""
     permission_classes = [IsAdminUser]
     
     def get(self, request):
+        from news.models import AutoPublishLog
+        
         settings = AutomationSettings.load()
         settings.reset_daily_counters()
         
@@ -5039,10 +5605,93 @@ class AutomationStatsView(APIView):
             created_at__date=today
         ).count()
         
-        # Recent auto-published
+        # === Safety Overview: feed counts by safety_score & image_policy ===
+        from news.models import RSSFeed
+        enabled_feeds = RSSFeed.objects.filter(is_enabled=True)
+        all_feeds_list = list(enabled_feeds.values('license_status', 'image_policy', 'safety_checks'))
+        
+        safety_counts = {'safe': 0, 'review': 0, 'unsafe': 0}
+        image_policy_counts = {'original': 0, 'pexels_only': 0, 'pexels_fallback': 0, 'unchecked': 0}
+        
+        for f_data in all_feeds_list:
+            # Compute safety_score the same way the model property does
+            checks = f_data.get('safety_checks') or {}
+            license_st = f_data.get('license_status', 'unchecked')
+            
+            if license_st == 'red':
+                ss = 'unsafe'
+            elif not checks:
+                ss = 'review'
+            else:
+                passed = sum(1 for c in checks.values() if isinstance(c, dict) and c.get('passed'))
+                total = len([c for c in checks.values() if isinstance(c, dict)])
+                if total == 0:
+                    ss = 'review'
+                elif passed == total and license_st == 'green':
+                    ss = 'safe'
+                else:
+                    ss = 'review'
+            
+            safety_counts[ss] = safety_counts.get(ss, 0) + 1
+            
+            img_pol = f_data.get('image_policy') or ''
+            if img_pol in image_policy_counts:
+                image_policy_counts[img_pol] += 1
+            else:
+                image_policy_counts['unchecked'] += 1
+        
+        # === Eligible articles breakdown ===
+        eligible_qs = PendingArticle.objects.filter(
+            status='pending',
+            quality_score__gte=settings.auto_publish_min_quality
+        ).select_related('rss_feed')
+        
+        eligible_safe = 0
+        eligible_review = 0
+        eligible_unsafe = 0
+        for pa in eligible_qs:
+            feed = pa.rss_feed
+            if feed:
+                ss = getattr(feed, 'safety_score', 'review')
+                if ss == 'safe':
+                    eligible_safe += 1
+                elif ss == 'unsafe':
+                    eligible_unsafe += 1
+                else:
+                    eligible_review += 1
+            else:
+                eligible_review += 1
+        
+        # === Decision Log: last 30 decisions ===
+        recent_decisions = AutoPublishLog.objects.order_by('-created_at')[:30]
+        decisions_data = [
+            {
+                'id': d.id,
+                'title': d.article_title[:80],
+                'decision': d.decision,
+                'reason': d.reason,
+                'quality_score': d.quality_score,
+                'safety_score': d.safety_score,
+                'image_policy': d.image_policy,
+                'feed_name': d.feed_name,
+                'source_type': d.source_type,
+                'has_image': d.has_image,
+                'source_is_youtube': d.source_is_youtube,
+                'created_at': d.created_at,
+            }
+            for d in recent_decisions
+        ]
+        
+        # === Decision breakdown (all-time counts) ===
+        from django.db.models import Count
+        breakdown_qs = AutoPublishLog.objects.values('decision').annotate(count=Count('id'))
+        decision_breakdown = {item['decision']: item['count'] for item in breakdown_qs}
+        total_decisions = sum(decision_breakdown.values())
+        
+        # Recent auto-published (for backwards compatibility)
         recent_auto = PendingArticle.objects.filter(
             status='published',
-            review_notes__startswith='Auto-published'
+            is_auto_published=True
         ).order_by('-reviewed_at')[:10]
         
         return Response({
@@ -5052,6 +5701,24 @@ class AutomationStatsView(APIView):
             'auto_published_today': settings.auto_publish_today_count,
             'rss_articles_today': settings.rss_articles_today,
             'youtube_articles_today': settings.youtube_articles_today,
+            # Safety overview
+            'safety_overview': {
+                'safety_counts': safety_counts,
+                'image_policy_counts': image_policy_counts,
+                'total_feeds': len(all_feeds_list),
+            },
+            # Eligible breakdown
+            'eligible': {
+                'total': eligible_safe + eligible_review + eligible_unsafe,
+                'safe': eligible_safe,
+                'review': eligible_review,
+                'unsafe': eligible_unsafe,
+            },
+            # Decision log
+            'recent_decisions': decisions_data,
+            'decision_breakdown': decision_breakdown,
+            'total_decisions': total_decisions,
+            # Legacy
             'recent_auto_published': [
                 {
                     'id': p.id,
@@ -5068,8 +5735,27 @@ class AutomationTriggerView(APIView):
     """POST manual triggers for automation tasks."""
     permission_classes = [IsAdminUser]
     
+    TASK_LOCK_MAP = {
+        'rss': 'rss',
+        'youtube': 'youtube',
+        'auto-publish': 'auto_publish',
+        'score': 'score',
+    }
+    
     def post(self, request, task_type):
         import threading
+        from news.models import AutomationSettings
+        
+        # Check lock — return 409 if task is already running
+        lock_name = self.TASK_LOCK_MAP.get(task_type)
+        if lock_name:
+            settings = AutomationSettings.load()
+            lock_field = f'{lock_name}_lock'
+            if getattr(settings, lock_field, False):
+                return Response(
+                    {'error': f'{task_type} is already running', 'status': 'locked'},
+                    status=status.HTTP_409_CONFLICT
+                )
         
         if task_type == 'rss':
             from news.scheduler import _run_rss_scan

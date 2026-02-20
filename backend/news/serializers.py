@@ -264,7 +264,18 @@ class ArticleListSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        return _fix_cloudinary_image_urls(rep)
+        rep = _fix_cloudinary_image_urls(rep)
+        # Inject A/B test variant title for public users
+        request = self.context.get('request')
+        if request and not getattr(request.user, 'is_staff', False):
+            from news.ab_testing_views import get_variant_for_request
+            display_title, variant_id = get_variant_for_request(instance, request)
+            rep['display_title'] = display_title
+            rep['ab_variant_id'] = variant_id
+        else:
+            rep['display_title'] = rep['title']
+            rep['ab_variant_id'] = None
+        return rep
 
 
 class ArticleDetailSerializer(serializers.ModelSerializer):
@@ -361,7 +372,18 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        return _fix_cloudinary_image_urls(rep)
+        rep = _fix_cloudinary_image_urls(rep)
+        # Inject A/B test variant title for public users
+        request = self.context.get('request')
+        if request and not getattr(request.user, 'is_staff', False):
+            from news.ab_testing_views import get_variant_for_request
+            display_title, variant_id = get_variant_for_request(instance, request)
+            rep['display_title'] = display_title
+            rep['ab_variant_id'] = variant_id
+        else:
+            rep['display_title'] = rep['title']
+            rep['ab_variant_id'] = None
+        return rep
     
     def get_vehicle_specs(self, obj):
         """Safely get vehicle specs - handles case where table may not exist"""
@@ -594,9 +616,12 @@ class RSSFeedSerializer(serializers.ModelSerializer):
             'id', 'name', 'feed_url', 'website_url', 'source_type',
             'is_enabled', 'auto_publish', 'default_category', 'category_name',
             'last_checked', 'last_entry_date', 'entries_processed',
-            'logo_url', 'description', 'pending_count', 'created_at', 'updated_at'
+            'logo_url', 'description', 'pending_count',
+            'license_status', 'license_details', 'license_checked_at',
+            'image_policy', 'safety_score', 'safety_checks',
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['last_checked', 'last_entry_date', 'entries_processed', 'created_at', 'updated_at']
+        read_only_fields = ['last_checked', 'last_entry_date', 'entries_processed', 'license_status', 'license_details', 'license_checked_at', 'safety_score', 'safety_checks', 'created_at', 'updated_at']
     
     def get_pending_count(self, obj):
         return obj.pending_articles.filter(status='pending').count()
@@ -824,16 +849,23 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             # Auto-publish
             'auto_publish_enabled', 'auto_publish_min_quality',
             'auto_publish_max_per_hour', 'auto_publish_max_per_day',
-            'auto_publish_require_image', 'auto_publish_today_count',
-            'auto_publish_today_date', 'auto_publish_last_run',
+            'auto_publish_require_image', 'auto_publish_require_safe_feed',
+            'auto_publish_today_count',
+            'auto_publish_last_run',
             # Auto-Image
             'auto_image_mode', 'auto_image_prefer_press',
+            'auto_image_last_run', 'auto_image_last_status', 'auto_image_today_count',
             # Google Indexing
             'google_indexing_enabled',
+            'google_indexing_last_run', 'google_indexing_last_status', 'google_indexing_today_count',
+            # Task locks
+            'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock',
         ]
         read_only_fields = [
             'rss_last_run', 'rss_last_status', 'rss_articles_today',
             'youtube_last_run', 'youtube_last_status', 'youtube_articles_today',
-            'auto_publish_today_count', 'auto_publish_today_date',
-            'auto_publish_last_run',
+            'auto_publish_today_count', 'auto_publish_last_run',
+            'auto_image_last_run', 'auto_image_last_status', 'auto_image_today_count',
+            'google_indexing_last_run', 'google_indexing_last_status', 'google_indexing_today_count',
+            'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock',
         ]

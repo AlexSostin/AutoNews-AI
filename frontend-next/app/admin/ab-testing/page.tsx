@@ -161,7 +161,7 @@ export default function ABTestingPage() {
                 </div>
                 <button
                     onClick={fetchArticlesWithAB}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded-lg hover:bg-gray-600 transition-colors"
                 >
                     <RefreshCw className="w-4 h-4" />
                     Refresh

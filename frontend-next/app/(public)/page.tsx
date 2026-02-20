@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 30; // shortest revalidation controls the page
+export const revalidate = 120; // Revalidate every 2 minutes (was 30s — too frequent, triggers 4 API calls each time)
 
 // Production API URL - hardcoded for server-side rendering
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
@@ -49,7 +49,7 @@ const getApiUrl = () => {
 async function getSettings() {
   try {
     const res = await fetch(`${getApiUrl()}/settings/`, {
-      next: { revalidate: 30 },
+      next: { revalidate: 300 },  // Settings rarely change — cache 5 min
     });
     if (!res.ok) return null;
     return await res.json();

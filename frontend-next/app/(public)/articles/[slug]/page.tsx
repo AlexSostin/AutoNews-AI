@@ -4,6 +4,7 @@ import Link from 'next/link';
 import ArticleCard from '@/components/public/ArticleCard';
 import AdBanner from '@/components/public/AdBanner';
 import ABTitle from '@/components/public/ABTitle';
+import ABImpressionTracker from '@/components/public/ABImpressionTracker';
 import ShareButtons from '@/components/public/ShareButtons';
 import RatingStars from '@/components/public/RatingStars';
 import ArticleContentWithImages from '@/components/public/ArticleContentWithImages';
@@ -354,6 +355,9 @@ export default async function ArticleDetailPage({
         articleTitle={article.title}
         categoryName={article.categories?.[0]?.name}
       />
+
+      {/* Track A/B impression */}
+      <ABImpressionTracker variantId={(article as any).ab_variant_id} />
 
       {/* Reading Progress Bar */}
       <ReadingProgressBar />

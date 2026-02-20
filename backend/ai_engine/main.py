@@ -453,6 +453,20 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             except Exception as e:
                 print(f"⚠️ Specs enrichment failed (continuing): {e}")
         
+        # 2.85 SPEC REFILL — AI-fill remaining gaps if coverage < 70%
+        try:
+            from ai_engine.modules.spec_refill import refill_missing_specs, compute_coverage
+            _, _, pre_coverage, _ = compute_coverage(specs)
+            if pre_coverage < 70:
+                send_progress(4, 64, f"🔄 Spec refill ({pre_coverage:.0f}% coverage)...")
+                specs = refill_missing_specs(specs, article_html if 'article_html' in dir() else '', web_context, provider)
+                refill_meta = specs.pop('_refill_meta', {})
+                if refill_meta.get('triggered'):
+                    _timings['spec_refill'] = True
+                    print(f"🔄 Spec refill: {refill_meta.get('coverage_before', 0)}% → {refill_meta.get('coverage_after', 0)}%")
+        except Exception as e:
+            print(f"⚠️ Spec refill failed (continuing): {e}")
+        
         # 2.9 POST-ENRICHMENT: auto-add drivetrain tag if enricher found it
         drivetrain = specs.get('drivetrain')
         if drivetrain and drivetrain not in ('Not specified', '', None):
@@ -667,10 +681,27 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         _timings['total'] = round(_time.time() - _t_start, 1)
         generation_metadata = {
             'provider': provider,
+            'timestamp': datetime.utcnow().isoformat(),
             'timings': _timings,
             'ai_editor': ai_editor_diff,
         }
         print(f"📊 Generation timing: {_timings}")
+        
+        # Record provider performance for tracking
+        try:
+            from ai_engine.modules.provider_tracker import record_generation
+            from ai_engine.modules.spec_refill import compute_coverage
+            _, _, _spec_cov, _ = compute_coverage(specs)
+            record_generation(
+                provider=provider,
+                make=specs.get('make', ''),
+                quality_score=0,  # filled later by quality_scorer
+                spec_coverage=_spec_cov,
+                total_time=_timings.get('total', 0),
+                spec_fields_filled=int(_spec_cov / 10),
+            )
+        except Exception as e:
+            print(f"⚠️ Provider tracking failed: {e}")
         
         return {
             'success': True,

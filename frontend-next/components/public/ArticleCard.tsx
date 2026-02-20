@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/utils';
 import { Calendar, Star } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
 import { fixImageUrl } from '@/lib/config';
+import { trackClick } from '@/lib/ab-tracking';
 
 interface ArticleCardProps {
   article: Article;
@@ -46,8 +47,17 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
   const thumbnailUrl = article.thumbnail_url || article.image;
   const imageUrl = thumbnailUrl ? fixImageUrl(thumbnailUrl) : defaultImage;
 
+  // A/B testing: use display_title if available (backend assigns variant)
+  const title = article.display_title || article.title;
+
+  const handleClick = () => {
+    if (article.ab_variant_id) {
+      trackClick(article.ab_variant_id);
+    }
+  };
+
   return (
-    <Link href={`/articles/${article.slug}`} className="group">
+    <Link href={`/articles/${article.slug}`} className="group" onClick={handleClick}>
       <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 border border-gray-100 h-full flex flex-col">
         <div className="relative h-48 w-full overflow-hidden">
           <Image
@@ -75,7 +85,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
 
         <div className="p-5 flex-1 flex flex-col">
           <h3 className="text-xl font-black mb-3 text-gray-950 group-hover:text-indigo-600 transition-all duration-300 line-clamp-2 leading-tight group-hover:translate-x-1">
-            {article.title}
+            {title}
           </h3>
 
           <p className="text-gray-700 mb-4 line-clamp-2 text-sm leading-relaxed font-medium">

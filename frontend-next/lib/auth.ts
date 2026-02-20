@@ -189,3 +189,8 @@ export const isAdmin = (): boolean => {
   const user = getUserFromStorage();
   return user?.is_staff || user?.is_superuser || false;
 };
+
+export const isSuperuser = (): boolean => {
+  const user = getUserFromStorage();
+  return user?.is_superuser || false;
+};

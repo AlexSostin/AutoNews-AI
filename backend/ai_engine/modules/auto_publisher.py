@@ -1,14 +1,43 @@
 """
 Auto-publisher engine.
 
-Checks pending articles against quality thresholds and rate limits,
-and publishes those that qualify. All behavior controlled by AutomationSettings.
+Checks pending articles against quality thresholds, safety scores,
+and rate limits, then publishes those that qualify.
+All decisions are logged to AutoPublishLog for transparency and ML training.
 """
 import logging
 from datetime import timedelta
+from django.db.models import F
 from django.utils import timezone
 
 logger = logging.getLogger('news')
+
+
+def _log_decision(pending, decision, reason, article=None):
+    """Record an auto-publish decision for transparency and ML."""
+    from news.models import AutoPublishLog
+    
+    feed = pending.rss_feed
+    is_youtube = bool(pending.video_url)
+    
+    AutoPublishLog.objects.create(
+        pending_article=pending,
+        published_article=article,
+        decision=decision,
+        reason=reason,
+        quality_score=pending.quality_score or 0,
+        safety_score=getattr(feed, 'safety_score', '') if feed else '',
+        image_policy=getattr(feed, 'image_policy', '') if feed else '',
+        feed_name=feed.name if feed else ('YouTube' if is_youtube else 'Unknown'),
+        source_type=feed.source_type if feed else ('youtube' if is_youtube else ''),
+        article_title=pending.title[:500],
+        content_length=len(pending.content or ''),
+        has_image=bool(pending.featured_image),
+        has_specs=bool(pending.specs),
+        tag_count=len(pending.tags) if isinstance(pending.tags, list) else 0,
+        category_name=pending.suggested_category.name if pending.suggested_category else '',
+        source_is_youtube=is_youtube,
+    )
 
 
 def auto_publish_pending():
@@ -50,24 +79,51 @@ def auto_publish_pending():
     remaining_daily = settings.auto_publish_max_per_day - settings.auto_publish_today_count
     publish_limit = min(remaining_hourly, remaining_daily)
     
-    # Find eligible pending articles
-    queryset = PendingArticle.objects.filter(
+    # Find ALL pending articles with minimum quality
+    all_candidates = PendingArticle.objects.filter(
         status='pending',
         quality_score__gte=settings.auto_publish_min_quality,
-    ).order_by('created_at')  # FIFO — oldest first
+    ).select_related('rss_feed', 'suggested_category').order_by(
+        '-quality_score', 'created_at'  # Best quality first, then FIFO
+    )
     
     # If require_image is on AND auto_image is off, filter to only those with images
     if settings.auto_publish_require_image and settings.auto_image_mode == 'off':
-        queryset = queryset.exclude(featured_image='')
+        all_candidates = all_candidates.exclude(featured_image='')
     
-    candidates = queryset[:publish_limit]
+    # Apply safety gating and collect decisions
+    eligible = []
     
-    if not candidates:
+    for pending in all_candidates:
+        feed = pending.rss_feed
+        
+        # Safety check: skip unsafe feeds if setting is on
+        if settings.auto_publish_require_safe_feed and feed:
+            feed_safety = getattr(feed, 'safety_score', 'review')
+            if feed_safety == 'unsafe':
+                _log_decision(pending, 'skipped_safety',
+                    f"Feed '{feed.name}' has safety_score='unsafe' — blocked by 'Only safe feeds' setting")
+                logger.info(f"[AUTO-PUBLISHER] 🛡️ Skipped (unsafe feed): {pending.title[:50]} (feed: {feed.name})")
+                continue
+        
+        # Image check for no-image articles when auto_image is off
+        if settings.auto_publish_require_image and settings.auto_image_mode == 'off':
+            if not pending.featured_image:
+                _log_decision(pending, 'skipped_no_image',
+                    f"No featured image and auto-image is off")
+                continue
+        
+        eligible.append(pending)
+        
+        if len(eligible) >= publish_limit:
+            break
+    
+    if not eligible:
         return 0, 'no eligible articles'
     
     published_count = 0
     
-    for pending in candidates:
+    for pending in eligible:
         try:
             # Build tag list
             tag_names = pending.tags if isinstance(pending.tags, list) else []
@@ -100,7 +156,16 @@ def auto_publish_pending():
                     try:
                         from ai_engine.modules.auto_image_finder import find_and_attach_image
                         img_result = find_and_attach_image(article, pending_article=pending)
+                        
+                        # Track auto-image stats
+                        AutomationSettings.objects.filter(pk=1).update(
+                            auto_image_last_run=timezone.now(),
+                            auto_image_last_status=f"{'✅' if img_result.get('success') else '❌'} {article.title[:60]}",
+                        )
                         if img_result.get('success'):
+                            AutomationSettings.objects.filter(pk=1).update(
+                                auto_image_today_count=F('auto_image_today_count') + 1
+                            )
                             logger.info(f"[AUTO-PUBLISHER/IMAGE] 📸 Success ({img_result['method']}): {article.title[:50]}")
                         else:
                             logger.info(f"[AUTO-PUBLISHER/IMAGE] 📸 Skipped: {img_result.get('error', '?')}")
@@ -112,6 +177,8 @@ def auto_publish_pending():
                                 pending.status = 'pending'
                                 pending.review_notes = f'Auto-image failed: {img_result.get("error", "?")}'
                                 pending.save()
+                                _log_decision(pending, 'skipped_no_image',
+                                    f"Auto-image generation failed: {img_result.get('error', '?')}")
                                 continue
                     except Exception as e:
                         logger.error(f"[AUTO-PUBLISHER/IMAGE] ❌ Error: {e}", exc_info=True)
@@ -121,20 +188,30 @@ def auto_publish_pending():
                 # Update pending article status
                 pending.status = 'published'
                 pending.published_article = article
+                pending.is_auto_published = True
                 pending.reviewed_at = timezone.now()
                 pending.review_notes = f'Auto-published (quality: {pending.quality_score}/10)'
                 pending.save()
                 
-                # Update counter
-                settings.auto_publish_today_count += 1
-                settings.save(update_fields=['auto_publish_today_count'])
+                # Log the successful publish decision
+                _log_decision(pending, 'published',
+                    f"Quality {pending.quality_score}/10 meets threshold {settings.auto_publish_min_quality}/10",
+                    article=article)
+                
+                # Update counter atomically
+                AutomationSettings.objects.filter(pk=1).update(
+                    auto_publish_today_count=F('auto_publish_today_count') + 1
+                )
+                settings.refresh_from_db()
                 
                 published_count += 1
                 logger.info(f"[AUTO-PUBLISHER] ✅ Published: {article.title[:60]} (quality: {pending.quality_score}/10)")
             else:
+                _log_decision(pending, 'failed', 'publish_article() returned None')
                 logger.warning(f"[AUTO-PUBLISHER] ⚠️ Publish failed for: {pending.title[:60]}")
                 
         except Exception as e:
+            _log_decision(pending, 'failed', f'Exception: {str(e)[:200]}')
             logger.error(f"[AUTO-PUBLISHER] ❌ Error for '{pending.title[:40]}': {e}", exc_info=True)
             continue
     

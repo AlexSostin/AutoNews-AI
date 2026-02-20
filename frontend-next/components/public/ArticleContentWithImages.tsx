@@ -15,11 +15,33 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
     console.log('📸 Images available:', images);
     console.log('📝 Content length:', content.length);
 
+    // Extract AI-generated alt texts from hidden div and strip it from content
+    const altTexts: string[] = [];
+    const altTextMatch = content.match(/<div[^>]*class=["']alt-texts["'][^>]*>([\s\S]*?)<\/div>/i);
+    if (altTextMatch) {
+      const altBlock = altTextMatch[1];
+      const altLines = altBlock.match(/ALT_TEXT_\d+:\s*(.+)/g);
+      if (altLines) {
+        altLines.forEach(line => {
+          const value = line.replace(/ALT_TEXT_\d+:\s*/, '').trim();
+          if (value && value !== '[descriptive alt text' && !value.startsWith('[')) {
+            altTexts.push(value);
+          }
+        });
+      }
+      console.log('🏷️ Extracted alt texts:', altTexts);
+    }
+
+    // Strip the alt-texts div and source-attribution from content before parsing
+    const cleanContent = content
+      .replace(/<div[^>]*class=["']alt-texts["'][^>]*>[\s\S]*?<\/div>/gi, '')
+      .trim();
+
     const topLevelBlocks: string[] = [];
     let current = '';
     let depth = 0;
 
-    const tokens = content.split(/(<\/?[^>]+>)/g);
+    const tokens = cleanContent.split(/(<\/?[^>]+>)/g);
 
     for (const token of tokens) {
       const openMatch = token.match(/^<(ul|ol|table|blockquote|pre|div|section)[\s>]/i);
@@ -44,6 +66,8 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
 
     const parts: ReactElement[] = [];
     let imageIndex = 0;
+    let paragraphsSinceLastImage = 0;
+    const PARAGRAPHS_BETWEEN_IMAGES = 3;
 
     topLevelBlocks.forEach((block, idx) => {
       if (block.trim()) {
@@ -51,20 +75,27 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
           <div key={`element-${idx}`} dangerouslySetInnerHTML={{ __html: block }} className="article-element" />
         );
 
-        if ((idx + 1) % 4 === 0 && imageIndex < images.length) {
-          console.log(`🖼️ Inserting image ${imageIndex + 1} at position ${idx + 1}`);
+        const isParagraph = /^<p[\s>]/i.test(block.trim());
+        if (isParagraph) {
+          paragraphsSinceLastImage++;
+        }
+
+        if (isParagraph && paragraphsSinceLastImage >= PARAGRAPHS_BETWEEN_IMAGES && imageIndex < images.length) {
+          console.log(`🖼️ Inserting image ${imageIndex + 1} after paragraph at block ${idx + 1}`);
           const currentImage = images[imageIndex];
           const isPexelsImage = currentImage.includes('pexels.com');
+          const altText = altTexts[imageIndex] || `Article image ${imageIndex + 1}`;
 
           parts.push(
             <InlineImage
               key={`img-${imageIndex}`}
               src={currentImage}
-              alt={`Article image ${imageIndex + 1}`}
+              alt={altText}
               isPexels={isPexelsImage}
             />
           );
           imageIndex++;
+          paragraphsSinceLastImage = 0;
         }
       }
     });
@@ -83,6 +114,7 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
 // ─── Inline image with lightbox + zoom/pan ────────────────────────────────────
 function InlineImage({ src, alt, isPexels }: { src: string; alt: string; isPexels: boolean }) {
   const [open, setOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
@@ -93,6 +125,7 @@ function InlineImage({ src, alt, isPexels }: { src: string; alt: string; isPexel
   const startPos = useRef({ x: 0, y: 0 });
   const startOffset = useRef({ x: 0, y: 0 });
   const lastPinchDist = useRef<number | null>(null);
+  const zoomContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { offsetRef.current = offset; }, [offset]);
@@ -115,16 +148,81 @@ function InlineImage({ src, alt, isPexels }: { src: string; alt: string; isPexel
     };
   }, [open, resetZoom]);
 
-  // Mouse wheel zoom
-  const onWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setScale(s => {
-      const next = Math.min(5, Math.max(1, s - e.deltaY * 0.003));
-      scaleRef.current = next;
-      return next;
-    });
-  };
+  // Native wheel listener with { passive: false } to allow preventDefault
+  useEffect(() => {
+    if (!open) return;
+    const el = zoomContainerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setScale(s => {
+        const next = Math.min(5, Math.max(1, s - e.deltaY * 0.003));
+        scaleRef.current = next;
+        return next;
+      });
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [open]);
+
+  // Native touch listeners with { passive: false } to allow preventDefault
+  useEffect(() => {
+    if (!open) return;
+    const el = zoomContainerRef.current;
+    if (!el) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastPinchDist.current = Math.hypot(dx, dy);
+      } else if (e.touches.length === 1 && scaleRef.current > 1) {
+        dragging.current = true;
+        startPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        startOffset.current = { ...offsetRef.current };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && lastPinchDist.current !== null) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        const ratio = dist / lastPinchDist.current;
+        lastPinchDist.current = dist;
+        setScale(s => {
+          const next = Math.min(5, Math.max(1, s * ratio));
+          scaleRef.current = next;
+          return next;
+        });
+      } else if (e.touches.length === 1 && dragging.current) {
+        const nx = startOffset.current.x + (e.touches[0].clientX - startPos.current.x);
+        const ny = startOffset.current.y + (e.touches[0].clientY - startPos.current.y);
+        offsetRef.current = { x: nx, y: ny };
+        setOffset({ x: nx, y: ny });
+      }
+    };
+
+    const handleTouchEnd = () => {
+      dragging.current = false;
+      lastPinchDist.current = null;
+      if (scaleRef.current <= 1) resetZoom();
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [open, resetZoom]);
 
   // Mouse drag — listeners on window to avoid losing track on fast moves
   const onMouseDown = (e: React.MouseEvent) => {
@@ -152,67 +250,41 @@ function InlineImage({ src, alt, isPexels }: { src: string; alt: string; isPexel
     window.addEventListener('mouseup', onUp);
   };
 
-  // Touch pinch + pan
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      lastPinchDist.current = Math.hypot(dx, dy);
-    } else if (e.touches.length === 1 && scaleRef.current > 1) {
-      dragging.current = true;
-      startPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      startOffset.current = { ...offsetRef.current };
-    }
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && lastPinchDist.current !== null) {
-      e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
-      const ratio = dist / lastPinchDist.current;
-      lastPinchDist.current = dist;
-      setScale(s => {
-        const next = Math.min(5, Math.max(1, s * ratio));
-        scaleRef.current = next;
-        return next;
-      });
-    } else if (e.touches.length === 1 && dragging.current) {
-      const nx = startOffset.current.x + (e.touches[0].clientX - startPos.current.x);
-      const ny = startOffset.current.y + (e.touches[0].clientY - startPos.current.y);
-      offsetRef.current = { x: nx, y: ny };
-      setOffset({ x: nx, y: ny });
-    }
-  };
-
-  const onTouchEnd = () => {
-    dragging.current = false;
-    lastPinchDist.current = null;
-    if (scaleRef.current <= 1) resetZoom();
-  };
-
   return (
     <>
       {/* Thumbnail button */}
       <button
-        onClick={() => setOpen(true)}
-        className="w-full my-10 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-50 to-gray-100 group cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-indigo-500 block text-left"
-        aria-label="Open image fullscreen"
+        onClick={() => !imgError && setOpen(true)}
+        className={`relative w-full my-10 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-50 to-gray-100 group focus:outline-none focus:ring-2 focus:ring-indigo-500 block text-left ${imgError ? 'cursor-default' : 'cursor-zoom-in'}`}
+        aria-label={imgError ? 'Image unavailable' : 'Open image fullscreen'}
       >
         <div className="relative w-full aspect-video">
-          <Image
-            src={src} alt={alt} fill
-            className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
-            unoptimized
-          />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
-            <svg className="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-            </svg>
-          </div>
+          {imgError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 text-gray-400">
+              <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                <line x1="4" y1="4" x2="20" y2="20" strokeWidth={1.5} />
+              </svg>
+              <span className="text-sm font-medium">Image unavailable</span>
+            </div>
+          ) : (
+            <>
+              <Image
+                src={src} alt={alt} fill
+                className="object-cover group-hover:scale-[1.02] transition-transform duration-300 !m-0 !shadow-none !rounded-none"
+                unoptimized
+                onError={() => setImgError(true)}
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+                <svg className="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </div>
+            </>
+          )}
         </div>
-        {isPexels && (
+        {isPexels && !imgError && (
           <div className="px-4 py-2 bg-black/20 backdrop-blur-sm">
             <p className="text-xs text-gray-300 text-center">Photo via Pexels</p>
           </div>
@@ -255,13 +327,10 @@ function InlineImage({ src, alt, isPexels }: { src: string; alt: string; isPexel
 
           {/* Zoomable image */}
           <div
+            ref={zoomContainerRef}
             className="relative w-full h-full max-w-5xl max-h-[90vh] mx-8 overflow-hidden select-none"
             style={{ cursor: scale > 1 ? 'grab' : 'zoom-in' }}
-            onWheel={onWheel}
             onMouseDown={onMouseDown}
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
             onClick={e => e.stopPropagation()}
           >
             <div

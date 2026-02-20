@@ -23,6 +23,7 @@ function useZoomPan(isOpen: boolean) {
     const lastPinchDist = useRef<number | null>(null);
     const scaleRef = useRef(1);
     const offsetRef = useRef({ x: 0, y: 0 });
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Keep refs in sync so window listeners can read latest values
     useEffect(() => { scaleRef.current = scale; }, [scale]);
@@ -37,16 +38,83 @@ function useZoomPan(isOpen: boolean) {
 
     useEffect(() => { if (!isOpen) reset(); }, [isOpen, reset]);
 
-    // ── Mouse wheel zoom ──
-    const onWheel = useCallback((e: React.WheelEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setScale(s => {
-            const next = Math.min(5, Math.max(1, s - e.deltaY * 0.003));
-            scaleRef.current = next;
-            return next;
-        });
-    }, []);
+    // ── Native wheel listener with { passive: false } ──
+    useEffect(() => {
+        if (!isOpen) return;
+        const el = containerRef.current;
+        if (!el) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setScale(s => {
+                const next = Math.min(5, Math.max(1, s - e.deltaY * 0.003));
+                scaleRef.current = next;
+                return next;
+            });
+        };
+
+        el.addEventListener('wheel', handleWheel, { passive: false });
+        return () => el.removeEventListener('wheel', handleWheel);
+    }, [isOpen]);
+
+    // ── Native touch listeners with { passive: false } for touchmove ──
+    useEffect(() => {
+        if (!isOpen) return;
+        const el = containerRef.current;
+        if (!el) return;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastPinchDist.current = Math.hypot(dx, dy);
+            } else if (e.touches.length === 1 && scaleRef.current > 1) {
+                dragging.current = true;
+                startPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                startOffset.current = { ...offsetRef.current };
+            }
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (e.touches.length === 2 && lastPinchDist.current !== null) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.hypot(dx, dy);
+                const ratio = dist / lastPinchDist.current;
+                lastPinchDist.current = dist;
+                setScale(s => {
+                    const next = Math.min(5, Math.max(1, s * ratio));
+                    scaleRef.current = next;
+                    return next;
+                });
+            } else if (e.touches.length === 1 && dragging.current) {
+                const dx = e.touches[0].clientX - startPos.current.x;
+                const dy = e.touches[0].clientY - startPos.current.y;
+                const nx = startOffset.current.x + dx;
+                const ny = startOffset.current.y + dy;
+                offsetRef.current = { x: nx, y: ny };
+                setOffset({ x: nx, y: ny });
+            }
+        };
+
+        const handleTouchEnd = () => {
+            dragging.current = false;
+            lastPinchDist.current = null;
+            if (scaleRef.current <= 1) reset();
+        };
+
+        el.addEventListener('touchstart', handleTouchStart, { passive: true });
+        el.addEventListener('touchmove', handleTouchMove, { passive: false });
+        el.addEventListener('touchend', handleTouchEnd);
+
+        return () => {
+            el.removeEventListener('touchstart', handleTouchStart);
+            el.removeEventListener('touchmove', handleTouchMove);
+            el.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [isOpen, reset]);
 
     // ── Mouse drag — attach to window so fast moves don't lose tracking ──
     const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -76,58 +144,18 @@ function useZoomPan(isOpen: boolean) {
         window.addEventListener('mouseup', onUp);
     }, []);
 
-    // ── Touch pinch + pan ──
-    const onTouchStart = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length === 2) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            lastPinchDist.current = Math.hypot(dx, dy);
-        } else if (e.touches.length === 1 && scaleRef.current > 1) {
-            dragging.current = true;
-            startPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            startOffset.current = { ...offsetRef.current };
-        }
-    }, []);
-
-    const onTouchMove = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length === 2 && lastPinchDist.current !== null) {
-            e.preventDefault();
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            const dist = Math.hypot(dx, dy);
-            const ratio = dist / lastPinchDist.current;
-            lastPinchDist.current = dist;
-            setScale(s => {
-                const next = Math.min(5, Math.max(1, s * ratio));
-                scaleRef.current = next;
-                return next;
-            });
-        } else if (e.touches.length === 1 && dragging.current) {
-            const dx = e.touches[0].clientX - startPos.current.x;
-            const dy = e.touches[0].clientY - startPos.current.y;
-            const nx = startOffset.current.x + dx;
-            const ny = startOffset.current.y + dy;
-            offsetRef.current = { x: nx, y: ny };
-            setOffset({ x: nx, y: ny });
-        }
-    }, []);
-
-    const onTouchEnd = useCallback(() => {
-        dragging.current = false;
-        lastPinchDist.current = null;
-        if (scaleRef.current <= 1) reset();
-    }, [reset]);
-
-    return { scale, offset, reset, onWheel, onMouseDown, onTouchStart, onTouchMove, onTouchEnd };
+    return { scale, offset, reset, onMouseDown, containerRef };
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ImageLightbox({ images }: ImageLightboxProps) {
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
+    const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
     const isOpen = activeIndex !== null;
     const zoom = useZoomPan(isOpen);
 
-    const open = (index: number) => setActiveIndex(index);
+    const markFailed = (index: number) => setFailedImages(prev => new Set(prev).add(index));
+    const open = (index: number) => !failedImages.has(index) && setActiveIndex(index);
     const close = () => setActiveIndex(null);
 
     const prev = useCallback(() => {
@@ -175,13 +203,22 @@ export default function ImageLightbox({ images }: ImageLightboxProps) {
                         <button
                             key={index}
                             onClick={() => open(index)}
-                            className="relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center group focus:outline-none"
-                            aria-label={`Open image ${index + 1}`}
+                            className={`relative flex-shrink-0 w-[85vw] aspect-video rounded-lg overflow-hidden snap-center group focus:outline-none ${failedImages.has(index) ? 'cursor-default' : ''}`}
+                            aria-label={failedImages.has(index) ? 'Image unavailable' : `Open image ${index + 1}`}
                         >
-                            <Image src={img.url} alt={img.alt} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={32} />
-                            </div>
+                            {failedImages.has(index) ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 text-gray-400">
+                                    <ZoomIn className="opacity-30" size={32} />
+                                    <span className="text-xs mt-1">Unavailable</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <Image src={img.url} alt={img.alt} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized onError={() => markFailed(index)} />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                        <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={32} />
+                                    </div>
+                                </>
+                            )}
                             <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
                                 {index + 1} / {images.length}
                             </div>
@@ -197,13 +234,22 @@ export default function ImageLightbox({ images }: ImageLightboxProps) {
                     <button
                         key={index}
                         onClick={() => open(index)}
-                        className="relative aspect-video rounded-lg overflow-hidden group focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        aria-label={`Open image ${index + 1}`}
+                        className={`relative aspect-video rounded-lg overflow-hidden group focus:outline-none focus:ring-2 focus:ring-indigo-500 ${failedImages.has(index) ? 'cursor-default' : ''}`}
+                        aria-label={failedImages.has(index) ? 'Image unavailable' : `Open image ${index + 1}`}
                     >
-                        <Image src={img.url} alt={img.alt} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
-                            <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={36} />
-                        </div>
+                        {failedImages.has(index) ? (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 text-gray-400">
+                                <ZoomIn className="opacity-30" size={36} />
+                                <span className="text-sm mt-1">Unavailable</span>
+                            </div>
+                        ) : (
+                            <>
+                                <Image src={img.url} alt={img.alt} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized onError={() => markFailed(index)} />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                                    <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={36} />
+                                </div>
+                            </>
+                        )}
                     </button>
                 ))}
             </div>
@@ -256,13 +302,10 @@ export default function ImageLightbox({ images }: ImageLightboxProps) {
 
                     {/* Image + zoom area */}
                     <div
+                        ref={zoom.containerRef}
                         className="relative w-full h-full max-w-5xl max-h-[90vh] mx-12 sm:mx-20 overflow-hidden select-none"
                         style={{ cursor: zoom.scale > 1 ? 'grab' : 'zoom-in' }}
-                        onWheel={zoom.onWheel}
                         onMouseDown={zoom.onMouseDown}
-                        onTouchStart={zoom.onTouchStart}
-                        onTouchMove={zoom.onTouchMove}
-                        onTouchEnd={zoom.onTouchEnd}
                         onClick={e => e.stopPropagation()}
                     >
                         <div

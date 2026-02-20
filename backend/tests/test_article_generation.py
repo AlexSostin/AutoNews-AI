@@ -11,52 +11,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'ai_engine'))
 
 
 class TestContentFormatting:
-    """Tests for content formatting functions"""
-    
-    def test_distribute_images_basic(self):
-        """Test basic image distribution"""
-        from modules.content_formatter import distribute_images_in_content
-        
-        content = '<p>Para 1</p><p>Para 2</p><p>Para 3</p>'
-        images = ['/img1.jpg']
-        
-        result = distribute_images_in_content(content, images)
-        
-        # Should contain the image
-        assert '/img1.jpg' in result
-        assert '<img' in result
-    
-    def test_distribute_multiple_images(self):
-        """Test distributing multiple images"""
-        from modules.content_formatter import distribute_images_in_content
-        
-        content = '<p>P1</p>' * 10
-        images = ['/img1.jpg', '/img2.jpg', '/img3.jpg']
-        
-        result = distribute_images_in_content(content, images)
-        
-        # All images should be in content
-        for img in images:
-            assert img in result
-    
-    def test_distribute_images_no_content(self):
-        """Test with empty content"""
-        from modules.content_formatter import distribute_images_in_content
-        
-        result = distribute_images_in_content('', ['/img1.jpg'])
-        
-        # Should not crash
-        assert isinstance(result, str)
-    
-    def test_distribute_images_no_images(self):
-        """Test with no images"""
-        from modules.content_formatter import distribute_images_in_content
-        
-        content = '<p>Para 1</p>'
-        result = distribute_images_in_content(content, [])
-        
-        # Should return original content
-        assert result == content
 
     """Tests for content formatting functions"""
     
