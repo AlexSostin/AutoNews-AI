@@ -52,10 +52,10 @@ export const metadata: Metadata = {
     siteName: 'Fresh Motors',
     images: [
       {
-        url: '/logo.png',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Fresh Motors Logo',
+        alt: 'Fresh Motors - Latest Automotive News & Reviews',
       },
     ],
     locale: 'en_US',
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: "Fresh Motors - Latest Automotive News & Reviews",
     description: "Your source for the latest automotive news, car reviews, and industry insights.",
-    images: ['/logo.png'],
+    images: ['/og-image.png'],
   },
 };
 
