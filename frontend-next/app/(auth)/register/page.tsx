@@ -86,24 +86,20 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center px-4 py-8">
       <div className="max-w-md w-full">
-        <div className="text-center mb-6">
-          <Link href="/" className="hover:scale-110 transition-transform duration-300 inline-block">
-            <Image
-              src="/logo.png"
-              alt="Fresh Motors"
-              width={800}
-              height={200}
-              className="h-48 md:h-56 w-auto object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] [filter:drop-shadow(0_0_30px_rgba(255,255,255,0.3))]"
-              priority
-            />
-          </Link>
-        </div>
 
-        <div className="bg-white rounded-lg shadow-2xl p-8">
-          <div className="flex items-center justify-center mb-6">
-            <div className="bg-indigo-100 p-4 rounded-full">
-              <UserPlus className="text-indigo-600" size={32} />
-            </div>
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          {/* Logo inside card */}
+          <div className="text-center mb-6 pb-6 border-b border-gray-100">
+            <Link href="/" className="inline-block hover:scale-105 transition-transform duration-300">
+              <Image
+                src="/logo.png"
+                alt="Fresh Motors"
+                width={400}
+                height={100}
+                className="h-16 w-auto object-contain mx-auto"
+                priority
+              />
+            </Link>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">

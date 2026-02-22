@@ -46,7 +46,7 @@ export default function TrendingSection() {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl p-6 shadow-xl">
+      <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="text-white animate-bounce" size={24} />
           <h2 className="text-2xl font-bold text-white">Trending Now</h2>
@@ -62,7 +62,7 @@ export default function TrendingSection() {
 
   if (articles.length === 0) {
     return (
-      <div className="bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl p-6 shadow-xl sticky top-24">
+      <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl sticky top-24">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="text-white" size={24} />
           <h2 className="text-2xl font-bold text-white">🔥 Trending Now</h2>
@@ -76,7 +76,7 @@ export default function TrendingSection() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl p-6 shadow-xl sticky top-24">
+    <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl sticky top-24">
       <div className="flex items-center gap-2 mb-6">
         <TrendingUp className="text-white animate-bounce" size={24} />
         <h2 className="text-2xl font-bold text-white">🔥 Trending Now</h2>
@@ -91,7 +91,7 @@ export default function TrendingSection() {
           >
             <div className="flex items-start gap-3">
               {/* Ranking Badge */}
-              <div className="flex-shrink-0 w-8 h-8 bg-white rounded-full flex items-center justify-center font-bold text-orange-500 text-sm">
+              <div className="flex-shrink-0 w-8 h-8 bg-white rounded-full flex items-center justify-center font-bold text-indigo-600 text-sm">
                 {index + 1}
               </div>
 
