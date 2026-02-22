@@ -40,7 +40,7 @@ export default function PrivacyPolicyPage() {
   if (loading) {
     return (
       <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-brand-600" size={48} />
+        <Loader2 className="animate-spin text-purple-600" size={48} />
       </main>
     );
   }
@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-16">
           <div className="container mx-auto px-4 text-center">
-            <Shield className="mx-auto mb-4 text-brand-300" size={48} />
+            <Shield className="mx-auto mb-4 text-purple-300" size={48} />
             <h1 className="text-4xl md:text-5xl font-black mb-4">{pageTitle}</h1>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
               Last Updated: February 13, 2026
@@ -88,8 +88,8 @@ export default function PrivacyPolicyPage() {
                 {/* Collection of Information */}
                 <section className="mb-10">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-brand-100 p-2 rounded-lg">
-                      <Database className="text-brand-600" size={24} />
+                    <div className="bg-purple-100 p-2 rounded-lg">
+                      <Database className="text-purple-600" size={24} />
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">Information We Collect</h2>
                   </div>
@@ -122,8 +122,8 @@ export default function PrivacyPolicyPage() {
                 {/* Use of Information */}
                 <section className="mb-10">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-brand-100 p-2 rounded-lg">
-                      <Eye className="text-brand-600" size={24} />
+                    <div className="bg-indigo-100 p-2 rounded-lg">
+                      <Eye className="text-indigo-600" size={24} />
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">How We Use Your Information</h2>
                   </div>
@@ -180,13 +180,13 @@ export default function PrivacyPolicyPage() {
                     Google&apos;s use of advertising cookies enables it and its partners to serve ads to you based on
                     your visit to our site and/or other sites on the Internet. You may opt out of personalised
                     advertising by visiting{' '}
-                    <a href="https://www.google.com/settings/ads" className="text-brand-600 hover:text-brand-800 font-medium underline" target="_blank" rel="noopener noreferrer">
+                    <a href="https://www.google.com/settings/ads" className="text-purple-600 hover:text-purple-800 font-medium underline" target="_blank" rel="noopener noreferrer">
                       Google Ads Settings
                     </a>.
                   </p>
                   <p className="text-gray-700 mb-4">
                     For more information about how Google uses data when you use our website, please visit{' '}
-                    <a href="https://policies.google.com/technologies/partner-sites" className="text-brand-600 hover:text-brand-800 font-medium underline" target="_blank" rel="noopener noreferrer">
+                    <a href="https://policies.google.com/technologies/partner-sites" className="text-purple-600 hover:text-purple-800 font-medium underline" target="_blank" rel="noopener noreferrer">
                       How Google uses data when you use our partners&apos; sites or apps
                     </a>.
                   </p>
@@ -294,8 +294,8 @@ export default function PrivacyPolicyPage() {
                 {/* Newsletter */}
                 <section className="mb-10">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-brand-100 p-2 rounded-lg">
-                      <Mail className="text-brand-600" size={24} />
+                    <div className="bg-purple-100 p-2 rounded-lg">
+                      <Mail className="text-purple-600" size={24} />
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">Newsletter and Marketing</h2>
                   </div>
@@ -307,12 +307,12 @@ export default function PrivacyPolicyPage() {
                 </section>
 
                 {/* Contact Us */}
-                <section className="bg-brand-50 rounded-xl p-6">
+                <section className="bg-purple-50 rounded-xl p-6">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Contact Us</h2>
                   <p className="text-gray-700 mb-4">
                     If you have questions or comments about this Privacy Policy, or wish to exercise your
                     data protection rights, please contact us through our{' '}
-                    <a href="/contact" className="text-brand-600 hover:text-brand-800 font-medium underline">
+                    <a href="/contact" className="text-purple-600 hover:text-purple-800 font-medium underline">
                       Contact Page
                     </a>.
                   </p>

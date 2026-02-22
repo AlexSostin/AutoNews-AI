@@ -59,7 +59,7 @@ export default function FavoritesPage() {
     return (
       <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="inline-block animate-spin text-brand-600" size={48} />
+          <Loader2 className="inline-block animate-spin text-indigo-600" size={48} />
         </div>
       </main>
     );
@@ -73,7 +73,7 @@ export default function FavoritesPage() {
           {/* Back Button */}
           <Link
             href="/profile"
-            className="inline-flex items-center gap-2 text-brand-600 hover:text-brand-700 mb-6 font-medium"
+            className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 mb-6 font-medium"
           >
             <ArrowLeft size={20} />
             Back to Profile
@@ -113,7 +113,7 @@ export default function FavoritesPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/"
-                  className="px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors font-medium"
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                 >
                   Browse Articles
                 </Link>
@@ -162,7 +162,7 @@ export default function FavoritesPage() {
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <Link href={`/articles/${favorite.article_slug}`}>
-                          <h3 className="text-lg font-bold text-gray-900 hover:text-brand-600 transition-colors line-clamp-2">
+                          <h3 className="text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors line-clamp-2">
                             {favorite.article_title}
                           </h3>
                         </Link>
@@ -173,7 +173,7 @@ export default function FavoritesPage() {
                       </p>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs bg-brand-50 text-brand-700 px-3 py-1 rounded-full font-medium">
+                        <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-medium">
                           {favorite.article_category}
                         </span>
 

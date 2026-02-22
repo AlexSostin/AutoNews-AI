@@ -14,7 +14,7 @@ export default function UnitToggle({ system, onToggle, className = '' }: UnitTog
             <button
                 onClick={() => onToggle('metric')}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${system === 'metric'
-                        ? 'bg-white text-brand-700 shadow-sm'
+                        ? 'bg-white text-indigo-700 shadow-sm'
                         : 'text-gray-300 hover:text-white'
                     }`}
             >
@@ -23,7 +23,7 @@ export default function UnitToggle({ system, onToggle, className = '' }: UnitTog
             <button
                 onClick={() => onToggle('imperial')}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${system === 'imperial'
-                        ? 'bg-white text-brand-700 shadow-sm'
+                        ? 'bg-white text-indigo-700 shadow-sm'
                         : 'text-gray-300 hover:text-white'
                     }`}
             >

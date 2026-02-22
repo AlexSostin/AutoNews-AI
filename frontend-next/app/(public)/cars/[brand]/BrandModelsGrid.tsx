@@ -107,7 +107,7 @@ export default function BrandModelsGrid({
                 {/* Back button */}
                 <Link
                     href="/cars"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-brand-600 transition-colors group"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors group"
                 >
                     <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -119,7 +119,7 @@ export default function BrandModelsGrid({
                 <div className="relative" ref={dropdownRef}>
                     <button
                         onClick={() => setDropdownOpen(!dropdownOpen)}
-                        className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-brand-300 hover:shadow-sm transition-all"
+                        className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-indigo-300 hover:shadow-sm transition-all"
                     >
                         <span className="text-gray-400 text-xs uppercase tracking-wider">Sort</span>
                         <span className="w-px h-4 bg-gray-200" />
@@ -140,14 +140,14 @@ export default function BrandModelsGrid({
                                         setDropdownOpen(false);
                                     }}
                                     className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-colors ${sortBy === key
-                                        ? 'bg-brand-50 text-brand-700 font-semibold'
+                                        ? 'bg-indigo-50 text-indigo-700 font-semibold'
                                         : 'text-gray-600 hover:bg-gray-50'
                                         }`}
                                 >
                                     <span className="text-base">{icon}</span>
                                     <span>{label}</span>
                                     {sortBy === key && (
-                                        <svg className="w-4 h-4 ml-auto text-brand-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <svg className="w-4 h-4 ml-auto text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                         </svg>
                                     )}
@@ -169,7 +169,7 @@ export default function BrandModelsGrid({
                     <Link
                         key={`${model.slug}-${idx}`}
                         href={`/cars/${brandSlug}/${model.slug}`}
-                        className="group flex flex-col h-full bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.06)] transition-all duration-300 hover:shadow-[0_20px_50px_rgba(79,70,229,0.15)] hover:-translate-y-1.5 hover:border-brand-300"
+                        className="group flex flex-col h-full bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.06)] transition-all duration-300 hover:shadow-[0_20px_50px_rgba(79,70,229,0.15)] hover:-translate-y-1.5 hover:border-indigo-300"
                     >
                         {/* Image */}
                         <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden relative">
@@ -186,7 +186,7 @@ export default function BrandModelsGrid({
                             )}
                             <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/30 to-transparent" />
                             {model.article_count > 1 && (
-                                <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-xs font-bold text-brand-600 px-2.5 py-1 rounded-full shadow-sm">
+                                <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-xs font-bold text-indigo-600 px-2.5 py-1 rounded-full shadow-sm">
                                     {model.article_count} reviews
                                 </span>
                             )}
@@ -194,7 +194,7 @@ export default function BrandModelsGrid({
 
                         {/* Info */}
                         <div className="p-6 flex-grow flex flex-col">
-                            <h3 className="font-bold text-xl text-gray-900 group-hover:text-brand-600 transition-colors mb-4">
+                            <h3 className="font-bold text-xl text-gray-900 group-hover:text-indigo-600 transition-colors mb-4">
                                 {brand} {model.model}
                             </h3>
 
@@ -215,7 +215,7 @@ export default function BrandModelsGrid({
                                             {spec.label}
                                         </span>
                                         <span
-                                            className={`text-sm font-semibold text-right max-w-[65%] ${spec.highlight ? 'text-brand-700' : 'text-gray-800'
+                                            className={`text-sm font-semibold text-right max-w-[65%] ${spec.highlight ? 'text-indigo-700' : 'text-gray-800'
                                                 }`}
                                             title={spec.value}
                                         >
@@ -227,7 +227,7 @@ export default function BrandModelsGrid({
                         </div>
 
                         {/* Hover accent bar */}
-                        <div className="h-1 bg-gradient-to-r from-brand-600 to-brand-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                        <div className="h-1 bg-gradient-to-r from-indigo-600 to-purple-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                     </Link>
                 ))}
             </div>

@@ -55,7 +55,7 @@ export default function AboutPage() {
   if (loading) {
     return (
       <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-brand-600" size={48} />
+        <Loader2 className="animate-spin text-purple-600" size={48} />
       </main>
     );
   }
@@ -112,8 +112,8 @@ export default function AboutPage() {
                 <h2 className="text-3xl font-black text-gray-900 mb-6 text-center">What We Stand For</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-xl transition-shadow">
-                    <div className="bg-brand-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Target className="text-brand-600" size={32} />
+                    <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Target className="text-purple-600" size={32} />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Accuracy</h3>
                     <p className="text-gray-600">
@@ -122,8 +122,8 @@ export default function AboutPage() {
                   </div>
 
                   <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-xl transition-shadow">
-                    <div className="bg-brand-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <TrendingUp className="text-brand-600" size={32} />
+                    <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <TrendingUp className="text-indigo-600" size={32} />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Innovation</h3>
                     <p className="text-gray-600">
@@ -158,28 +158,28 @@ export default function AboutPage() {
                 <h2 className="text-3xl font-black text-gray-900 mb-6">What We Cover</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="text-xl font-bold text-brand-600 mb-3">Latest News</h3>
+                    <h3 className="text-xl font-bold text-purple-600 mb-3">Latest News</h3>
                     <p className="text-gray-700 mb-4">
                       Breaking stories from the automotive industry, including new model announcements,
                       technological breakthroughs, and industry trends.
                     </p>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-brand-600 mb-3">In-Depth Reviews</h3>
+                    <h3 className="text-xl font-bold text-purple-600 mb-3">In-Depth Reviews</h3>
                     <p className="text-gray-700 mb-4">
                       Comprehensive reviews of the latest vehicles, covering performance, features,
                       safety, and value for money.
                     </p>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-brand-600 mb-3">Electric Vehicles</h3>
+                    <h3 className="text-xl font-bold text-purple-600 mb-3">Electric Vehicles</h3>
                     <p className="text-gray-700 mb-4">
                       Dedicated coverage of the EV revolution, including battery technology,
                       charging infrastructure, and sustainability.
                     </p>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-brand-600 mb-3">Expert Analysis</h3>
+                    <h3 className="text-xl font-bold text-purple-600 mb-3">Expert Analysis</h3>
                     <p className="text-gray-700 mb-4">
                       Insights from industry experts, market analysis, and predictions about
                       the future of transportation.

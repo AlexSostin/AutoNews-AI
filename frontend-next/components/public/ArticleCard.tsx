@@ -70,7 +70,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
             loading={priority ? "eager" : "lazy"}
           />
           {article.categories && article.categories.length > 0 && (
-            <span className="absolute top-3 left-3 bg-brand-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">
+            <span className="absolute top-3 left-3 bg-indigo-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">
               {article.categories[0].name}
             </span>
           )}
@@ -84,7 +84,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
         </div>
 
         <div className="p-5 flex-1 flex flex-col">
-          <h3 className="text-xl font-black mb-3 text-gray-950 group-hover:text-brand-600 transition-all duration-300 line-clamp-2 leading-tight group-hover:translate-x-1">
+          <h3 className="text-xl font-black mb-3 text-gray-950 group-hover:text-indigo-600 transition-all duration-300 line-clamp-2 leading-tight group-hover:translate-x-1">
             {title}
           </h3>
 
@@ -94,7 +94,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
 
           <div className="flex items-center justify-between text-sm text-gray-600 mb-3 font-medium">
             <div className="flex items-center gap-1.5">
-              <Calendar size={16} className="text-brand-500" />
+              <Calendar size={16} className="text-indigo-500" />
               <span>{formatDate(article.created_at)}</span>
             </div>
 
@@ -109,7 +109,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
           {article.tag_names && article.tag_names.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-auto">
               {prioritizeTags(article.tag_names).map((tag) => (
-                <span key={tag} className="text-xs bg-brand-50 text-brand-700 px-3 py-1 rounded-full border border-brand-100">
+                <span key={tag} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">
                   {tag}
                 </span>
               ))}

@@ -105,7 +105,7 @@ export default function ShareButtons({ url, title }: ShareButtonsProps) {
   ];
 
   return (
-    <div className="bg-gradient-to-r from-brand-600 to-brand-600 rounded-xl p-6 shadow-lg">
+    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-6 shadow-lg">
       <h3 className="text-xl font-bold text-white text-center mb-4">
         📢 Share this article
       </h3>
@@ -127,7 +127,7 @@ export default function ShareButtons({ url, title }: ShareButtonsProps) {
         })}
         <button
           onClick={handleCopyLink}
-          className={`${copied ? 'bg-green-500' : 'bg-brand-500'} hover:bg-brand-600 text-white px-5 py-3 rounded-full font-semibold flex items-center gap-2 transition-all transform hover:scale-105 hover:shadow-xl`}
+          className={`${copied ? 'bg-green-500' : 'bg-indigo-500'} hover:bg-indigo-600 text-white px-5 py-3 rounded-full font-semibold flex items-center gap-2 transition-all transform hover:scale-105 hover:shadow-xl`}
         >
           {copied ? <Check size={20} /> : <Link2 size={20} />}
           {copied ? 'Copied!' : 'Copy Link'}

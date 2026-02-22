@@ -72,7 +72,7 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
     return (
       <div className="bg-white rounded-xl shadow-md p-6 mb-8">
         <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
         </div>
       </div>
     );
@@ -86,7 +86,7 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
 
       {userRating > 0 && (
         <div className="text-center mb-2">
-          <p className="text-sm text-brand-600 font-medium">
+          <p className="text-sm text-indigo-600 font-medium">
             Your rating: {userRating} ★
           </p>
         </div>

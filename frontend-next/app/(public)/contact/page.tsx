@@ -69,7 +69,7 @@ export default function ContactPage() {
   if (loading) {
     return (
       <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-brand-600" size={48} />
+        <Loader2 className="animate-spin text-purple-600" size={48} />
       </main>
     );
   }
@@ -103,7 +103,7 @@ export default function ContactPage() {
             <div className="lg:w-1/3 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-8 sm:p-12 text-white flex flex-col justify-between">
               <div>
                 <h2 className="text-3xl font-black mb-6">Get in Touch</h2>
-                <p className="text-brand-100/80 mb-10 leading-relaxed font-medium">
+                <p className="text-purple-100/80 mb-10 leading-relaxed font-medium">
                   We're here to help! Whether you have questions about a vehicle, feedback on our content, or business inquiries, reach out using any method below.
                 </p>
 
@@ -111,15 +111,15 @@ export default function ContactPage() {
                   {/* Email */}
                   <div className="flex items-start gap-4 group">
                     <div className="bg-white/10 p-3 rounded-2xl group-hover:bg-white/20 transition-colors">
-                      <Mail className="text-brand-300" size={24} />
+                      <Mail className="text-purple-300" size={24} />
                     </div>
                     <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-brand-300/80 mb-1">Email Us</p>
-                      <a href={`mailto:${contactEmail}`} className="text-lg font-bold hover:text-brand-300 transition-colors">
+                      <p className="text-xs font-black uppercase tracking-widest text-purple-300/80 mb-1">Email Us</p>
+                      <a href={`mailto:${contactEmail}`} className="text-lg font-bold hover:text-purple-300 transition-colors">
                         {contactEmail}
                       </a>
                       {hasSupportEmail && (
-                        <p className="text-sm text-brand-200/60 mt-0.5">Support: {settings?.support_email}</p>
+                        <p className="text-sm text-purple-200/60 mt-0.5">Support: {settings?.support_email}</p>
                       )}
                     </div>
                   </div>
@@ -128,11 +128,11 @@ export default function ContactPage() {
                   {hasPhone && settings?.contact_phone && (
                     <div className="flex items-start gap-4 group">
                       <div className="bg-white/10 p-3 rounded-2xl group-hover:bg-white/20 transition-colors">
-                        <Phone className="text-brand-300" size={24} />
+                        <Phone className="text-purple-300" size={24} />
                       </div>
                       <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-brand-300/80 mb-1">Call Us</p>
-                        <a href={`tel:${settings.contact_phone.replace(/\s/g, '')}`} className="text-lg font-bold hover:text-brand-300 transition-colors">
+                        <p className="text-xs font-black uppercase tracking-widest text-purple-300/80 mb-1">Call Us</p>
+                        <a href={`tel:${settings.contact_phone.replace(/\s/g, '')}`} className="text-lg font-bold hover:text-purple-300 transition-colors">
                           {settings.contact_phone}
                         </a>
                       </div>
@@ -143,11 +143,11 @@ export default function ContactPage() {
                   {hasAddress && settings?.contact_address && (
                     <div className="flex items-start gap-4 group">
                       <div className="bg-white/10 p-3 rounded-2xl group-hover:bg-white/20 transition-colors">
-                        <MapPin className="text-brand-300" size={24} />
+                        <MapPin className="text-purple-300" size={24} />
                       </div>
                       <div>
-                        <p className="text-xs font-black uppercase tracking-widest text-brand-300/80 mb-1">Visit Us</p>
-                        <div className="text-base font-medium text-brand-50 line-clamp-3">
+                        <p className="text-xs font-black uppercase tracking-widest text-purple-300/80 mb-1">Visit Us</p>
+                        <div className="text-base font-medium text-purple-50 line-clamp-3">
                           {settings.contact_address.split('\n').map((line, idx) => (
                             <span key={idx} className="block">{line}</span>
                           ))}
@@ -161,9 +161,9 @@ export default function ContactPage() {
               {/* Business Inquiries Box */}
               {hasBusinessEmail && settings?.business_email && (
                 <div className="mt-12 p-6 bg-white/5 border border-white/10 rounded-2xl">
-                  <p className="text-xs font-black uppercase tracking-widest text-brand-300 mb-2">Business Inquiries</p>
-                  <p className="text-sm text-brand-100/70 mb-3">For partnerships or press, please email us directly:</p>
-                  <a href={`mailto:${settings.business_email}`} className="text-sm font-black text-white hover:text-brand-300 transition-colors border-b border-brand-500/30 pb-0.5">
+                  <p className="text-xs font-black uppercase tracking-widest text-indigo-300 mb-2">Business Inquiries</p>
+                  <p className="text-sm text-indigo-100/70 mb-3">For partnerships or press, please email us directly:</p>
+                  <a href={`mailto:${settings.business_email}`} className="text-sm font-black text-white hover:text-indigo-300 transition-colors border-b border-indigo-500/30 pb-0.5">
                     {settings.business_email}
                   </a>
                 </div>
@@ -188,7 +188,7 @@ export default function ContactPage() {
                       value={formData.name}
                       onChange={handleChange}
                       required
-                      className="w-full px-5 py-3 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-brand-600 transition-all text-gray-900 font-medium placeholder-gray-300"
+                      className="w-full px-5 py-3 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-indigo-600 transition-all text-gray-900 font-medium placeholder-gray-300"
                       placeholder="e.g. Michael Knight"
                     />
                   </div>
@@ -204,7 +204,7 @@ export default function ContactPage() {
                       value={formData.email}
                       onChange={handleChange}
                       required
-                      className="w-full px-5 py-3 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-brand-600 transition-all text-gray-900 font-medium placeholder-gray-300"
+                      className="w-full px-5 py-3 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-indigo-600 transition-all text-gray-900 font-medium placeholder-gray-300"
                       placeholder="e.g. michael@knightrider.com"
                     />
                   </div>
@@ -221,7 +221,7 @@ export default function ContactPage() {
                     value={formData.subject}
                     onChange={handleChange}
                     required
-                    className="w-full px-5 py-3 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-brand-600 transition-all text-gray-900 font-medium placeholder-gray-300"
+                    className="w-full px-5 py-3 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-indigo-600 transition-all text-gray-900 font-medium placeholder-gray-300"
                     placeholder="How can we help you?"
                   />
                 </div>
@@ -237,7 +237,7 @@ export default function ContactPage() {
                     onChange={handleChange}
                     required
                     rows={6}
-                    className="w-full px-5 py-3 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-brand-600 transition-all text-gray-900 font-medium placeholder-gray-300 resize-none"
+                    className="w-full px-5 py-3 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-indigo-600 transition-all text-gray-900 font-medium placeholder-gray-300 resize-none"
                     placeholder="Provide as much detail as possible..."
                   />
                 </div>
@@ -253,7 +253,7 @@ export default function ContactPage() {
                   <button
                     type="submit"
                     disabled={status === 'loading'}
-                    className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-brand-600 to-brand-600 text-white rounded-2xl font-black text-lg hover:from-brand-700 hover:to-brand-700 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-200 flex items-center justify-center gap-3 group"
+                    className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-lg hover:from-indigo-700 hover:to-purple-700 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200 flex items-center justify-center gap-3 group"
                   >
                     {status === 'loading' ? (
                       <Loader2 className="animate-spin" size={24} />

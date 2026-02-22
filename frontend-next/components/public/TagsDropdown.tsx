@@ -65,18 +65,18 @@ export default function TagsDropdown({ tags, currentTag, currentCategory }: Tags
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-3 bg-white border-2 rounded-lg font-bold text-left flex items-center justify-between transition-all ${
           currentTag
-            ? 'border-brand-500 bg-brand-50'
-            : 'border-gray-300 hover:border-brand-300'
+            ? 'border-indigo-500 bg-indigo-50'
+            : 'border-gray-300 hover:border-indigo-300'
         }`}
       >
-        <span className={currentTag ? 'text-brand-700' : 'text-gray-700'}>
+        <span className={currentTag ? 'text-indigo-700' : 'text-gray-700'}>
           {selectedTag ? selectedTag.name : `All Tags (${tags.length})`}
         </span>
         <div className="flex items-center gap-2">
           {currentTag && (
             <button
               onClick={clearTag}
-              className="p-1 hover:bg-brand-200 rounded-full transition-colors"
+              className="p-1 hover:bg-indigo-200 rounded-full transition-colors"
               title="Clear tag filter"
             >
               <X size={16} />
@@ -101,7 +101,7 @@ export default function TagsDropdown({ tags, currentTag, currentCategory }: Tags
                 placeholder="Search tags..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-sm"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
@@ -115,13 +115,13 @@ export default function TagsDropdown({ tags, currentTag, currentCategory }: Tags
               onClick={() => setIsOpen(false)}
               className={`block px-4 py-3 transition-colors font-medium border-b border-gray-100 ${
                 !currentTag
-                  ? 'bg-brand-600 text-white'
+                  ? 'bg-indigo-600 text-white'
                   : 'hover:bg-gray-50 text-gray-700'
               }`}
             >
               <div className="flex items-center justify-between">
                 <span>All Tags</span>
-                <span className={`text-sm ${!currentTag ? 'text-brand-200' : 'text-gray-500'}`}>
+                <span className={`text-sm ${!currentTag ? 'text-indigo-200' : 'text-gray-500'}`}>
                   {tags.length} total
                 </span>
               </div>
@@ -141,7 +141,7 @@ export default function TagsDropdown({ tags, currentTag, currentCategory }: Tags
                   onClick={() => setIsOpen(false)}
                   className={`block px-4 py-3 transition-colors font-medium border-b border-gray-100 ${
                     currentTag === tag.slug
-                      ? 'bg-brand-600 text-white'
+                      ? 'bg-indigo-600 text-white'
                       : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >
@@ -150,7 +150,7 @@ export default function TagsDropdown({ tags, currentTag, currentCategory }: Tags
                     {tag.article_count !== undefined && (
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         currentTag === tag.slug
-                          ? 'bg-brand-700 text-brand-100'
+                          ? 'bg-indigo-700 text-indigo-100'
                           : 'bg-gray-200 text-gray-600'
                       }`}>
                         {tag.article_count}

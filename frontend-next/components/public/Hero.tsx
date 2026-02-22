@@ -133,15 +133,15 @@ export default function Hero({ articles, settings }: HeroProps) {
                     </p>
                     <Link
                         href="/articles"
-                        className="bg-white text-brand-900 px-8 sm:px-12 py-4 sm:py-5 rounded-full font-extrabold hover:bg-brand-50 hover:shadow-2xl transition-all inline-block text-lg sm:text-xl shadow-lg hover:scale-105 transform active:scale-95"
+                        className="bg-white text-purple-900 px-8 sm:px-12 py-4 sm:py-5 rounded-full font-extrabold hover:bg-purple-50 hover:shadow-2xl transition-all inline-block text-lg sm:text-xl shadow-lg hover:scale-105 transform active:scale-95"
                     >
                         Explore Articles <ArrowRight className="inline-block ml-2 w-5 h-5" />
                     </Link>
                 </div>
 
                 {/* Decorative elements */}
-                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-brand-500/20 rounded-full blur-3xl animate-pulse"></div>
-                <div className="absolute -top-24 -right-24 w-96 h-96 bg-brand-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
                 <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-gray-50 to-transparent z-10"></div>
             </section>
@@ -180,7 +180,7 @@ export default function Hero({ articles, settings }: HeroProps) {
                     <div className="relative h-full flex flex-col justify-end px-6 pb-12 sm:pb-16 md:pb-32 z-20">
                         <div className="max-w-4xl animate-slide-up">
                             <div className="flex items-center gap-3 mb-2 md:mb-4">
-                                <span className="bg-brand-600 text-white text-[10px] md:text-sm font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-full uppercase tracking-wider">
+                                <span className="bg-indigo-600 text-white text-[10px] md:text-sm font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-full uppercase tracking-wider">
                                     {article.categories?.[0]?.name || 'News'}
                                 </span>
                                 <span className="text-white/70 text-[10px] md:text-sm flex items-center gap-1 font-medium bg-black/40 backdrop-blur-md px-2 md:px-3 py-0.5 md:py-1 rounded-full">
@@ -200,7 +200,7 @@ export default function Hero({ articles, settings }: HeroProps) {
                             <div className="flex items-center gap-3 md:gap-4 relative z-30">
                                 <Link
                                     href={`/articles/${article.slug}`}
-                                    className="bg-brand-600 text-white px-5 md:px-8 py-2.5 md:py-4 rounded-lg md:rounded-xl font-bold hover:bg-brand-700 hover:shadow-xl transition-all inline-flex items-center justify-center text-sm md:text-lg shadow-lg hover:scale-105 transform active:scale-95 group"
+                                    className="bg-indigo-600 text-white px-5 md:px-8 py-2.5 md:py-4 rounded-lg md:rounded-xl font-bold hover:bg-indigo-700 hover:shadow-xl transition-all inline-flex items-center justify-center text-sm md:text-lg shadow-lg hover:scale-105 transform active:scale-95 group"
                                 >
                                     Read <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
                                 </Link>
@@ -246,7 +246,7 @@ export default function Hero({ articles, settings }: HeroProps) {
                             <button
                                 key={index}
                                 onClick={() => setCurrentIndex(index)}
-                                className={`transition-all duration-300 rounded-full h-1.5 md:h-2 ${index === currentIndex ? 'w-8 md:w-10 bg-brand-500 shadow-lg' : 'bg-white/20 md:bg-white/40'
+                                className={`transition-all duration-300 rounded-full h-1.5 md:h-2 ${index === currentIndex ? 'w-8 md:w-10 bg-indigo-500 shadow-lg' : 'bg-white/20 md:bg-white/40'
                                     }`}
                                 aria-label={`Go to slide ${index + 1}`}
                             />

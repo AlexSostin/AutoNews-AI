@@ -117,7 +117,7 @@ export default function RelatedCarousel({ categorySlug, currentArticleSlug }: Re
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                     <h3 className="text-2xl font-bold text-gray-900">Similar Articles</h3>
-                    <span className="bg-gradient-to-r from-brand-500 to-brand-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm">
+                    <span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm">
                         AI-POWERED
                     </span>
                 </div>
@@ -159,16 +159,16 @@ export default function RelatedCarousel({ categorySlug, currentArticleSlug }: Re
                                 sizes="(max-width: 768px) 280px, 320px"
                             />
                             {article.categories && article.categories.length > 0 && (
-                                <span className="absolute top-2 left-2 bg-brand-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow">
+                                <span className="absolute top-2 left-2 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow">
                                     {article.categories[0].name}
                                 </span>
                             )}
                         </div>
-                        <h4 className="font-bold text-gray-900 group-hover:text-brand-600 transition-colors line-clamp-2 mb-2 leading-tight">
+                        <h4 className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-2 leading-tight">
                             {article.title}
                         </h4>
                         <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
-                            <Calendar size={14} className="text-brand-400" />
+                            <Calendar size={14} className="text-indigo-400" />
                             <span>{formatDate(article.created_at)}</span>
                         </div>
                     </Link>

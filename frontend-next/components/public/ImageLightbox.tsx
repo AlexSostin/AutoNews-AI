@@ -234,7 +234,7 @@ export default function ImageLightbox({ images }: ImageLightboxProps) {
                     <button
                         key={index}
                         onClick={() => open(index)}
-                        className={`relative aspect-video rounded-lg overflow-hidden group focus:outline-none focus:ring-2 focus:ring-brand-500 ${failedImages.has(index) ? 'cursor-default' : ''}`}
+                        className={`relative aspect-video rounded-lg overflow-hidden group focus:outline-none focus:ring-2 focus:ring-indigo-500 ${failedImages.has(index) ? 'cursor-default' : ''}`}
                         aria-label={failedImages.has(index) ? 'Image unavailable' : `Open image ${index + 1}`}
                     >
                         {failedImages.has(index) ? (

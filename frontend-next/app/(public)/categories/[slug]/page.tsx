@@ -118,7 +118,7 @@ export default async function CategoryPage({
               <p className="text-gray-600 mb-6">Check back later for new content</p>
               <Link
                 href="/articles"
-                className="inline-block px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors font-medium"
+                className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
                 View all articles
               </Link>
@@ -137,7 +137,7 @@ export default async function CategoryPage({
                   {page > 1 && (
                     <Link
                       href={`/categories/${slug}?page=${page - 1}`}
-                      className="px-4 py-2 bg-white border-2 border-brand-200 text-brand-700 rounded-lg hover:bg-brand-50 transition-colors flex items-center gap-2 font-medium"
+                      className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-2 font-medium"
                     >
                       <ChevronLeft size={20} />
                       Previous
@@ -162,8 +162,8 @@ export default async function CategoryPage({
                           key={pageNum}
                           href={`/categories/${slug}?page=${pageNum}`}
                           className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-all ${page === pageNum
-                            ? 'bg-brand-600 text-white shadow-md'
-                            : 'bg-white border-2 border-brand-200 text-brand-700 hover:bg-brand-50'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50'
                             }`}
                         >
                           {pageNum}
@@ -175,7 +175,7 @@ export default async function CategoryPage({
                   {page < totalPages && (
                     <Link
                       href={`/categories/${slug}?page=${page + 1}`}
-                      className="px-4 py-2 bg-white border-2 border-brand-200 text-brand-700 rounded-lg hover:bg-brand-50 transition-colors flex items-center gap-2 font-medium"
+                      className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-2 font-medium"
                     >
                       Next
                       <ChevronRight size={20} />

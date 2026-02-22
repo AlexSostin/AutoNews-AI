@@ -153,19 +153,19 @@ export default function SearchBar() {
           <div className="flex min-h-full items-start justify-center p-2 sm:p-4 pt-[10vh] sm:pt-[15vh]">
             <div
               ref={modalRef}
-              className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-2xl transition-all border border-brand-500/20"
+              className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-2xl transition-all border border-purple-500/20"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header with gradient */}
-              <div className="bg-gradient-to-r from-brand-600/20 to-brand-600/20 p-1">
+              <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 p-1">
                 <div className="bg-gray-900/80 rounded-xl">
                   {/* Search Input */}
                   <div className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4">
                     <div className="flex-shrink-0">
                       {loading ? (
-                        <Loader2 size={20} className="animate-spin text-brand-400" />
+                        <Loader2 size={20} className="animate-spin text-purple-400" />
                       ) : (
-                        <Search size={20} className="text-brand-400" />
+                        <Search size={20} className="text-purple-400" />
                       )}
                     </div>
                     <input
@@ -193,8 +193,8 @@ export default function SearchBar() {
                 {/* Empty state */}
                 {!query && (
                   <div className="p-8 text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-500/20 rounded-full mb-4">
-                      <Sparkles size={32} className="text-brand-400" />
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-500/20 rounded-full mb-4">
+                      <Sparkles size={32} className="text-purple-400" />
                     </div>
                     <h3 className="text-lg font-semibold text-white mb-2">Search Fresh Motors</h3>
                     <p className="text-gray-400 text-sm">
@@ -227,7 +227,7 @@ export default function SearchBar() {
                           href={`/articles/${article.slug}`}
                           onClick={handleClose}
                           className={`flex items-center gap-4 p-3 rounded-xl transition-all group ${selectedIndex === index
-                              ? 'bg-brand-600/30 border border-brand-500/50'
+                              ? 'bg-purple-600/30 border border-purple-500/50'
                               : 'hover:bg-white/5 border border-transparent'
                             }`}
                         >
@@ -257,14 +257,14 @@ export default function SearchBar() {
                             <p className="text-sm text-gray-400 line-clamp-1 mt-0.5">
                               {article.summary}
                             </p>
-                            <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-brand-500/20 text-brand-300 rounded-full">
+                            <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">
                               {article.categories?.[0]?.name || 'News'}
                             </span>
                           </div>
 
                           {/* Arrow */}
                           <ArrowRight size={18} className={`flex-shrink-0 transition-all ${selectedIndex === index
-                              ? 'text-brand-400 translate-x-0 opacity-100'
+                              ? 'text-purple-400 translate-x-0 opacity-100'
                               : 'text-gray-600 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
                             }`} />
                         </Link>

@@ -108,15 +108,15 @@ export default function Header() {
           </Link>
 
           <nav className="hidden md:flex space-x-6 items-center">
-            <Link href="/" className="hover:text-brand-300 transition-colors">Home</Link>
-            <Link href="/articles" className="hover:text-brand-300 transition-colors">Articles</Link>
-            <Link href="/cars" className="hover:text-brand-300 transition-colors">Cars</Link>
+            <Link href="/" className="hover:text-purple-300 transition-colors">Home</Link>
+            <Link href="/articles" className="hover:text-purple-300 transition-colors">Articles</Link>
+            <Link href="/cars" className="hover:text-purple-300 transition-colors">Cars</Link>
 
             {/* Categories Dropdown */}
             <div className="relative" ref={categoriesRef}>
               <button
                 onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                className="flex items-center gap-1 hover:text-brand-300 transition-colors"
+                className="flex items-center gap-1 hover:text-purple-300 transition-colors"
               >
                 Categories
                 <ChevronDown size={16} className={`transition-transform ${isCategoriesOpen ? 'rotate-180' : ''}`} />
@@ -131,11 +131,11 @@ export default function Header() {
                           key={category.id}
                           href={`/categories/${category.slug}`}
                           onClick={() => setIsCategoriesOpen(false)}
-                          className="group flex flex-col p-3 rounded-xl hover:bg-brand-50 transition-all"
+                          className="group flex flex-col p-3 rounded-xl hover:bg-indigo-50 transition-all"
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-bold text-gray-900 group-hover:text-brand-600 transition-colors">{category.name}</span>
-                            <span className="text-[10px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full group-hover:bg-brand-600 group-hover:text-white transition-all">
+                            <span className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{category.name}</span>
+                            <span className="text-[10px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-all">
                               {category.article_count}
                             </span>
                           </div>
@@ -146,20 +146,20 @@ export default function Header() {
                     <Link
                       href="/articles"
                       onClick={() => setIsCategoriesOpen(false)}
-                      className="flex items-center justify-center gap-2 py-3 mt-6 border-t border-gray-100 text-brand-600 hover:text-brand-700 font-bold transition-colors group"
+                      className="flex items-center justify-center gap-2 py-3 mt-6 border-t border-gray-100 text-indigo-600 hover:text-indigo-700 font-bold transition-colors group"
                     >
                       Browse All Categories <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </div>
                   {/* Bottom accented bar */}
-                  <div className="h-1.5 bg-gradient-to-r from-brand-600 to-brand-600 w-full"></div>
+                  <div className="h-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 w-full"></div>
                 </div>
               )}
             </div>
 
             {/* Admin Link - Only for staff */}
             {isAdminUser && (
-              <Link href="/admin" className="flex items-center gap-1 hover:text-brand-300 transition-colors">
+              <Link href="/admin" className="flex items-center gap-1 hover:text-purple-300 transition-colors">
                 <Settings size={18} />
                 Admin
               </Link>
@@ -170,7 +170,7 @@ export default function Header() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 hover:text-brand-300 transition-colors bg-purple-800 px-4 py-2 rounded-lg"
+                  className="flex items-center gap-2 hover:text-purple-300 transition-colors bg-purple-800 px-4 py-2 rounded-lg"
                 >
                   <User size={18} />
                   <span>{user?.username || 'Account'}</span>
@@ -188,18 +188,18 @@ export default function Header() {
                       <Link
                         href="/profile"
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-brand-50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-purple-50 transition-colors"
                       >
-                        <User size={18} className="text-brand-600" />
+                        <User size={18} className="text-purple-600" />
                         <span className="font-medium">My Profile</span>
                       </Link>
 
                       <Link
                         href="/profile/favorites"
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-brand-50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-purple-50 transition-colors"
                       >
-                        <BookMarked size={18} className="text-brand-600" />
+                        <BookMarked size={18} className="text-purple-600" />
                         <span className="font-medium">Favorites</span>
                       </Link>
 
@@ -217,7 +217,7 @@ export default function Header() {
             ) : (
               <Link
                 href="/login"
-                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 px-4 py-2 rounded-lg transition-colors font-medium"
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors font-medium"
               >
                 <User size={18} />
                 Login
@@ -246,9 +246,9 @@ export default function Header() {
         {/* Mobile menu */}
         {isMenuOpen && (
           <div ref={mobileMenuRef} className="md:hidden pb-4 space-y-2">
-            <Link href="/" className="block py-2 hover:text-brand-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
-            <Link href="/articles" className="block py-2 hover:text-brand-300" onClick={() => setIsMenuOpen(false)}>Articles</Link>
-            <Link href="/cars" className="block py-2 hover:text-brand-300" onClick={() => setIsMenuOpen(false)}>Cars</Link>
+            <Link href="/" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
+            <Link href="/articles" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Articles</Link>
+            <Link href="/cars" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Cars</Link>
 
             {/* Mobile Categories */}
             <div>
@@ -257,7 +257,7 @@ export default function Header() {
                   e.stopPropagation();
                   setIsCategoriesOpen(!isCategoriesOpen);
                 }}
-                className="flex items-center gap-1 py-2 hover:text-brand-300 transition-colors w-full text-left"
+                className="flex items-center gap-1 py-2 hover:text-purple-300 transition-colors w-full text-left"
               >
                 Categories
                 <ChevronDown size={16} className={`transition-transform ${isCategoriesOpen ? 'rotate-180' : ''}`} />
@@ -281,7 +281,7 @@ export default function Header() {
                       >
                         <div className="font-medium">{category.name}</div>
                         {category.article_count > 0 && (
-                          <div className="text-xs text-brand-200 opacity-80">{category.article_count} articles</div>
+                          <div className="text-xs text-purple-200 opacity-80">{category.article_count} articles</div>
                         )}
                       </a>
                     ))}
@@ -294,7 +294,7 @@ export default function Header() {
                         setIsCategoriesOpen(false);
                         router.push('/articles');
                       }}
-                      className="block px-4 py-2 mt-1 border-t border-white/20 text-brand-300 hover:bg-white/20 font-medium transition-colors cursor-pointer"
+                      className="block px-4 py-2 mt-1 border-t border-white/20 text-purple-300 hover:bg-white/20 font-medium transition-colors cursor-pointer"
                     >
                       View All Categories →
                     </a>
@@ -305,7 +305,7 @@ export default function Header() {
 
             {/* Mobile Admin Link - Only for staff */}
             {isAdminUser && (
-              <Link href="/admin" className="flex items-center gap-2 py-2 hover:text-brand-300" onClick={() => setIsMenuOpen(false)}>
+              <Link href="/admin" className="flex items-center gap-2 py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>
                 <Settings size={18} />
                 Admin
               </Link>
@@ -316,12 +316,12 @@ export default function Header() {
               <div className="border-t border-white/20 pt-2 mt-2">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mb-2">
                   <div className="font-bold">{user?.username}</div>
-                  <div className="text-xs text-brand-200">{user?.email}</div>
+                  <div className="text-xs text-purple-200">{user?.email}</div>
                 </div>
 
                 <Link
                   href="/profile"
-                  className="flex items-center gap-2 py-2 hover:text-brand-300"
+                  className="flex items-center gap-2 py-2 hover:text-purple-300"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <User size={18} />
@@ -330,7 +330,7 @@ export default function Header() {
 
                 <Link
                   href="/profile/favorites"
-                  className="flex items-center gap-2 py-2 hover:text-brand-300"
+                  className="flex items-center gap-2 py-2 hover:text-purple-300"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <BookMarked size={18} />
@@ -351,7 +351,7 @@ export default function Header() {
             ) : (
               <Link
                 href="/login"
-                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 px-4 py-2 rounded-lg transition-colors font-medium mt-2"
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors font-medium mt-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <User size={18} />

@@ -496,7 +496,7 @@ export default function ProfilePage() {
     return (
       <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
           <p className="mt-4 text-gray-600">Loading profile...</p>
         </div>
       </main>
@@ -508,7 +508,7 @@ export default function ProfilePage() {
     return (
       <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
           <p className="mt-4 text-gray-600">Redirecting...</p>
         </div>
       </main>
@@ -570,12 +570,12 @@ export default function ProfilePage() {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow-md p-6">
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full mb-4">
+                  <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full mb-4">
                     <User size={48} className="text-white" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900">{user.username}</h2>
                   {user.is_staff && (
-                    <span className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-brand-100 text-brand-700 rounded-full text-sm font-semibold">
+                    <span className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">
                       <Shield size={14} />
                       Administrator
                     </span>
@@ -584,7 +584,7 @@ export default function ProfilePage() {
 
                 <div className="space-y-4 border-t border-gray-200 pt-6">
                   <div className="flex items-center gap-3 text-gray-600">
-                    <Mail size={20} className="text-brand-600" />
+                    <Mail size={20} className="text-indigo-600" />
                     <div>
                       <div className="text-xs text-gray-500 uppercase">Email</div>
                       <div className="font-medium text-gray-900">{user.email}</div>
@@ -592,7 +592,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex items-center gap-3 text-gray-600">
-                    <Calendar size={20} className="text-brand-600" />
+                    <Calendar size={20} className="text-indigo-600" />
                     <div>
                       <div className="text-xs text-gray-500 uppercase">Member Since</div>
                       <div className="font-medium text-gray-900">{user.date_joined ? formatDate(user.date_joined) : 'N/A'}</div>
@@ -601,7 +601,7 @@ export default function ProfilePage() {
 
                   {user.first_name && (
                     <div className="flex items-center gap-3 text-gray-600">
-                      <User size={20} className="text-brand-600" />
+                      <User size={20} className="text-indigo-600" />
                       <div>
                         <div className="text-xs text-gray-500 uppercase">Full Name</div>
                         <div className="font-medium text-gray-900">
@@ -623,14 +623,14 @@ export default function ProfilePage() {
                   className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow text-left group"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-brand-100 rounded-lg group-hover:bg-brand-200 transition-colors">
-                      <BookMarked className="w-6 h-6 text-brand-600" />
+                    <div className="p-3 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                      <BookMarked className="w-6 h-6 text-indigo-600" />
                     </div>
                     <div className="flex-1">
                       <div className="text-2xl font-bold text-gray-900">{favoritesCount}</div>
                       <div className="text-sm text-gray-600">Favorites</div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-brand-600 transition-colors" />
+                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
                   </div>
                 </button>
 
@@ -639,14 +639,14 @@ export default function ProfilePage() {
                   className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow text-left group"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-brand-100 rounded-lg group-hover:bg-brand-200 transition-colors">
-                      <MessageSquare className="w-6 h-6 text-brand-600" />
+                    <div className="p-3 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+                      <MessageSquare className="w-6 h-6 text-purple-600" />
                     </div>
                     <div className="flex-1">
                       <div className="text-2xl font-bold text-gray-900">{commentsCount}</div>
                       <div className="text-sm text-gray-600">Comments</div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-brand-600 transition-colors" />
+                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
                   </div>
                 </button>
 
@@ -674,26 +674,26 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                   <button
                     onClick={() => openModal('favorites')}
-                    className="w-full flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-brand-50 transition-colors text-left group"
+                    className="w-full flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-indigo-50 transition-colors text-left group"
                   >
-                    <BookMarked className="w-6 h-6 text-brand-600 mt-1" />
+                    <BookMarked className="w-6 h-6 text-indigo-600 mt-1" />
                     <div className="flex-1">
-                      <h4 className="font-bold text-gray-900 mb-1 group-hover:text-brand-700">Favorite Articles</h4>
+                      <h4 className="font-bold text-gray-900 mb-1 group-hover:text-indigo-700">Favorite Articles</h4>
                       <p className="text-sm text-gray-600">View and manage your saved favorite articles</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 mt-1 group-hover:text-brand-600" />
+                    <ChevronRight className="w-5 h-5 text-gray-400 mt-1 group-hover:text-indigo-600" />
                   </button>
 
                   <button
                     onClick={() => openModal('comments')}
-                    className="w-full flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-brand-50 transition-colors text-left group"
+                    className="w-full flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-purple-50 transition-colors text-left group"
                   >
-                    <MessageSquare className="w-6 h-6 text-brand-600 mt-1" />
+                    <MessageSquare className="w-6 h-6 text-purple-600 mt-1" />
                     <div className="flex-1">
-                      <h4 className="font-bold text-gray-900 mb-1 group-hover:text-brand-700">Comment History</h4>
+                      <h4 className="font-bold text-gray-900 mb-1 group-hover:text-purple-700">Comment History</h4>
                       <p className="text-sm text-gray-600">View all your comments and their approval status</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 mt-1 group-hover:text-brand-600" />
+                    <ChevronRight className="w-5 h-5 text-gray-400 mt-1 group-hover:text-purple-600" />
                   </button>
 
                   <button
@@ -717,7 +717,7 @@ export default function ProfilePage() {
                 <div className="space-y-3">
                   <button
                     onClick={openEditProfile}
-                    className="w-full px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors font-medium text-left flex items-center justify-between"
+                    className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-left flex items-center justify-between"
                   >
                     <span>Edit Profile</span>
                     <ChevronRight className="w-5 h-5" />
@@ -759,8 +759,8 @@ export default function ProfilePage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-brand-100 rounded-lg">
-                  <BookMarked className="w-6 h-6 text-brand-600" />
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <BookMarked className="w-6 h-6 text-indigo-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Favorite Articles ({favoritesCount})</h2>
               </div>
@@ -771,13 +771,13 @@ export default function ProfilePage() {
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-88px)]">
               {modalLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                 </div>
               ) : favorites.length === 0 ? (
                 <div className="text-center py-12">
                   <BookMarked className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">No favorite articles yet</p>
-                  <Link href="/articles" className="text-brand-600 hover:underline mt-2 inline-block">
+                  <Link href="/articles" className="text-indigo-600 hover:underline mt-2 inline-block">
                     Browse articles
                   </Link>
                 </div>
@@ -798,12 +798,12 @@ export default function ProfilePage() {
                       <div className="flex-1 min-w-0">
                         <Link
                           href={`/articles/${fav.article_slug}`}
-                          className="font-semibold text-gray-900 hover:text-brand-600 line-clamp-2"
+                          className="font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2"
                         >
                           {fav.article_title}
                         </Link>
                         {fav.article_category && (
-                          <span className="text-xs text-brand-600 font-medium mt-1 inline-block">
+                          <span className="text-xs text-indigo-600 font-medium mt-1 inline-block">
                             {fav.article_category}
                           </span>
                         )}
@@ -815,7 +815,7 @@ export default function ProfilePage() {
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/articles/${fav.article_slug}`}
-                          className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                           title="View article"
                         >
                           <ExternalLink size={18} />
@@ -843,8 +843,8 @@ export default function ProfilePage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-brand-100 rounded-lg">
-                  <MessageSquare className="w-6 h-6 text-brand-600" />
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <MessageSquare className="w-6 h-6 text-purple-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">My Comments ({commentsCount})</h2>
               </div>
@@ -855,13 +855,13 @@ export default function ProfilePage() {
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-88px)]">
               {modalLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                 </div>
               ) : comments.length === 0 ? (
                 <div className="text-center py-12">
                   <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">No comments yet</p>
-                  <Link href="/articles" className="text-brand-600 hover:underline mt-2 inline-block">
+                  <Link href="/articles" className="text-purple-600 hover:underline mt-2 inline-block">
                     Start commenting on articles
                   </Link>
                 </div>
@@ -872,7 +872,7 @@ export default function ProfilePage() {
                       <div className="flex items-start justify-between mb-2">
                         <Link
                           href={`/articles/${comment.article_slug}`}
-                          className="font-semibold text-gray-900 hover:text-brand-600"
+                          className="font-semibold text-gray-900 hover:text-purple-600"
                         >
                           {comment.article_title}
                         </Link>
@@ -984,8 +984,8 @@ export default function ProfilePage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-brand-100 rounded-lg">
-                  <User className="w-6 h-6 text-brand-600" />
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <User className="w-6 h-6 text-indigo-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
               </div>
@@ -1001,7 +1001,7 @@ export default function ProfilePage() {
                     type="text"
                     value={editFirstName}
                     onChange={(e) => setEditFirstName(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                     placeholder="Enter first name"
                   />
                 </div>
@@ -1011,7 +1011,7 @@ export default function ProfilePage() {
                     type="text"
                     value={editLastName}
                     onChange={(e) => setEditLastName(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                     placeholder="Enter last name"
                   />
                 </div>
@@ -1021,7 +1021,7 @@ export default function ProfilePage() {
                     type="email"
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent text-gray-900"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                     placeholder="Enter email"
                   />
                 </div>
@@ -1047,7 +1047,7 @@ export default function ProfilePage() {
                   <button
                     onClick={saveProfile}
                     disabled={profileSaving}
-                    className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors font-medium disabled:opacity-50"
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
                   >
                     {profileSaving ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -1144,8 +1144,8 @@ export default function ProfilePage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-brand-100 rounded-lg">
-                  <Mail className="w-6 h-6 text-brand-600" />
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Mail className="w-6 h-6 text-purple-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Email Preferences</h2>
               </div>
@@ -1164,7 +1164,7 @@ export default function ProfilePage() {
                     type="checkbox"
                     checked={emailPrefs.newsletter_enabled}
                     onChange={(e) => setEmailPrefs({ ...emailPrefs, newsletter_enabled: e.target.checked })}
-                    className="w-5 h-5 text-brand-600 rounded focus:ring-brand-500"
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                   />
                 </label>
 
@@ -1177,7 +1177,7 @@ export default function ProfilePage() {
                     type="checkbox"
                     checked={emailPrefs.new_articles_enabled}
                     onChange={(e) => setEmailPrefs({ ...emailPrefs, new_articles_enabled: e.target.checked })}
-                    className="w-5 h-5 text-brand-600 rounded focus:ring-brand-500"
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                   />
                 </label>
 
@@ -1190,7 +1190,7 @@ export default function ProfilePage() {
                     type="checkbox"
                     checked={emailPrefs.comment_replies_enabled}
                     onChange={(e) => setEmailPrefs({ ...emailPrefs, comment_replies_enabled: e.target.checked })}
-                    className="w-5 h-5 text-brand-600 rounded focus:ring-brand-500"
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                   />
                 </label>
 
@@ -1203,7 +1203,7 @@ export default function ProfilePage() {
                     type="checkbox"
                     checked={emailPrefs.favorite_updates_enabled}
                     onChange={(e) => setEmailPrefs({ ...emailPrefs, favorite_updates_enabled: e.target.checked })}
-                    className="w-5 h-5 text-brand-600 rounded focus:ring-brand-500"
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                   />
                 </label>
 
@@ -1216,7 +1216,7 @@ export default function ProfilePage() {
                     type="checkbox"
                     checked={emailPrefs.marketing_enabled}
                     onChange={(e) => setEmailPrefs({ ...emailPrefs, marketing_enabled: e.target.checked })}
-                    className="w-5 h-5 text-brand-600 rounded focus:ring-brand-500"
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                   />
                 </label>
 
@@ -1236,7 +1236,7 @@ export default function ProfilePage() {
                   <button
                     onClick={saveEmailPreferences}
                     disabled={prefsSaving}
-                    className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors font-medium disabled:opacity-50"
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50"
                   >
                     {prefsSaving ? 'Saving...' : 'Save Preferences'}
                   </button>

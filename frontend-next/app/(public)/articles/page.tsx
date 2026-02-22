@@ -180,7 +180,7 @@ function ArticlesContent() {
                   {category && (
                     <Link
                       href={`/articles?${tag ? `tag=${tag}&` : ''}${search ? `search=${search}` : ''}`}
-                      className="px-3 py-1 bg-brand-100 text-brand-700 rounded-full text-sm hover:bg-brand-200 transition-colors"
+                      className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
                       {categories.find((c: any) => c.slug === category)?.name} ✕
                     </Link>
@@ -188,7 +188,7 @@ function ArticlesContent() {
                   {tag && (
                     <Link
                       href={`/articles?${category ? `category=${category}&` : ''}${search ? `search=${search}` : ''}`}
-                      className="px-3 py-1 bg-brand-100 text-brand-700 rounded-full text-sm hover:bg-brand-200 transition-colors"
+                      className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
                       {tags.find((t: any) => t.slug === tag)?.name} ✕
                     </Link>
@@ -196,14 +196,14 @@ function ArticlesContent() {
                   {search && (
                     <Link
                       href={`/articles?${category ? `category=${category}&` : ''}${tag ? `tag=${tag}` : ''}`}
-                      className="px-3 py-1 bg-brand-100 text-brand-700 rounded-full text-sm hover:bg-brand-200 transition-colors"
+                      className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
                       &ldquo;{search}&rdquo; ✕
                     </Link>
                   )}
                   <Link
                     href="/articles"
-                    className="px-3 py-1 text-brand-600 hover:text-brand-700 text-sm font-medium hover:underline"
+                    className="px-3 py-1 text-indigo-600 hover:text-indigo-700 text-sm font-medium hover:underline"
                   >
                     Clear all
                   </Link>
@@ -224,7 +224,7 @@ function ArticlesContent() {
                   <p className="text-gray-600 mb-6">Try adjusting your filters or search query</p>
                   <Link
                     href="/articles"
-                    className="inline-block px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors font-medium"
+                    className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                   >
                     View all articles
                   </Link>
@@ -259,7 +259,7 @@ function ArticlesContent() {
                   {page > 1 && (
                     <Link
                       href={`/articles?page=${page - 1}${category ? `&category=${category}` : ''}${tag ? `&tag=${tag}` : ''}${search ? `&search=${search}` : ''}`}
-                      className="px-4 py-2 bg-white border-2 border-brand-200 text-brand-700 rounded-lg hover:bg-brand-50 transition-colors flex items-center gap-2 font-medium"
+                      className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-2 font-medium"
                     >
                       <ChevronLeft size={20} />
                       Previous
@@ -284,8 +284,8 @@ function ArticlesContent() {
                           key={pageNum}
                           href={`/articles?page=${pageNum}${category ? `&category=${category}` : ''}${tag ? `&tag=${tag}` : ''}${search ? `&search=${search}` : ''}`}
                           className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-all ${page === pageNum
-                            ? 'bg-brand-600 text-white shadow-md'
-                            : 'bg-white border-2 border-brand-200 text-brand-700 hover:bg-brand-50'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50'
                             }`}
                         >
                           {pageNum}
@@ -297,7 +297,7 @@ function ArticlesContent() {
                   {page < totalPages && (
                     <Link
                       href={`/articles?page=${page + 1}${category ? `&category=${category}` : ''}${tag ? `&tag=${tag}` : ''}${search ? `&search=${search}` : ''}`}
-                      className="px-4 py-2 bg-white border-2 border-brand-200 text-brand-700 rounded-lg hover:bg-brand-50 transition-colors flex items-center gap-2 font-medium"
+                      className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-2 font-medium"
                     >
                       Next
                       <ChevronRight size={20} />

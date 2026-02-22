@@ -144,7 +144,7 @@ function SpecRow({ label, value, highlight }: { label: string; value: string; hi
     return (
         <div className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0">
             <span className="text-gray-500 font-medium">{label}</span>
-            <span className={`font-bold text-right ${highlight ? 'text-brand-700' : 'text-gray-900'}`}>{value}</span>
+            <span className={`font-bold text-right ${highlight ? 'text-indigo-700' : 'text-gray-900'}`}>{value}</span>
         </div>
     );
 }
@@ -187,7 +187,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
 
                 <div className="relative container mx-auto px-4 py-12 lg:py-16">
                     {/* Breadcrumbs */}
-                    <nav className="flex items-center gap-2 text-sm text-brand-300 mb-6">
+                    <nav className="flex items-center gap-2 text-sm text-purple-300 mb-6">
                         <Link href="/cars" className="hover:text-white transition-colors">Cars</Link>
                         <span>/</span>
                         <Link href={`/cars/${data.brand_slug}`} className="hover:text-white transition-colors">{data.brand}</Link>
@@ -209,12 +209,12 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                     </span>
                                 )}
                                 {data.specs.horsepower && data.specs.horsepower !== 'Not specified' && (
-                                    <span className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/15 text-brand-200 font-semibold">
+                                    <span className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/15 text-purple-200 font-semibold">
                                         ⚡ {data.specs.horsepower}
                                     </span>
                                 )}
                                 {data.specs.zero_to_sixty && data.specs.zero_to_sixty !== 'Not specified' && (
-                                    <span className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/15 text-brand-200 font-semibold">
+                                    <span className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/15 text-purple-200 font-semibold">
                                         🏁 0-60 {data.specs.zero_to_sixty}
                                     </span>
                                 )}
@@ -225,7 +225,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                         {primaryArticle && (
                             <Link
                                 href={`/articles/${primaryArticle.article_slug}`}
-                                className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-6 py-3 rounded-xl hover:bg-brand-50 transition-colors shadow-lg shadow-black/20 whitespace-nowrap"
+                                className="inline-flex items-center gap-2 bg-white text-indigo-700 font-bold px-6 py-3 rounded-xl hover:bg-indigo-50 transition-colors shadow-lg shadow-black/20 whitespace-nowrap"
                             >
                                 📖 Read Full Review →
                             </Link>
@@ -255,7 +255,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                         {/* Old Specs Table — only shown when NO VehicleSpecs exist (fallback) */}
                         {hasSpecs && !(data.vehicle_specs_list?.length > 0 || data.vehicle_specs) && (
                             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                                <div className="px-6 py-4 bg-gradient-to-r from-brand-600 to-brand-600">
+                                <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600">
                                     <h2 className="text-xl font-bold text-white">📊 Specifications</h2>
                                 </div>
                                 <div className="px-6 py-2">
@@ -310,18 +310,18 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                         </thead>
                                         <tbody>
                                             {data.trims.map((trim, i) => (
-                                                <tr key={i} className="border-b border-gray-100 hover:bg-brand-50/30 transition-colors">
+                                                <tr key={i} className="border-b border-gray-100 hover:bg-indigo-50/30 transition-colors">
                                                     {data.trims.length > 1 && (
                                                         <td className="px-6 py-3 font-bold text-gray-900">{trim.trim}</td>
                                                     )}
                                                     <td className="px-4 py-3 text-gray-600">{trim.engine || '—'}</td>
                                                     <td className="px-4 py-3 text-gray-600">{trim.horsepower || '—'}</td>
                                                     <td className="px-4 py-3 text-gray-600">{trim.torque || '—'}</td>
-                                                    <td className="px-4 py-3 font-semibold text-brand-700">{trim.price || '—'}</td>
+                                                    <td className="px-4 py-3 font-semibold text-indigo-700">{trim.price || '—'}</td>
                                                     <td className="px-4 py-3">
                                                         <Link
                                                             href={`/articles/${trim.article_slug}`}
-                                                            className="text-brand-600 hover:text-brand-700 font-medium hover:underline"
+                                                            className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
                                                         >
                                                             Read →
                                                         </Link>
@@ -377,9 +377,9 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                     <Link
                                         key={i}
                                         href={`/articles/${trim.article_slug}`}
-                                        className="block p-3 rounded-xl hover:bg-brand-50 transition-colors group"
+                                        className="block p-3 rounded-xl hover:bg-indigo-50 transition-colors group"
                                     >
-                                        <div className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm line-clamp-2">
+                                        <div className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors text-sm line-clamp-2">
                                             {trim.article_title}
                                         </div>
                                         <div className="flex items-center gap-2 mt-1.5">
@@ -407,7 +407,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                             href={`/articles/${article.slug}`}
                                             className="block p-3 rounded-xl hover:bg-gray-50 transition-colors group"
                                         >
-                                            <div className="font-medium text-gray-700 group-hover:text-brand-600 transition-colors text-sm line-clamp-2">
+                                            <div className="font-medium text-gray-700 group-hover:text-indigo-600 transition-colors text-sm line-clamp-2">
                                                 {article.title}
                                             </div>
                                             <div className="text-xs text-gray-400 mt-1">
@@ -422,7 +422,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                         {/* Back to brand */}
                         <Link
                             href={`/cars/${data.brand_slug}`}
-                            className="flex items-center justify-center gap-2 w-full py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-colors"
+                            className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
                         >
                             ← All {data.brand} Models
                         </Link>
