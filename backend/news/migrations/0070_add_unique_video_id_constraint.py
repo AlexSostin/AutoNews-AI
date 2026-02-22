@@ -17,6 +17,30 @@ class Migration(migrations.Migration):
             name='video_id',
             field=models.CharField(blank=True, db_index=True, max_length=50),
         ),
+        # Clean up duplicate video_ids before adding unique constraint.
+        # Keeps the newest PendingArticle per video_id, marks older ones as rejected.
+        migrations.RunSQL(
+            sql="""
+                UPDATE news_pendingarticle
+                SET status = 'rejected'
+                WHERE id NOT IN (
+                    SELECT MAX(id)
+                    FROM news_pendingarticle
+                    WHERE video_id != '' AND status != 'rejected'
+                    GROUP BY video_id
+                )
+                AND video_id != ''
+                AND status != 'rejected'
+                AND video_id IN (
+                    SELECT video_id
+                    FROM news_pendingarticle
+                    WHERE video_id != '' AND status != 'rejected'
+                    GROUP BY video_id
+                    HAVING COUNT(*) > 1
+                );
+            """,
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.AddConstraint(
             model_name='pendingarticle',
             constraint=models.UniqueConstraint(condition=models.Q(models.Q(('video_id', ''), _negated=True), models.Q(('status', 'rejected'), _negated=True)), fields=('video_id',), name='unique_active_video_id'),
