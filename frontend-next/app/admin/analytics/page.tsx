@@ -203,6 +203,7 @@ export default function AnalyticsPage() {
   const [popularModels, setPopularModels] = useState<PopularModel[]>([]);
   const [providerStats, setProviderStats] = useState<ProviderStatsData | null>(null);
   const [abTests, setAbTests] = useState<ABTest[]>([]);
+  const [abTestCounts, setAbTestCounts] = useState({ count: 0, active_count: 0, winners_count: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -232,7 +233,7 @@ export default function AnalyticsPage() {
         api.get('/analytics/ai-generation/').catch(() => ({ data: null })),
         api.get('/analytics/popular-models/').catch(() => ({ data: { models: [] } })),
         api.get('/analytics/provider-stats/').catch(() => ({ data: null })),
-        api.get('/ab/tests/').catch(() => ({ data: { tests: [] } }))
+        api.get('/ab/tests/?limit=10').catch(() => ({ data: { tests: [], count: 0, active_count: 0, winners_count: 0 } }))
       ]);
 
       setStats({
@@ -255,6 +256,7 @@ export default function AnalyticsPage() {
       setPopularModels(modelsRes.data?.models || []);
       setProviderStats(providerRes.data);
       setAbTests(abRes.data?.tests || []);
+      setAbTestCounts({ count: abRes.data?.count || 0, active_count: abRes.data?.active_count || 0, winners_count: abRes.data?.winners_count || 0 });
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -1020,7 +1022,7 @@ export default function AnalyticsPage() {
       {/* A/B Title Testing Insights */}
       {abTests.length > 0 && (
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-gray-900 border-l-4 border-emerald-500 pl-4 mt-12">🧪 A/B Title Tests</h2>
+          <h2 className="text-xl font-bold text-gray-900 border-l-4 border-emerald-500 pl-4 mt-12">🧪 A/B Title Tests <span className="text-sm font-normal text-gray-400">(top 10 of {abTestCounts.count})</span></h2>
 
           {/* Summary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1028,7 +1030,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center gap-3">
                 <div className="bg-emerald-100 p-2.5 rounded-lg"><FlaskConical className="text-emerald-600" size={20} /></div>
                 <div>
-                  <p className="text-2xl font-black text-gray-900">{abTests.length}</p>
+                  <p className="text-2xl font-black text-gray-900">{abTestCounts.count}</p>
                   <p className="text-xs text-gray-400 uppercase tracking-wider">Total Tests</p>
                 </div>
               </div>
@@ -1037,7 +1039,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center gap-3">
                 <div className="bg-amber-100 p-2.5 rounded-lg"><Eye className="text-amber-600" size={20} /></div>
                 <div>
-                  <p className="text-2xl font-black text-gray-900">{abTests.filter(t => t.is_active).length}</p>
+                  <p className="text-2xl font-black text-gray-900">{abTestCounts.active_count}</p>
                   <p className="text-xs text-gray-400 uppercase tracking-wider">Active</p>
                 </div>
               </div>
@@ -1046,7 +1048,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center gap-3">
                 <div className="bg-purple-100 p-2.5 rounded-lg"><Trophy className="text-purple-600" size={20} /></div>
                 <div>
-                  <p className="text-2xl font-black text-gray-900">{abTests.filter(t => t.winner).length}</p>
+                  <p className="text-2xl font-black text-gray-900">{abTestCounts.winners_count}</p>
                   <p className="text-xs text-gray-400 uppercase tracking-wider">Winners Picked</p>
                 </div>
               </div>
@@ -1062,8 +1064,8 @@ export default function AnalyticsPage() {
                   <h3 className="text-sm font-bold text-gray-900 truncate max-w-[500px]">{test.article_title}</h3>
                 </div>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${test.is_active
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-gray-100 text-gray-500'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-gray-100 text-gray-500'
                   }`}>
                   {test.is_active ? 'Active' : 'Completed'}
                 </span>

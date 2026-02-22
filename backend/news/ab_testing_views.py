@@ -57,11 +57,13 @@ class ABClickView(APIView):
 
 class ABTestsListView(APIView):
     """List all A/B tests (admin only).
-    GET /api/v1/ab/tests/
+    GET /api/v1/ab/tests/?limit=20
     """
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        limit = int(request.query_params.get('limit', 20))
+
         # Get articles with active or past variants
         articles_with_tests = Article.objects.filter(
             title_variants__isnull=False
@@ -99,7 +101,17 @@ class ABTestsListView(APIView):
         # Sort: active tests first, then by total impressions
         tests.sort(key=lambda t: (not t['is_active'], -t['total_impressions']))
 
-        return Response({'tests': tests, 'count': len(tests)})
+        total_count = len(tests)
+        active_count = sum(1 for t in tests if t['is_active'])
+        winners_count = sum(1 for t in tests if t['winner'])
+
+        return Response({
+            'tests': tests[:limit],
+            'count': total_count,
+            'active_count': active_count,
+            'winners_count': winners_count,
+            'showing': min(limit, total_count),
+        })
 
 
 class ABPickWinnerView(APIView):
