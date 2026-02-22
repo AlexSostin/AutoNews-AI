@@ -841,6 +841,7 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             'auto_publish_enabled', 'auto_publish_min_quality',
             'auto_publish_max_per_hour', 'auto_publish_max_per_day',
             'auto_publish_require_image', 'auto_publish_require_safe_feed',
+            'auto_publish_as_draft',
             'auto_publish_today_count',
             'auto_publish_last_run',
             # Auto-Image

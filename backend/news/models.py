@@ -1704,6 +1704,9 @@ class AutomationSettings(models.Model):
     auto_publish_require_safe_feed = models.BooleanField(
         default=True, help_text="Only auto-publish articles from feeds with safety_score != 'unsafe'"
     )
+    auto_publish_as_draft = models.BooleanField(
+        default=True, help_text="Create articles as drafts (requires manual approval) instead of publishing directly"
+    )
     
     # === Auto-Image ===
     AUTO_IMAGE_CHOICES = [
@@ -1839,6 +1842,9 @@ class AutoPublishLog(models.Model):
     """Logs every auto-publish decision for transparency and ML training data."""
     DECISION_CHOICES = [
         ('published', 'Published'),
+        ('drafted', 'Drafted (Awaiting Review)'),
+        ('human_approved', 'Human Approved'),
+        ('human_rejected', 'Human Rejected'),
         ('skipped_quality', 'Skipped: Low Quality'),
         ('skipped_safety', 'Skipped: Feed Unsafe'),
         ('skipped_no_image', 'Skipped: No Image'),
@@ -1875,6 +1881,16 @@ class AutoPublishLog(models.Model):
     tag_count = models.IntegerField(default=0)
     category_name = models.CharField(max_length=100, blank=True, default='')
     source_is_youtube = models.BooleanField(default=False)
+    
+    # Human review learning signal
+    review_time_seconds = models.IntegerField(
+        null=True, blank=True,
+        help_text="How long the human spent reviewing (seconds) — faster = more confident"
+    )
+    reviewer_notes = models.TextField(
+        blank=True, default='',
+        help_text="Why the reviewer approved/rejected — ML training data"
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     

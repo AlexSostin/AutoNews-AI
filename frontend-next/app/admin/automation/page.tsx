@@ -27,6 +27,7 @@ interface AutomationSettings {
     auto_publish_max_per_day: number;
     auto_publish_require_image: boolean;
     auto_publish_require_safe_feed: boolean;
+    auto_publish_as_draft: boolean;
     auto_publish_today_count: number;
     auto_publish_last_run: string | null;
     auto_image_mode: string;
@@ -295,8 +296,8 @@ export default function AutomationPage() {
                             key={theme.value}
                             onClick={() => updateSetting('site_theme', theme.value)}
                             className={`relative p-4 rounded-xl border-2 transition-all text-left ${settings.site_theme === theme.value
-                                    ? 'border-gray-900 shadow-lg scale-[1.02]'
-                                    : 'border-gray-200 hover:border-gray-400 hover:shadow-md'
+                                ? 'border-gray-900 shadow-lg scale-[1.02]'
+                                : 'border-gray-200 hover:border-gray-400 hover:shadow-md'
                                 }`}
                         >
                             <div className="flex gap-1.5 mb-3">
@@ -450,6 +451,17 @@ export default function AutomationPage() {
                             checked={settings.auto_publish_require_safe_feed}
                             onChange={(v) => updateSetting('auto_publish_require_safe_feed', v)}
                         />
+                    </SettingRow>
+                    <SettingRow label="Draft mode">
+                        <div className="flex items-center gap-3">
+                            <ToggleSwitch
+                                checked={settings.auto_publish_as_draft}
+                                onChange={(v) => updateSetting('auto_publish_as_draft', v)}
+                            />
+                            <span className={`text-xs font-medium ${settings.auto_publish_as_draft ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                {settings.auto_publish_as_draft ? '📝 Drafts → you review' : '🚀 Direct publish'}
+                            </span>
+                        </div>
                     </SettingRow>
 
                     {/* Eligibility indicator */}

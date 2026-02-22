@@ -68,6 +68,66 @@ def notify_pending_article(sender, instance, created, **kwargs):
             link='/admin/youtube-channels/pending',
             priority='high'
         )
+
+
+# ============================================================================
+# HUMAN REVIEW LEARNING SIGNAL
+# Logs approve/reject decisions on auto-drafted articles for ML training.
+# ============================================================================
+
+@receiver(post_save, sender=Article)
+def log_human_review_decision(sender, instance, created, **kwargs):
+    """
+    When an auto-drafted article is toggled published, log as 'human_approved'.
+    This builds a labeled dataset: what the user approves vs rejects.
+    """
+    if created:
+        return  # Only care about updates, not initial creation
+    
+    # Check if this article came from auto-publish (has a source_pending with is_auto_published=True)
+    source = instance.source_pending.filter(is_auto_published=True).first()
+    if not source:
+        return  # Not an auto-drafted article, skip
+    
+    # Check if is_published just changed to True (draft → published = human approved)
+    if instance.is_published and not instance.is_deleted:
+        from .models import AutoPublishLog
+        # Only log once — check if already logged
+        if AutoPublishLog.objects.filter(
+            published_article=instance,
+            decision='human_approved'
+        ).exists():
+            return
+        
+        # Calculate review time (from draft creation to now)
+        review_seconds = None
+        if instance.created_at:
+            from django.utils import timezone
+            review_seconds = int((timezone.now() - instance.created_at).total_seconds())
+        
+        AutoPublishLog.objects.create(
+            pending_article=source,
+            published_article=instance,
+            decision='human_approved',
+            reason=f'Draft approved by admin (reviewed in {review_seconds}s)' if review_seconds else 'Draft approved by admin',
+            quality_score=source.quality_score or 0,
+            safety_score=getattr(source.rss_feed, 'safety_score', '') if source.rss_feed else '',
+            feed_name=source.rss_feed.name if source.rss_feed else ('YouTube' if source.video_url else 'Unknown'),
+            source_type=source.rss_feed.source_type if source.rss_feed else ('youtube' if source.video_url else ''),
+            article_title=instance.title[:500],
+            content_length=len(instance.content or ''),
+            has_image=bool(instance.image),
+            has_specs=hasattr(instance, 'car_specification'),
+            tag_count=instance.tags.count(),
+            category_name=instance.categories.first().name if instance.categories.exists() else '',
+            source_is_youtube=bool(source.video_url),
+            review_time_seconds=review_seconds,
+        )
+        import logging
+        logging.getLogger('news').info(
+            f"[LEARNING] ✅ Human approved: {instance.title[:50]} "
+            f"(Q:{source.quality_score}, reviewed in {review_seconds}s)"
+        )
 # Force rebuild 1769538478
 
 

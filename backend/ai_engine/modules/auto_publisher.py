@@ -165,6 +165,9 @@ def auto_publish_pending():
             # Get image paths
             image_paths = pending.images if isinstance(pending.images, list) else []
             
+            # Draft mode: create as draft for manual review, or publish directly
+            as_draft = settings.auto_publish_as_draft
+            
             article = publish_article(
                 title=pending.title,
                 content=pending.content,
@@ -175,7 +178,7 @@ def auto_publish_pending():
                 summary=pending.excerpt or None,
                 tag_names=tag_names if tag_names else None,
                 specs=pending.specs if pending.specs else None,
-                is_published=False,  # Draft mode: user reviews and approves manually
+                is_published=not as_draft,
             )
             
             if article:
@@ -221,12 +224,14 @@ def auto_publish_pending():
                 pending.published_article = article
                 pending.is_auto_published = True
                 pending.reviewed_at = timezone.now()
-                pending.review_notes = f'Auto-published (quality: {pending.quality_score}/10)'
+                mode_label = 'as draft' if as_draft else 'published'
+                pending.review_notes = f'Auto-{mode_label} (quality: {pending.quality_score}/10)'
                 pending.save()
                 
-                # Log the successful publish decision
-                _log_decision(pending, 'published',
-                    f"Quality {pending.quality_score}/10 meets threshold {settings.auto_publish_min_quality}/10",
+                # Log the decision
+                decision = 'drafted' if as_draft else 'published'
+                _log_decision(pending, decision,
+                    f"Quality {pending.quality_score}/10 meets threshold {settings.auto_publish_min_quality}/10 → {mode_label}",
                     article=article)
                 
                 # Update counter atomically
