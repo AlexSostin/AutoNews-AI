@@ -69,19 +69,42 @@ CHECK FOR AND FIX:
 2. FACTUAL CONTRADICTIONS — If one section says "405 km range" but another says "305 km", 
    make them consistent (prefer the number from the specs section).
 
-3. REPETITIVE TEXT — If "Driving Experience" repeats the same info as "Performance & Specs",
-   rewrite the repeated section with NEW information (handling feel, cabin noise, ride comfort, etc).
+3. REPETITION CHECK — Count how many times each number or spec appears in the article.
+   If any specific number (e.g. "1505 km", "449 hp", "$53,500") appears MORE than 2 times:
+   - Keep the FIRST mention
+   - Keep ONE mention in the specs section (if applicable)
+   - REMOVE or rephrase all other mentions
+   Each paragraph must add NEW information. If "Why This Matters" repeats the introduction → rewrite it with fresh market insight.
 
-4. WATER TEXT — Replace vague sentences like "provides a smooth and enjoyable driving experience" 
-   with specific observations. If you can't add specifics, shorten the sentence.
+4. LAZY CONS FIX — This is CRITICAL. Check every item in the Cons list:
+   - If a Con says "aren't detailed", "not specified", "remain to be seen", "while specific", 
+     "no information available", or any phrase about MISSING DATA → it is NOT a real Con.
+   - REPLACE lazy Cons with REAL car weaknesses based on the vehicle type:
+     For SUVs: heavy curb weight, large turning radius, poor fuel economy, firm ride, limited cargo behind 3rd row
+     For EVs: charging time, range anxiety in cold weather, heavy battery weight, limited service network
+     For luxury: high maintenance costs, complex infotainment learning curve, expensive consumables
+     For all: no Apple CarPlay/Android Auto (if not mentioned), limited color options, no spare tire
+   - Pick weaknesses that are REALISTIC for this specific car type and price point.
+   - 3 genuine Cons > 5 filler Cons.
 
-5. REGION-SPECIFIC DETAILS — Adapt China-specific references for international audience.
+5. FILLER OPENER FIX — Check the FIRST sentence of the article:
+   If it contains clichés like "isn't just another", "isn't just dipping its toes", 
+   "isn't merely", "not content to rest on its laurels", "forget everything you knew":
+   → Rewrite it as a DIRECT, factual hook.
+   ✅ Good: "AITO's M8 pairs a 1505 km CLTC range with six seats and a $53,500 price tag."
+   ❌ Bad: "AITO isn't just dipping its toes into the luxury SUV market..."
+
+6. WATER TEXT — Replace vague sentences like "provides a smooth and enjoyable driving experience" 
+   with specific observations. If you can't add specifics, DELETE the sentence entirely.
+   Sentences with ZERO concrete numbers or specific features serve no purpose.
+
+7. REGION-SPECIFIC DETAILS — Adapt China-specific references for international audience.
    Example: "green number plate" → explain briefly what it means or remove if not relevant.
 
-6. MEASUREMENT STANDARDS — If range is mentioned, clarify the standard (CLTC/WLTP/EPA) 
+8. MEASUREMENT STANDARDS — If range is mentioned, clarify the standard (CLTC/WLTP/EPA) 
    if it's not already specified. Default to CLTC for Chinese vehicles.
 
-7. SUSPICIOUS SPECS — Flag only truly impossible specs (negative numbers, 0 hp, etc).
+9. SUSPICIOUS SPECS — Flag only truly impossible specs (negative numbers, 0 hp, etc).
    High performance numbers ARE valid (some cars have 1000+ hp).
 
 Return the corrected HTML only. Preserve the alt-texts div and the generation comment at the end."""

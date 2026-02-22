@@ -62,7 +62,23 @@ _BANNED_SENTENCE_PATTERNS = re.compile(
     r'|are currently confidential'
     r'|we\'d anticipate'
     r'|it\'s reasonable to expect'
-    r')[^<]*?</p>',
+    # Filler openers
+    r'|isn\'t just another'
+    r'|isn\'t just dipping'
+    r'|isn\'t merely another'
+    r'|this isn\'t your typical'
+    r'|this isn\'t your average'
+    # Lazy Cons
+    r'|While specific cons .{3,60} aren\'t detailed'
+    r'|While specific cons .{3,60} not .{3,30} detailed'
+    r'|the complexity inherent in'
+    r'|might be a consideration for some buyers'
+    # Empty "still emerging" paragraphs
+    r'|are still emerging'
+    r'|remain to be seen'
+    r'|only time will tell'
+    r'|it remains to be seen'
+    ')[^<]*?</p>',
     re.IGNORECASE
 )
 
@@ -83,6 +99,15 @@ _BANNED_INLINE_REPLACEMENTS = [
     (re.compile(r'As a journalist, I wish I could[^.]*\.\s*', re.I), ''),
     (re.compile(r'However, the truth is,?\s*', re.I), ''),
     (re.compile(r'details .{3,30} under wraps', re.I), 'details pending'),
+    # Filler clichés
+    (re.compile(r'isn\'t just dipping (?:its|their) toes[^.]*[.;]\s*', re.I), ''),
+    (re.compile(r'they\'re cannonballing in[^.]*[.;]\s*', re.I), ''),
+    (re.compile(r'nothing short of phenomenal[^.]*[.;]?', re.I), 'strong'),
+    (re.compile(r'has been nothing short of', re.I), 'has been'),
+    (re.compile(r'a prime example of .{3,40} strategy', re.I), 'a clear strategic move'),
+    (re.compile(r'Not content to rest on (?:its|their) laurels,?\s*', re.I), ''),
+    (re.compile(r'the market response has been .{3,30}phenomenal:?\s*', re.I), 'Market response: '),
+    (re.compile(r'it\'s clear (?:that )?', re.I), ''),
 ]
 
 
