@@ -73,7 +73,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: |
           python manage.py migrate
-          pytest tests/ -x -m "not slow" -v --tb=short
+          pytest tests/ -m "not slow" -v --tb=short
 
   # ─── Slow tests: live API calls, may flake. Doesn't block merge. ───
   backend-tests-slow:
