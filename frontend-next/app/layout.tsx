@@ -14,14 +14,18 @@ async function getGAId() {
   const envGaId = process.env.NEXT_PUBLIC_GA_ID;
   if (envGaId) return envGaId;
 
-  // Fallback: fetch from API
+  // Fallback: fetch from API (use internal URL for server-side)
   const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || PRODUCTION_API_URL;
+  const apiUrl = process.env.API_INTERNAL_URL
+    || process.env.NEXT_PUBLIC_API_URL_SERVER
+    || process.env.NEXT_PUBLIC_API_URL
+    || PRODUCTION_API_URL;
 
   try {
     const res = await fetch(`${apiUrl}/settings/`, {
       next: { revalidate: 3600 },
       headers: { 'User-Agent': 'FreshMotors-SSR/1.0' },
+      signal: AbortSignal.timeout(2000),
     });
     if (res.ok) {
       const data = await res.json();

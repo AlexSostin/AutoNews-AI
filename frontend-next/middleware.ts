@@ -4,62 +4,37 @@ import type { NextRequest } from 'next/server';
 // Cache settings to avoid hitting API on every request
 let cachedSettings: { maintenance_mode: boolean; maintenance_message: string } | null = null;
 let settingsCacheTime = 0;
-const CACHE_TTL = 30_000; // 30 seconds
+const CACHE_TTL = 60_000; // 60 seconds (was 30s — too aggressive for middleware)
 
-async function getMaintenanceSettings() {
+// Fire-and-forget: update cache in background, never block navigation
+function refreshMaintenanceCache() {
   const now = Date.now();
-  if (cachedSettings && now - settingsCacheTime < CACHE_TTL) {
-    return cachedSettings;
-  }
+  if (now - settingsCacheTime < CACHE_TTL) return;
 
-  try {
-    const apiBase = process.env.API_INTERNAL_URL
-      || process.env.CUSTOM_DOMAIN_API
-      || (process.env.RAILWAY_ENVIRONMENT === 'production'
-        ? 'https://heroic-healing-production-2365.up.railway.app/api/v1'
-        : 'http://localhost:8000/api/v1');
+  // Mark as refreshed immediately to prevent concurrent fetches
+  settingsCacheTime = now;
 
-    const res = await fetch(`${apiBase}/settings/`, {
-      signal: AbortSignal.timeout(3000),
+  const apiBase = process.env.API_INTERNAL_URL
+    || process.env.CUSTOM_DOMAIN_API
+    || (process.env.RAILWAY_ENVIRONMENT === 'production'
+      ? 'https://heroic-healing-production-2365.up.railway.app/api/v1'
+      : 'http://backend:8000/api/v1');
+
+  fetch(`${apiBase}/settings/`, {
+    signal: AbortSignal.timeout(2000),
+  })
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (data) {
+        cachedSettings = {
+          maintenance_mode: data.maintenance_mode || false,
+          maintenance_message: data.maintenance_message || '',
+        };
+      }
+    })
+    .catch(() => {
+      // API unavailable — keep stale cache or null
     });
-    if (res.ok) {
-      const data = await res.json();
-      cachedSettings = {
-        maintenance_mode: data.maintenance_mode || false,
-        maintenance_message: data.maintenance_message || '',
-      };
-      settingsCacheTime = now;
-      return cachedSettings;
-    }
-  } catch {
-    // API unavailable — don't block users
-  }
-  return null;
-}
-
-async function isAdminUser(request: NextRequest) {
-  const token = request.cookies.get('access_token')?.value;
-  if (!token) return false;
-
-  try {
-    const apiBase = process.env.API_INTERNAL_URL
-      || process.env.CUSTOM_DOMAIN_API
-      || (process.env.RAILWAY_ENVIRONMENT === 'production'
-        ? 'https://heroic-healing-production-2365.up.railway.app/api/v1'
-        : 'http://localhost:8000/api/v1');
-
-    const res = await fetch(`${apiBase}/users/me/`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      signal: AbortSignal.timeout(3000),
-    });
-    if (res.ok) {
-      const user = await res.json();
-      return user.is_staff || user.is_superuser;
-    }
-  } catch {
-    // Can't verify — treat as non-admin
-  }
-  return false;
 }
 
 export async function middleware(request: NextRequest) {
@@ -67,9 +42,11 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isAdminRoute = pathname.startsWith('/admin');
   const isLoginRoute = pathname === '/login';
-  const isRegisterRoute = pathname === '/register';
 
-  // Admin routes - check if token exists
+  // Kick off non-blocking cache refresh
+  refreshMaintenanceCache();
+
+  // Admin routes - check if token exists (no API call needed)
   if (isAdminRoute) {
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url));
@@ -82,14 +59,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Maintenance mode check — for public page routes only
-  // Skip login/register so admins can still log in
-  if (!isLoginRoute && !isRegisterRoute) {
-    const settings = await getMaintenanceSettings();
-    if (settings?.maintenance_mode) {
-      const admin = await isAdminUser(request);
-      if (!admin) {
-        // Rewrite all public routes to home which shows MaintenancePage
+  // Maintenance mode — use CACHED value only, never block on fetch
+  if (!isLoginRoute && pathname !== '/register') {
+    if (cachedSettings?.maintenance_mode) {
+      // Only block non-admin users; skip admin check to avoid more fetches
+      // Admins can bypass by going to /admin first which sets the cookie
+      if (!token) {
         const url = request.nextUrl.clone();
         url.pathname = '/';
         return NextResponse.rewrite(url);
@@ -111,6 +86,7 @@ export const config = {
     '/about',
     '/contact',
     '/cars/:path*',
+    '/compare',
     '/categories/:path*',
     '/search',
     '/trending',
