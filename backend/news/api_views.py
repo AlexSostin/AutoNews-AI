@@ -2442,38 +2442,101 @@ Return ONLY the reformatted HTML."""
     @action(detail=True, methods=['get'])
     def similar_articles(self, request, slug=None):
         """
-        Find similar articles using vector search
+        Find similar articles using vector search + make/model fallback.
         GET /api/v1/articles/{slug}/similar-articles/
+        
+        Priority:
+        1. AI vector similarity (best)
+        2. Same make+model articles (CarSpecification)
+        3. Same make articles
+        4. Same category
         """
         article = self.get_object()
+        result_ids = []
         
+        # 1. Try AI vector similarity first
         try:
             from ai_engine.modules.vector_search import get_vector_engine
-            
             engine = get_vector_engine()
             similar = engine.find_similar_articles(article.id, k=15)
-            
-            # Get Article objects for similar IDs
-            similar_ids = [s['article_id'] for s in similar]
-            articles = Article.objects.filter(
-                id__in=similar_ids,
-                is_published=True,
-                is_deleted=False
-            )
-            
-            serializer = ArticleListSerializer(articles, many=True, context={'request': request})
-            
-            return Response({
-                'success': True,
-                'similar_articles': serializer.data
-            })
-            
+            result_ids = [s['article_id'] for s in similar]
         except Exception as e:
-            logger.error(f"Error finding similar articles for {article.id}: {e}")
-            return Response({
-                'success': True,
-                'similar_articles': []
-            })
+            logger.warning(f"Vector search failed for {article.id}: {e}")
+        
+        # 2. If < 6 results, augment with make/model matching
+        if len(result_ids) < 6:
+            try:
+                from news.models import CarSpecification
+                car_spec = CarSpecification.objects.filter(article=article).first()
+                
+                if car_spec and car_spec.make and car_spec.make != 'Not specified':
+                    existing_ids = set(result_ids) | {article.id}
+                    
+                    # 2a. Same make + model (highest relevance)
+                    if car_spec.model and car_spec.model != 'Not specified':
+                        same_model = (
+                            CarSpecification.objects
+                            .filter(make__iexact=car_spec.make, model__iexact=car_spec.model,
+                                    article__is_published=True, article__is_deleted=False)
+                            .exclude(article_id__in=existing_ids)
+                            .values_list('article_id', flat=True)[:5]
+                        )
+                        result_ids.extend(same_model)
+                        existing_ids.update(same_model)
+                    
+                    # 2b. Same make, different model
+                    same_make = (
+                        CarSpecification.objects
+                        .filter(make__iexact=car_spec.make,
+                                article__is_published=True, article__is_deleted=False)
+                        .exclude(article_id__in=existing_ids)
+                        .values_list('article_id', flat=True)[:8]
+                    )
+                    result_ids.extend(same_make)
+            except Exception as e:
+                logger.warning(f"Make/model fallback failed: {e}")
+        
+        # 3. If still < 6, add from same category
+        if len(result_ids) < 6:
+            try:
+                existing_ids = set(result_ids) | {article.id}
+                cat_ids = article.categories.values_list('id', flat=True)
+                if cat_ids:
+                    same_cat = (
+                        Article.objects
+                        .filter(categories__id__in=cat_ids, is_published=True, is_deleted=False)
+                        .exclude(id__in=existing_ids)
+                        .order_by('-views_count')
+                        .values_list('id', flat=True)[:10]
+                    )
+                    result_ids.extend(same_cat)
+            except Exception:
+                pass
+        
+        # Deduplicate while preserving order
+        seen = set()
+        unique_ids = []
+        for aid in result_ids:
+            if aid not in seen and aid != article.id:
+                seen.add(aid)
+                unique_ids.append(aid)
+        
+        articles = Article.objects.filter(
+            id__in=unique_ids[:15],
+            is_published=True,
+            is_deleted=False
+        )
+        
+        # Preserve original ordering
+        id_order = {aid: i for i, aid in enumerate(unique_ids)}
+        sorted_articles = sorted(articles, key=lambda a: id_order.get(a.id, 999))
+        
+        serializer = ArticleListSerializer(sorted_articles, many=True, context={'request': request})
+        
+        return Response({
+            'success': True,
+            'similar_articles': serializer.data
+        })
 
 
 
