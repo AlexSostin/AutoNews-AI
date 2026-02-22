@@ -175,7 +175,7 @@ def auto_publish_pending():
                 summary=pending.excerpt or None,
                 tag_names=tag_names if tag_names else None,
                 specs=pending.specs if pending.specs else None,
-                is_published=True,
+                is_published=False,  # Draft mode: user reviews and approves manually
             )
             
             if article:
