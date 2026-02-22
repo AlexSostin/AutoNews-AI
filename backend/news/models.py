@@ -1746,6 +1746,26 @@ class AutomationSettings(models.Model):
         default=0, help_text="Images generated today"
     )
     
+    # === Deep Specs / VehicleSpecs Auto-Backfill ===
+    deep_specs_enabled = models.BooleanField(
+        default=True, help_text="Auto-generate VehicleSpecs cards for published articles"
+    )
+    deep_specs_interval_hours = models.IntegerField(
+        default=6, help_text="Hours between deep specs backfill runs (4, 6, 12, 24)"
+    )
+    deep_specs_max_per_cycle = models.IntegerField(
+        default=3, help_text="Max articles to process per cycle"
+    )
+    deep_specs_last_run = models.DateTimeField(
+        null=True, blank=True, help_text="When deep specs backfill last ran"
+    )
+    deep_specs_last_status = models.CharField(
+        max_length=500, blank=True, default='', help_text="Last backfill result"
+    )
+    deep_specs_today_count = models.IntegerField(
+        default=0, help_text="VehicleSpecs cards created today"
+    )
+    
     # === Task Locks (prevent concurrent execution) ===
     rss_lock = models.BooleanField(default=False)
     rss_lock_at = models.DateTimeField(null=True, blank=True)
@@ -1755,6 +1775,8 @@ class AutomationSettings(models.Model):
     auto_publish_lock_at = models.DateTimeField(null=True, blank=True)
     score_lock = models.BooleanField(default=False)
     score_lock_at = models.DateTimeField(null=True, blank=True)
+    deep_specs_lock = models.BooleanField(default=False)
+    deep_specs_lock_at = models.DateTimeField(null=True, blank=True)
     
     LOCK_STALE_MINUTES = 10  # Release lock if older than this
     

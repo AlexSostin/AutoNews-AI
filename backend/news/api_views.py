@@ -5717,6 +5717,7 @@ class AutomationTriggerView(APIView):
         'youtube': 'youtube',
         'auto-publish': 'auto_publish',
         'score': 'score',
+        'deep-specs': 'deep_specs',
     }
     
     def post(self, request, task_type):
@@ -5753,6 +5754,11 @@ class AutomationTriggerView(APIView):
             from news.scheduler import _score_new_pending_articles
             threading.Thread(target=_score_new_pending_articles, daemon=True).start()
             return Response({'message': 'Quality scoring triggered', 'status': 'running'})
+        
+        elif task_type == 'deep-specs':
+            from news.scheduler import _run_deep_specs_backfill
+            threading.Thread(target=_run_deep_specs_backfill, daemon=True).start()
+            return Response({'message': 'VehicleSpecs backfill triggered', 'status': 'running'})
         
         return Response(
             {'error': f'Unknown task type: {task_type}'},

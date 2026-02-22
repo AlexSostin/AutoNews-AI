@@ -295,11 +295,8 @@ def _score_new_pending_articles():
 
 
 # =============================================================================
-# VehicleSpecs auto-backfill (runs every 6 hours)
+# VehicleSpecs auto-backfill (reads settings from AutomationSettings)
 # =============================================================================
-DEEP_SPECS_INTERVAL = 6 * 3600  # 6 hours
-DEEP_SPECS_MAX_PER_CYCLE = 3     # Max articles per cycle (avoid Gemini API overload)
-
 
 def _run_deep_specs_backfill():
     """
@@ -312,7 +309,16 @@ def _run_deep_specs_backfill():
     try:
         from django.utils import timezone
         from datetime import timedelta
-        from news.models import Article, VehicleSpecs
+        from news.models import Article, VehicleSpecs, AutomationSettings
+
+        settings = AutomationSettings.objects.first()
+        if not settings or not settings.deep_specs_enabled:
+            logger.info("[SCHEDULER/DEEP-SPECS] ⏸️ Module disabled, skipping")
+            _schedule_deep_specs_backfill(DISABLED_CHECK_INTERVAL)
+            return
+
+        max_per_cycle = settings.deep_specs_max_per_cycle or 3
+        interval = (settings.deep_specs_interval_hours or 6) * 3600
 
         cutoff = timezone.now() - timedelta(hours=24)
 
@@ -321,21 +327,25 @@ def _run_deep_specs_backfill():
             VehicleSpecs.objects.values_list('article_id', flat=True)
         )
         
-        candidates = (
+        candidates = list(
             Article.objects
             .filter(
                 is_published=True,
                 is_draft=False,
                 created_at__lte=cutoff,
-                car_specification__isnull=False,  # Has CarSpecification
+                car_specification__isnull=False,
             )
             .exclude(id__in=articles_with_vehicle_specs)
-            .order_by('-views_count')[:DEEP_SPECS_MAX_PER_CYCLE]
+            .order_by('-views_count')[:max_per_cycle]
         )
 
         if not candidates:
-            logger.info("[SCHEDULER/DEEP-SPECS] ✅ All published articles have VehicleSpecs cards")
-            _schedule_deep_specs_backfill()
+            status_msg = "✅ All published articles have VehicleSpecs cards"
+            logger.info(f"[SCHEDULER/DEEP-SPECS] {status_msg}")
+            settings.deep_specs_last_run = timezone.now()
+            settings.deep_specs_last_status = status_msg
+            settings.save(update_fields=['deep_specs_last_run', 'deep_specs_last_status'])
+            _schedule_deep_specs_backfill(interval)
             return
 
         logger.info(f"[SCHEDULER/DEEP-SPECS] 🔍 Found {len(candidates)} articles without VehicleSpecs")
@@ -373,17 +383,39 @@ def _run_deep_specs_backfill():
                 logger.error(f"[SCHEDULER/DEEP-SPECS] ❌ Error for [{article.id}]: {e}")
                 continue
         
-        logger.info(f"[SCHEDULER/DEEP-SPECS] 📊 Filled {filled}/{len(candidates)} VehicleSpecs cards this cycle")
+        status_msg = f"Filled {filled}/{len(candidates)} VehicleSpecs cards"
+        logger.info(f"[SCHEDULER/DEEP-SPECS] 📊 {status_msg}")
+        
+        # Update settings
+        settings.deep_specs_last_run = timezone.now()
+        settings.deep_specs_last_status = status_msg
+        settings.deep_specs_today_count = (settings.deep_specs_today_count or 0) + filled
+        settings.save(update_fields=['deep_specs_last_run', 'deep_specs_last_status', 'deep_specs_today_count'])
 
     except Exception as e:
         logger.error(f"[SCHEDULER/DEEP-SPECS] ❌ Fatal error: {e}", exc_info=True)
+        try:
+            settings = AutomationSettings.objects.first()
+            if settings:
+                settings.deep_specs_last_status = f"❌ Error: {str(e)[:200]}"
+                settings.save(update_fields=['deep_specs_last_status'])
+        except Exception:
+            pass
     
-    _schedule_deep_specs_backfill()
+    # Re-read interval for scheduling
+    try:
+        settings = AutomationSettings.objects.first()
+        interval = (settings.deep_specs_interval_hours or 6) * 3600 if settings else 6 * 3600
+    except Exception:
+        interval = 6 * 3600
+    _schedule_deep_specs_backfill(interval)
 
 
-def _schedule_deep_specs_backfill():
+def _schedule_deep_specs_backfill(interval_seconds=None):
     """Schedule the next deep specs backfill."""
-    timer = threading.Timer(DEEP_SPECS_INTERVAL, _run_deep_specs_backfill)
+    if interval_seconds is None:
+        interval_seconds = 6 * 3600
+    timer = threading.Timer(interval_seconds, _run_deep_specs_backfill)
     timer.daemon = True
     timer.start()
 

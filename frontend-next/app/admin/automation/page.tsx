@@ -39,10 +39,17 @@ interface AutomationSettings {
     google_indexing_last_run: string | null;
     google_indexing_last_status: string;
     google_indexing_today_count: number;
+    deep_specs_enabled: boolean;
+    deep_specs_interval_hours: number;
+    deep_specs_max_per_cycle: number;
+    deep_specs_last_run: string | null;
+    deep_specs_last_status: string;
+    deep_specs_today_count: number;
     rss_lock: boolean;
     youtube_lock: boolean;
     auto_publish_lock: boolean;
     score_lock: boolean;
+    deep_specs_lock: boolean;
 }
 
 interface DecisionEntry {
@@ -529,6 +536,37 @@ export default function AutomationPage() {
                     <div className="mt-3 pt-3 border-t border-gray-100">
                         <Link href="/admin/analytics" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">📊 View Analytics →</Link>
                     </div>
+                </ModuleCard>
+
+                {/* VehicleSpecs Auto-Backfill */}
+                <ModuleCard
+                    title="🚗 VehicleSpecs Cards"
+                    enabled={settings.deep_specs_enabled}
+                    onToggle={(v) => updateSetting('deep_specs_enabled', v)}
+                    lastRun={settings.deep_specs_last_run}
+                    lastStatus={settings.deep_specs_last_status || `${settings.deep_specs_today_count || 0} cards created today`}
+                    saving={saving}
+                    onTrigger={() => triggerTask('deep-specs')}
+                    triggering={triggering === 'deep-specs'}
+                >
+                    <SettingRow label="Check every (hours)">
+                        <NumberInput
+                            value={settings.deep_specs_interval_hours}
+                            onSave={(v) => updateSetting('deep_specs_interval_hours', v)}
+                            min={2} max={48} fallback={6}
+                        />
+                    </SettingRow>
+                    <SettingRow label="Max per cycle">
+                        <NumberInput
+                            value={settings.deep_specs_max_per_cycle}
+                            onSave={(v) => updateSetting('deep_specs_max_per_cycle', v)}
+                            min={1} max={10} fallback={3}
+                        />
+                    </SettingRow>
+                    <p className="text-sm text-gray-600 mt-2">
+                        Auto-generates <strong className="text-gray-800">/cars/&#123;brand&#125;/&#123;model&#125;</strong> pages for published articles
+                        older than 24 hours that don&apos;t have a VehicleSpecs card yet. Prioritizes most-viewed articles.
+                    </p>
                 </ModuleCard>
 
                 {/* Quality Scoring */}

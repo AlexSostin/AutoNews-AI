@@ -850,8 +850,12 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             # Google Indexing
             'google_indexing_enabled',
             'google_indexing_last_run', 'google_indexing_last_status', 'google_indexing_today_count',
+            # Deep Specs / VehicleSpecs
+            'deep_specs_enabled', 'deep_specs_interval_hours',
+            'deep_specs_max_per_cycle', 'deep_specs_last_run', 'deep_specs_last_status',
+            'deep_specs_today_count',
             # Task locks
-            'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock',
+            'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock', 'deep_specs_lock',
         ]
         read_only_fields = [
             'rss_last_run', 'rss_last_status', 'rss_articles_today',
@@ -859,5 +863,6 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             'auto_publish_today_count', 'auto_publish_last_run',
             'auto_image_last_run', 'auto_image_last_status', 'auto_image_today_count',
             'google_indexing_last_run', 'google_indexing_last_status', 'google_indexing_today_count',
-            'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock',
+            'deep_specs_last_run', 'deep_specs_last_status', 'deep_specs_today_count',
+            'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock', 'deep_specs_lock',
         ]
