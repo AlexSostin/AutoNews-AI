@@ -70,7 +70,7 @@ from .search_analytics_views import (
     AnalyticsAIStatsAPIView, AnalyticsAIGenerationAPIView, AnalyticsPopularModelsAPIView,
     AnalyticsProviderStatsAPIView
 )
-from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet
+from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet, CarCompareView, CarPickerListView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -120,6 +120,8 @@ urlpatterns = [
     path('cars/brands/<slug:brand_slug>/', CarBrandDetailView.as_view(), name='car_brand_detail'),
     path('cars/brands/<slug:brand_slug>/models/<slug:model_slug>/', CarModelDetailView.as_view(), name='car_model_detail'),
     path('cars/cleanup/', BrandCleanupView.as_view(), name='brand_cleanup'),
+    path('cars/compare/', CarCompareView.as_view(), name='car_compare'),
+    path('cars/picker/', CarPickerListView.as_view(), name='car_picker'),
     # Admin brand management
     path('admin/brands/', BrandViewSet.as_view({'get': 'list', 'post': 'create'}), name='admin_brands_list'),
     path('admin/brands/sync/', BrandViewSet.as_view({'post': 'sync_from_specs'}), name='admin_brands_sync'),

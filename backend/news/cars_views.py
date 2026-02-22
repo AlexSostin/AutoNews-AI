@@ -417,6 +417,240 @@ class CarModelDetailView(APIView):
         })
 
 
+def _serialize_vehicle_specs(vs):
+    """Helper to serialize a VehicleSpecs instance for compare / detail views."""
+    return {
+        'id': vs.id,
+        'make': vs.make,
+        'model_name': vs.model_name,
+        'trim_name': vs.trim_name or 'Standard',
+        'full_name': f"{vs.make} {vs.model_name}".strip(),
+        'drivetrain': vs.get_drivetrain_display() if vs.drivetrain else None,
+        'motor_count': vs.motor_count,
+        'motor_placement': vs.motor_placement,
+        'power_hp': vs.power_hp,
+        'power_kw': vs.power_kw,
+        'torque_nm': vs.torque_nm,
+        'acceleration_0_100': vs.acceleration_0_100,
+        'top_speed_kmh': vs.top_speed_kmh,
+        'battery_kwh': vs.battery_kwh,
+        'range_km': vs.range_km,
+        'range_wltp': vs.range_wltp,
+        'range_epa': vs.range_epa,
+        'range_cltc': vs.range_cltc,
+        'combined_range_km': vs.combined_range_km,
+        'charging_time_fast': vs.charging_time_fast,
+        'charging_time_slow': vs.charging_time_slow,
+        'charging_power_max_kw': vs.charging_power_max_kw,
+        'transmission': vs.get_transmission_display() if vs.transmission else None,
+        'transmission_gears': vs.transmission_gears,
+        'body_type': vs.get_body_type_display() if vs.body_type else None,
+        'fuel_type': vs.get_fuel_type_display() if vs.fuel_type else None,
+        'seats': vs.seats,
+        'length_mm': vs.length_mm,
+        'width_mm': vs.width_mm,
+        'height_mm': vs.height_mm,
+        'wheelbase_mm': vs.wheelbase_mm,
+        'weight_kg': vs.weight_kg,
+        'cargo_liters': vs.cargo_liters,
+        'cargo_liters_max': vs.cargo_liters_max,
+        'ground_clearance_mm': vs.ground_clearance_mm,
+        'towing_capacity_kg': vs.towing_capacity_kg,
+        'price_from': vs.price_from,
+        'price_to': vs.price_to,
+        'currency': vs.currency,
+        'price_usd_from': vs.price_usd_from,
+        'price_usd_to': vs.price_usd_to,
+        'year': vs.year,
+        'country_of_origin': vs.country_of_origin,
+        'platform': vs.platform,
+        'voltage_architecture': vs.voltage_architecture,
+        'suspension_type': vs.suspension_type,
+        'extra_specs': vs.extra_specs or {},
+        'article_id': vs.article_id,
+    }
+
+
+class CarCompareView(APIView):
+    """
+    GET /api/v1/cars/compare/?car1={brand}/{model}&car2={brand}/{model}
+    
+    Compare two cars side-by-side using VehicleSpecs data.
+    Returns specs for both cars + winner highlights for numeric fields.
+    """
+    permission_classes = [AllowAny]
+    
+    # Fields where higher is better
+    HIGHER_IS_BETTER = {
+        'power_hp', 'power_kw', 'torque_nm', 'top_speed_kmh',
+        'battery_kwh', 'range_km', 'range_wltp', 'range_epa', 'range_cltc',
+        'combined_range_km', 'charging_power_max_kw', 'seats',
+        'cargo_liters', 'cargo_liters_max', 'ground_clearance_mm',
+        'towing_capacity_kg', 'voltage_architecture', 'wheelbase_mm',
+    }
+    
+    # Fields where lower is better
+    LOWER_IS_BETTER = {
+        'acceleration_0_100', 'weight_kg', 'price_usd_from',
+    }
+    
+    def _find_vehicle_specs(self, car_path):
+        """
+        Find the best VehicleSpecs for a car path like 'bmw/ix3'.
+        Returns (VehicleSpecs, article_image_url) or (None, None).
+        """
+        from .models import VehicleSpecs
+        
+        parts = car_path.strip('/').split('/')
+        if len(parts) != 2:
+            return None, None
+        
+        brand_slug, model_slug = parts
+        
+        # Find matching make
+        all_makes = (
+            VehicleSpecs.objects
+            .exclude(make='')
+            .values_list('make', flat=True)
+            .distinct()
+        )
+        make_name = None
+        for make in all_makes:
+            if slugify(make) == brand_slug:
+                make_name = make
+                break
+        
+        if not make_name:
+            return None, None
+        
+        # Find matching model
+        all_models = (
+            VehicleSpecs.objects
+            .filter(make__iexact=make_name)
+            .exclude(model_name='')
+            .values_list('model_name', flat=True)
+            .distinct()
+        )
+        model_name = None
+        for m in all_models:
+            if slugify(m) == model_slug:
+                model_name = m
+                break
+        
+        if not model_name:
+            return None, None
+        
+        # Get the best (most complete) VehicleSpecs
+        vs = (
+            VehicleSpecs.objects
+            .filter(make__iexact=make_name, model_name__iexact=model_name)
+            .select_related('article')
+            .order_by('-id')
+            .first()
+        )
+        
+        # Get image
+        image = None
+        if vs and vs.article:
+            image = _get_image_url(vs.article, self.request)
+        
+        return vs, image
+    
+    def get(self, request):
+        car1_path = request.query_params.get('car1', '')
+        car2_path = request.query_params.get('car2', '')
+        
+        if not car1_path or not car2_path:
+            return Response(
+                {'error': 'Both car1 and car2 query params required (format: brand/model)'},
+                status=400
+            )
+        
+        vs1, img1 = self._find_vehicle_specs(car1_path)
+        vs2, img2 = self._find_vehicle_specs(car2_path)
+        
+        if not vs1:
+            return Response({'error': f'Car not found: {car1_path}'}, status=404)
+        if not vs2:
+            return Response({'error': f'Car not found: {car2_path}'}, status=404)
+        
+        spec1 = _serialize_vehicle_specs(vs1)
+        spec2 = _serialize_vehicle_specs(vs2)
+        
+        spec1['image'] = img1
+        spec2['image'] = img2
+        
+        # Add article slug for linking
+        if vs1.article:
+            spec1['article_slug'] = vs1.article.slug
+        if vs2.article:
+            spec2['article_slug'] = vs2.article.slug
+        
+        # Calculate winners
+        winners = {}
+        for field in self.HIGHER_IS_BETTER | self.LOWER_IS_BETTER:
+            v1 = spec1.get(field)
+            v2 = spec2.get(field)
+            if v1 is not None and v2 is not None:
+                try:
+                    v1_num = float(v1)
+                    v2_num = float(v2)
+                    if v1_num == v2_num:
+                        winners[field] = 'tie'
+                    elif field in self.HIGHER_IS_BETTER:
+                        winners[field] = 'car1' if v1_num > v2_num else 'car2'
+                    else:
+                        winners[field] = 'car1' if v1_num < v2_num else 'car2'
+                except (ValueError, TypeError):
+                    pass
+        
+        return Response({
+            'car1': spec1,
+            'car2': spec2,
+            'winners': winners,
+        })
+
+
+class CarPickerListView(APIView):
+    """
+    GET /api/v1/cars/picker/ — List all brands with their models for the compare picker.
+    Lightweight endpoint returning just {brand, slug, models: [{name, slug}]}.
+    """
+    permission_classes = [AllowAny]
+    
+    @method_decorator(cache_page(600))  # Cache for 10 minutes
+    def get(self, request):
+        from .models import VehicleSpecs
+        
+        # Get all unique make/model combinations
+        combos = (
+            VehicleSpecs.objects
+            .exclude(make='')
+            .exclude(model_name='')
+            .values('make', 'model_name')
+            .distinct()
+            .order_by('make', 'model_name')
+        )
+        
+        brands = {}
+        for combo in combos:
+            make = combo['make']
+            model = combo['model_name']
+            if make not in brands:
+                brands[make] = {
+                    'name': make,
+                    'slug': slugify(make),
+                    'models': []
+                }
+            brands[make]['models'].append({
+                'name': model,
+                'slug': slugify(model),
+            })
+        
+        result = sorted(brands.values(), key=lambda b: b['name'])
+        return Response(result)
+
+
 class BrandCleanupView(APIView):
     """POST /api/v1/cars/cleanup/ — Run brand normalization (admin only).
     

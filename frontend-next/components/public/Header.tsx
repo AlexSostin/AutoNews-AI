@@ -111,6 +111,7 @@ export default function Header() {
             <Link href="/" className="hover:text-purple-300 transition-colors">Home</Link>
             <Link href="/articles" className="hover:text-purple-300 transition-colors">Articles</Link>
             <Link href="/cars" className="hover:text-purple-300 transition-colors">Cars</Link>
+            <Link href="/compare" className="hover:text-purple-300 transition-colors">Compare</Link>
 
             {/* Categories Dropdown */}
             <div className="relative" ref={categoriesRef}>
@@ -249,6 +250,7 @@ export default function Header() {
             <Link href="/" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
             <Link href="/articles" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Articles</Link>
             <Link href="/cars" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Cars</Link>
+            <Link href="/compare" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Compare</Link>
 
             {/* Mobile Categories */}
             <div>
