@@ -107,6 +107,24 @@
       "total_time": 65.5,
       "spec_fields_filled": 5,
       "timestamp": "2026-02-22T14:51:03.955945"
+    },
+    {
+      "provider": "gemini",
+      "make": "Mg",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 44.6,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-22T16:11:36.694892"
+    },
+    {
+      "provider": "gemini",
+      "make": "Mg",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 44.2,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-22T16:11:54.459490"
     }
   ]
 }
