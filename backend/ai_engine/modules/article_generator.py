@@ -630,6 +630,13 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
         article_content = ensure_html_only(article_content)
         article_content = _clean_banned_phrases(article_content)
         
+        # AI Review: second pass for quality (lazy cons, repetition, filler openers)
+        try:
+            from ai_engine.modules.article_reviewer import review_article
+            article_content = review_article(article_content, {}, provider)
+        except Exception as review_err:
+            logger.warning(f"AI Review skipped for RSS article: {review_err}")
+        
         # Validate quality
         quality = validate_article_quality(article_content)
         if not quality['valid']:
