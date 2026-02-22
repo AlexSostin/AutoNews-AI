@@ -78,6 +78,10 @@ _BANNED_SENTENCE_PATTERNS = re.compile(
     r'|remain to be seen'
     r'|only time will tell'
     r'|it remains to be seen'
+    # Conversational filler paragraphs
+    r'|this is where .{3,40} truly shines'
+    r'|this is where .{3,40} really shines'
+    r'|this is where things get .{3,20} interesting'
     ')[^<]*?</p>',
     re.IGNORECASE
 )
@@ -108,6 +112,18 @@ _BANNED_INLINE_REPLACEMENTS = [
     (re.compile(r'Not content to rest on (?:its|their) laurels,?\s*', re.I), ''),
     (re.compile(r'the market response has been .{3,30}phenomenal:?\s*', re.I), 'Market response: '),
     (re.compile(r'it\'s clear (?:that )?', re.I), ''),
+    # Round 3: AITO M9 article filler
+    (re.compile(r',? which is quite brisk(?:\s+for .{3,30})?', re.I), ''),
+    (re.compile(r',? which sounds absolutely \w+', re.I), ''),
+    (re.compile(r'\bWell, ', re.I), ''),
+    (re.compile(r'for a touch of futuristic flair,?\s*', re.I), ''),
+    (re.compile(r'for those wanting to stand out,?\s*', re.I), ''),
+    (re.compile(r'for those (?:who|looking)\s+(?:want|prefer)\s+(?:to )?stand out,?\s*', re.I), ''),
+    (re.compile(r'\bplus, for a touch of\b', re.I), 'Additionally, for'),
+    (re.compile(r'(?:the )?real party trick (?:here )?is', re.I), 'The key figure is'),
+    (re.compile(r'doing its thing,?\s*', re.I), 'working, '),
+    (re.compile(r'a testament to its appeal', re.I), 'a sign of strong demand'),
+    (re.compile(r'(?:Its|The) rapid ascent to a top.selling position[^.]*\.\s*', re.I), ''),
 ]
 
 
