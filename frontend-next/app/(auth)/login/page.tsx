@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+
   // Check for registration success message
   useState(() => {
     if (typeof window !== 'undefined') {
@@ -85,7 +86,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center px-4">
+    <div className="h-screen overflow-y-auto bg-gradient-to-br from-brand-700 via-brand-800 to-brand-900 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-6">
           <Link href="/" className="hover:scale-110 transition-transform duration-300 inline-block">
@@ -102,8 +103,8 @@ export default function LoginPage() {
 
         <div className="bg-white rounded-lg shadow-2xl p-8">
           <div className="flex items-center justify-center mb-6">
-            <div className="bg-indigo-100 p-4 rounded-full">
-              <LogIn className="text-indigo-600" size={32} />
+            <div className="bg-brand-100 p-4 rounded-full">
+              <LogIn className="text-brand-600" size={32} />
             </div>
           </div>
 
@@ -129,7 +130,7 @@ export default function LoginPage() {
                 type="text"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
                 required
               />
             </div>
@@ -143,7 +144,7 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
                 required
                 autoComplete="current-password"
               />
@@ -152,7 +153,7 @@ export default function LoginPage() {
                 tabIndex={-1}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
+                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-brand-600 focus:outline-none"
                 style={{ background: 'none', border: 'none', padding: 0 }}
               >
                 {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
@@ -162,7 +163,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              className={`w-full bg-gradient-to-r from-brand-600 to-brand-700 text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg`}
             >
               {isLoading ? 'Logging in...' : 'Login'}
             </button>
@@ -206,16 +207,17 @@ export default function LoginPage() {
           <div className="mt-6 text-center space-y-2">
             <p className="text-gray-600 text-sm">
               Don't have an account?{' '}
-              <Link href="/register" className="text-indigo-600 hover:underline font-medium">
+              <Link href="/register" className="text-brand-600 hover:underline font-medium">
                 Register here
               </Link>
             </p>
-            <Link href="/" className="block text-indigo-600 hover:underline font-medium">
+            <Link href="/" className="block text-brand-600 hover:underline font-medium">
               ← Back to Home
             </Link>
           </div>
         </div>
       </div>
+
     </div>
   );
 }

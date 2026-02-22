@@ -15,7 +15,7 @@ from django.utils import timezone
 from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
-    YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, AdminNotification,
+    YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AdminNotification,
     VehicleSpecs, NewsletterSubscriber, BrandAlias, AutomationSettings
 )
 from .serializers import (
@@ -23,7 +23,7 @@ from .serializers import (
     CategorySerializer, TagSerializer, TagGroupSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
     SiteSettingsSerializer, FavoriteSerializer, SubscriberSerializer, NewsletterHistorySerializer,
-    YouTubeChannelSerializer, RSSFeedSerializer, RSSNewsItemSerializer, PendingArticleSerializer, AutoPublishScheduleSerializer,
+    YouTubeChannelSerializer, RSSFeedSerializer, RSSNewsItemSerializer, PendingArticleSerializer,
     AdminNotificationSerializer, VehicleSpecsSerializer, BrandAliasSerializer,
     AutomationSettingsSerializer
 )
@@ -95,6 +95,42 @@ def invalidate_article_cache(article_id=None, slug=None):
     except Exception as e:
         logger.warning(f"Failed to invalidate pattern cache keys: {e}")
         # Still better to continue than fail
+
+    # Trigger Next.js on-demand revalidation (non-blocking)
+    trigger_nextjs_revalidation()
+
+
+def trigger_nextjs_revalidation(paths=None):
+    """
+    Tell Next.js to revalidate its ISR cache immediately.
+    Runs in a background thread so it doesn't slow down the API response.
+    """
+    import threading
+
+    def _revalidate():
+        import requests as http_requests
+        frontend_url = os.environ.get(
+            'FRONTEND_URL',
+            'http://frontend:3000' if os.environ.get('RUNNING_IN_DOCKER') else 'http://localhost:3000'
+        )
+        secret = os.environ.get('REVALIDATION_SECRET', 'freshmotors-revalidate-2026')
+        try:
+            resp = http_requests.post(
+                f'{frontend_url}/api/revalidate',
+                json={
+                    'secret': secret,
+                    'paths': paths or ['/', '/articles', '/trending'],
+                },
+                timeout=5,
+            )
+            if resp.ok:
+                logger.info(f"Next.js revalidation triggered: {resp.json()}")
+            else:
+                logger.warning(f"Next.js revalidation failed ({resp.status_code}): {resp.text[:200]}")
+        except Exception as e:
+            logger.debug(f"Next.js revalidation skipped (frontend may not be running): {e}")
+
+    threading.Thread(target=_revalidate, daemon=True).start()
 
 
 class CurrentUserView(APIView):
@@ -4710,75 +4746,6 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
         })
 
 
-class AutoPublishScheduleViewSet(viewsets.ModelViewSet):
-    """
-    Manage auto-publish schedule settings.
-    Only one schedule object exists (singleton pattern).
-    """
-    queryset = AutoPublishSchedule.objects.all()
-    serializer_class = AutoPublishScheduleSerializer
-    permission_classes = [IsAuthenticated]
-    
-    def list(self, request):
-        # Return single schedule object, create if not exists
-        schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
-        serializer = self.get_serializer(schedule)
-        return Response(serializer.data)
-    
-    def retrieve(self, request, pk=None):
-        # Always return the single schedule object
-        schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
-        serializer = self.get_serializer(schedule)
-        return Response(serializer.data)
-    
-    def update(self, request, *args, **kwargs):
-        schedule, _ = AutoPublishSchedule.objects.get_or_create(pk=1)
-        serializer = self.get_serializer(schedule, data=request.data, partial=kwargs.get('partial', False))
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-    
-    @action(detail=True, methods=['post'])
-    def trigger_scan(self, request, pk=None):
-        """Manually trigger a scan now"""
-        if not request.user.is_staff:
-            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
-        
-        schedule = self.get_object()
-        schedule.last_scan = timezone.now()
-        schedule.total_scans += 1
-        schedule.save()
-        
-        # Trigger the actual scan process in background
-        import subprocess
-        import sys
-        from django.conf import settings
-        
-        try:
-            manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
-            if not os.path.exists(manage_py):
-                # Try one level up if settings is in a subdir
-                manage_py = os.path.join(os.path.dirname(settings.BASE_DIR), 'manage.py')
-            
-            if not os.path.exists(manage_py):
-                 manage_py = 'manage.py'
-
-            subprocess.Popen(
-                [sys.executable, manage_py, 'scan_youtube'],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
-            message = 'Auto-scan triggered for all enabled channels'
-        except Exception as e:
-            logger.error(f"Error triggering auto-scan: {e}")
-            message = f'Failed to trigger scan: {str(e)}'
-        
-        return Response({
-            'message': message,
-            'timestamp': schedule.last_scan
-        })
-
 
 class AdminNotificationViewSet(viewsets.ModelViewSet):
     """
@@ -5562,6 +5529,16 @@ class AdPlacementViewSet(viewsets.ModelViewSet):
 # =============================================================================
 # Automation Control Panel
 # =============================================================================
+
+class SiteThemeView(APIView):
+    """Public endpoint — returns current site theme (no auth required)."""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        settings = AutomationSettings.load()
+        theme = settings.site_theme if settings.site_theme != 'default' else ''
+        return Response({'theme': theme})
+
 
 class AutomationSettingsView(APIView):
     """GET/PUT automation settings (singleton)."""

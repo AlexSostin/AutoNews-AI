@@ -392,20 +392,20 @@ export default async function ArticleDetailPage({
             <div className="mb-6">
               <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600 items-center">
                 <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-indigo-600" />
+                  <Calendar size={16} className="text-brand-600" />
                   <span>{formatDate(article.created_at)}</span>
                 </div>
 
                 {(article.show_source !== false) && article.author_name ? (
                   <div className="flex items-center gap-2">
-                    <User size={16} className="text-indigo-600" />
+                    <User size={16} className="text-brand-600" />
                     <span className="font-bold">Source:</span>
                     {article.author_channel_url ? (
                       <a
                         href={article.author_channel_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-800 transition-colors font-bold"
+                        className="text-brand-600 hover:text-brand-800 transition-colors font-bold"
                       >
                         {article.author_name}
                       </a>
@@ -415,7 +415,7 @@ export default async function ArticleDetailPage({
                   </div>
                 ) : ((article.show_source !== false) && article.author && (
                   <div className="flex items-center gap-2">
-                    <User size={16} className="text-indigo-600" />
+                    <User size={16} className="text-brand-600" />
                     <span>{article.author}</span>
                   </div>
                 ))}
@@ -471,7 +471,7 @@ export default async function ArticleDetailPage({
                     <Link
                       key={cat.id}
                       href={`/categories/${cat.slug}`}
-                      className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-indigo-700 transition-colors"
+                      className="inline-block bg-brand-600 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-brand-700 transition-colors"
                     >
                       {cat.name}
                     </Link>
@@ -596,12 +596,12 @@ export default async function ArticleDetailPage({
               {article.tag_names && article.tag_names.length > 0 && (
                 <div className="bg-white rounded-xl shadow-md p-6">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <Tag size={20} className="text-indigo-600" />
+                    <Tag size={20} className="text-brand-600" />
                     {article.tag_names.map((tag: string) => (
                       <Link
                         key={tag}
                         href={`/articles?tag=${tag}`}
-                        className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 transition-colors font-medium border border-indigo-100"
+                        className="px-4 py-2 bg-brand-50 text-brand-700 rounded-full hover:bg-brand-100 transition-colors font-medium border border-brand-100"
                       >
                         {tag}
                       </Link>

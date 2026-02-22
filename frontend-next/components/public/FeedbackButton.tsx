@@ -68,7 +68,7 @@ export default function FeedbackButton({ articleSlug }: FeedbackButtonProps) {
             {/* Trigger Button */}
             <button
                 onClick={() => setIsOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-brand-200 bg-brand-50 text-brand-700 text-sm font-semibold hover:bg-brand-100 hover:border-brand-300 hover:shadow-md transition-all cursor-pointer"
                 aria-label="Report an issue with this article"
             >
                 <MessageSquareWarning size={16} />
@@ -111,7 +111,7 @@ export default function FeedbackButton({ articleSlug }: FeedbackButtonProps) {
                                                 type="button"
                                                 onClick={() => setCategory(cat.value)}
                                                 className={`text-left px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${category === cat.value
-                                                    ? 'border-indigo-500 bg-indigo-50'
+                                                    ? 'border-brand-500 bg-brand-50'
                                                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                                     }`}
                                             >
@@ -126,7 +126,7 @@ export default function FeedbackButton({ articleSlug }: FeedbackButtonProps) {
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
                                         placeholder="Describe the issue (e.g., 'The horsepower listed is 500hp but the actual spec is 300hp')"
-                                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:outline-none resize-none text-base text-gray-900 placeholder:text-gray-400"
+                                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-500 focus:outline-none resize-none text-base text-gray-900 placeholder:text-gray-400"
                                         rows={3}
                                         maxLength={1000}
                                         required
@@ -141,7 +141,7 @@ export default function FeedbackButton({ articleSlug }: FeedbackButtonProps) {
                                     <button
                                         type="submit"
                                         disabled={!category || message.length < 5 || status === 'sending'}
-                                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                                     >
                                         <Send size={16} />
                                         {status === 'sending' ? 'Sending...' : 'Submit Feedback'}

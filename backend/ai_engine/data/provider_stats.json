@@ -1,0 +1,94 @@
+{
+  "records": [
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 61.7,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-21T08:19:54.405672"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 73.2,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-21T08:20:05.661591"
+    },
+    {
+      "provider": "gemini",
+      "make": "Gwm Wey",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 47.4,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-02-21T08:20:41.871259"
+    },
+    {
+      "provider": "gemini",
+      "make": "Gwm Wey",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 91.3,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-02-21T08:21:36.976748"
+    },
+    {
+      "provider": "gemini",
+      "make": "Aito",
+      "quality_score": 0,
+      "spec_coverage": 40.0,
+      "total_time": 57.7,
+      "spec_fields_filled": 4,
+      "timestamp": "2026-02-21T13:15:47.175585"
+    },
+    {
+      "provider": "gemini",
+      "make": "Aito",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 65.2,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-21T13:15:55.195371"
+    },
+    {
+      "provider": "gemini",
+      "make": "Mg",
+      "quality_score": 0,
+      "spec_coverage": 40.0,
+      "total_time": 41.5,
+      "spec_fields_filled": 4,
+      "timestamp": "2026-02-22T08:02:39.213641"
+    },
+    {
+      "provider": "gemini",
+      "make": "Hyundai",
+      "quality_score": 0,
+      "spec_coverage": 40.0,
+      "total_time": 63.6,
+      "spec_fields_filled": 4,
+      "timestamp": "2026-02-22T08:03:42.784631"
+    },
+    {
+      "provider": "gemini",
+      "make": "Aito",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 64.4,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-22T08:04:49.087739"
+    },
+    {
+      "provider": "gemini",
+      "make": "Huawei Aito",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 63.8,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-02-22T08:08:16.455884"
+    }
+  ]
+}

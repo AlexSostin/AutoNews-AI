@@ -4,6 +4,7 @@ import Header from '@/components/public/Header';
 import Footer from '@/components/public/Footer';
 import StickyBottomAd from '@/components/public/StickyBottomAd';
 import ABSeedProvider from '@/components/public/ABSeedProvider';
+import ThemeProvider from '@/components/public/ThemeProvider';
 
 export default function PublicLayout({
     children,
@@ -17,6 +18,7 @@ export default function PublicLayout({
             {children}
             <Footer />
             <StickyBottomAd />
+            <ThemeProvider />
         </>
     );
 }

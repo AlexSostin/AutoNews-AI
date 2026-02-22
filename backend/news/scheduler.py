@@ -19,6 +19,9 @@ AUTO_PUBLISH_CHECK_INTERVAL = 10 * 60
 # Default fallback check interval when module is disabled
 DISABLED_CHECK_INTERVAL = 60  # Check again in 60s if disabled
 
+# Track which tasks were already triggered by recovery to prevent double-fire
+_recovery_triggered = set()
+
 
 def _run_gsc_sync():
     """Sync GSC data and schedule next run."""
@@ -147,6 +150,12 @@ def _run_youtube_scan():
             _schedule_youtube_scan(DISABLED_CHECK_INTERVAL)
             return
         
+        # Acquire lock to prevent concurrent scans
+        if not AutomationSettings.acquire_lock('youtube'):
+            logger.warning("[SCHEDULER/YOUTUBE] ⏳ Skipped — another YouTube scan is already running")
+            _schedule_youtube_scan(60)  # retry in 1 minute
+            return
+        
         settings.reset_daily_counters()
         
         logger.info("[SCHEDULER/YOUTUBE] 🎬 Auto YouTube scan starting...")
@@ -177,10 +186,10 @@ def _run_youtube_scan():
                 video_url = video['url']
                 video_title = video['title']
                 
-                # Skip duplicates
+                # Skip duplicates — check both Article and PendingArticle tables
                 if Article.objects.filter(youtube_url=video_url).exists():
                     continue
-                if PendingArticle.objects.filter(video_id=video_id).exists():
+                if video_id and PendingArticle.objects.filter(video_id=video_id).exists():
                     continue
                 
                 try:
@@ -291,6 +300,7 @@ def _check_overdue_tasks():
     Called once shortly after server start to handle tasks that were missed
     during downtime/deploys.
     """
+    global _recovery_triggered
     try:
         from news.models import AutomationSettings
         from django.utils import timezone
@@ -315,6 +325,7 @@ def _check_overdue_tasks():
             rss_interval = timedelta(minutes=settings.rss_scan_interval_minutes)
             if now - settings.rss_last_run > rss_interval:
                 overdue.append('rss')
+                _recovery_triggered.add('rss')
                 threading.Thread(target=_run_rss_scan, daemon=True).start()
         
         # Check YouTube  
@@ -322,11 +333,13 @@ def _check_overdue_tasks():
             yt_interval = timedelta(minutes=settings.youtube_scan_interval_minutes)
             if now - settings.youtube_last_run > yt_interval:
                 overdue.append('youtube')
+                _recovery_triggered.add('youtube')
                 threading.Thread(target=_run_youtube_scan, daemon=True).start()
         
         # Check Auto-publish (every 10 mins, so likely always overdue after restart)
         if settings.auto_publish_enabled:
             overdue.append('auto-publish')
+            _recovery_triggered.add('auto-publish')
             threading.Thread(target=_run_auto_publish, daemon=True).start()
         
         if overdue:
@@ -348,40 +361,68 @@ def start_scheduler():
     if len(sys.argv) > 1 and sys.argv[1] in ('migrate', 'makemigrations', 'collectstatic', 'createsuperuser', 'shell', 'test'):
         return
 
-    # Prevent double-start in dev server (autoreload spawns 2 processes)
-    if os.environ.get('RUN_MAIN') == 'true' or not os.environ.get('RUN_MAIN'):
-        logger.info("🕐 Starting background scheduler (GSC 6h, currency 7d, RSS/YouTube/auto-publish from settings)")
-        
-        # --- Startup recovery: check for overdue tasks ---
-        recovery_timer = threading.Timer(30, _check_overdue_tasks)
-        recovery_timer.daemon = True
-        recovery_timer.start()
-        
-        # --- Existing tasks ---
-        
-        # Run first GSC sync after 60 seconds (let app finish starting)
-        initial_timer = threading.Timer(60, _run_gsc_sync)
-        initial_timer.daemon = True
-        initial_timer.start()
-        
-        # Run first currency update after 120 seconds
-        currency_timer = threading.Timer(120, _run_currency_update)
-        currency_timer.daemon = True
-        currency_timer.start()
-        
-        # --- New automation tasks (only start if NOT triggered by recovery) ---
-        
-        # RSS scan — start after 180 seconds
-        rss_timer = threading.Timer(180, _run_rss_scan)
-        rss_timer.daemon = True
-        rss_timer.start()
-        
-        # YouTube scan — start after 240 seconds
-        yt_timer = threading.Timer(240, _run_youtube_scan)
-        yt_timer.daemon = True
-        yt_timer.start()
-        
-        # Auto-publish — start after 300 seconds
-        ap_timer = threading.Timer(300, _run_auto_publish)
-        ap_timer.daemon = True
-        ap_timer.start()
+    # Prevent double-start in dev server (autoreload spawns parent + child processes)
+    # In runserver: parent has RUN_MAIN=None, child has RUN_MAIN='true'
+    # In production (gunicorn/uwsgi): RUN_MAIN is never set, no autoreload
+    is_runserver = any('runserver' in arg for arg in sys.argv)
+    if is_runserver and os.environ.get('RUN_MAIN') != 'true':
+        # Parent process of autoreload — skip, child will handle it
+        return
+
+    logger.info("🕐 Starting background scheduler (GSC 6h, currency 7d, RSS/YouTube/auto-publish from settings)")
+    
+    # --- Startup recovery: check for overdue tasks ---
+    recovery_timer = threading.Timer(30, _check_overdue_tasks)
+    recovery_timer.daemon = True
+    recovery_timer.start()
+    
+    # --- Existing tasks ---
+    
+    # Run first GSC sync after 60 seconds (let app finish starting)
+    initial_timer = threading.Timer(60, _run_gsc_sync)
+    initial_timer.daemon = True
+    initial_timer.start()
+    
+    # Run first currency update after 120 seconds
+    currency_timer = threading.Timer(120, _run_currency_update)
+    currency_timer.daemon = True
+    currency_timer.start()
+    
+    # --- Automation tasks: only start if NOT already triggered by recovery ---
+    # Recovery runs at +30s. These timers fire at +180/240/300s.
+    # If recovery already triggered a task, the scheduled timer skips it
+    # and lets the recovery-triggered task handle rescheduling.
+    
+    def _start_rss_if_not_recovered():
+        if 'rss' not in _recovery_triggered:
+            _run_rss_scan()
+        else:
+            logger.info("[SCHEDULER] ⏭️ Skipping scheduled RSS — already triggered by recovery")
+    
+    def _start_youtube_if_not_recovered():
+        if 'youtube' not in _recovery_triggered:
+            _run_youtube_scan()
+        else:
+            logger.info("[SCHEDULER] ⏭️ Skipping scheduled YouTube — already triggered by recovery")
+    
+    def _start_auto_publish_if_not_recovered():
+        if 'auto-publish' not in _recovery_triggered:
+            _run_auto_publish()
+        else:
+            logger.info("[SCHEDULER] ⏭️ Skipping scheduled auto-publish — already triggered by recovery")
+    
+    # RSS scan — start after 180 seconds (if not already recovered)
+    rss_timer = threading.Timer(180, _start_rss_if_not_recovered)
+    rss_timer.daemon = True
+    rss_timer.start()
+    
+    # YouTube scan — start after 240 seconds (if not already recovered)
+    yt_timer = threading.Timer(240, _start_youtube_if_not_recovered)
+    yt_timer.daemon = True
+    yt_timer.start()
+    
+    # Auto-publish — start after 300 seconds (if not already recovered)
+    ap_timer = threading.Timer(300, _start_auto_publish_if_not_recovered)
+    ap_timer.daemon = True
+    ap_timer.start()
+

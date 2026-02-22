@@ -194,7 +194,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
     <form onSubmit={(e) => handleSubmit(e, parentId)} className="space-y-4">
       {parentAuthor && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-indigo-700 font-medium">
+          <p className="text-sm text-brand-700 font-medium">
             <Reply size={14} className="inline mr-1" />
             Replying to <strong>@{parentAuthor}</strong>
           </p>
@@ -223,7 +223,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
               value={formData.author_name}
               onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
               required
-              className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white text-gray-900 placeholder-gray-700"
+              className="w-full px-4 py-3 border-2 border-brand-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none bg-white text-gray-900 placeholder-gray-700"
               placeholder="Your name"
             />
           </div>
@@ -238,7 +238,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
               value={formData.author_email}
               onChange={(e) => setFormData({ ...formData, author_email: e.target.value })}
               required
-              className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white text-gray-900 placeholder-gray-700"
+              className="w-full px-4 py-3 border-2 border-brand-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none bg-white text-gray-900 placeholder-gray-700"
               placeholder="your@email.com"
             />
           </div>
@@ -246,8 +246,8 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
       )}
 
       {isUserAuthenticated && !parentId && (
-        <div className="bg-indigo-100 border border-indigo-300 rounded-lg p-3 mb-2">
-          <p className="text-sm text-indigo-800 font-medium">
+        <div className="bg-brand-100 border border-brand-300 rounded-lg p-3 mb-2">
+          <p className="text-sm text-brand-800 font-medium">
             <User size={16} className="inline mr-1" />
             Commenting as: <strong>{formData.author_name}</strong>
           </p>
@@ -269,7 +269,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
           }}
           required
           rows={parentId ? 3 : 4}
-          className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none bg-white text-gray-900 placeholder-gray-700"
+          className="w-full px-4 py-3 border-2 border-brand-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none bg-white text-gray-900 placeholder-gray-700"
           placeholder="Share your thoughts..."
         />
       </div>
@@ -277,7 +277,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
       <button
         type="submit"
         disabled={submitting}
-        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+        className="bg-gradient-to-r from-brand-600 to-brand-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-brand-700 hover:to-brand-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
       >
         <Send size={18} />
         {submitting ? 'Submitting...' : 'Submit Comment'}
@@ -295,11 +295,11 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   const renderComment = (comment: Comment, isReply: boolean = false) => (
     <div
       key={comment.id}
-      className={`${isReply ? 'ml-8 md:ml-12 bg-gray-50 border-l-4 border-indigo-300' : 'bg-white'
+      className={`${isReply ? 'ml-8 md:ml-12 bg-gray-50 border-l-4 border-brand-300' : 'bg-white'
         } rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow`}
     >
       <div className="flex items-center gap-3 mb-3">
-        <div className={`w-${isReply ? '10' : '12'} h-${isReply ? '10' : '12'} rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold ${isReply ? 'text-base' : 'text-xl'
+        <div className={`w-${isReply ? '10' : '12'} h-${isReply ? '10' : '12'} rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-bold ${isReply ? 'text-base' : 'text-xl'
           }`}>
           {comment.author_name.charAt(0).toUpperCase()}
         </div>
@@ -307,7 +307,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
           <h5 className="font-bold text-gray-900">
             {comment.author_name}
             {comment.parent_author && isReply && (
-              <span className="text-sm text-indigo-600 font-normal ml-2">
+              <span className="text-sm text-brand-600 font-normal ml-2">
                 → @{comment.parent_author}
               </span>
             )}
@@ -326,7 +326,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
         <div className="flex items-center gap-4 border-t border-gray-200 pt-3 mt-3">
           <button
             onClick={() => setReplyingTo(comment.id)}
-            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+            className="text-sm text-brand-600 hover:text-brand-800 font-medium flex items-center gap-1"
           >
             <Reply size={16} />
             Reply
@@ -355,7 +355,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
 
       {/* Reply Form */}
       {replyingTo === comment.id && (
-        <div className="ml-8 md:ml-12 mt-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg border-2 border-indigo-100">
+        <div className="ml-8 md:ml-12 mt-4 p-4 bg-gradient-to-br from-brand-50 to-brand-50 rounded-lg border-2 border-brand-100">
           {renderCommentForm(comment.id, comment.author_name)}
         </div>
       )}
@@ -375,15 +375,15 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
         <h3 className="text-2xl font-bold text-gray-900">
           💬 Comments
         </h3>
-        <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-semibold">
+        <span className="bg-brand-100 text-brand-800 px-3 py-1 rounded-full text-sm font-semibold">
           {comments.length}
         </span>
       </div>
 
       {/* Main Comment Form */}
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl shadow-md p-6 mb-8 border-2 border-indigo-100">
+      <div className="bg-gradient-to-br from-brand-50 to-brand-50 rounded-xl shadow-md p-6 mb-8 border-2 border-brand-100">
         <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <MessageCircle className="text-indigo-600" size={24} />
+          <MessageCircle className="text-brand-600" size={24} />
           Leave a Comment
         </h4>
         {renderCommentForm()}
@@ -397,7 +397,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
           {comments.map((comment) => renderComment(comment))}
         </div>
       ) : (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 text-center border-2 border-blue-100">
+        <div className="bg-gradient-to-br from-blue-50 to-brand-50 rounded-xl p-8 text-center border-2 border-blue-100">
           <div className="text-6xl mb-4">💭</div>
           <h4 className="text-xl font-bold text-gray-900 mb-2">No comments yet</h4>
           <p className="text-gray-600">Be the first to share your thoughts!</p>

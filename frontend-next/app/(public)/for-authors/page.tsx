@@ -22,7 +22,7 @@ export default function ForAuthorsPage() {
             description: "We only use the official YouTube player. This means views on our site count towards your YouTube stats, and all channel ads are displayed correctly."
         },
         {
-            icon: <Lock className="text-indigo-600" size={32} />,
+            icon: <Lock className="text-brand-600" size={32} />,
             title: "No Text Copying",
             description: "We never copy the original text of your descriptions or subtitles in their entirety. Our primary goal is to create unique, high-value supplementary content."
         },
@@ -37,7 +37,7 @@ export default function ForAuthorsPage() {
             description: "We respect your content rights. We are ready to remove or modify your publication page immediately upon request."
         },
         {
-            icon: <Handshake className="text-purple-600" size={32} />,
+            icon: <Handshake className="text-brand-600" size={32} />,
             title: "Collaboration",
             description: "We are open to collaboration! We can highlight your channel or add direct links to your social media if you'd like to work with us."
         },
@@ -58,7 +58,7 @@ export default function ForAuthorsPage() {
             {/* Hero Header */}
             <div className="bg-gray-900 text-white py-16 sm:py-24">
                 <div className="container mx-auto px-4 text-center">
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-black mb-6 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-black mb-6 bg-gradient-to-r from-brand-400 to-brand-400 bg-clip-text text-transparent">
                         Fresh Motors — For Authors
                     </h1>
                     <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
@@ -84,19 +84,19 @@ export default function ForAuthorsPage() {
                     ))}
 
                     {/* Contact Card */}
-                    <div className="bg-indigo-600 rounded-3xl p-8 shadow-xl shadow-indigo-200 text-white md:col-span-2 lg:col-span-1 flex flex-col justify-between">
+                    <div className="bg-brand-600 rounded-3xl p-8 shadow-xl shadow-brand-200 text-white md:col-span-2 lg:col-span-1 flex flex-col justify-between">
                         <div>
                             <div className="bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                                 <Mail size={32} />
                             </div>
                             <h3 className="text-xl font-bold mb-3">Contact Us</h3>
-                            <p className="text-indigo-100 mb-6 leading-relaxed">
+                            <p className="text-brand-100 mb-6 leading-relaxed">
                                 Have questions or partnership proposals? Email us, we respond within 24 hours.
                             </p>
                         </div>
                         <a
                             href="mailto:info@freshmotors.net"
-                            className="inline-flex items-center justify-center gap-2 bg-white text-indigo-600 font-bold py-3 px-6 rounded-xl hover:bg-gray-100 transition-colors"
+                            className="inline-flex items-center justify-center gap-2 bg-white text-brand-600 font-bold py-3 px-6 rounded-xl hover:bg-gray-100 transition-colors"
                         >
                             info@freshmotors.net
                             <ChevronRight size={18} />
@@ -121,7 +121,7 @@ export default function ForAuthorsPage() {
                     <div className="flex flex-wrap gap-4">
                         <Link
                             href="/articles"
-                            className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-2"
+                            className="font-bold text-brand-600 hover:text-brand-800 transition-colors flex items-center gap-2"
                         >
                             Browse Articles
                             <ChevronRight size={18} />

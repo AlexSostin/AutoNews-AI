@@ -8,12 +8,13 @@ from .api_views import (
     CommentViewSet, RatingViewSet, CarSpecificationViewSet, 
     ArticleImageViewSet, SiteSettingsViewSet, UserViewSet, AdminUserManagementViewSet,
     FavoriteViewSet, SubscriberViewSet,
-    YouTubeChannelViewSet, RSSFeedViewSet, RSSNewsItemViewSet, PendingArticleViewSet, AutoPublishScheduleViewSet,
+    YouTubeChannelViewSet, RSSFeedViewSet, RSSNewsItemViewSet, PendingArticleViewSet,
     AdminNotificationViewSet, VehicleSpecsViewSet, BrandAliasViewSet,
     ArticleFeedbackViewSet, GenerateAIImageView,
     SearchPhotosView, SaveExternalImageView,
     AdPlacementViewSet,
-    AutomationSettingsView, AutomationStatsView, AutomationTriggerView
+    AutomationSettingsView, AutomationStatsView, AutomationTriggerView,
+    SiteThemeView
 )
 from .health import health_check, health_check_detailed, readiness_check
 from .ab_testing_views import (
@@ -53,7 +54,6 @@ router.register(r'youtube-channels', YouTubeChannelViewSet, basename='youtube-ch
 router.register(r'rss-feeds', RSSFeedViewSet, basename='rss-feed')
 router.register(r'rss-news-items', RSSNewsItemViewSet, basename='rss-news-item')
 router.register(r'pending-articles', PendingArticleViewSet, basename='pending-article')
-router.register(r'auto-publish-schedule', AutoPublishScheduleViewSet, basename='auto-publish-schedule')
 router.register(r'notifications', AdminNotificationViewSet, basename='notification')
 router.register(r'vehicle-specs', VehicleSpecsViewSet, basename='vehicle-specs')
 router.register(r'brand-aliases', BrandAliasViewSet, basename='brand-alias')
@@ -142,6 +142,9 @@ urlpatterns = [
     path('automation/settings/', AutomationSettingsView.as_view(), name='automation_settings'),
     path('automation/stats/', AutomationStatsView.as_view(), name='automation_stats'),
     path('automation/trigger/<str:task_type>/', AutomationTriggerView.as_view(), name='automation_trigger'),
+    
+    # Public site config
+    path('site/theme/', SiteThemeView.as_view(), name='site_theme'),
     
     # A/B Testing
     path('ab/impression/', ABImpressionView.as_view(), name='ab_impression'),

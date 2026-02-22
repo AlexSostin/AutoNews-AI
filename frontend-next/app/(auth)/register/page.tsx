@@ -84,7 +84,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center px-4 py-8">
+    <div className="h-screen overflow-y-auto bg-gradient-to-br from-brand-700 via-brand-800 to-brand-900 flex items-center justify-center px-4 py-8">
       <div className="max-w-md w-full">
         <div className="text-center mb-6">
           <Link href="/" className="hover:scale-110 transition-transform duration-300 inline-block">
@@ -101,8 +101,8 @@ export default function RegisterPage() {
 
         <div className="bg-white rounded-lg shadow-2xl p-8">
           <div className="flex items-center justify-center mb-6">
-            <div className="bg-indigo-100 p-4 rounded-full">
-              <UserPlus className="text-indigo-600" size={32} />
+            <div className="bg-brand-100 p-4 rounded-full">
+              <UserPlus className="text-brand-600" size={32} />
             </div>
           </div>
 
@@ -122,7 +122,7 @@ export default function RegisterPage() {
                 type="text"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
                 required
                 minLength={3}
               />
@@ -138,7 +138,7 @@ export default function RegisterPage() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
                 required
               />
             </div>
@@ -152,7 +152,7 @@ export default function RegisterPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
                 required
                 minLength={8}
                 autoComplete="new-password"
@@ -162,7 +162,7 @@ export default function RegisterPage() {
                 tabIndex={-1}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
+                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-brand-600 focus:outline-none"
                 style={{ background: 'none', border: 'none', padding: 0 }}
               >
                 {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
@@ -179,7 +179,7 @@ export default function RegisterPage() {
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
                 required
                 minLength={8}
                 autoComplete="new-password"
@@ -189,7 +189,7 @@ export default function RegisterPage() {
                 tabIndex={-1}
                 aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 onClick={() => setShowConfirmPassword((v) => !v)}
-                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
+                className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-brand-600 focus:outline-none"
                 style={{ background: 'none', border: 'none', padding: 0 }}
               >
                 {showConfirmPassword ? <EyeOff size={22} /> : <Eye size={22} />}
@@ -199,7 +199,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              className="w-full bg-gradient-to-r from-brand-600 to-brand-700 text-white py-3 rounded-lg font-semibold hover:from-brand-700 hover:to-brand-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -243,11 +243,11 @@ export default function RegisterPage() {
           <div className="mt-6 text-center space-y-2">
             <p className="text-gray-600 text-sm">
               Already have an account?{' '}
-              <Link href="/login" className="text-indigo-600 hover:underline font-medium">
+              <Link href="/login" className="text-brand-600 hover:underline font-medium">
                 Login here
               </Link>
             </p>
-            <Link href="/" className="block text-indigo-600 hover:underline font-medium text-sm">
+            <Link href="/" className="block text-brand-600 hover:underline font-medium text-sm">
               ← Back to Home
             </Link>
           </div>

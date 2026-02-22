@@ -895,13 +895,12 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         print(f"Skipping {youtube_url} - already exists")
         return {'success': False, 'reason': 'exists', 'error': 'Article already exists in the database'}
         
-    # 2. Check if already pending (exclude rejected or published-but-deleted)
-    # We allow generation if the existing PendingArticle is 'rejected' 
-    # or if it's 'published' but the resulting article was later deleted.
-    pending_exists = PendingArticle.objects.filter(video_id=video_id, status__in=['pending', 'approved']).exists()
-    if pending_exists:
-        print(f"Skipping {youtube_url} - already pending")
-        return {'success': False, 'reason': 'pending', 'error': 'Article is already in the pending queue'}
+    # 2. Check if already pending/published for this video_id (any status except rejected)
+    if video_id:
+        pending_exists = PendingArticle.objects.filter(video_id=video_id).exclude(status='rejected').exists()
+        if pending_exists:
+            print(f"Skipping {youtube_url} - PendingArticle already exists for video_id={video_id}")
+            return {'success': False, 'reason': 'pending', 'error': 'Article is already in the pending queue'}
     
     # 3. Generate content
     result = _generate_article_content(youtube_url, task_id=None, provider=provider, video_title=video_title)
@@ -924,7 +923,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
          except Category.DoesNotExist:
              pass
 
-    # 5. Create PendingArticle
+    # 5. Create PendingArticle (with race-condition safety)
     # Ensure video_id and video_title are present (DB requirements)
     final_video_title = result.get('video_title') or video_title or "Untitled YouTube Video"
     
@@ -934,24 +933,35 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         id_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', youtube_url)
         video_id = id_match.group(1) if id_match else f"ext_{int(timezone.now().timestamp())}"
 
-    pending = PendingArticle.objects.create(
-        youtube_channel=channel,
-        video_url=youtube_url,
-        video_id=video_id,
-        video_title=final_video_title[:500],
-        title=result['title'],
-        content=result['content'],
-        excerpt=result['summary'],
-        suggested_category=default_category,
-        images=result['image_paths'],  # JSON field
-        featured_image=result['image_paths'][0] if result['image_paths'] else '',
-        
-        # Save structured data for draft safety
-        specs=result['specs'],
-        tags=result['tag_names'],
-        
-        status='pending'
-    )
+    try:
+        # Re-check right before create to minimize race window
+        if video_id and PendingArticle.objects.filter(video_id=video_id).exclude(status='rejected').exists():
+            print(f"Skipping {youtube_url} - duplicate detected after content generation")
+            return {'success': False, 'reason': 'pending', 'error': 'Duplicate detected'}
+
+        pending = PendingArticle.objects.create(
+            youtube_channel=channel,
+            video_url=youtube_url,
+            video_id=video_id,
+            video_title=final_video_title[:500],
+            title=result['title'],
+            content=result['content'],
+            excerpt=result['summary'],
+            suggested_category=default_category,
+            images=result['image_paths'],  # JSON field
+            featured_image=result['image_paths'][0] if result['image_paths'] else '',
+            
+            # Save structured data for draft safety
+            specs=result['specs'],
+            tags=result['tag_names'],
+            
+            status='pending'
+        )
+    except Exception as e:
+        if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
+            print(f"Skipping {youtube_url} - DB unique constraint caught duplicate")
+            return {'success': False, 'reason': 'pending', 'error': 'Duplicate video_id'}
+        raise
     
     print(f"✅ Created PendingArticle: {pending.title}")
     return {'success': True, 'pending_id': pending.id}

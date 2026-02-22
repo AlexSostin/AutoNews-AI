@@ -82,10 +82,18 @@
 - **Bot Protection**: User-Agent middleware для блокировки автоматических запросов
 
 ### ✅ CI/CD
-- **GitHub Actions**: Автоматические pytest тесты (75 тестов) при каждом пуше
+- **GitHub Actions**: Автоматические pytest тесты (391 тест, 28 файлов) при каждом пуше
+- **E2E тесты**: Playwright (14 тестов: homepage, articles, SEO, performance, mobile)
 - **Backend тесты**: PostgreSQL + Redis в CI, pytest с полным покрытием
 - **Frontend checks**: Lint, type checking, build verification
+- **Security**: Проверка уязвимостей Python зависимостей (safety)
 - **Auto-deploy**: Railway (backend) + Vercel (frontend) из GitHub
+
+### ⚡ Performance & Caching
+- **Redis Cache**: `@cache_page` на article list (5 мин), settings (5 мин), robots.txt (24ч)
+- **Cache Invalidation**: Авто-очистка кеша при изменении статей/категорий/тегов
+- **Next.js ISR**: Homepage revalidation каждые 120с
+- **Image Optimization**: Авто-конвертация WebP + responsive resizing
 
 ---
 
@@ -104,7 +112,7 @@
 | **Sentry** | Error tracking и мониторинг |
 | **yt-dlp** | Извлечение транскриптов YouTube |
 | **Pexels API** | Поиск стоковых фотографий |
-| **pytest** | Тестовый фреймворк (75 тестов) |
+| **pytest** | Тестовый фреймворк (391 тест, 28 файлов) |
 
 ### Frontend
 | Технология | Назначение |
@@ -145,7 +153,7 @@ AutoNews-AI/
 │   ├── ai_engine/             # AI article generation
 │   │   ├── main.py            # Pipeline orchestrator
 │   │   └── modules/           # Transcriber, analyzer, publisher, reviewer, auto_publisher
-│   ├── tests/                 # Pytest test suite (75 tests)
+│   ├── tests/                 # Pytest test suite (391 tests, 28 files)
 │   └── Dockerfile
 │
 ├── frontend-next/             # Next.js 16 (App Router)

@@ -4,7 +4,7 @@ from django.conf import settings
 from .models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
-    YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AutoPublishSchedule, EmailPreferences,
+    YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, EmailPreferences,
     AdminNotification, VehicleSpecs, NewsletterSubscriber, BrandAlias, Brand,
     AdPlacement, AutomationSettings
 )
@@ -684,17 +684,6 @@ class PendingArticleSerializer(serializers.ModelSerializer):
         return obj.reviewed_by.username if obj.reviewed_by else None
 
 
-class AutoPublishScheduleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AutoPublishSchedule
-        fields = [
-            'id', 'is_enabled', 'frequency',
-            'scan_time_1', 'scan_time_2', 'scan_time_3', 'scan_time_4',
-            'last_scan', 'last_scan_result',
-            'total_scans', 'total_articles_generated',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['last_scan', 'last_scan_result', 'total_scans', 'total_articles_generated', 'created_at', 'updated_at']
 
 
 class EmailPreferencesSerializer(serializers.ModelSerializer):
@@ -838,6 +827,8 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationSettings
         fields = [
+            # Site theme
+            'site_theme',
             # RSS
             'rss_scan_enabled', 'rss_scan_interval_minutes',
             'rss_max_articles_per_scan', 'rss_last_run', 'rss_last_status',

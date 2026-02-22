@@ -39,12 +39,12 @@ export default function NewsletterSignup() {
     };
 
     return (
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-6 md:p-8 text-white shadow-xl">
+        <div className="bg-gradient-to-r from-brand-600 to-brand-600 rounded-xl p-6 md:p-8 text-white shadow-xl">
             <div className="flex items-center gap-3 mb-3">
                 <Mail className="w-6 h-6" />
                 <h3 className="text-xl md:text-2xl font-bold">Subscribe to Newsletter</h3>
             </div>
-            <p className="text-indigo-100 mb-6 text-sm md:text-base">
+            <p className="text-brand-100 mb-6 text-sm md:text-base">
                 Get the latest automotive news, reviews, and exclusive content delivered straight to your inbox!
             </p>
 
@@ -61,7 +61,7 @@ export default function NewsletterSignup() {
                 <button
                     type="submit"
                     disabled={status === 'loading' || status === 'success'}
-                    className="px-6 py-3 bg-white text-indigo-600 font-bold rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="px-6 py-3 bg-white text-brand-600 font-bold rounded-lg hover:bg-brand-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                     {status === 'loading' ? 'Subscribing...' : status === 'success' ? 'Subscribed!' : 'Subscribe'}
                 </button>
@@ -79,7 +79,7 @@ export default function NewsletterSignup() {
                 </div>
             )}
 
-            <p className="mt-4 text-xs text-indigo-200">
+            <p className="mt-4 text-xs text-brand-200">
                 We respect your privacy. Unsubscribe at any time.
             </p>
         </div>

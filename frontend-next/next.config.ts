@@ -97,6 +97,10 @@ const nextConfig: NextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
           },
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, must-revalidate',
+          },
         ],
       },
     ];

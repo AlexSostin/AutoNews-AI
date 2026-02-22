@@ -93,7 +93,7 @@ export default function SpecsCardLink({ articleTitle, tagNames }: SpecsCardLinkP
     return (
         <div className="relative overflow-hidden rounded-xl shadow-lg">
             {/* Gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500" />
+            <div className="absolute inset-0 bg-gradient-to-r from-brand-600 via-blue-600 to-cyan-500" />
 
             {/* Decorative circles */}
             <div className="absolute inset-0 overflow-hidden">

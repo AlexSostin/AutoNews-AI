@@ -123,7 +123,7 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
                     setSelectedCurrency(currency.code);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${selectedCurrency === currency.code ? 'bg-purple-50 text-purple-700' : ''
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${selectedCurrency === currency.code ? 'bg-brand-50 text-brand-700' : ''
                     }`}
                 >
                   <span className="flex items-center gap-2">

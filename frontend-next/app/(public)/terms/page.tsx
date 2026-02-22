@@ -40,7 +40,7 @@ export default function TermsPage() {
   if (loading) {
     return (
       <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-purple-600" size={48} />
+        <Loader2 className="animate-spin text-brand-600" size={48} />
       </main>
     );
   }
@@ -50,9 +50,9 @@ export default function TermsPage() {
 
       <main className="flex-1 bg-gray-50">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-16">
+        <div className="bg-gradient-to-r from-slate-900 via-brand-900 to-gray-900 text-white py-16">
           <div className="container mx-auto px-4 text-center">
-            <FileText className="mx-auto mb-4 text-purple-300" size={48} />
+            <FileText className="mx-auto mb-4 text-brand-300" size={48} />
             <h1 className="text-4xl md:text-5xl font-black mb-4">{pageTitle}</h1>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
               Last Updated: February 13, 2026
@@ -90,8 +90,8 @@ export default function TermsPage() {
                 {/* Acceptance of Terms */}
                 <section className="mb-10">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-purple-100 p-2 rounded-lg">
-                      <UserCheck className="text-purple-600" size={24} />
+                    <div className="bg-brand-100 p-2 rounded-lg">
+                      <UserCheck className="text-brand-600" size={24} />
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">Acceptance of Terms</h2>
                   </div>
@@ -123,8 +123,8 @@ export default function TermsPage() {
                 {/* Intellectual Property */}
                 <section className="mb-10">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-indigo-100 p-2 rounded-lg">
-                      <Scale className="text-indigo-600" size={24} />
+                    <div className="bg-brand-100 p-2 rounded-lg">
+                      <Scale className="text-brand-600" size={24} />
                     </div>
                     <h2 className="text-2xl font-black text-gray-900">Intellectual Property Rights</h2>
                   </div>
@@ -263,11 +263,11 @@ export default function TermsPage() {
                 </section>
 
                 {/* Contact */}
-                <section className="bg-purple-50 rounded-xl p-6">
+                <section className="bg-brand-50 rounded-xl p-6">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Contact Us</h2>
                   <p className="text-gray-700 mb-4">
                     If you have any questions about these Terms of Service, please contact us through our{' '}
-                    <a href="/contact" className="text-purple-600 hover:text-purple-800 font-medium underline">
+                    <a href="/contact" className="text-brand-600 hover:text-brand-800 font-medium underline">
                       Contact Page
                     </a>.
                   </p>

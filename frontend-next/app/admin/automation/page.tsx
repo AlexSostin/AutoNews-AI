@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 const API_URL = getApiUrl();
 
 interface AutomationSettings {
+    site_theme: string;
     rss_scan_enabled: boolean;
     rss_scan_interval_minutes: number;
     rss_max_articles_per_scan: number;
@@ -275,6 +276,45 @@ export default function AutomationPage() {
                     </div>
                 </div>
             )}
+
+            {/* Site Theme Picker */}
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-5 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-base font-black text-gray-900">🎨 Site Theme</h3>
+                        <p className="text-xs text-gray-500 mt-1">Changes the brand color across the entire site for all visitors</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                        { value: 'default', label: 'Default', desc: 'Indigo / Purple', colors: ['#4f46e5', '#6366f1', '#818cf8'] },
+                        { value: 'midnight-green', label: 'Midnight Green', desc: 'Emerald / Teal', colors: ['#059669', '#10b981', '#34d399'] },
+                        { value: 'deep-ocean', label: 'Deep Ocean', desc: 'Blue / Navy', colors: ['#2563eb', '#3b82f6', '#60a5fa'] },
+                    ].map((theme) => (
+                        <button
+                            key={theme.value}
+                            onClick={() => updateSetting('site_theme', theme.value)}
+                            className={`relative p-4 rounded-xl border-2 transition-all text-left ${settings.site_theme === theme.value
+                                    ? 'border-gray-900 shadow-lg scale-[1.02]'
+                                    : 'border-gray-200 hover:border-gray-400 hover:shadow-md'
+                                }`}
+                        >
+                            <div className="flex gap-1.5 mb-3">
+                                {theme.colors.map((c, i) => (
+                                    <div key={i} className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: c }} />
+                                ))}
+                            </div>
+                            <p className="text-sm font-black text-gray-900">{theme.label}</p>
+                            <p className="text-xs text-gray-500">{theme.desc}</p>
+                            {settings.site_theme === theme.value && (
+                                <div className="absolute top-2 right-2 w-5 h-5 bg-gray-900 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs">✓</span>
+                                </div>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             {/* Module Cards Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -556,8 +596,8 @@ export default function AutomationPage() {
                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                 {/* Quality */}
                                                 <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${d.quality_score >= 7 ? 'bg-emerald-100 text-emerald-700' :
-                                                        d.quality_score >= 5 ? 'bg-amber-100 text-amber-700' :
-                                                            'bg-red-100 text-red-700'
+                                                    d.quality_score >= 5 ? 'bg-amber-100 text-amber-700' :
+                                                        'bg-red-100 text-red-700'
                                                     }`}>
                                                     Q:{d.quality_score}
                                                 </span>
@@ -565,8 +605,8 @@ export default function AutomationPage() {
                                                 {/* Safety */}
                                                 {d.safety_score && (
                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${d.safety_score === 'safe' ? 'bg-emerald-100 text-emerald-700' :
-                                                            d.safety_score === 'unsafe' ? 'bg-red-100 text-red-700' :
-                                                                'bg-amber-100 text-amber-700'
+                                                        d.safety_score === 'unsafe' ? 'bg-red-100 text-red-700' :
+                                                            'bg-amber-100 text-amber-700'
                                                         }`}>
                                                         {d.safety_score === 'safe' ? '✅' : d.safety_score === 'unsafe' ? '🔴' : '🟡'}
                                                     </span>

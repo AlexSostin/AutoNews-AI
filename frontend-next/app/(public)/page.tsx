@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 120; // Revalidate every 2 minutes (was 30s — too frequent, triggers 4 API calls each time)
+export const revalidate = 60; // Revalidate every 60s as fallback (on-demand revalidation handles instant updates)
 
 // Production API URL - hardcoded for server-side rendering
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
@@ -66,7 +66,7 @@ async function getArticles() {
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
-      next: { revalidate: 120 }, // refresh every 2 minutes
+      next: { revalidate: 60, tags: ['articles'] }, // tagged for on-demand revalidation via /api/revalidate
       signal: controller.signal,
     });
 
@@ -175,15 +175,15 @@ export default async function Home() {
         {categories.length > 0 && (
           <section className="relative py-16 overflow-hidden">
             {/* Background Decoration */}
-            <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-indigo-100/50 rounded-full blur-3xl -z-10"></div>
-            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-purple-100/30 rounded-full blur-3xl -z-10"></div>
+            <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-brand-100/50 rounded-full blur-3xl -z-10"></div>
+            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-brand-100/30 rounded-full blur-3xl -z-10"></div>
 
             <div className="container mx-auto px-4">
               <div className="text-center mb-12">
                 <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
                   Browse by Category
                 </h2>
-                <div className="w-20 h-1.5 bg-indigo-600 mx-auto rounded-full"></div>
+                <div className="w-20 h-1.5 bg-brand-600 mx-auto rounded-full"></div>
               </div>
 
               <div className="flex flex-wrap gap-4 sm:gap-6 justify-center">
@@ -191,16 +191,16 @@ export default async function Home() {
                   <Link
                     key={category.id}
                     href={`/categories/${category.slug}`}
-                    className="group relative px-6 sm:px-8 py-3 sm:py-4 bg-white/70 backdrop-blur-md border border-gray-200 rounded-2xl transition-all duration-300 hover:border-indigo-500 hover:shadow-[0_20px_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden"
+                    className="group relative px-6 sm:px-8 py-3 sm:py-4 bg-white/70 backdrop-blur-md border border-gray-200 rounded-2xl transition-all duration-300 hover:border-brand-500 hover:shadow-[0_20px_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden"
                   >
                     {/* Hover Glow */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand-500/5 to-brand-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                     <div className="relative flex items-center gap-3">
-                      <span className="text-gray-900 font-bold text-lg sm:text-xl group-hover:text-indigo-600 transition-colors">
+                      <span className="text-gray-900 font-bold text-lg sm:text-xl group-hover:text-brand-600 transition-colors">
                         {category.name}
                       </span>
-                      <span className="flex items-center justify-center bg-gray-100 text-gray-500 text-xs font-black min-w-[28px] h-[28px] px-1.5 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                      <span className="flex items-center justify-center bg-gray-100 text-gray-500 text-xs font-black min-w-[28px] h-[28px] px-1.5 rounded-lg group-hover:bg-brand-600 group-hover:text-white transition-all shadow-inner">
                         {category.article_count}
                       </span>
                     </div>
@@ -219,7 +219,7 @@ export default async function Home() {
                 <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
                   Browse by Brand
                 </h2>
-                <div className="w-20 h-1.5 bg-purple-600 mx-auto rounded-full" />
+                <div className="w-20 h-1.5 bg-brand-600 mx-auto rounded-full" />
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
@@ -227,9 +227,9 @@ export default async function Home() {
                   <Link
                     key={brand.slug}
                     href={`/cars/${brand.slug}`}
-                    className="group flex items-center gap-3 bg-white/70 backdrop-blur-md border border-gray-200 rounded-xl px-4 py-3 transition-all duration-300 hover:border-purple-400 hover:shadow-lg hover:-translate-y-0.5"
+                    className="group flex items-center gap-3 bg-white/70 backdrop-blur-md border border-gray-200 rounded-xl px-4 py-3 transition-all duration-300 hover:border-brand-400 hover:shadow-lg hover:-translate-y-0.5"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center text-lg group-hover:from-purple-200 group-hover:to-indigo-200 transition-all overflow-hidden flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-100 to-brand-100 flex items-center justify-center text-lg group-hover:from-brand-200 group-hover:to-brand-200 transition-all overflow-hidden flex-shrink-0">
                       {brand.image ? (
                         <img src={fixImageUrl(brand.image)} alt="" className="w-full h-full object-cover rounded-lg" />
                       ) : (
@@ -237,7 +237,7 @@ export default async function Home() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <div className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors truncate">
+                      <div className="font-bold text-gray-900 group-hover:text-brand-600 transition-colors truncate">
                         {brand.name}
                       </div>
                       <div className="text-xs text-gray-500">
@@ -251,7 +251,7 @@ export default async function Home() {
               <div className="text-center mt-8">
                 <Link
                   href="/cars"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-colors"
                 >
                   View All Brands →
                 </Link>
@@ -267,7 +267,7 @@ export default async function Home() {
             <div className="lg:col-span-3">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-10 gap-4">
                 <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">Latest Articles</h2>
-                <Link href="/articles" className="text-indigo-600 hover:text-indigo-700 font-semibold hover:underline text-base sm:text-lg whitespace-nowrap">
+                <Link href="/articles" className="text-brand-600 hover:text-brand-700 font-semibold hover:underline text-base sm:text-lg whitespace-nowrap">
                   View All →
                 </Link>
               </div>

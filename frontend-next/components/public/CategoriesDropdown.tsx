@@ -73,13 +73,13 @@ export default function CategoriesDropdown({ categories, currentCategory, curren
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-3 bg-white border-2 rounded-lg font-bold text-left flex items-center justify-between transition-all ${
           currentCategory
-            ? 'border-indigo-500 bg-indigo-50'
-            : 'border-gray-300 hover:border-indigo-300'
+            ? 'border-brand-500 bg-brand-50'
+            : 'border-gray-300 hover:border-brand-300'
         }`}
       >
         <div className="flex items-center gap-2">
-          <Folder size={18} className={currentCategory ? 'text-indigo-600' : 'text-gray-500'} />
-          <span className={currentCategory ? 'text-indigo-700' : 'text-gray-700'}>
+          <Folder size={18} className={currentCategory ? 'text-brand-600' : 'text-gray-500'} />
+          <span className={currentCategory ? 'text-brand-700' : 'text-gray-700'}>
             {selectedCategory ? selectedCategory.name : `All Categories`}
           </span>
         </div>
@@ -87,7 +87,7 @@ export default function CategoriesDropdown({ categories, currentCategory, curren
           {currentCategory && (
             <button
               onClick={clearCategory}
-              className="p-1 hover:bg-indigo-200 rounded-full transition-colors"
+              className="p-1 hover:bg-brand-200 rounded-full transition-colors"
               title="Clear category filter"
             >
               <X size={16} />
@@ -109,7 +109,7 @@ export default function CategoriesDropdown({ categories, currentCategory, curren
             onClick={() => setIsOpen(false)}
             className={`block px-4 py-3 transition-colors font-medium border-b border-gray-100 ${
               !currentCategory
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-brand-600 text-white'
                 : 'hover:bg-gray-50 text-gray-700'
             }`}
           >
@@ -120,7 +120,7 @@ export default function CategoriesDropdown({ categories, currentCategory, curren
               </div>
               <span className={`text-xs px-2 py-1 rounded-full ${
                 !currentCategory
-                  ? 'bg-indigo-700 text-indigo-100'
+                  ? 'bg-brand-700 text-brand-100'
                   : 'bg-gray-200 text-gray-600'
               }`}>
                 {categories.reduce((sum, cat) => sum + (cat.article_count || 0), 0)}
@@ -136,7 +136,7 @@ export default function CategoriesDropdown({ categories, currentCategory, curren
               onClick={() => setIsOpen(false)}
               className={`block px-4 py-3 transition-colors font-medium border-b border-gray-100 ${
                 currentCategory === cat.slug
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-brand-600 text-white'
                   : 'hover:bg-gray-50 text-gray-700'
               }`}
             >
@@ -148,7 +148,7 @@ export default function CategoriesDropdown({ categories, currentCategory, curren
                 {cat.article_count !== undefined && (
                   <span className={`text-xs px-2 py-1 rounded-full ${
                     currentCategory === cat.slug
-                      ? 'bg-indigo-700 text-indigo-100'
+                      ? 'bg-brand-700 text-brand-100'
                       : 'bg-gray-200 text-gray-600'
                   }`}>
                     {cat.article_count}

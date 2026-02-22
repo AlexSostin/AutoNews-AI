@@ -2,7 +2,7 @@
 
 This document provides a comprehensive overview of the FreshMotors platform architecture, technology stack, and core workflows.
 
-**Last Updated**: February 2026
+**Last Updated**: 21 February 2026
 
 ---
 
@@ -18,7 +18,7 @@ This document provides a comprehensive overview of the FreshMotors platform arch
 - **Media**: Cloudinary (production CDN), local storage (dev)
 - **APIs**: YouTube Data API v3, Google Search Console API, Google OAuth 2.0, Pexels API
 - **Monitoring**: Sentry (error tracking)
-- **Testing**: pytest (75 tests), GitHub Actions CI
+- **Testing**: pytest (391 tests, 28 files), Playwright E2E (14 tests), GitHub Actions CI
 
 ### Frontend
 - **Framework**: Next.js 16.1 (App Router, Server Components, SSR/SSG)
@@ -76,9 +76,18 @@ AutoNews-AI/
 | `ai_engine/modules/publisher.py` | Article persistence to database |
 | `ai_engine/modules/article_reviewer.py` | AI Editor — reviews and improves generated articles |
 | `ai_engine/modules/auto_publisher.py` | Automated publishing engine with quality scoring & safety gating |
-| `ai_engine/modules/screenshot_extractor.py` | Video frame capture (ffmpeg) |
+| `ai_engine/modules/screenshot_maker.py` | Video frame capture (ffmpeg) |
 | `ai_engine/modules/content_formatter.py` | Content formatting and image distribution |
-| `tests/` | pytest test suite (75 tests across 7 test files) |
+| `ai_engine/modules/spec_refill.py` | Auto-refill missing car spec fields via AI |
+| `ai_engine/modules/specs_enricher.py` | Post-publish spec enrichment pipeline |
+| `ai_engine/modules/feed_discovery.py` | Auto-discover RSS feeds for brands |
+| `ai_engine/modules/license_checker.py` | RSS feed license/copyright validation |
+| `ai_engine/modules/provider_tracker.py` | AI provider usage tracking and fallback |
+| `ai_engine/modules/quality_scorer.py` | Content quality scoring for auto-publishing |
+| `ai_engine/modules/seo_helpers.py` | SEO keyword extraction and meta generation |
+| `ai_engine/modules/youtube_client.py` | YouTube channel monitoring and batch scanning |
+| `news/cache_signals.py` | Auto-invalidation of Redis + @cache_page on model changes |
+| `tests/` | pytest test suite (391 tests across 28 test files) |
 
 ### Frontend Structure (`/frontend-next`)
 
@@ -132,7 +141,12 @@ AutoNews-AI/
 - **Brand Catalog**: Brands auto-created from car specs with logo, country, aliases
 - **Drivetrain Tags**: Auto-tagged (EV, PHEV, Hybrid, ICE) based on spec analysis
 - **Price Segments**: Auto-tagged (Budget, Mid-Range, Premium, Luxury, Supercar)
-- **Image Optimization**: Auto WebP conversion and resizing on upload
+
+### 8. Caching & Performance
+- **Redis Cache**: `@cache_page` on article list (300s), article detail (60s), trending (15min), popular (1h), settings (300s), robots.txt (24h)
+- **Cache Invalidation**: `cache_signals.py` auto-clears Redis + `@cache_page` keys on Article/Category/Tag/Rating changes
+- **Next.js ISR**: Homepage revalidates every 120s, categories/brands every 3600s
+- **Image Optimization**: Next.js auto-converts to WebP, responsive resizing
 
 ### 5. Analytics & Tracking
 - **GA4 Events**: `article_view`, `article_read` (scroll milestones), `read_time` (on unload)
@@ -156,9 +170,9 @@ AutoNews-AI/
 
 ## 🧪 Testing & CI
 
-### Test Suite (75 tests)
-| File | Tests | Coverage |
-|------|-------|----------|
+### Test Suite (391 tests, 28 files)
+| File | Tests | What it covers |
+|------|-------|----------------|
 | `test_analytics_api.py` | 8 | Analytics overview, top articles, timeline, growth |
 | `test_search_api.py` | 11 | Search, filters, sorting, pagination |
 | `test_article_generation.py` | 6 | Publishing, image distribution |
@@ -167,10 +181,30 @@ AutoNews-AI/
 | `test_automation_api.py` | 8 | Settings CRUD, stats, auth |
 | `test_models.py` | 12 | Singleton, counters, RSS safety, status flow |
 | `test_ab_testing.py` | 10 | Variant serving, tracking, winner selection |
+| `test_publisher.py` | 24 | Article persistence, specs, tags, categories |
+| `test_scheduler.py` | 15 | RSS scan, YouTube scan, auto-publish scheduling |
+| `test_articles_crud.py` | 30+ | CRUD operations, permissions, filtering |
+| `test_auth.py` | 15+ | JWT, login, registration, password reset |
+| `test_brands_rss.py` | 15+ | Brand catalog API, RSS feed management |
+| `test_cars_api.py` | 10+ | Car specs API, vehicle specs |
+| `test_comments_ratings.py` | 15+ | Comments CRUD, ratings, moderation |
+| `test_content_formatter.py` | 8 | HTML formatting, image placement |
+| `test_publisher_helpers.py` | 10+ | Slug generation, metadata extraction |
+| `test_quality_scorer.py` | 8 | Quality scoring logic |
+| `test_rss_aggregator.py` | 12 | RSS parsing, deduplication |
+| `test_signals.py` | 10+ | Post-save signals, cache invalidation |
+| `test_spec_extractor.py` | 10+ | Spec extraction from content |
+| `test_spec_refill.py` | 5 | Auto-refill missing specs |
+| `test_specs_enricher.py` | 16 | Enrichment pipeline |
+| `test_validators.py` | 9 | Title validation, content validators |
+| `test_views.py` | 10+ | Django views, robots.txt, health check |
+| + 3 more files | — | Provider tracker, AI main, user management |
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
-- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v`
+- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (391 tests)
 - **Frontend**: `npm run lint` + `npx tsc --noEmit` + `npm run build`
+- **E2E**: Playwright → 14 tests against live site (continue-on-error)
+- **Security**: `safety check` for Python dependency vulnerabilities
 - **Trigger**: Push to main, pull requests
 
 ---

@@ -183,9 +183,9 @@ export default function Footer() {
     <footer className="bg-gradient-to-r from-gray-800 to-gray-900 text-white mt-auto">
       <div className="container mx-auto px-4 py-12">
         {/* Newsletter Section */}
-        <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-2xl p-8 mb-12 border border-purple-500/20">
+        <div className="bg-gradient-to-r from-brand-900/30 to-brand-900/30 rounded-2xl p-8 mb-12 border border-brand-500/20">
           <div className="max-w-2xl mx-auto text-center">
-            <Mail className="mx-auto mb-4 text-purple-400" size={40} />
+            <Mail className="mx-auto mb-4 text-brand-400" size={40} />
             <h3 className="text-2xl font-bold mb-2 text-white">Subscribe to Our Newsletter</h3>
             <p className="text-gray-300 mb-6">
               Get the latest automotive news, reviews, and exclusive content delivered straight to your inbox.
@@ -197,12 +197,12 @@ export default function Footer() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
-                className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               />
               <button
                 type="submit"
                 disabled={subscribeStatus === 'loading'}
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                className="px-6 py-3 bg-brand-600 hover:bg-brand-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {subscribeStatus === 'loading' ? 'Subscribing...' : 'Subscribe'}
               </button>
@@ -216,13 +216,13 @@ export default function Footer() {
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
-            <h3 className="text-xl font-bold mb-4 text-purple-400">Fresh Motors</h3>
+            <h3 className="text-xl font-bold mb-4 text-brand-400">Fresh Motors</h3>
             <p className="text-gray-300 text-sm mb-4">
               Your source for the latest automotive news, reviews, and insights.
             </p>
             <a
               href="mailto:info@freshmotors.net"
-              className="text-gray-300 hover:text-purple-400 transition-colors text-sm flex items-center gap-2 mb-4"
+              className="text-gray-300 hover:text-brand-400 transition-colors text-sm flex items-center gap-2 mb-4"
             >
               <Mail size={16} />
               info@freshmotors.net
@@ -237,7 +237,7 @@ export default function Footer() {
                       href={social.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-white/10 hover:bg-purple-600 p-2 rounded-lg transition-all hover:scale-110"
+                      className="bg-white/10 hover:bg-brand-600 p-2 rounded-lg transition-all hover:scale-110"
                       title={social.name}
                     >
                       <Icon size={18} />
@@ -249,24 +249,24 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="font-bold mb-4 text-purple-400">Quick Links</h4>
+            <h4 className="font-bold mb-4 text-brand-400">Quick Links</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/" className="text-gray-300 hover:text-purple-400 transition-colors">Home</Link></li>
-              <li><Link href="/articles" className="text-gray-300 hover:text-purple-400 transition-colors">All Articles</Link></li>
-              <li><Link href="/categories/news" className="text-gray-300 hover:text-purple-400 transition-colors">News</Link></li>
-              <li><Link href="/categories/reviews" className="text-gray-300 hover:text-purple-400 transition-colors">Reviews</Link></li>
+              <li><Link href="/" className="text-gray-300 hover:text-brand-400 transition-colors">Home</Link></li>
+              <li><Link href="/articles" className="text-gray-300 hover:text-brand-400 transition-colors">All Articles</Link></li>
+              <li><Link href="/categories/news" className="text-gray-300 hover:text-brand-400 transition-colors">News</Link></li>
+              <li><Link href="/categories/reviews" className="text-gray-300 hover:text-brand-400 transition-colors">Reviews</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold mb-4 text-purple-400">Categories</h4>
+            <h4 className="font-bold mb-4 text-brand-400">Categories</h4>
             <ul className="space-y-2 text-sm">
               {categories.length > 0 ? (
                 categories.map((cat) => (
                   <li key={cat.id}>
                     <Link
                       href={`/categories/${cat.slug}`}
-                      className="text-gray-300 hover:text-purple-400 transition-colors"
+                      className="text-gray-300 hover:text-brand-400 transition-colors"
                     >
                       {cat.name}
                     </Link>
@@ -274,31 +274,31 @@ export default function Footer() {
                 ))
               ) : (
                 <>
-                  <li><Link href="/categories/news" className="text-gray-300 hover:text-purple-400 transition-colors">News</Link></li>
-                  <li><Link href="/categories/reviews" className="text-gray-300 hover:text-purple-400 transition-colors">Reviews</Link></li>
-                  <li><Link href="/articles" className="text-gray-300 hover:text-purple-400 transition-colors">All Articles</Link></li>
+                  <li><Link href="/categories/news" className="text-gray-300 hover:text-brand-400 transition-colors">News</Link></li>
+                  <li><Link href="/categories/reviews" className="text-gray-300 hover:text-brand-400 transition-colors">Reviews</Link></li>
+                  <li><Link href="/articles" className="text-gray-300 hover:text-brand-400 transition-colors">All Articles</Link></li>
                 </>
               )}
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold mb-4 text-purple-400">Company</h4>
+            <h4 className="font-bold mb-4 text-brand-400">Company</h4>
             <ul className="space-y-2 text-sm">
               {(settings?.about_page_enabled !== false) && (
-                <li><Link href="/about" className="text-gray-300 hover:text-purple-400 transition-colors">About Us</Link></li>
+                <li><Link href="/about" className="text-gray-300 hover:text-brand-400 transition-colors">About Us</Link></li>
               )}
-              <li><Link href="/for-authors" className="text-gray-300 hover:text-purple-400 transition-colors font-bold text-indigo-400">For Authors</Link></li>
+              <li><Link href="/for-authors" className="text-gray-300 hover:text-brand-400 transition-colors font-bold text-brand-400">For Authors</Link></li>
               {(settings?.contact_page_enabled !== false) && (
-                <li><Link href="/contact" className="text-gray-300 hover:text-purple-400 transition-colors">Contact Us</Link></li>
+                <li><Link href="/contact" className="text-gray-300 hover:text-brand-400 transition-colors">Contact Us</Link></li>
               )}
               {(settings?.privacy_page_enabled !== false) && (
-                <li><Link href="/privacy-policy" className="text-gray-300 hover:text-purple-400 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/privacy-policy" className="text-gray-300 hover:text-brand-400 transition-colors">Privacy Policy</Link></li>
               )}
               {(settings?.terms_page_enabled !== false) && (
-                <li><Link href="/terms" className="text-gray-300 hover:text-purple-400 transition-colors">Terms of Service</Link></li>
+                <li><Link href="/terms" className="text-gray-300 hover:text-brand-400 transition-colors">Terms of Service</Link></li>
               )}
-              <li><a href="/feed.xml" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-purple-400 transition-colors">RSS Feed</a></li>
+              <li><a href="/feed.xml" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-brand-400 transition-colors">RSS Feed</a></li>
             </ul>
           </div>
         </div>

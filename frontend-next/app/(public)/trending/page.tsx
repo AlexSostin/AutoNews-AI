@@ -59,7 +59,7 @@ export default function TrendingPage() {
 
       <main className="flex-1 bg-gray-50 min-h-screen">
         {/* Hero Header */}
-        <section className="bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white py-16 relative overflow-hidden">
+        <section className="bg-gradient-to-br from-orange-500 via-pink-500 to-brand-600 text-white py-16 relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="container mx-auto px-4 relative z-10 text-center">
             <div className="inline-flex items-center gap-3 bg-white/20 backdrop-blur-sm px-6 py-2 rounded-full mb-6">

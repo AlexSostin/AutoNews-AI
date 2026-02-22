@@ -211,7 +211,7 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
                                 <tr>
                                     <th className="text-left px-6 py-3 font-semibold text-gray-500 w-40"></th>
                                     {vsList.map(vs => (
-                                        <th key={vs.id} className="text-center px-4 py-3 font-bold text-indigo-700">
+                                        <th key={vs.id} className="text-center px-4 py-3 font-bold text-brand-700">
                                             {vs.trim_name}
                                         </th>
                                     ))}
@@ -266,7 +266,7 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
                         return (
                             <div key={vs.id} className="space-y-2">
                                 {multi && (
-                                    <h3 className="font-bold text-indigo-700 text-sm">{vs.trim_name}</h3>
+                                    <h3 className="font-bold text-brand-700 text-sm">{vs.trim_name}</h3>
                                 )}
                                 {vs.price_display && (
                                     <p className="text-gray-600 text-sm">
@@ -295,7 +295,7 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
                 </div>
             )}
 
-            {renderSection('Performance', '⚡', 'bg-gradient-to-r from-indigo-600 to-purple-600', perfRows)}
+            {renderSection('Performance', '⚡', 'bg-gradient-to-r from-brand-600 to-brand-600', perfRows)}
             {renderSection('EV & Battery', '🔋', 'bg-gradient-to-r from-green-600 to-emerald-600', evRows)}
             {renderSection('Dimensions & Weight', '📐', 'bg-gradient-to-r from-cyan-600 to-teal-600', dimRows)}
             {renderSection('Technical Details', '🔧', 'bg-gradient-to-r from-orange-500 to-amber-500', techRows)}

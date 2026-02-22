@@ -156,6 +156,15 @@ export default function ArticlesPage() {
 
       const response = await api.patch(`/articles/${id}/`, { is_published: !currentStatus });
       console.log('✅ Update successful:', response.data);
+
+      // Show success toast with publish status
+      const newStatus = !currentStatus;
+      setSuccessMessage(
+        newStatus
+          ? '✅ Article published! Live on site within ~5 seconds.'
+          : '📝 Article unpublished — moved to drafts.'
+      );
+      setTimeout(() => setSuccessMessage(null), 4000);
     } catch (error: any) {
       console.error('❌ Failed to update published status:', error);
       console.error('Error details:', error.response?.data || error.message);

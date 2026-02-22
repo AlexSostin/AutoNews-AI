@@ -40,18 +40,7 @@ interface YouTubeChannel {
   created_at: string;
 }
 
-interface Schedule {
-  id: number;
-  is_enabled: boolean;
-  frequency: string;
-  scan_time_1: string;
-  scan_time_2: string;
-  scan_time_3: string | null;
-  scan_time_4: string | null;
-  last_scan: string | null;
-  total_scans: number;
-  total_articles_generated: number;
-}
+
 
 interface Video {
   id: string;
@@ -69,7 +58,7 @@ interface Video {
 export default function YouTubeChannelsPage() {
   const [channels, setChannels] = useState<YouTubeChannel[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [schedule, setSchedule] = useState<Schedule | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [rssPendingCount, setRssPendingCount] = useState(0);
 
@@ -102,25 +91,15 @@ export default function YouTubeChannelsPage() {
 
   const fetchData = async () => {
     try {
-      const [channelsRes, categoriesRes, scheduleRes, rssStatsRes] = await Promise.all([
+      const [channelsRes, categoriesRes, rssStatsRes] = await Promise.all([
         api.get('/youtube-channels/'),
         api.get('/categories/'),
-        api.get('/auto-publish-schedule/'),
         api.get('/pending-articles/stats/?only_rss=true')
       ]);
 
       setChannels(Array.isArray(channelsRes.data) ? channelsRes.data : channelsRes.data.results || []);
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data.results || []);
       setRssPendingCount(rssStatsRes.data.pending || 0);
-
-      const scheduleData = scheduleRes.data;
-      if (scheduleData.results && scheduleData.results.length > 0) {
-        setSchedule(scheduleData.results[0]);
-      } else if (Array.isArray(scheduleData) && scheduleData.length > 0) {
-        setSchedule(scheduleData[0]);
-      } else if (scheduleData && typeof scheduleData === 'object' && scheduleData.id) {
-        setSchedule(scheduleData);
-      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -199,18 +178,7 @@ export default function YouTubeChannelsPage() {
     }
   };
 
-  const handleScheduleToggle = async () => {
-    if (!schedule) return;
 
-    try {
-      await api.patch('/auto-publish-schedule/1/', {
-        is_enabled: !schedule.is_enabled
-      });
-      setSchedule({ ...schedule, is_enabled: !schedule.is_enabled });
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to update schedule' });
-    }
-  };
 
   const openEditModal = (channel: YouTubeChannel) => {
     setEditingChannel(channel);
@@ -357,61 +325,21 @@ export default function YouTubeChannelsPage() {
         </div>
       )}
 
-      {/* Schedule Settings */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-lg ${schedule?.is_enabled ? 'bg-green-500' : 'bg-gray-400'} text-white`}>
-              <Clock size={24} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Auto-Scan Schedule</h2>
-              <p className="text-sm text-gray-500">
-                {schedule?.is_enabled
-                  ? `Scanning ${schedule.frequency === 'twice' ? 'twice daily' : schedule.frequency} at ${schedule.scan_time_1}${schedule.scan_time_2 ? ` & ${schedule.scan_time_2}` : ''}`
-                  : 'Automatic scanning disabled'}
-              </p>
-            </div>
+      {/* Automation Settings Link */}
+      <Link
+        href="/admin/automation"
+        className="block bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-lg bg-purple-500 text-white">
+            <Clock size={24} />
           </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin/youtube-channels/schedule"
-              className="text-purple-600 hover:text-purple-800 text-sm font-medium"
-            >
-              Configure
-            </Link>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={schedule?.is_enabled || false}
-                onChange={handleScheduleToggle}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-            </label>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Automation Settings</h2>
+            <p className="text-sm text-gray-500">Configure auto-scan schedule, auto-publish, and more</p>
           </div>
         </div>
-        {schedule && (
-          <div className="mt-4 pt-4 border-t border-gray-100 flex gap-6 text-sm">
-            <div>
-              <span className="text-gray-500">Total Scans:</span>
-              <span className="ml-2 font-bold text-gray-900">{schedule.total_scans}</span>
-            </div>
-            <div>
-              <span className="text-gray-500">Articles Generated:</span>
-              <span className="ml-2 font-bold text-gray-900">{schedule.total_articles_generated}</span>
-            </div>
-            {schedule.last_scan && (
-              <div>
-                <span className="text-gray-500">Last Scan:</span>
-                <span className="ml-2 font-bold text-gray-900">
-                  {new Date(schedule.last_scan).toLocaleString()}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      </Link>
 
       {/* Pending Articles Link */}
       <Link

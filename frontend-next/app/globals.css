@@ -1,15 +1,73 @@
 @import "tailwindcss";
 
+/* ========================================
+   Brand Color System — CSS Custom Properties
+   Override via data-theme attribute on <html>
+   ======================================== */
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Brand color scale (default: Indigo-Purple) */
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-200: #c7d2fe;
+  --brand-300: #a5b4fc;
+  --brand-400: #818cf8;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+  --brand-800: #3730a3;
+  --brand-900: #312e81;
 }
 
+/* Midnight Green preset */
+[data-theme="midnight-green"] {
+  --brand-50: #ecfdf5;
+  --brand-100: #d1fae5;
+  --brand-200: #a7f3d0;
+  --brand-300: #6ee7b7;
+  --brand-400: #34d399;
+  --brand-500: #10b981;
+  --brand-600: #059669;
+  --brand-700: #047857;
+  --brand-800: #065f46;
+  --brand-900: #064e3b;
+}
+
+/* Deep Ocean preset */
+[data-theme="deep-ocean"] {
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+}
+
+/* Tailwind v4 @theme — map CSS vars to utilities */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Brand colors → use as bg-brand-600, text-brand-300, etc. */
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -70,8 +128,7 @@ textarea::placeholder {
   display: inline-block;
   width: 6px;
   height: 24px;
-  background: linear-gradient(to bottom, #4f46e5, #7c3aed);
-  /* indigo to purple */
+  background: linear-gradient(to bottom, var(--brand-600), var(--brand-500));
   margin-right: 12px;
   border-radius: 4px;
   flex-shrink: 0;
@@ -102,8 +159,7 @@ textarea::placeholder {
 /* Custom bullet points */
 .prose li::before {
   content: '•';
-  color: #4f46e5;
-  /* indigo-600 */
+  color: var(--brand-600);
   font-weight: bold;
   font-size: 1.5rem;
   position: absolute;
@@ -119,8 +175,7 @@ textarea::placeholder {
 
 /* Specific highlight for Pros & Cons sections if they appear in lists */
 .prose li strong {
-  color: #4338ca;
-  /* indigo-700 */
+  color: var(--brand-700);
 }
 
 /* Custom Animations */
@@ -165,17 +220,17 @@ textarea::placeholder {
 
 /* First paragraph - drop cap */
 .article-content-wrapper .article-element:first-child p:first-of-type::first-letter {
-  @apply float-left text-6xl font-bold leading-none mr-2 text-indigo-600;
+  @apply float-left text-6xl font-bold leading-none mr-2 text-brand-600;
   margin-top: 0.1em;
 }
 
 /* Headings */
 .article-content-wrapper h1 {
-  @apply text-4xl font-bold mb-6 mt-12 text-gray-900 border-b-4 border-indigo-500 pb-3;
+  @apply text-4xl font-bold mb-6 mt-12 text-gray-900 border-b-4 border-brand-500 pb-3;
 }
 
 .article-content-wrapper h2 {
-  @apply text-3xl font-bold mb-5 mt-10 text-gray-900 border-l-4 border-indigo-500 pl-4;
+  @apply text-3xl font-bold mb-5 mt-10 text-gray-900 border-l-4 border-brand-500 pl-4;
 }
 
 .article-content-wrapper h3 {
@@ -205,7 +260,7 @@ textarea::placeholder {
 
 .article-content-wrapper ul li::before {
   content: "▸";
-  @apply absolute -left-6 text-indigo-600 font-bold;
+  @apply absolute -left-6 text-brand-600 font-bold;
 }
 
 .article-content-wrapper ol li {
@@ -214,12 +269,12 @@ textarea::placeholder {
 
 /* Blockquotes */
 .article-content-wrapper blockquote {
-  @apply border-l-4 border-indigo-500 pl-6 pr-4 py-4 my-8 bg-indigo-50 rounded-r-lg italic text-gray-700;
+  @apply border-l-4 border-brand-500 pl-6 pr-4 py-4 my-8 bg-brand-50 rounded-r-lg italic text-gray-700;
 }
 
 /* Links */
 .article-content-wrapper a {
-  @apply text-indigo-600 hover:text-indigo-800 underline decoration-2 underline-offset-2 transition-colors;
+  @apply text-brand-600 hover:text-brand-800 underline decoration-2 underline-offset-2 transition-colors;
 }
 
 /* Strong/Bold */
@@ -236,7 +291,7 @@ textarea::placeholder {
 
 /* Code */
 .article-content-wrapper code {
-  @apply bg-gray-100 px-2 py-1 rounded text-sm font-mono text-indigo-600;
+  @apply bg-gray-100 px-2 py-1 rounded text-sm font-mono text-brand-600;
 }
 
 .article-content-wrapper pre {
@@ -253,7 +308,7 @@ textarea::placeholder {
 }
 
 .article-content-wrapper th {
-  @apply bg-indigo-600 text-white font-semibold p-3 text-left;
+  @apply bg-brand-600 text-white font-semibold p-3 text-left;
 }
 
 .article-content-wrapper td {

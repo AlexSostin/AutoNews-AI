@@ -69,10 +69,10 @@ export default async function BrandPage({ params }: { params: Promise<{ brand: s
         <main className="flex-1 bg-gradient-to-b from-gray-50 to-white min-h-screen">
             {/* Hero */}
             <section className="relative py-16 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900" />
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-brand-900 to-brand-900" />
                 <div className="relative container mx-auto px-4">
                     {/* Breadcrumbs */}
-                    <nav className="flex items-center gap-2 text-sm text-purple-300 mb-6">
+                    <nav className="flex items-center gap-2 text-sm text-brand-300 mb-6">
                         <Link href="/cars" className="hover:text-white transition-colors">Cars</Link>
                         <span>/</span>
                         <span className="text-white font-medium">{data.brand}</span>
@@ -81,7 +81,7 @@ export default async function BrandPage({ params }: { params: Promise<{ brand: s
                     <h1 className="text-4xl sm:text-5xl font-black text-white mb-3 tracking-tight">
                         {data.brand}
                     </h1>
-                    <p className="text-lg text-purple-200">
+                    <p className="text-lg text-brand-200">
                         {data.model_count} {data.model_count === 1 ? 'model' : 'models'} in our catalog
                     </p>
                 </div>

@@ -128,12 +128,12 @@ export default function CookieConsent() {
       {/* Main Banner */}
       <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-purple-500/20 overflow-hidden">
+          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-brand-500/20 overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 px-6 py-4 border-b border-purple-500/20">
+            <div className="bg-gradient-to-r from-brand-600/20 to-brand-600/20 px-6 py-4 border-b border-brand-500/20">
               <div className="flex items-center gap-3">
-                <div className="bg-purple-500/20 p-2 rounded-lg">
-                  <Cookie className="text-purple-400" size={24} />
+                <div className="bg-brand-500/20 p-2 rounded-lg">
+                  <Cookie className="text-brand-400" size={24} />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-white">Cookie Settings</h3>
@@ -156,7 +156,7 @@ export default function CookieConsent() {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       onClick={acceptAll}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-purple-500/25"
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-brand-600 to-brand-600 hover:from-brand-700 hover:to-brand-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/25"
                     >
                       <Check size={18} />
                       Accept All
@@ -169,7 +169,7 @@ export default function CookieConsent() {
                     </button>
                     <button
                       onClick={() => setShowSettings(true)}
-                      className="flex items-center justify-center gap-2 px-6 py-3 border border-gray-600 hover:border-purple-500 text-gray-300 hover:text-white font-medium rounded-xl transition-all"
+                      className="flex items-center justify-center gap-2 px-6 py-3 border border-gray-600 hover:border-brand-500 text-gray-300 hover:text-white font-medium rounded-xl transition-all"
                     >
                       <Settings size={18} />
                       Customize
@@ -179,7 +179,7 @@ export default function CookieConsent() {
                   {/* Privacy Link */}
                   <p className="mt-4 text-center text-xs text-gray-500">
                     Learn more in our{' '}
-                    <Link href="/privacy-policy" className="text-purple-400 hover:text-purple-300 underline">
+                    <Link href="/privacy-policy" className="text-brand-400 hover:text-brand-300 underline">
                       Privacy Policy
                     </Link>
                   </p>
@@ -197,7 +197,7 @@ export default function CookieConsent() {
                         </p>
                       </div>
                       <div className="ml-4">
-                        <div className="w-12 h-7 bg-purple-600 rounded-full flex items-center justify-end px-1 cursor-not-allowed opacity-75">
+                        <div className="w-12 h-7 bg-brand-600 rounded-full flex items-center justify-end px-1 cursor-not-allowed opacity-75">
                           <div className="w-5 h-5 bg-white rounded-full shadow" />
                         </div>
                       </div>
@@ -214,7 +214,7 @@ export default function CookieConsent() {
                       <div className="ml-4">
                         <button
                           onClick={() => setSettings({ ...settings, analytics: !settings.analytics })}
-                          className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${settings.analytics ? 'bg-purple-600 justify-end' : 'bg-gray-600 justify-start'
+                          className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${settings.analytics ? 'bg-brand-600 justify-end' : 'bg-gray-600 justify-start'
                             }`}
                         >
                           <div className="w-5 h-5 bg-white rounded-full shadow" />
@@ -233,7 +233,7 @@ export default function CookieConsent() {
                       <div className="ml-4">
                         <button
                           onClick={() => setSettings({ ...settings, marketing: !settings.marketing })}
-                          className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${settings.marketing ? 'bg-purple-600 justify-end' : 'bg-gray-600 justify-start'
+                          className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${settings.marketing ? 'bg-brand-600 justify-end' : 'bg-gray-600 justify-start'
                             }`}
                         >
                           <div className="w-5 h-5 bg-white rounded-full shadow" />
@@ -246,7 +246,7 @@ export default function CookieConsent() {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       onClick={saveCustomSettings}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-purple-500/25"
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-brand-600 to-brand-600 hover:from-brand-700 hover:to-brand-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/25"
                     >
                       <Check size={18} />
                       Save Preferences

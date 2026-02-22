@@ -49,6 +49,7 @@ services:
       - ALLOWED_HOSTS=localhost,127.0.0.1,backend
       - GROQ_API_KEY=${GROQ_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FRONTEND_URL=http://frontend:3000
     depends_on:
       postgres:
         condition: service_healthy

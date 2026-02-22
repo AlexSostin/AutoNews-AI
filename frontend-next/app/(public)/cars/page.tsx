@@ -49,17 +49,17 @@ export default async function CarsPage() {
         <main className="flex-1 bg-gradient-to-b from-gray-50 to-white min-h-screen">
             {/* Hero */}
             <section className="relative py-20 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900" />
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-brand-900 to-brand-900" />
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
 
                 <div className="relative container mx-auto px-4 text-center">
                     <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">
                         Car Catalog
                     </h1>
-                    <p className="text-lg sm:text-xl text-purple-200 max-w-2xl mx-auto">
+                    <p className="text-lg sm:text-xl text-brand-200 max-w-2xl mx-auto">
                         Browse specifications, reviews, and comparisons for every model we&apos;ve covered
                     </p>
-                    <div className="mt-6 flex items-center justify-center gap-6 text-sm text-purple-300">
+                    <div className="mt-6 flex items-center justify-center gap-6 text-sm text-brand-300">
                         <span className="flex items-center gap-2">
                             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                             {brands.length} Brands
@@ -86,7 +86,7 @@ export default async function CarsPage() {
                             <Link
                                 key={brand.slug}
                                 href={`/cars/${brand.slug}`}
-                                className="group relative bg-white rounded-2xl border border-gray-200 overflow-hidden transition-all duration-300 hover:border-indigo-400 hover:shadow-[0_20px_50px_rgba(79,70,229,0.12)] hover:-translate-y-1"
+                                className="group relative bg-white rounded-2xl border border-gray-200 overflow-hidden transition-all duration-300 hover:border-brand-400 hover:shadow-[0_20px_50px_rgba(79,70,229,0.12)] hover:-translate-y-1"
                             >
                                 {/* Image */}
                                 <div className="aspect-[16/10] bg-gradient-to-br from-gray-100 to-gray-50 overflow-hidden">
@@ -105,7 +105,7 @@ export default async function CarsPage() {
 
                                 {/* Info */}
                                 <div className="p-4">
-                                    <h3 className="font-bold text-gray-900 text-lg group-hover:text-indigo-600 transition-colors">
+                                    <h3 className="font-bold text-gray-900 text-lg group-hover:text-brand-600 transition-colors">
                                         {brand.name}
                                     </h3>
                                     <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
@@ -116,7 +116,7 @@ export default async function CarsPage() {
                                 </div>
 
                                 {/* Hover accent */}
-                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 to-purple-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-600 to-brand-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                             </Link>
                         ))}
                     </div>
