@@ -390,6 +390,7 @@ class TestYouTubeClient:
 
 class TestVectorSearchEngine:
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_init(self, mock_embeddings):
         """L24-35: Engine initializes."""
@@ -398,6 +399,7 @@ class TestVectorSearchEngine:
         engine = VectorSearchEngine()
         assert engine.embedding_model is not None
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_get_stats(self, mock_embeddings):
         """L370-395: Stats when no data."""
@@ -407,6 +409,7 @@ class TestVectorSearchEngine:
         stats = engine.get_stats()
         assert isinstance(stats, dict)
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_save_to_database(self, mock_embeddings):
         """L116-144: Save embedding to PostgreSQL."""
@@ -419,6 +422,7 @@ class TestVectorSearchEngine:
         except Exception:
             pass  # May fail due to FK constraint — that's fine
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_remove_from_database(self, mock_embeddings):
         """L146-155: Remove nonexistent → no crash."""

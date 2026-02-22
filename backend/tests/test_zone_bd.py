@@ -297,6 +297,7 @@ class TestSpecsEnricher:
 
 class TestVectorSearch:
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_engine_init(self, mock_embed):
         from ai_engine.modules.vector_search import VectorSearchEngine
@@ -304,6 +305,7 @@ class TestVectorSearch:
         engine = VectorSearchEngine()
         assert engine is not None
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_get_stats(self, mock_embed):
         from ai_engine.modules.vector_search import VectorSearchEngine
@@ -312,6 +314,7 @@ class TestVectorSearch:
         stats = engine.get_stats()
         assert isinstance(stats, dict)
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_index_article(self, mock_embed):
         from ai_engine.modules.vector_search import VectorSearchEngine
@@ -325,6 +328,7 @@ class TestVectorSearch:
         except Exception:
             pass  # FAISS may not be configured — just verify no crash
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_search_no_index(self, mock_embed):
         from ai_engine.modules.vector_search import VectorSearchEngine
@@ -333,6 +337,7 @@ class TestVectorSearch:
         results = engine.search('tesla model 3', k=3)
         assert isinstance(results, list)
 
+    @patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'})
     @patch('ai_engine.modules.vector_search.GoogleGenerativeAIEmbeddings')
     def test_remove_article(self, mock_embed):
         from ai_engine.modules.vector_search import VectorSearchEngine
