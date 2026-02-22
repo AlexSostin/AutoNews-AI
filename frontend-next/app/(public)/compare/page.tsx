@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -162,8 +162,8 @@ function CarPicker({
             <button
                 onClick={() => setOpen(!open)}
                 className={`w-full px-4 py-3.5 text-left rounded-xl border-2 transition-all font-semibold flex items-center justify-between ${selected.model
-                        ? 'border-indigo-500 bg-indigo-50 text-gray-900'
-                        : 'border-gray-200 bg-white text-gray-400 hover:border-indigo-300'
+                    ? 'border-indigo-500 bg-indigo-50 text-gray-900'
+                    : 'border-gray-200 bg-white text-gray-400 hover:border-indigo-300'
                     }`}
             >
                 <span className="truncate">{displayText}</span>
@@ -205,8 +205,8 @@ function CarPicker({
                                             setSearch('');
                                         }}
                                         className={`w-full text-left px-6 py-2.5 text-sm hover:bg-indigo-50 transition-colors ${selected.brand === brand.slug && selected.model === model.slug
-                                                ? 'bg-indigo-100 text-indigo-700 font-bold'
-                                                : 'text-gray-700'
+                                            ? 'bg-indigo-100 text-indigo-700 font-bold'
+                                            : 'text-gray-700'
                                             }`}
                                     >
                                         {brand.name} {model.name}
@@ -224,8 +224,8 @@ function CarPicker({
     );
 }
 
-// ---------- Main Compare Page ----------
-export default function ComparePage() {
+// ---------- Main Compare Content ----------
+function CompareContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
@@ -482,5 +482,26 @@ export default function ComparePage() {
                 )}
             </div>
         </div>
+    );
+}
+
+// ---------- Page Export with Suspense ----------
+export default function ComparePage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30">
+                <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white">
+                    <div className="max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
+                        <h1 className="text-3xl sm:text-5xl font-extrabold mb-3">Compare Cars</h1>
+                    </div>
+                </div>
+                <div className="text-center py-16">
+                    <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+                    <p className="mt-4 text-gray-500">Loading...</p>
+                </div>
+            </div>
+        }>
+            <CompareContent />
+        </Suspense>
     );
 }
