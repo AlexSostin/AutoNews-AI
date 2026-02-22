@@ -174,7 +174,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
         <main className="flex-1 bg-gradient-to-b from-gray-50 to-white min-h-screen">
             {/* Hero with Visible Car Image */}
             <section className="relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-brand-900 to-brand-900" />
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900" />
 
                 {heroImage && (
                     <div className="absolute inset-0 opacity-35">

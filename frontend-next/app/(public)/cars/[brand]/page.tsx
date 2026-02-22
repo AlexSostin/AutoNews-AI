@@ -69,7 +69,7 @@ export default async function BrandPage({ params }: { params: Promise<{ brand: s
         <main className="flex-1 bg-gradient-to-b from-gray-50 to-white min-h-screen">
             {/* Hero */}
             <section className="relative py-16 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-brand-900 to-brand-900" />
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900" />
                 <div className="relative container mx-auto px-4">
                     {/* Breadcrumbs */}
                     <nav className="flex items-center gap-2 text-sm text-brand-300 mb-6">

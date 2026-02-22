@@ -82,7 +82,7 @@ export default async function CategoryPage({
 
       <main className="flex-1 bg-gray-50">
         {/* Category Header */}
-        <section className="bg-gradient-to-br from-slate-900 via-brand-900 to-gray-900 text-white py-16 relative overflow-hidden">
+        <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 text-white py-16 relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="max-w-3xl">

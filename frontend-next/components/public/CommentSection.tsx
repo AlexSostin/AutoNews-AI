@@ -355,7 +355,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
 
       {/* Reply Form */}
       {replyingTo === comment.id && (
-        <div className="ml-8 md:ml-12 mt-4 p-4 bg-gradient-to-br from-brand-50 to-brand-50 rounded-lg border-2 border-brand-100">
+        <div className="ml-8 md:ml-12 mt-4 p-4 bg-gradient-to-br from-brand-50 to-blue-50 rounded-lg border-2 border-brand-100">
           {renderCommentForm(comment.id, comment.author_name)}
         </div>
       )}
@@ -381,7 +381,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
       </div>
 
       {/* Main Comment Form */}
-      <div className="bg-gradient-to-br from-brand-50 to-brand-50 rounded-xl shadow-md p-6 mb-8 border-2 border-brand-100">
+      <div className="bg-gradient-to-br from-brand-50 to-blue-50 rounded-xl shadow-md p-6 mb-8 border-2 border-brand-100">
         <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
           <MessageCircle className="text-brand-600" size={24} />
           Leave a Comment

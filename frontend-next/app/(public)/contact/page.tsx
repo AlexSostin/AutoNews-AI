@@ -85,7 +85,7 @@ export default function ContactPage() {
     <>
       <main className="flex-1 bg-gray-50">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-slate-900 via-brand-900 to-gray-900 text-white py-20">
+        <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-20">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-black mb-4">
               {settings?.contact_page_title || 'Contact Us'}
@@ -100,7 +100,7 @@ export default function ContactPage() {
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col lg:flex-row border border-gray-100">
 
             {/* Contact Information Sidebar */}
-            <div className="lg:w-1/3 bg-gradient-to-br from-brand-900 via-brand-900 to-slate-900 p-8 sm:p-12 text-white flex flex-col justify-between">
+            <div className="lg:w-1/3 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-8 sm:p-12 text-white flex flex-col justify-between">
               <div>
                 <h2 className="text-3xl font-black mb-6">Get in Touch</h2>
                 <p className="text-brand-100/80 mb-10 leading-relaxed font-medium">

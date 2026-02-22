@@ -93,7 +93,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gradient-to-r from-slate-900 via-brand-900 to-slate-800 text-white shadow-lg sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between py-4">
           <Link href="/" className="hover:scale-105 transition-transform mr-16">
@@ -170,7 +170,7 @@ export default function Header() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 hover:text-brand-300 transition-colors bg-brand-800 px-4 py-2 rounded-lg"
+                  className="flex items-center gap-2 hover:text-brand-300 transition-colors bg-purple-800 px-4 py-2 rounded-lg"
                 >
                   <User size={18} />
                   <span>{user?.username || 'Account'}</span>

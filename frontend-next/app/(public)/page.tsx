@@ -194,7 +194,7 @@ export default async function Home() {
                     className="group relative px-6 sm:px-8 py-3 sm:py-4 bg-white/70 backdrop-blur-md border border-gray-200 rounded-2xl transition-all duration-300 hover:border-brand-500 hover:shadow-[0_20px_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden"
                   >
                     {/* Hover Glow */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-500/5 to-brand-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                     <div className="relative flex items-center gap-3">
                       <span className="text-gray-900 font-bold text-lg sm:text-xl group-hover:text-brand-600 transition-colors">
@@ -229,7 +229,7 @@ export default async function Home() {
                     href={`/cars/${brand.slug}`}
                     className="group flex items-center gap-3 bg-white/70 backdrop-blur-md border border-gray-200 rounded-xl px-4 py-3 transition-all duration-300 hover:border-brand-400 hover:shadow-lg hover:-translate-y-0.5"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-100 to-brand-100 flex items-center justify-center text-lg group-hover:from-brand-200 group-hover:to-brand-200 transition-all overflow-hidden flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-100 to-purple-100 flex items-center justify-center text-lg group-hover:from-brand-200 group-hover:to-purple-200 transition-all overflow-hidden flex-shrink-0">
                       {brand.image ? (
                         <img src={fixImageUrl(brand.image)} alt="" className="w-full h-full object-cover rounded-lg" />
                       ) : (

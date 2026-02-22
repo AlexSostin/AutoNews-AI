@@ -65,7 +65,7 @@ export default function AboutPage() {
 
       <main className="flex-1 bg-gray-50">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-slate-900 via-brand-900 to-gray-900 text-white py-20">
+        <div className="bg-gradient-to-r from-slate-900 via-purple-900 to-gray-900 text-white py-20">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-black mb-4">{pageTitle}</h1>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">

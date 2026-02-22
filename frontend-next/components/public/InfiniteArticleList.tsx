@@ -153,7 +153,7 @@ export default function InfiniteArticleList({
             {/* End of Feed */}
             {!hasMore && !loading && articles.length > 0 && (
                 <div className="text-center py-12">
-                    <div className="inline-block px-8 py-4 bg-gradient-to-r from-brand-50 to-brand-50 rounded-2xl border border-brand-100">
+                    <div className="inline-block px-8 py-4 bg-gradient-to-r from-brand-50 to-blue-50 rounded-2xl border border-brand-100">
                         <p className="text-gray-600 font-medium mb-2">🎉 You've reached the end!</p>
                         <p className="text-sm text-gray-500">
                             You've seen all {articles.length} articles

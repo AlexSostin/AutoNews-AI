@@ -122,7 +122,7 @@ export default function Hero({ articles, settings }: HeroProps) {
 
     if (useClassic) {
         return (
-            <section className="bg-gradient-to-br from-slate-900 via-brand-900 to-gray-900 text-white py-24 relative overflow-hidden min-h-[500px] flex items-center">
+            <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 text-white py-24 relative overflow-hidden min-h-[500px] flex items-center">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="container mx-auto px-4 text-center relative z-10">
                     <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 drop-shadow-lg animate-fade-in">

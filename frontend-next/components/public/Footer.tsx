@@ -183,7 +183,7 @@ export default function Footer() {
     <footer className="bg-gradient-to-r from-gray-800 to-gray-900 text-white mt-auto">
       <div className="container mx-auto px-4 py-12">
         {/* Newsletter Section */}
-        <div className="bg-gradient-to-r from-brand-900/30 to-brand-900/30 rounded-2xl p-8 mb-12 border border-brand-500/20">
+        <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-2xl p-8 mb-12 border border-brand-500/20">
           <div className="max-w-2xl mx-auto text-center">
             <Mail className="mx-auto mb-4 text-brand-400" size={40} />
             <h3 className="text-2xl font-bold mb-2 text-white">Subscribe to Our Newsletter</h3>
