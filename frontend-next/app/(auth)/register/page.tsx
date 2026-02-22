@@ -93,7 +93,7 @@ export default function RegisterPage() {
               alt="Fresh Motors"
               width={800}
               height={200}
-              className="h-48 md:h-56 w-auto object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]"
+              className="h-48 md:h-56 w-auto object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] [filter:drop-shadow(0_0_30px_rgba(255,255,255,0.3))]"
               priority
             />
           </Link>

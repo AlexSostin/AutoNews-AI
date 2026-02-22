@@ -56,8 +56,6 @@
   --color-purple-800: #115e59;
   --color-purple-900: #134e4a;
   --color-purple-950: #042f2e;
-
-  --color-pink-500: #10b981;
 }
 
 /* Deep Ocean — indigo becomes blue, purple becomes blue-700 */
@@ -85,8 +83,6 @@
   --color-purple-800: #3730a3;
   --color-purple-900: #312e81;
   --color-purple-950: #1e1b4b;
-
-  --color-pink-500: #3b82f6;
 }
 
 @media (prefers-color-scheme: dark) {
