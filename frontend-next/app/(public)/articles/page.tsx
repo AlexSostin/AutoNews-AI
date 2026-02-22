@@ -255,7 +255,7 @@ function ArticlesContent() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2">
+                <div className="flex justify-center items-center gap-2 mt-12 pt-8 border-t border-gray-200">
                   {page > 1 && (
                     <Link
                       href={`/articles?page=${page - 1}${category ? `&category=${category}` : ''}${tag ? `&tag=${tag}` : ''}${search ? `&search=${search}` : ''}`}
