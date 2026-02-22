@@ -379,6 +379,14 @@ class CarSpecification(models.Model):
         return f"Specs for {self.article.title}"
 
 class Comment(models.Model):
+    MODERATION_STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('auto_approved', 'Auto-Approved'),
+        ('auto_blocked', 'Auto-Blocked'),
+        ('admin_approved', 'Admin Approved'),
+        ('admin_rejected', 'Admin Rejected'),
+    ]
+    
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='comments', help_text="Authenticated user (optional)")
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies', help_text="Parent comment for replies")
@@ -387,6 +395,14 @@ class Comment(models.Model):
     content = models.TextField(help_text="Your comment")
     created_at = models.DateTimeField(auto_now_add=True)
     is_approved = models.BooleanField(default=False, help_text="Admin must approve", db_index=True)
+    moderation_status = models.CharField(
+        max_length=20, choices=MODERATION_STATUS_CHOICES, default='pending',
+        help_text="Moderation system decision", db_index=True
+    )
+    moderation_reason = models.CharField(
+        max_length=255, blank=True, default='',
+        help_text="Why comment was approved/blocked"
+    )
     
     class Meta:
         ordering = ['-created_at']
@@ -397,6 +413,28 @@ class Comment(models.Model):
     
     def __str__(self):
         return f"Comment by {self.name} on {self.article.title}"
+
+
+class CommentModerationLog(models.Model):
+    """Tracks admin approve/reject decisions for ML training."""
+    DECISION_CHOICES = [
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='moderation_logs')
+    admin_user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='moderation_decisions')
+    decision = models.CharField(max_length=10, choices=DECISION_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['decision', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.decision} by {self.admin_user} on comment #{self.comment_id}"
 
 class Rating(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='ratings')

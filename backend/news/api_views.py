@@ -2608,25 +2608,60 @@ class CommentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         
         if request.user.is_authenticated:
-            serializer.save(user=request.user)
+            comment = serializer.save(user=request.user)
         else:
-            serializer.save()
+            comment = serializer.save()
+        
+        # Run comment through moderation engine
+        try:
+            from news.comment_moderator import moderate_comment
+            result = moderate_comment(
+                content=comment.content,
+                name=comment.name,
+                email=comment.email,
+                user=request.user if request.user.is_authenticated else None,
+                article_id=comment.article_id,
+            )
+            comment.moderation_status = result.status
+            comment.moderation_reason = result.reason[:255]
+            comment.is_approved = result.is_approved
+            comment.save(update_fields=['moderation_status', 'moderation_reason', 'is_approved'])
+            logger.info(
+                f"💬 Comment moderation: {result.status} | "
+                f"reason: {result.reason} | name: {comment.name}"
+            )
+        except Exception as e:
+            logger.warning(f"Comment moderation error: {e}")
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     @action(detail=True, methods=['patch', 'post'], permission_classes=[IsAuthenticated])
     def approve(self, request, pk=None):
-        """Approve or reject comment"""
+        """Approve or reject comment — also logs decision for ML training."""
         comment = self.get_object()
         
         # Check if 'approved' is in request data (support both keys)
         is_approved = request.data.get('approved')
         if is_approved is None:
-            is_approved = request.data.get('is_approved', True)  # Default to True for backward compat
+            is_approved = request.data.get('is_approved', True)
             
         comment.is_approved = bool(is_approved)
-        comment.save(update_fields=['is_approved'])
+        comment.moderation_status = 'admin_approved' if comment.is_approved else 'admin_rejected'
+        comment.moderation_reason = f"{'Approved' if comment.is_approved else 'Rejected'} by {request.user.username}"
+        comment.save(update_fields=['is_approved', 'moderation_status', 'moderation_reason'])
+        
+        # Log decision for ML training
+        try:
+            from news.models import CommentModerationLog
+            CommentModerationLog.objects.create(
+                comment=comment,
+                admin_user=request.user,
+                decision='approved' if comment.is_approved else 'rejected',
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log moderation decision: {e}")
+        
         serializer = self.get_serializer(comment)
         return Response(serializer.data)
     
