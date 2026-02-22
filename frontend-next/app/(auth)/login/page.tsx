@@ -97,7 +97,7 @@ export default function LoginPage() {
                 alt="Fresh Motors"
                 width={400}
                 height={100}
-                className="h-20 w-auto object-contain mx-auto scale-x-[1.3]"
+                className="h-20 w-auto object-contain mx-auto scale-x-[1.8]"
                 priority
               />
             </Link>
