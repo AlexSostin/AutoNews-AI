@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Revalidate data cache tags (clears fetch() responses tagged with these)
-        revalidateTag('articles');
-        revalidateTag('categories');
+        revalidateTag('articles', 'max');
+        revalidateTag('categories', 'max');
 
         // Revalidate specified paths (clears route/page cache)
         const paths = body.paths || ['/', '/articles', '/trending'];

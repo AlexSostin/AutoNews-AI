@@ -290,6 +290,7 @@ class TestYouTubeClient:
         result = client._get_channel_id('https://example.com/not-youtube')
         assert result is None
 
+    @patch.dict('os.environ', {'YOUTUBE_API_KEY': ''}, clear=False)
     def test_search_channel_no_key(self):
         """L40-41: No API key → None."""
         from ai_engine.modules.youtube_client import YouTubeClient
