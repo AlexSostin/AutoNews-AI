@@ -96,7 +96,7 @@ export default function RegisterPage() {
                 alt="Fresh Motors"
                 width={400}
                 height={100}
-                className="h-20 w-auto object-contain mx-auto scale-x-[1.8]"
+                className="h-[7.5rem] w-auto object-contain mx-auto scale-x-[2.3]"
                 priority
               />
             </Link>
