@@ -294,6 +294,100 @@ def _score_new_pending_articles():
         logger.error(f"[SCHEDULER/SCORING] ❌ Fatal error: {e}", exc_info=True)
 
 
+# =============================================================================
+# VehicleSpecs auto-backfill (runs every 6 hours)
+# =============================================================================
+DEEP_SPECS_INTERVAL = 6 * 3600  # 6 hours
+DEEP_SPECS_MAX_PER_CYCLE = 3     # Max articles per cycle (avoid Gemini API overload)
+
+
+def _run_deep_specs_backfill():
+    """
+    Auto-generate VehicleSpecs cards for published articles that:
+    1. Are published (not draft)
+    2. Have been live for >= 24 hours
+    3. Don't have a VehicleSpecs card yet
+    4. Have a CarSpecification (so we know make/model)
+    """
+    try:
+        from django.utils import timezone
+        from datetime import timedelta
+        from news.models import Article, VehicleSpecs
+
+        cutoff = timezone.now() - timedelta(hours=24)
+
+        # Articles that are published, older than 24h, have CarSpec but no VehicleSpecs
+        articles_with_vehicle_specs = set(
+            VehicleSpecs.objects.values_list('article_id', flat=True)
+        )
+        
+        candidates = (
+            Article.objects
+            .filter(
+                is_published=True,
+                is_draft=False,
+                created_at__lte=cutoff,
+                car_specification__isnull=False,  # Has CarSpecification
+            )
+            .exclude(id__in=articles_with_vehicle_specs)
+            .order_by('-views_count')[:DEEP_SPECS_MAX_PER_CYCLE]
+        )
+
+        if not candidates:
+            logger.info("[SCHEDULER/DEEP-SPECS] ✅ All published articles have VehicleSpecs cards")
+            _schedule_deep_specs_backfill()
+            return
+
+        logger.info(f"[SCHEDULER/DEEP-SPECS] 🔍 Found {len(candidates)} articles without VehicleSpecs")
+        
+        filled = 0
+        for article in candidates:
+            try:
+                from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+                
+                # Get existing CarSpecification for context
+                specs_dict = {}
+                if hasattr(article, 'car_specification'):
+                    car_spec = article.car_specification
+                    specs_dict = {
+                        'make': car_spec.make or '',
+                        'model': car_spec.model or '',
+                        'year': car_spec.year or '',
+                        'trim': car_spec.trim or '',
+                        'engine': car_spec.engine_type or '',
+                        'horsepower': car_spec.horsepower or '',
+                        'drivetrain': car_spec.drivetrain or '',
+                        'price': car_spec.price_usd or '',
+                    }
+                
+                logger.info(f"[SCHEDULER/DEEP-SPECS] ⚙️ Generating VehicleSpecs for [{article.id}] {article.title[:50]}")
+                result = generate_deep_vehicle_specs(article, specs=specs_dict, provider='gemini')
+                
+                if result:
+                    filled += 1
+                    logger.info(f"[SCHEDULER/DEEP-SPECS] ✅ Created VehicleSpecs for '{article.title[:40]}'")
+                else:
+                    logger.warning(f"[SCHEDULER/DEEP-SPECS] ⚠️ No result for '{article.title[:40]}'")
+                    
+            except Exception as e:
+                logger.error(f"[SCHEDULER/DEEP-SPECS] ❌ Error for [{article.id}]: {e}")
+                continue
+        
+        logger.info(f"[SCHEDULER/DEEP-SPECS] 📊 Filled {filled}/{len(candidates)} VehicleSpecs cards this cycle")
+
+    except Exception as e:
+        logger.error(f"[SCHEDULER/DEEP-SPECS] ❌ Fatal error: {e}", exc_info=True)
+    
+    _schedule_deep_specs_backfill()
+
+
+def _schedule_deep_specs_backfill():
+    """Schedule the next deep specs backfill."""
+    timer = threading.Timer(DEEP_SPECS_INTERVAL, _run_deep_specs_backfill)
+    timer.daemon = True
+    timer.start()
+
+
 def _check_overdue_tasks():
     """
     Startup recovery: check if tasks are overdue and run them immediately.
@@ -425,4 +519,10 @@ def start_scheduler():
     ap_timer = threading.Timer(300, _start_auto_publish_if_not_recovered)
     ap_timer.daemon = True
     ap_timer.start()
+    
+    # VehicleSpecs auto-backfill — start after 360 seconds
+    deep_specs_timer = threading.Timer(360, _run_deep_specs_backfill)
+    deep_specs_timer.daemon = True
+    deep_specs_timer.start()
+
 
