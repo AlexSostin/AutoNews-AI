@@ -14,7 +14,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
     const showPages = 5;
-    
+
     if (totalPages <= showPages) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -36,7 +36,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         pages.push(totalPages);
       }
     }
-    
+
     return pages;
   };
 
@@ -46,7 +46,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="p-2 rounded-lg border border-gray-300 hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+        className="p-2 rounded-lg bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
         aria-label="Previous page"
       >
         <ChevronLeft size={20} />
@@ -62,7 +62,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
               min-w-[40px] h-10 rounded-lg font-medium transition-all
               ${currentPage === page
                 ? 'bg-indigo-600 text-white shadow-md scale-110'
-                : 'border border-gray-300 hover:bg-indigo-50 hover:border-indigo-300'
+                : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-400 shadow-sm'
               }
             `}
           >
@@ -79,7 +79,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="p-2 rounded-lg border border-gray-300 hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+        className="p-2 rounded-lg bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
         aria-label="Next page"
       >
         <ChevronRight size={20} />
