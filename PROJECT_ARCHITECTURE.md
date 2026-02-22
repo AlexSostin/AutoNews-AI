@@ -2,7 +2,7 @@
 
 This document provides a comprehensive overview of the FreshMotors platform architecture, technology stack, and core workflows.
 
-**Last Updated**: 21 February 2026
+**Last Updated**: 22 February 2026
 
 ---
 
@@ -60,11 +60,11 @@ AutoNews-AI/
 | Directory / File | Purpose |
 |-----------------|---------|
 | `auto_news_site/` | Django settings, URL routing, WSGI/ASGI config |
-| `news/models.py` | DB schema: Article, Category, Tag, Brand, CarSpecification, VehicleSpecs, ArticleTitleVariant, AdPlacement, RSSFeed, PendingArticle, AutomationSettings, AutoPublishLog, Feedback, etc. |
+| `news/models.py` | DB schema: Article, Category, Tag, Brand, CarSpecification, VehicleSpecs, ArticleTitleVariant, AdPlacement, RSSFeed, PendingArticle, AutomationSettings, AutoPublishLog, TagLearningLog, Feedback, etc. |
 | `news/api_views.py` | 30+ DRF ViewSets for all API endpoints |
 | `news/api_urls.py` | Router registrations and URL patterns |
 | `news/serializers.py` | Data serialization layer (with A/B variant injection for public users) |
-| `news/signals.py` | Auto-notifications, car spec extraction triggers |
+| `news/signals.py` | Auto-notifications, car spec extraction triggers, tag learning signal, human review ML logging |
 | `news/admin.py` | Django Admin registrations |
 | `news/ab_testing_views.py` | A/B test tracking (impressions, clicks) & admin management |
 | `news/cars_views.py` | Brand catalog API (brands, models, specs) |
@@ -75,7 +75,8 @@ AutoNews-AI/
 | `ai_engine/modules/analyzer.py` | LLM content analysis and car specs extraction |
 | `ai_engine/modules/publisher.py` | Article persistence to database |
 | `ai_engine/modules/article_reviewer.py` | AI Editor — reviews and improves generated articles |
-| `ai_engine/modules/auto_publisher.py` | Automated publishing engine with quality scoring & safety gating |
+| `ai_engine/modules/auto_publisher.py` | Automated publishing engine with quality scoring, safety gating, circuit breaker (MAX_RETRIES, backoff), draft/publish toggle |
+| `ai_engine/modules/tag_suggester.py` | Tag learning system: keyword extraction, brand detection, historical pattern matching |
 | `ai_engine/modules/screenshot_maker.py` | Video frame capture (ffmpeg) |
 | `ai_engine/modules/content_formatter.py` | Content formatting and image distribution |
 | `ai_engine/modules/spec_refill.py` | Auto-refill missing car spec fields via AI |
@@ -122,12 +123,16 @@ AutoNews-AI/
 8. **Publishing**: Article saved to DB (directly or as PendingArticle for review)
 
 ### 2. Auto-Publisher System
-1. **RSS Scan**: Celery task periodically scans monitored RSS feeds
+1. **RSS Scan**: Scheduler periodically scans monitored RSS feeds
 2. **Deduplication**: Title similarity + content hash prevents duplicates
 3. **Safety Gating**: Each RSS source has a safety score (`human_reviewed`, `has_copyright_notice`, etc.)
 4. **Quality Scoring**: Pending articles scored by content quality, image presence, completeness
-5. **Auto-Publish**: Articles above quality threshold automatically published up to daily limit
-6. **Decision Logging**: Every accept/reject decision logged in `AutoPublishLog` for audit
+5. **Circuit Breaker**: MAX_RETRIES=3, exponential backoff (30min → 2h), auto_failed status after 3 failures
+6. **Draft/Publish Toggle**: `auto_publish_as_draft` setting — drafts require manual approval, or direct publish
+7. **Auto-Publish**: Articles above quality threshold published up to daily limit
+8. **Decision Logging**: Every decision logged in `AutoPublishLog` (published, drafted, skipped, failed)
+9. **ML Learning**: When user approves/rejects drafts, signal logs features for future ML training
+10. **Tag Suggestion**: `tag_suggester.py` suggests tags via keyword matching + historical patterns
 
 ### 3. A/B Testing System
 1. **Variant Creation**: AI generates 2-3 title variants per article

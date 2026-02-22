@@ -27,9 +27,13 @@
 
 ### 🤖 Система автоматизации
 - **Auto-Publisher**: Автоматическая публикация статей из RSS лент с quality scoring
+- **Circuit Breaker**: Интеллектуальная система повторов (MAX_RETRIES=3, exponential backoff, auto_failed статус)
+- **Draft/Publish Toggle**: Переключатель режима в админке — черновики или прямая публикация
 - **Safety Gating**: Оценка безопасности RSS источников перед автопубликацией
 - **Контроль лимитов**: Ежедневные лимиты публикации, минимальное качество, require image
-- **Decision Logging**: Полное логирование решений автопаблишера
+- **Decision Logging**: Полное логирование решений (published, drafted, human_approved, human_rejected)
+- **ML Learning**: Сбор обучающих данных при ревью (review_time, quality score, content features)
+- **Tag Learning System**: Обучение на выборе тегов — keyword extraction + historical pattern matching
 - **Панель управления**: Настройки автоматизации, статистика, ручной триггер задач
 
 ### 📊 Аналитика и мониторинг
@@ -152,7 +156,7 @@ AutoNews-AI/
 │   │   └── search_analytics_views.py # Search + Analytics endpoints
 │   ├── ai_engine/             # AI article generation
 │   │   ├── main.py            # Pipeline orchestrator
-│   │   └── modules/           # Transcriber, analyzer, publisher, reviewer, auto_publisher
+│   │   └── modules/           # Transcriber, analyzer, publisher, reviewer, auto_publisher, tag_suggester
 │   ├── tests/                 # Pytest test suite (391 tests, 28 files)
 │   └── Dockerfile
 │
