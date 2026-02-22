@@ -218,16 +218,19 @@ class Article(models.Model):
             img = getattr(self, field_name)
             if not img:
                 return
-            # Skip if not a fresh upload (existing stored images should never be re-optimized)
-            img_file = getattr(img, 'file', None)
-            if not isinstance(img_file, (InMemoryUploadedFile, TemporaryUploadedFile, BytesIO)):
-                return
             img_name = getattr(img, 'name', str(img))
-            # Skip optimization for direct URLs (e.g. Cloudinary URLs assigned during approve)
-            if img_name.startswith('http'):
+            # Skip Cloudinary/external URLs BEFORE accessing .file (which triggers IOError)
+            if img_name.startswith('http') or 'cloudinary' in img_name:
                 return
-            # Skip if already optimized (check substring, not just endswith, for Cloudinary compat)
+            # Skip if already optimized
             if '_optimized' in img_name:
+                return
+            # Now safe to check if it's a fresh upload
+            try:
+                img_file = getattr(img, 'file', None)
+            except (IOError, OSError):
+                return  # Can't access file — skip optimization
+            if not isinstance(img_file, (InMemoryUploadedFile, TemporaryUploadedFile, BytesIO)):
                 return
             try:
                 optimized_img = optimize_image(img, max_width=1920, max_height=1080, quality=85)
@@ -710,6 +713,7 @@ class PendingArticle(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('published', 'Published'),
+        ('auto_failed', 'Auto-Publish Failed'),  # Circuit breaker: too many failures
     ]
     
     # Source info (YouTube OR RSS)
@@ -762,6 +766,11 @@ class PendingArticle(models.Model):
     is_auto_published = models.BooleanField(
         default=False, help_text="Was this article auto-published (vs manually reviewed)"
     )
+    
+    # Circuit breaker — prevent infinite retry loops
+    auto_publish_attempts = models.IntegerField(default=0, help_text="Number of auto-publish attempts")
+    auto_publish_last_error = models.TextField(blank=True, help_text="Last auto-publish error for debugging")
+    auto_publish_last_attempt = models.DateTimeField(null=True, blank=True, help_text="When last auto-publish was attempted")
     
     # Review
     reviewed_by = models.ForeignKey(

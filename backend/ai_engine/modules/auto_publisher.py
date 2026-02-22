@@ -4,13 +4,22 @@ Auto-publisher engine.
 Checks pending articles against quality thresholds, safety scores,
 and rate limits, then publishes those that qualify.
 All decisions are logged to AutoPublishLog for transparency and ML training.
+
+Circuit breaker: articles that fail 3 times are marked 'auto_failed'
+and excluded from future attempts. Exponential backoff between retries.
 """
 import logging
+import traceback
 from datetime import timedelta
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 
 logger = logging.getLogger('news')
+
+# Circuit breaker settings
+MAX_RETRIES = 3                # After 3 failures, mark as auto_failed
+BACKOFF_MINUTES = [30, 120]    # Wait 30min after 1st fail, 2h after 2nd, then permanent
+CIRCUIT_BREAKER_THRESHOLD = 5  # Pause auto-publish if 5 consecutive failures
 
 
 def _log_decision(pending, decision, reason, article=None):
@@ -38,6 +47,21 @@ def _log_decision(pending, decision, reason, article=None):
         category_name=pending.suggested_category.name if pending.suggested_category else '',
         source_is_youtube=is_youtube,
     )
+
+
+def _is_backed_off(pending):
+    """Check if an article is in backoff cooldown after a failure."""
+    if pending.auto_publish_attempts == 0:
+        return False
+    if pending.auto_publish_attempts >= MAX_RETRIES:
+        return True  # Permanently failed
+    if not pending.auto_publish_last_attempt:
+        return False
+    
+    # Exponential backoff
+    backoff_idx = min(pending.auto_publish_attempts - 1, len(BACKOFF_MINUTES) - 1)
+    backoff_until = pending.auto_publish_last_attempt + timedelta(minutes=BACKOFF_MINUTES[backoff_idx])
+    return timezone.now() < backoff_until
 
 
 def auto_publish_pending():
@@ -79,12 +103,14 @@ def auto_publish_pending():
     remaining_daily = settings.auto_publish_max_per_day - settings.auto_publish_today_count
     publish_limit = min(remaining_hourly, remaining_daily)
     
-    # Find ALL pending articles with minimum quality
+    # Find ALL pending articles with minimum quality (exclude circuit-broken ones)
     all_candidates = PendingArticle.objects.filter(
         status='pending',
         quality_score__gte=settings.auto_publish_min_quality,
+        auto_publish_attempts__lt=MAX_RETRIES,  # Circuit breaker: skip after MAX_RETRIES failures
     ).select_related('rss_feed', 'suggested_category').order_by(
-        '-quality_score', 'created_at'  # Best quality first, then FIFO
+        'auto_publish_attempts',  # Try fresh articles first
+        '-quality_score', 'created_at'
     )
     
     # If require_image is on AND auto_image is off, filter to only those with images
@@ -96,6 +122,11 @@ def auto_publish_pending():
     
     for pending in all_candidates:
         feed = pending.rss_feed
+        
+        # Circuit breaker: skip if in backoff cooldown
+        if _is_backed_off(pending):
+            logger.debug(f"[AUTO-PUBLISHER] ⏳ Backoff: {pending.title[:50]} (attempt {pending.auto_publish_attempts})")
+            continue
         
         # Safety check: skip unsafe feeds if setting is on
         if settings.auto_publish_require_safe_feed and feed:
@@ -207,12 +238,33 @@ def auto_publish_pending():
                 published_count += 1
                 logger.info(f"[AUTO-PUBLISHER] ✅ Published: {article.title[:60]} (quality: {pending.quality_score}/10)")
             else:
-                _log_decision(pending, 'failed', 'publish_article() returned None')
-                logger.warning(f"[AUTO-PUBLISHER] ⚠️ Publish failed for: {pending.title[:60]}")
+                # publish_article() returned None — count as failure
+                pending.auto_publish_attempts += 1
+                pending.auto_publish_last_error = 'publish_article() returned None'
+                pending.auto_publish_last_attempt = timezone.now()
+                if pending.auto_publish_attempts >= MAX_RETRIES:
+                    pending.status = 'auto_failed'
+                    pending.review_notes = f'Auto-publish failed {MAX_RETRIES} times: publish_article() returned None'
+                    logger.warning(f"[AUTO-PUBLISHER] 🚫 CIRCUIT BREAK: {pending.title[:50]} — {MAX_RETRIES} failures, marking auto_failed")
+                pending.save()
+                _log_decision(pending, 'failed', f'publish_article() returned None (attempt {pending.auto_publish_attempts}/{MAX_RETRIES})')
+                logger.warning(f"[AUTO-PUBLISHER] ⚠️ Publish failed for: {pending.title[:60]} (attempt {pending.auto_publish_attempts}/{MAX_RETRIES})")
                 
         except Exception as e:
-            _log_decision(pending, 'failed', f'Exception: {str(e)[:200]}')
-            logger.error(f"[AUTO-PUBLISHER] ❌ Error for '{pending.title[:40]}': {e}", exc_info=True)
+            # Capture FULL error details for debugging
+            error_detail = f'{type(e).__name__}: {str(e) or "(empty)"}'
+            tb = traceback.format_exc()
+            
+            pending.auto_publish_attempts += 1
+            pending.auto_publish_last_error = f'{error_detail}\n{tb[-500:]}'  # Last 500 chars of traceback
+            pending.auto_publish_last_attempt = timezone.now()
+            if pending.auto_publish_attempts >= MAX_RETRIES:
+                pending.status = 'auto_failed'
+                pending.review_notes = f'Auto-publish failed {MAX_RETRIES} times: {error_detail[:200]}'
+                logger.warning(f"[AUTO-PUBLISHER] 🚫 CIRCUIT BREAK: {pending.title[:50]} — {MAX_RETRIES} failures, marking auto_failed")
+            pending.save()
+            _log_decision(pending, 'failed', f'{error_detail[:200]} (attempt {pending.auto_publish_attempts}/{MAX_RETRIES})')
+            logger.error(f"[AUTO-PUBLISHER] ❌ Error for '{pending.title[:40]}' (attempt {pending.auto_publish_attempts}/{MAX_RETRIES}): {error_detail}", exc_info=True)
             continue
     
     if published_count > 0:
