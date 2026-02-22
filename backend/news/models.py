@@ -1905,3 +1905,41 @@ class AutoPublishLog(models.Model):
     
     def __str__(self):
         return f"{self.decision}: {self.article_title[:50]}"
+
+
+class TagLearningLog(models.Model):
+    """Stores title_keywords → final_tags mappings for tag suggestion learning.
+    
+    When a user publishes or edits tags on an article, we record:
+    - Extracted keywords from the title
+    - The final set of tags the user chose
+    
+    Over time, this builds a labeled dataset that the tag_suggester uses
+    to recommend tags for new articles based on keyword similarity.
+    """
+    article = models.OneToOneField(
+        Article, on_delete=models.CASCADE,
+        related_name='tag_learning_log'
+    )
+    title = models.CharField(max_length=500)
+    title_keywords = models.JSONField(
+        default=list,
+        help_text="Extracted keywords from title (lowercase)"
+    )
+    final_tags = models.JSONField(
+        default=list,
+        help_text="Tag names the user approved for this article"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Tag Learning Log'
+        verbose_name_plural = 'Tag Learning Logs'
+        indexes = [
+            models.Index(fields=['-updated_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title[:50]} → {self.final_tags}"

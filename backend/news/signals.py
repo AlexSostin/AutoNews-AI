@@ -7,7 +7,7 @@ from django.db.models.signals import post_save
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.db import transaction
-from .models import Comment, Subscriber, Article, PendingArticle, AdminNotification, VehicleSpecs, CarSpecification
+from .models import Comment, Subscriber, Article, PendingArticle, AdminNotification, VehicleSpecs, CarSpecification, TagLearningLog
 
 
 @receiver(post_save, sender=Comment)
@@ -128,7 +128,33 @@ def log_human_review_decision(sender, instance, created, **kwargs):
             f"[LEARNING] ✅ Human approved: {instance.title[:50]} "
             f"(Q:{source.quality_score}, reviewed in {review_seconds}s)"
         )
-# Force rebuild 1769538478
+
+
+# ============================================================================
+# TAG LEARNING SIGNAL
+# Records title→tags mapping when articles are published/updated.
+# ============================================================================
+
+@receiver(post_save, sender=Article)
+def learn_tag_choices(sender, instance, **kwargs):
+    """Record tag choices for the learning system whenever a published article is saved."""
+    if not instance.is_published or instance.is_deleted:
+        return
+    
+    # Run in background to avoid blocking
+    article_id = instance.id
+    
+    def _record():
+        try:
+            from ai_engine.modules.tag_suggester import record_tag_choice
+            article = Article.objects.get(id=article_id)
+            record_tag_choice(article)
+        except Exception as e:
+            import logging
+            logging.getLogger('news').error(f"[TAG-LEARN] Failed to record tags for [{article_id}]: {e}")
+    
+    thread = threading.Thread(target=_record, daemon=True)
+    transaction.on_commit(lambda: thread.start())
 
 
 # ============================================================================
