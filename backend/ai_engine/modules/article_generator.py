@@ -297,6 +297,37 @@ Required Structure (OMIT any section where you have NO data):
   Include ONLY specs you have data for. Skip unknown ones entirely.
   If HP is in kW, convert: 1 kW ≈ 1.34 hp.
   If NO specs are available → OMIT this section.
+
+  ═══ POWERTRAIN SPEC TEMPLATE (MANDATORY for this section) ═══
+  For EACH motor/engine in the car, list SEPARATELY:
+
+  ▸ POWERTRAIN TYPE: [BEV | EREV | PHEV | ICE | Hybrid]
+  ▸ MOTOR 1 (traction): [type e.g. permanent magnet] — [HP] / [kW] — [torque Nm] — drives [front/rear/all]
+  ▸ MOTOR 2 (if dual-motor): [type] — [HP] / [kW] — [torque Nm] — drives [front/rear]
+  ▸ RANGE EXTENDER (if EREV/PHEV): [engine type e.g. 1.5T turbo] — [HP] / [kW]
+    ⚠️ This is a GENERATOR — it does NOT drive the wheels. NEVER list this as the car's power.
+  ▸ TOTAL SYSTEM OUTPUT: [combined HP] — this is the headline number readers care about
+  ▸ BATTERY: [capacity kWh] — [chemistry e.g. LFP/NMC/ternary lithium] — [supplier e.g. CATL/BYD]
+  ▸ RANGE: [electric-only km] + [combined km if EREV/PHEV] — [test cycle: WLTP/CLTC/EPA]
+  ▸ 0-100 km/h: [seconds] — ONLY if confirmed
+  ▸ TOP SPEED: [km/h] — ONLY if confirmed
+  ▸ DIMENSIONS: length × width × height (mm), wheelbase (mm), curb weight (kg)
+
+  ⚠️ CRITICAL EREV/PHEV/HYBRID RULES:
+  - The RANGE EXTENDER is a generator that charges the battery. It does NOT drive the wheels.
+  - NEVER list range extender HP as the car's total power.
+  - ALWAYS clarify: "The 1.5T range extender (XX kW) charges the battery;
+    the electric traction motor (XX kW / XX HP) drives the [rear/all] wheels."
+  - If the source only provides ONE power figure for an EREV → it could be the range extender.
+    Research which motor it refers to before publishing.
+
+  ⚠️ SANITY CHECKS — if these fail, the data is likely WRONG:
+  - Full-size SUV (5+ meters) with TOTAL power under 150 HP → VERIFY, almost certainly wrong
+  - Sports car / GT with under 200 HP → VERIFY
+  - Any car with 0-100 under 5s but under 300 HP → VERIFY
+  - EREV with only one HP figure → it might be the generator, NOT the traction motor
+  ═══════════════════════════════════════════════
+
 - <h2>Design & Interior</h2> — Styling, materials, space.
   Compare design language to ONE well-known car if the comparison is genuine and insightful.
   Focus on what IS visible/confirmed, not what might be.
@@ -579,6 +610,32 @@ OMIT any section where you have NO real data.
 - <h2>[Year] [Brand] [Model]: [Engaging Hook]</h2>
 - Introduction with hook + key CONFIRMED specs from the press release
 - <h2>Performance & Specifications</h2> — ONLY if you have real numbers. If NO specs → OMIT.
+
+  ═══ POWERTRAIN SPEC TEMPLATE (MANDATORY for this section) ═══
+  For EACH motor/engine in the car, list SEPARATELY:
+
+  ▸ POWERTRAIN TYPE: [BEV | EREV | PHEV | ICE | Hybrid]
+  ▸ MOTOR 1 (traction): [type] — [HP] / [kW] — [torque Nm] — drives [front/rear/all]
+  ▸ MOTOR 2 (if dual-motor): [type] — [HP] / [kW] — [torque Nm] — drives [front/rear]
+  ▸ RANGE EXTENDER (if EREV/PHEV): [engine type] — [HP] / [kW]
+    ⚠️ This is a GENERATOR — it does NOT drive the wheels. NEVER list this as the car's power.
+  ▸ TOTAL SYSTEM OUTPUT: [combined HP] — the headline number
+  ▸ BATTERY: [capacity kWh] — [chemistry] — [supplier if known]
+  ▸ RANGE: [electric-only km] + [combined km if EREV/PHEV] — [cycle: WLTP/CLTC/EPA]
+  ▸ 0-100 km/h: [seconds] — ONLY if confirmed
+  ▸ DIMENSIONS: length × width × height (mm), wheelbase, curb weight
+
+  ⚠️ CRITICAL for EREV/PHEV/HYBRID:
+  - NEVER list range extender HP as the car's total power
+  - ALWAYS clarify which motor drives the wheels vs which charges the battery
+  - If only ONE power figure exists for an EREV → verify which motor it refers to
+
+  ⚠️ SANITY CHECKS:
+  - SUV (5+ meters) with < 150 HP total → almost certainly wrong, verify
+  - Sports car with < 200 HP → verify
+  - EREV with only one HP figure → might be the generator, not traction motor
+  ═══════════════════════════════════════════════
+
 - <h2>Design & Interior</h2> — Only what is visible/confirmed. Compare to ONE car if genuine.
 - <h2>Technology & Features</h2> — SPECIFIC items from the press release. If NONE confirmed → OMIT.
 - <h2>Why This Matters</h2> — Market context: what gap does this fill? Why should readers care?
