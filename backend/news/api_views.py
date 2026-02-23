@@ -774,6 +774,16 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     )
                 except Exception as cache_err:
                     logger.warning(f"Failed to invalidate article cache: {cache_err}")
+                
+                # Log admin action
+                try:
+                    from news.models import AdminActionLog
+                    AdminActionLog.log(instance, request.user, 'edit_save', details={
+                        'image_source': request.data.get('image_source', ''),
+                        'has_new_image': bool(request.data.get('image')),
+                    })
+                except Exception:
+                    pass
                     
             except Exception as inner_err:
                 logger.error(f"Error in ArticleViewSet.update post-processing: {inner_err}")
@@ -1650,6 +1660,19 @@ Return ONLY the reformatted HTML."""
                     'message': 'AI returned empty or too short content',
                 }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
+            # Log successful reformat
+            try:
+                from news.models import AdminActionLog
+                original_len = len(content)
+                new_len = len(cleaned)
+                AdminActionLog.log(self.get_object(), request.user, 'reformat', details={
+                    'original_length': original_len,
+                    'new_length': new_len,
+                    'reduction_pct': round((original_len - new_len) / original_len * 100, 1) if original_len else 0,
+                })
+            except Exception:
+                pass
+
             return Response({
                 'success': True,
                 'content': cleaned,
@@ -1659,6 +1682,11 @@ Return ONLY the reformatted HTML."""
 
         except Exception as e:
             logger.error(f'Reformat content failed: {e}')
+            try:
+                from news.models import AdminActionLog
+                AdminActionLog.log(self.get_object(), request.user, 'reformat', success=False, details={'error': str(e)})
+            except Exception:
+                pass
             return Response({
                 'success': False,
                 'message': str(e),
@@ -1876,6 +1904,18 @@ Return ONLY the reformatted HTML."""
             invalidate_article_cache(article_id=article.id, slug=article.slug)
             
             serializer = self.get_serializer(article)
+            
+            # Log the regeneration action
+            try:
+                from news.models import AdminActionLog
+                AdminActionLog.log(article, request.user, 'regenerate', details={
+                    'provider': provider,
+                    'source_type': source_type,
+                    'word_count': result.get('generation_metadata', {}).get('word_count'),
+                })
+            except Exception:
+                pass
+            
             return Response({
                 'success': True,
                 'message': f'Article regenerated ({source_type}) with {provider}',
@@ -1886,6 +1926,11 @@ Return ONLY the reformatted HTML."""
         except Exception as e:
             import traceback
             logger.error(f'Regenerate failed: {e}\n{traceback.format_exc()}')
+            try:
+                from news.models import AdminActionLog
+                AdminActionLog.log(article, request.user, 'regenerate', success=False, details={'error': str(e)[:200]})
+            except Exception:
+                pass
             return Response({
                 'success': False,
                 'message': str(e),
@@ -2062,6 +2107,20 @@ Return ONLY the reformatted HTML."""
         # --- Summary ---
         success_count = sum(1 for r in results.values() if r and r.get('success'))
         total = len(results)
+
+        # Log the re-enrich action
+        try:
+            from news.models import AdminActionLog
+            AdminActionLog.log(article, request.user, 're_enrich', success=success_count > 0, details={
+                'steps_completed': f'{success_count}/{total}',
+                'deep_specs': results.get('deep_specs', {}).get('success', False),
+                'ab_titles': results.get('ab_titles', {}).get('success', False),
+                'web_search': results.get('web_search', {}).get('success', False),
+                'make': results.get('deep_specs', {}).get('make', ''),
+                'model': results.get('deep_specs', {}).get('model_name', ''),
+            })
+        except Exception:
+            pass
 
         return Response({
             'success': success_count > 0,
@@ -5940,3 +5999,93 @@ class AutomationTriggerView(APIView):
             {'error': f'Unknown task type: {task_type}'},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+class AdminActionStatsView(APIView):
+    """
+    GET /api/v1/admin/action-stats/
+    Returns aggregated statistics about admin actions on articles.
+    Staff only.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({'detail': 'Staff only.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from news.models import AdminActionLog
+        from django.db.models import Count, Avg, Q
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Total counts by action type
+        by_action = dict(
+            AdminActionLog.objects.values_list('action')
+            .annotate(count=Count('id'))
+            .values_list('action', 'count')
+        )
+        
+        total = sum(by_action.values())
+        
+        # Recent 20 actions
+        recent = list(
+            AdminActionLog.objects.select_related('article', 'user')
+            .values(
+                'id', 'action', 'success', 'details', 'created_at',
+                'article__id', 'article__title',
+                'user__username',
+            )
+            .order_by('-created_at')[:20]
+        )
+        
+        # Insights
+        insights = {}
+        
+        # Most reformatted articles (multiple reformats = content quality issue)
+        most_reformatted = list(
+            AdminActionLog.objects.filter(action='reformat', success=True)
+            .values('article__id', 'article__title')
+            .annotate(count=Count('id'))
+            .filter(count__gte=2)
+            .order_by('-count')[:5]
+        )
+        insights['most_reformatted'] = most_reformatted
+        
+        # Most regenerated articles
+        most_regenerated = list(
+            AdminActionLog.objects.filter(action='regenerate', success=True)
+            .values('article__id', 'article__title')
+            .annotate(count=Count('id'))
+            .filter(count__gte=2)
+            .order_by('-count')[:5]
+        )
+        insights['most_regenerated'] = most_regenerated
+        
+        # Average reformat reduction percentage
+        reformat_details = AdminActionLog.objects.filter(
+            action='reformat', success=True, details__isnull=False
+        ).values_list('details', flat=True)
+        
+        reductions = []
+        for d in reformat_details:
+            if isinstance(d, dict) and 'reduction_pct' in d:
+                reductions.append(d['reduction_pct'])
+        
+        insights['avg_reformat_reduction_pct'] = round(sum(reductions) / len(reductions), 1) if reductions else 0
+        
+        # Actions in last 7 days
+        week_ago = timezone.now() - timedelta(days=7)
+        weekly_by_action = dict(
+            AdminActionLog.objects.filter(created_at__gte=week_ago)
+            .values_list('action')
+            .annotate(count=Count('id'))
+            .values_list('action', 'count')
+        )
+        insights['last_7_days'] = weekly_by_action
+        
+        return Response({
+            'total_actions': total,
+            'by_action': by_action,
+            'recent_actions': recent,
+            'insights': insights,
+        })

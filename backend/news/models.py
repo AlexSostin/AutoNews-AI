@@ -2042,3 +2042,55 @@ class ThemeAnalytics(models.Model):
     def __str__(self):
         return f"{self.theme} at {self.created_at}"
 
+
+class AdminActionLog(models.Model):
+    """
+    Tracks admin actions on articles for analytics and quality insights.
+    Every AI button press, edit save, image change, and publish/unpublish is logged.
+    """
+    ACTION_CHOICES = [
+        ('reformat', '✨ Reformat with AI'),
+        ('re_enrich', '⚡ Re-enrich Specs'),
+        ('regenerate', '🔄 Regenerate'),
+        ('edit_save', '💾 Article Saved'),
+        ('image_change', '🖼️ Image Changed'),
+        ('publish', '📢 Published'),
+        ('unpublish', '📝 Unpublished'),
+    ]
+    
+    article = models.ForeignKey(
+        Article, on_delete=models.CASCADE,
+        related_name='admin_action_logs'
+    )
+    user = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='admin_action_logs'
+    )
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, db_index=True)
+    success = models.BooleanField(default=True)
+    details = models.JSONField(
+        null=True, blank=True,
+        help_text="Action-specific data: lengths, field changes, provider info, etc."
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['action', '-created_at']),
+            models.Index(fields=['article', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_action_display()} on #{self.article_id} by {self.user} at {self.created_at}"
+    
+    @classmethod
+    def log(cls, article, user, action, success=True, details=None):
+        """Convenience method to create a log entry."""
+        return cls.objects.create(
+            article=article,
+            user=user if user and user.is_authenticated else None,
+            action=action,
+            success=success,
+            details=details,
+        )

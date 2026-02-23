@@ -15,6 +15,7 @@ from .api_views import (
     AdPlacementViewSet,
     AutomationSettingsView, AutomationStatsView, AutomationTriggerView,
     SiteThemeView, ThemeAnalyticsView,
+    AdminActionStatsView,
 )
 from .health import health_check, health_check_detailed, readiness_check
 from .ab_testing_views import (
@@ -132,6 +133,9 @@ urlpatterns = [
     path('admin/users/', AdminUserManagementViewSet.as_view({'get': 'list'}), name='admin_users_list'),
     path('admin/users/<int:pk>/', AdminUserManagementViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='admin_users_detail'),
     path('admin/users/<int:pk>/reset-password/', AdminUserManagementViewSet.as_view({'post': 'reset_password'}), name='admin_users_reset_password'),
+    
+    # Admin action analytics
+    path('admin/action-stats/', AdminActionStatsView.as_view(), name='admin_action_stats'),
     
     # AI Image Generation
     path('articles/<str:identifier>/generate-ai-image/', GenerateAIImageView.as_view(), name='generate_ai_image'),
