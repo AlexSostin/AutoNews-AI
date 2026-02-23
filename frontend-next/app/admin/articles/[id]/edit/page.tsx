@@ -1244,10 +1244,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
                       return (
                         <div key={groupName} className="bg-gray-50/50 rounded-xl border border-gray-100 overflow-hidden">
-                          <button
-                            type="button"
+                          <div
                             onClick={toggleCollapse}
-                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100/50 transition-colors"
+                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100/50 transition-colors cursor-pointer select-none"
                           >
                             <span className="flex items-center gap-2 text-sm font-black text-indigo-900 uppercase tracking-wider">
                               <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
@@ -1273,7 +1272,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                               </button>
                               <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
                             </div>
-                          </button>
+                          </div>
 
                           {/* Inline new tag input */}
                           {addingTagGroup === groupName && (
