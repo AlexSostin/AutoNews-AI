@@ -125,6 +125,24 @@
       "total_time": 44.2,
       "spec_fields_filled": 6,
       "timestamp": "2026-02-22T16:11:54.459490"
+    },
+    {
+      "provider": "gemini",
+      "make": "Huawei Aito",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 69.9,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-23T12:01:20.990777"
+    },
+    {
+      "provider": "gemini",
+      "make": "Huawei Aito",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 64.5,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-23T12:06:18.522732"
     }
   ]
 }

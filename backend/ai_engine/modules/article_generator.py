@@ -226,6 +226,8 @@ CRITICAL REQUIREMENTS:
 6. **REGION-NEUTRAL writing**:
    - Do NOT focus on a single country's market (no "in Australia", "in the US", etc.)
    - Present prices in the ORIGINAL currency from the source, but don't frame the article around one country
+   - Use STANDARD CURRENCY CODES: CNY (not RMB), JPY (not ¥), KRW, EUR, GBP, AUD, etc.
+   - ALWAYS include approximate USD conversion: "CNY 299,800 (approximately $42,000)"
    - Do NOT reference country-specific safety ratings (ANCAP, IIHS, NHTSA) as the main focus — mention briefly if relevant
    - Do NOT include country-specific warranty terms, servicing plans, or dealer networks
    - Write for a GLOBAL car enthusiast audience
@@ -674,6 +676,8 @@ Content Guidelines:
 - NO placeholder text, ads, social links, or navigation
 - REGION-NEUTRAL: Do NOT focus on one country's market. No "in Australia" or "in the US" framing.
   Present prices in the original currency from the source but write for a GLOBAL audience.
+  Use STANDARD CURRENCY CODES: CNY (not RMB), JPY (not ¥), KRW, EUR, GBP, AUD, etc.
+  ALWAYS include approximate USD conversion: "CNY 299,800 (approximately $42,000)".
   Skip country-specific safety ratings (ANCAP, IIHS), local warranty terms, and dealer-level details.
   Extract universal car facts from region-specific reviews.
 

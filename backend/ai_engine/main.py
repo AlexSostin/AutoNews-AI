@@ -364,47 +364,71 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         # 2.65. DUPLICATE CHECK — skip if article already exists for same car
         if specs.get('make') and specs['make'] != 'Not specified' and specs.get('model') and specs['model'] != 'Not specified':
             try:
-                from news.models import CarSpecification, PendingArticle as PA
+                from news.models import CarSpecification, PendingArticle as PA, Article as ART
+                from difflib import SequenceMatcher
                 
-                # Check published articles
+                car_make = specs['make']
+                car_model = specs['model']
+                trim = specs.get('trim', 'Not specified')
+                
+                # Check 1: CarSpecification for PUBLISHED articles (original check)
                 existing = CarSpecification.objects.filter(
-                    make__iexact=specs['make'],
-                    model__iexact=specs['model'],
+                    make__iexact=car_make,
+                    model__iexact=car_model,
                     article__is_published=True,
                 )
-                # Also match trim if available
-                trim = specs.get('trim', 'Not specified')
                 if trim and trim != 'Not specified':
                     existing_same_trim = existing.filter(trim__iexact=trim)
                     if existing_same_trim.exists():
                         existing_article = existing_same_trim.first().article
-                        msg = (f"⚠️ Duplicate detected: {specs['make']} {specs['model']} {trim} "
+                        msg = (f"⚠️ Duplicate detected: {car_make} {car_model} {trim} "
                                f"already exists (Article #{existing_article.id}: \"{existing_article.title}\")")
                         print(msg)
                         send_progress(4, 100, f"⚠️ Skipped — duplicate of article #{existing_article.id}")
                         return {'success': False, 'status': 'skipped', 'reason': 'duplicate',
                                 'existing_article_id': existing_article.id, 'error': msg}
                 else:
-                    # No trim info — check if any article exists for this make+model
                     if existing.exists():
                         existing_article = existing.first().article
-                        msg = (f"⚠️ Duplicate detected: {specs['make']} {specs['model']} "
+                        msg = (f"⚠️ Duplicate detected: {car_make} {car_model} "
                                f"already exists (Article #{existing_article.id}: \"{existing_article.title}\")")
                         print(msg)
                         send_progress(4, 100, f"⚠️ Skipped — duplicate of article #{existing_article.id}")
                         return {'success': False, 'status': 'skipped', 'reason': 'duplicate',
                                 'existing_article_id': existing_article.id, 'error': msg}
                 
-                # Also check PendingArticle for same car (not yet published)
+                # Check 2: ALL articles (including DRAFTS) by title containing make+model
+                from datetime import timedelta
+                from django.utils import timezone
+                cutoff = timezone.now() - timedelta(days=90)
+                
+                draft_articles = ART.objects.filter(
+                    created_at__gte=cutoff,
+                ).filter(
+                    title__icontains=car_model,
+                ).filter(
+                    title__icontains=car_make,
+                )
+                if draft_articles.exists():
+                    existing_article = draft_articles.first()
+                    msg = (f"⚠️ Duplicate detected: {car_make} {car_model} "
+                           f"already exists as article (#{existing_article.id}: \"{existing_article.title}\", "
+                           f"published={existing_article.is_published})")
+                    print(msg)
+                    send_progress(4, 100, f"⚠️ Skipped — duplicate of article #{existing_article.id}")
+                    return {'success': False, 'status': 'skipped', 'reason': 'duplicate',
+                            'existing_article_id': existing_article.id, 'error': msg}
+                
+                # Check 3: PendingArticle for same car (not yet published)
                 pending_same_car = PA.objects.filter(
                     status='pending',
-                    title__icontains=specs['model'],
+                    title__icontains=car_model,
                 )
-                if specs.get('make'):
-                    pending_same_car = pending_same_car.filter(title__icontains=specs['make'])
+                if car_make:
+                    pending_same_car = pending_same_car.filter(title__icontains=car_make)
                 if pending_same_car.exists():
                     pending_art = pending_same_car.first()
-                    msg = (f"⚠️ Duplicate detected: {specs['make']} {specs['model']} "
+                    msg = (f"⚠️ Duplicate detected: {car_make} {car_model} "
                            f"already pending (PendingArticle #{pending_art.id}: \"{pending_art.title}\")")
                     print(msg)
                     send_progress(4, 100, f"⚠️ Skipped — same car already pending #{pending_art.id}")
