@@ -712,10 +712,10 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                 Images
                 {imageSource && imageSource !== 'unknown' && (
                   <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${imageSource === 'pexels' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
-                      imageSource === 'youtube' ? 'bg-red-100 text-red-700 border border-red-200' :
-                        imageSource === 'rss_original' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                          imageSource === 'uploaded' ? 'bg-green-100 text-green-700 border border-green-200' :
-                            'bg-gray-100 text-gray-600 border border-gray-200'
+                    imageSource === 'youtube' ? 'bg-red-100 text-red-700 border border-red-200' :
+                      imageSource === 'rss_original' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                        imageSource === 'uploaded' ? 'bg-green-100 text-green-700 border border-green-200' :
+                          'bg-gray-100 text-gray-600 border border-gray-200'
                     }`}>
                     {imageSource === 'pexels' && '📷 Pexels Stock'}
                     {imageSource === 'youtube' && '🎥 YouTube Thumbnail'}
@@ -1110,24 +1110,49 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               <label className="block text-lg font-bold text-gray-900 mb-2">Tags & Categories</label>
               <p className="text-sm text-gray-600 mb-4">Select relevant tags grouped by category</p>
 
-              {/* Search Filter */}
+              {/* Search Filter + Quick Create */}
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
-                  placeholder="Search tags..."
-                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-gray-900 placeholder:text-gray-400"
+                  placeholder="Search or create tags..."
+                  className="w-full pl-10 pr-28 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-gray-900 placeholder:text-gray-400"
                 />
-                {tagSearch && (
-                  <button
-                    onClick={() => setTagSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {tagSearch && !tags.some(t => t.name.toLowerCase() === tagSearch.toLowerCase()) && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const name = tagSearch.trim();
+                        if (!name) return;
+                        try {
+                          const res = await api.post('/tags/', { name });
+                          const newTag = res.data;
+                          setTags(prev => [...prev, newTag]);
+                          setFormData(prev => ({ ...prev, tags: [...prev.tags, newTag.id] }));
+                          setTagSearch('');
+                        } catch (err: any) {
+                          alert(`Failed to create tag: ${err.response?.data?.name?.[0] || err.message}`);
+                        }
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors whitespace-nowrap"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Create &quot;{tagSearch.length > 15 ? tagSearch.slice(0, 15) + '…' : tagSearch}&quot;
+                    </button>
+                  )}
+                  {tagSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setTagSearch('')}
+                      className="text-gray-400 hover:text-gray-600 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Selected tags summary */}
