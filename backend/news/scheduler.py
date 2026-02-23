@@ -331,12 +331,12 @@ def _run_deep_specs_backfill():
             Article.objects
             .filter(
                 is_published=True,
-                is_draft=False,
+                is_deleted=False,
                 created_at__lte=cutoff,
-                car_specification__isnull=False,
+                specs__isnull=False,
             )
             .exclude(id__in=articles_with_vehicle_specs)
-            .order_by('-views_count')[:max_per_cycle]
+            .order_by('-views')[:max_per_cycle]
         )
 
         if not candidates:
@@ -357,8 +357,8 @@ def _run_deep_specs_backfill():
                 
                 # Get existing CarSpecification for context
                 specs_dict = {}
-                if hasattr(article, 'car_specification'):
-                    car_spec = article.car_specification
+                if hasattr(article, 'specs') and article.specs:
+                    car_spec = article.specs
                     specs_dict = {
                         'make': car_spec.make or '',
                         'model': car_spec.model or '',
