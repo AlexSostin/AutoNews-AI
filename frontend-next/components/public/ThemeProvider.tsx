@@ -1,45 +1,122 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 
-const API_BASE = typeof window !== 'undefined'
-    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+// ---------- Theme definitions ----------
+export interface ThemeDef {
+    id: string;
+    name: string;
+    color: string;  // preview dot color
+    emoji: string;
+}
+
+export const THEMES: ThemeDef[] = [
+    { id: '', name: 'Indigo', color: '#6366f1', emoji: '🟣' },
+    { id: 'midnight-green', name: 'Emerald', color: '#10b981', emoji: '🟢' },
+    { id: 'deep-ocean', name: 'Ocean Blue', color: '#3b82f6', emoji: '🔵' },
+];
+
+// ---------- API ----------
+const getApiBase = () => {
+    if (typeof window === 'undefined') return '';
+    const h = window.location.hostname;
+    return (h === 'localhost' || h === '127.0.0.1')
         ? 'http://localhost:8000/api/v1'
-        : 'https://heroic-healing-production-2365.up.railway.app/api/v1'
-    : '';
+        : 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+};
 
-/**
- * ThemeProvider — fetches site theme from backend and sets data-theme on <html>.
- * Cached in localStorage for instant load, updated from API on mount.
- */
-export default function ThemeProvider() {
-    const [loaded, setLoaded] = useState(false);
+// ---------- Context ----------
+interface ThemeContextValue {
+    theme: string;           // current active theme id ('' = default indigo)
+    defaultTheme: string;    // admin-set default
+    setTheme: (id: string) => void;
+    themes: ThemeDef[];
+}
 
-    useEffect(() => {
-        // 1. Apply cached theme immediately
-        const cached = localStorage.getItem('site-theme');
-        if (cached) {
-            document.documentElement.setAttribute('data-theme', cached);
+const ThemeContext = createContext<ThemeContextValue>({
+    theme: '',
+    defaultTheme: '',
+    setTheme: () => { },
+    themes: THEMES,
+});
+
+export const useTheme = () => useContext(ThemeContext);
+
+// ---------- Provider ----------
+export default function ThemeContextProvider({ children }: { children: ReactNode }) {
+    const [theme, setThemeState] = useState('');
+    const [defaultTheme, setDefaultTheme] = useState('');
+
+    // Apply theme to <html>
+    const applyTheme = useCallback((id: string) => {
+        if (id) {
+            document.documentElement.setAttribute('data-theme', id);
+        } else {
+            document.documentElement.removeAttribute('data-theme');
         }
-
-        // 2. Fetch fresh theme from API
-        fetch(`${API_BASE}/site/theme/`)
-            .then(res => res.json())
-            .then(data => {
-                const theme = data.theme || '';
-                if (theme) {
-                    document.documentElement.setAttribute('data-theme', theme);
-                    localStorage.setItem('site-theme', theme);
-                } else {
-                    document.documentElement.removeAttribute('data-theme');
-                    localStorage.removeItem('site-theme');
-                }
-            })
-            .catch(() => {
-                // Silently fail — use cached or default
-            })
-            .finally(() => setLoaded(true));
     }, []);
 
-    return null; // This component renders nothing
+    // User selects a theme
+    const setTheme = useCallback((id: string) => {
+        setThemeState(id);
+        applyTheme(id);
+        localStorage.setItem('user-theme-choice', id);
+
+        // Fire analytics (fire-and-forget)
+        try {
+            const apiBase = getApiBase();
+            if (apiBase) {
+                fetch(`${apiBase}/site/theme-analytics/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ theme: id || 'default' }),
+                }).catch(() => { });
+            }
+        } catch { }
+    }, [applyTheme]);
+
+    // On mount: resolve which theme to use
+    useEffect(() => {
+        const apiBase = getApiBase();
+
+        // 1. Check if user previously chose a theme
+        const userChoice = localStorage.getItem('user-theme-choice');
+
+        // 2. Fetch admin default from API
+        if (apiBase) {
+            fetch(`${apiBase}/site/theme/`)
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                    const adminTheme = data?.theme || '';
+                    setDefaultTheme(adminTheme);
+
+                    // Use user's choice if they made one, otherwise admin default
+                    if (userChoice !== null) {
+                        setThemeState(userChoice);
+                        applyTheme(userChoice);
+                    } else {
+                        setThemeState(adminTheme);
+                        applyTheme(adminTheme);
+                    }
+                })
+                .catch(() => {
+                    // API failed — use user choice or cached admin theme
+                    const cached = localStorage.getItem('site-theme') || '';
+                    const active = userChoice !== null ? userChoice : cached;
+                    setThemeState(active);
+                    applyTheme(active);
+                });
+        } else {
+            // SSR or no API — use user choice or nothing
+            const active = userChoice || '';
+            setThemeState(active);
+            applyTheme(active);
+        }
+    }, [applyTheme]);
+
+    return (
+        <ThemeContext.Provider value={{ theme, defaultTheme, setTheme, themes: THEMES }}>
+            {children}
+        </ThemeContext.Provider>
+    );
 }

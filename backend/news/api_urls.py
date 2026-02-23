@@ -14,7 +14,7 @@ from .api_views import (
     SearchPhotosView, SaveExternalImageView,
     AdPlacementViewSet,
     AutomationSettingsView, AutomationStatsView, AutomationTriggerView,
-    SiteThemeView
+    SiteThemeView, ThemeAnalyticsView,
 )
 from .health import health_check, health_check_detailed, readiness_check
 from .ab_testing_views import (
@@ -147,6 +147,7 @@ urlpatterns = [
     
     # Public site config
     path('site/theme/', SiteThemeView.as_view(), name='site_theme'),
+    path('site/theme-analytics/', ThemeAnalyticsView.as_view(), name='theme_analytics'),
     
     # A/B Testing
     path('ab/impression/', ABImpressionView.as_view(), name='ab_impression'),

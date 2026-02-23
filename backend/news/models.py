@@ -2003,3 +2003,20 @@ class TagLearningLog(models.Model):
     
     def __str__(self):
         return f"{self.title[:50]} → {self.final_tags}"
+
+
+class ThemeAnalytics(models.Model):
+    """Tracks which color theme visitors choose — anonymous analytics."""
+    theme = models.CharField(max_length=30, db_index=True, help_text="Theme ID e.g. 'default', 'midnight-green', 'deep-ocean'")
+    session_hash = models.CharField(max_length=64, blank=True, default='', help_text="Anonymized session identifier")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['theme', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.theme} at {self.created_at}"
+

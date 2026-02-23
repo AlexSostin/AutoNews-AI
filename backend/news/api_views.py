@@ -5638,6 +5638,59 @@ class SiteThemeView(APIView):
         return Response({'theme': theme})
 
 
+class ThemeAnalyticsView(APIView):
+    """Track which theme visitors choose — anonymous analytics."""
+    permission_classes = [AllowAny]
+    
+    @method_decorator(ratelimit(key='ip', rate='6/h', method='POST', block=True))
+    def post(self, request):
+        theme = request.data.get('theme', '')
+        if not theme or len(theme) > 30:
+            return Response({'error': 'Invalid theme'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create anonymous session hash from IP + User-Agent
+        import hashlib
+        raw = f"{request.META.get('REMOTE_ADDR', '')}-{request.META.get('HTTP_USER_AGENT', '')}"
+        session_hash = hashlib.sha256(raw.encode()).hexdigest()[:16]
+        
+        from news.models import ThemeAnalytics
+        # Upsert: update if same session already recorded, else create
+        ThemeAnalytics.objects.update_or_create(
+            session_hash=session_hash,
+            defaults={'theme': theme},
+        )
+        
+        return Response({'status': 'ok'})
+    
+    def get(self, request):
+        """Admin-only: get theme popularity stats."""
+        if not request.user.is_staff:
+            return Response({'detail': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from news.models import ThemeAnalytics
+        from django.db.models import Count
+        
+        stats = (
+            ThemeAnalytics.objects
+            .values('theme')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+        total = ThemeAnalytics.objects.count()
+        
+        return Response({
+            'total_users': total,
+            'themes': [
+                {
+                    'theme': s['theme'],
+                    'count': s['count'],
+                    'percent': round(s['count'] / total * 100, 1) if total else 0,
+                }
+                for s in stats
+            ],
+        })
+
+
 class AutomationSettingsView(APIView):
     """GET/PUT automation settings (singleton)."""
     permission_classes = [IsAdminUser]

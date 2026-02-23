@@ -6,6 +6,7 @@ import { Menu, X, ChevronDown, User, Settings, LogOut, BookMarked, ArrowRight } 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import SearchBar from './SearchBar';
+import ThemeSwitcher from './ThemeSwitcher';
 import { isAuthenticated, getUserFromStorage, logout, isAdmin } from '@/lib/auth';
 import type { User as UserType } from '@/types';
 
@@ -158,6 +159,9 @@ export default function Header() {
               )}
             </div>
 
+            {/* Theme Switcher */}
+            <ThemeSwitcher />
+
             {/* Admin Link - Only for staff */}
             {isAdminUser && (
               <Link href="/admin" className="flex items-center gap-1 hover:text-purple-300 transition-colors">
@@ -251,6 +255,12 @@ export default function Header() {
             <Link href="/articles" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Articles</Link>
             <Link href="/cars" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Cars</Link>
             <Link href="/compare" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Compare</Link>
+
+            {/* Theme Switcher — Mobile */}
+            <div className="py-2 border-t border-purple-800/50">
+              <div className="text-xs text-purple-400/60 uppercase tracking-wider mb-2">Color Theme</div>
+              <ThemeSwitcher />
+            </div>
 
             {/* Mobile Categories */}
             <div>
