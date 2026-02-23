@@ -11,8 +11,9 @@ export default function AuthLayout({
     return (
         <>
             <ABSeedProvider />
-            <ThemeProvider />
-            {children}
+            <ThemeProvider>
+                {children}
+            </ThemeProvider>
         </>
     );
 }

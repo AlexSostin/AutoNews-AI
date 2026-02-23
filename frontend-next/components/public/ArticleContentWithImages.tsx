@@ -8,14 +8,21 @@ interface ArticleContentWithImagesProps {
   images: string[];
 }
 
+/**
+ * Strip hidden alt-texts div from content for clean rendering.
+ */
+function stripAltTextsDiv(html: string): string {
+  return html.replace(/<div[^>]*class=["']alt-texts["'][^>]*>[\s\S]*?<\/div>/gi, '').trim();
+}
+
 export default function ArticleContentWithImages({ content, images }: ArticleContentWithImagesProps) {
-  const [contentParts, setContentParts] = useState<ReactElement[]>([]);
+  const [contentParts, setContentParts] = useState<ReactElement[] | null>(null);
+
+  // Prepare clean HTML for SSR fallback (strip alt-texts div)
+  const cleanHtmlForSSR = stripAltTextsDiv(content);
 
   useEffect(() => {
-    console.log('📸 Images available:', images);
-    console.log('📝 Content length:', content.length);
-
-    // Extract AI-generated alt texts from hidden div and strip it from content
+    // Extract AI-generated alt texts from hidden div
     const altTexts: string[] = [];
     const altTextMatch = content.match(/<div[^>]*class=["']alt-texts["'][^>]*>([\s\S]*?)<\/div>/i);
     if (altTextMatch) {
@@ -29,19 +36,16 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
           }
         });
       }
-      console.log('🏷️ Extracted alt texts:', altTexts);
     }
 
-    // Strip the alt-texts div and source-attribution from content before parsing
-    const cleanContent = content
-      .replace(/<div[^>]*class=["']alt-texts["'][^>]*>[\s\S]*?<\/div>/gi, '')
-      .trim();
+    // Strip the alt-texts div from content before parsing
+    const cleanContent = stripAltTextsDiv(content);
 
     const topLevelBlocks: string[] = [];
     let current = '';
     let depth = 0;
 
-    const tokens = cleanContent.split(/(<\/?[^>]+>)/g);
+    const tokens = cleanContent.split(/(<?\/?[^>]+>)/g);
 
     for (const token of tokens) {
       const openMatch = token.match(/^<(ul|ol|table|blockquote|pre|div|section)[\s>]/i);
@@ -81,7 +85,6 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
         }
 
         if (isParagraph && paragraphsSinceLastImage >= PARAGRAPHS_BETWEEN_IMAGES && imageIndex < images.length) {
-          console.log(`🖼️ Inserting image ${imageIndex + 1} after paragraph at block ${idx + 1}`);
           const currentImage = images[imageIndex];
           const isPexelsImage = currentImage.includes('pexels.com');
           const altText = altTexts[imageIndex] || `Article image ${imageIndex + 1}`;
@@ -100,13 +103,24 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
       }
     });
 
-    console.log('✅ Total parts created:', parts.length);
     setContentParts(parts);
   }, [content, images]);
 
   return (
     <div className="article-content-wrapper">
-      {contentParts}
+      {contentParts !== null ? (
+        /* Enhanced client version with inline images and lightbox */
+        contentParts
+      ) : (
+        /* SSR fallback — raw article HTML visible to search engines, bots, and crawlers.
+           This ensures Google/AdSense sees the full article text in the initial HTML response.
+           It's replaced by the enhanced version after client-side hydration. */
+        <div
+          className="article-content"
+          dangerouslySetInnerHTML={{ __html: cleanHtmlForSSR }}
+          suppressHydrationWarning
+        />
+      )}
     </div>
   );
 }
