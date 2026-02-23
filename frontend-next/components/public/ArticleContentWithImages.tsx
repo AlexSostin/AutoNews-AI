@@ -6,6 +6,8 @@ import { useEffect, useState, useRef, useCallback, type ReactElement } from 'rea
 interface ArticleContentWithImagesProps {
   content: string;
   images: string[];
+  imageSource?: string;
+  authorName?: string;
 }
 
 /**
@@ -15,7 +17,7 @@ function stripAltTextsDiv(html: string): string {
   return html.replace(/<div[^>]*class=["']alt-texts["'][^>]*>[\s\S]*?<\/div>/gi, '').trim();
 }
 
-export default function ArticleContentWithImages({ content, images }: ArticleContentWithImagesProps) {
+export default function ArticleContentWithImages({ content, images, imageSource, authorName }: ArticleContentWithImagesProps) {
   const [contentParts, setContentParts] = useState<ReactElement[] | null>(null);
 
   // Prepare clean HTML for SSR fallback (strip alt-texts div)
@@ -86,7 +88,6 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
 
         if (isParagraph && paragraphsSinceLastImage >= PARAGRAPHS_BETWEEN_IMAGES && imageIndex < images.length) {
           const currentImage = images[imageIndex];
-          const isPexelsImage = currentImage.includes('pexels.com');
           const altText = altTexts[imageIndex] || `Article image ${imageIndex + 1}`;
 
           parts.push(
@@ -94,7 +95,8 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
               key={`img-${imageIndex}`}
               src={currentImage}
               alt={altText}
-              isPexels={isPexelsImage}
+              imageSource={imageSource || (currentImage.includes('pexels.com') ? 'pexels' : 'unknown')}
+              authorName={authorName}
             />
           );
           imageIndex++;
@@ -126,7 +128,7 @@ export default function ArticleContentWithImages({ content, images }: ArticleCon
 }
 
 // ─── Inline image with lightbox + zoom/pan ────────────────────────────────────
-function InlineImage({ src, alt, isPexels }: { src: string; alt: string; isPexels: boolean }) {
+function InlineImage({ src, alt, imageSource, authorName }: { src: string; alt: string; imageSource: string; authorName?: string }) {
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [scale, setScale] = useState(1);
@@ -298,9 +300,13 @@ function InlineImage({ src, alt, isPexels }: { src: string; alt: string; isPexel
             </>
           )}
         </div>
-        {isPexels && !imgError && (
+        {!imgError && imageSource && imageSource !== 'unknown' && imageSource !== 'uploaded' && (
           <div className="px-4 py-2 bg-black/20 backdrop-blur-sm">
-            <p className="text-xs text-gray-300 text-center">Photo via Pexels</p>
+            <p className="text-xs text-gray-300 text-center">
+              {imageSource === 'pexels' && '📷 Photo via Pexels'}
+              {imageSource === 'youtube' && '🎥 YouTube Thumbnail'}
+              {imageSource === 'rss_original' && `📰 Source: ${authorName || 'Press Release'}`}
+            </p>
           </div>
         )}
       </button>

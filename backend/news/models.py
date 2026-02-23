@@ -152,6 +152,14 @@ class Tag(models.Model):
     def __str__(self):
         return self.name
 
+IMAGE_SOURCE_CHOICES = [
+    ('youtube', 'YouTube Thumbnail'),
+    ('rss_original', 'RSS / Press Release Original'),
+    ('pexels', 'Pexels Stock Photo'),
+    ('uploaded', 'Manual Upload'),
+    ('unknown', 'Unknown'),
+]
+
 class Article(models.Model):
     title = models.CharField(max_length=500)
     slug = models.SlugField(blank=True, max_length=250, db_index=True)
@@ -193,6 +201,10 @@ class Article(models.Model):
     show_price = models.BooleanField(default=True, help_text="Show price on public page")
     
     generation_metadata = models.JSONField(null=True, blank=True, help_text="AI generation stats: timing, provider, AI Editor diff")
+    image_source = models.CharField(
+        max_length=20, choices=IMAGE_SOURCE_CHOICES, default='unknown',
+        help_text="Where the article images came from (youtube, rss_original, pexels, uploaded)"
+    )
     
     class Meta:
         ordering = ['-created_at']
@@ -784,6 +796,10 @@ class PendingArticle(models.Model):
     # Images (stored as JSON array of URLs)
     images = models.JSONField(default=list, blank=True)
     featured_image = models.URLField(blank=True)
+    image_source = models.CharField(
+        max_length=20, choices=IMAGE_SOURCE_CHOICES, default='unknown',
+        help_text="Where the images came from (youtube, rss_original, pexels, uploaded)"
+    )
     
     # Structured Data for Draft Safety
     specs = models.JSONField(default=dict, blank=True, help_text="Car specifications (Make, Model, Year, etc.)")

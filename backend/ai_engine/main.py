@@ -974,6 +974,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
             suggested_category=default_category,
             images=result['image_paths'],  # JSON field
             featured_image=result['image_paths'][0] if result['image_paths'] else '',
+            image_source='youtube',
             
             # Save structured data for draft safety
             specs=result['specs'],

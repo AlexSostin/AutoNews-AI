@@ -513,6 +513,8 @@ export default async function ArticleDetailPage({
                 <ArticleContentWithImages
                   content={articleContentHtml}
                   images={articleImages}
+                  imageSource={article.image_source}
+                  authorName={article.author_name}
                 />
               </div>
 

@@ -54,6 +54,8 @@ export interface Article {
   // A/B testing
   display_title?: string;
   ab_variant_id?: number | null;
+  // Image provenance
+  image_source?: 'youtube' | 'rss_original' | 'pexels' | 'uploaded' | 'unknown';
 }
 
 export interface CarSpecification {

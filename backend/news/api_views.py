@@ -4369,6 +4369,14 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 images = [news_item.image_url] if news_item.image_url else []
                 featured_image = news_item.image_url or ''
             
+            # Determine image source
+            if image_policy == 'pexels_only':
+                img_source = 'pexels'
+            elif images:
+                img_source = 'rss_original'
+            else:
+                img_source = 'unknown'
+            
             # Create PendingArticle
             pending = PendingArticle.objects.create(
                 rss_feed=news_item.rss_feed,
@@ -4379,6 +4387,7 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 excerpt=plain_text[:500],
                 images=images,
                 featured_image=featured_image,
+                image_source=img_source,
                 suggested_category=news_item.rss_feed.default_category if news_item.rss_feed else None,
                 status='pending'
             )
@@ -4512,7 +4521,8 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 is_published=is_published,
                 youtube_url=pending.video_url,
                 author_name=author_name,
-                author_channel_url=author_channel_url
+                author_channel_url=author_channel_url,
+                image_source=pending.image_source or 'unknown',
             )
             
             # Add category (ManyToMany field)

@@ -200,7 +200,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
                   'image_3', 'image_3_url', 'price_usd', 'average_rating', 'views',
                   'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited', 
                   'is_hero', 'author_name', 'author_channel_url',
-                  'show_source', 'show_youtube', 'show_price']
+                  'show_source', 'show_youtube', 'show_price', 'image_source']
     
     def get_category_names(self, obj):
         return [cat.name for cat in obj.categories.all()]
@@ -314,7 +314,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
                   'car_specification', 'vehicle_specs', 'images', 'average_rating', 'rating_count',
                   'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero',
                   'author_name', 'author_channel_url',
-                  'show_source', 'show_youtube', 'show_price']
+                  'show_source', 'show_youtube', 'show_price', 'image_source']
         read_only_fields = ['views', 'created_at', 'updated_at']
     
     def validate_image(self, value):
@@ -669,7 +669,7 @@ class PendingArticleSerializer(serializers.ModelSerializer):
             'video_url', 'video_id', 'video_title',
             'title', 'content', 'excerpt',
             'suggested_category', 'category_name',
-            'images', 'featured_image',
+            'images', 'featured_image', 'image_source',
             'status', 'published_article',
             'reviewed_by', 'reviewed_by_name', 'reviewed_at', 'review_notes',
             'created_at', 'updated_at'
