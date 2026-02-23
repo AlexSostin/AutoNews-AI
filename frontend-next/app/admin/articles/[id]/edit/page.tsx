@@ -68,6 +68,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [photoSearchLoading, setPhotoSearchLoading] = useState(false);
   const [photoSearchQuery, setPhotoSearchQuery] = useState('');
   const [savingPhoto, setSavingPhoto] = useState<string | null>(null);
+  const [imageSource, setImageSource] = useState<string>('unknown');
 
   const aiStyles = [
     { key: 'scenic_road', label: '🏔️ Scenic Road' },
@@ -244,6 +245,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         show_youtube: article.show_youtube ?? true,
         show_price: article.show_price ?? true,
       });
+
+      setImageSource(article.image_source || 'unknown');
 
       // Handle both array and paginated response
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data.results || []);
@@ -705,7 +708,22 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
             {/* Images Section */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Images</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-3">
+                Images
+                {imageSource && imageSource !== 'unknown' && (
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${imageSource === 'pexels' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                      imageSource === 'youtube' ? 'bg-red-100 text-red-700 border border-red-200' :
+                        imageSource === 'rss_original' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                          imageSource === 'uploaded' ? 'bg-green-100 text-green-700 border border-green-200' :
+                            'bg-gray-100 text-gray-600 border border-gray-200'
+                    }`}>
+                    {imageSource === 'pexels' && '📷 Pexels Stock'}
+                    {imageSource === 'youtube' && '🎥 YouTube Thumbnail'}
+                    {imageSource === 'rss_original' && `📰 Source: ${formData.author_name || 'Press Release'}`}
+                    {imageSource === 'uploaded' && '📤 Manual Upload'}
+                  </span>
+                )}
+              </h3>
               <p className="text-sm text-gray-600 mb-3">Replace images or keep existing ones from AI generation</p>
 
               {/* AI Image Generation Mode */}

@@ -300,15 +300,6 @@ function InlineImage({ src, alt, imageSource, authorName }: { src: string; alt: 
             </>
           )}
         </div>
-        {!imgError && imageSource && imageSource !== 'unknown' && imageSource !== 'uploaded' && (
-          <div className="px-4 py-2 bg-black/20 backdrop-blur-sm">
-            <p className="text-xs text-gray-300 text-center">
-              {imageSource === 'pexels' && '📷 Photo via Pexels'}
-              {imageSource === 'youtube' && '🎥 YouTube Thumbnail'}
-              {imageSource === 'rss_original' && `📰 Source: ${authorName || 'Press Release'}`}
-            </p>
-          </div>
-        )}
       </button>
 
       {/* Lightbox with zoom */}

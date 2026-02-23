@@ -143,6 +143,15 @@
       "total_time": 64.5,
       "spec_fields_filled": 5,
       "timestamp": "2026-02-23T12:06:18.522732"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 69.5,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-23T14:18:27.569370"
     }
   ]
 }
