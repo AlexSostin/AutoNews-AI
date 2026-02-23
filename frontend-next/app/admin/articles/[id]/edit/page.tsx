@@ -69,6 +69,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [photoSearchQuery, setPhotoSearchQuery] = useState('');
   const [savingPhoto, setSavingPhoto] = useState<string | null>(null);
   const [imageSource, setImageSource] = useState<string>('unknown');
+  const [addingTagGroup, setAddingTagGroup] = useState<string | null>(null);
+  const [newTagName, setNewTagName] = useState('');
 
   const aiStyles = [
     { key: 'scenic_road', label: '🏔️ Scenic Road' },
@@ -1256,8 +1258,93 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                                 </span>
                               )}
                             </span>
-                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAddingTagGroup(addingTagGroup === groupName ? null : groupName);
+                                  setNewTagName('');
+                                }}
+                                className="p-1 rounded-lg hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 transition-colors"
+                                title={`Add new tag to ${groupName}`}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
+                            </div>
                           </button>
+
+                          {/* Inline new tag input */}
+                          {addingTagGroup === groupName && (
+                            <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={newTagName}
+                                onChange={(e) => setNewTagName(e.target.value)}
+                                onKeyDown={async (e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const name = newTagName.trim();
+                                    if (!name) return;
+                                    // Find the group FK id from any tag in this group
+                                    const sampleTag = groupTags[0];
+                                    try {
+                                      const payload: any = { name };
+                                      // Get group id from API by looking at existing tag data
+                                      const existingFull = await api.get(`/tags/${sampleTag.id}/`);
+                                      if (existingFull.data.group) payload.group = existingFull.data.group;
+                                      const res = await api.post('/tags/', payload);
+                                      const created = res.data;
+                                      setTags(prev => [...prev, created]);
+                                      setFormData(prev => ({ ...prev, tags: [...prev.tags, created.id] }));
+                                      setNewTagName('');
+                                      setAddingTagGroup(null);
+                                    } catch (err: any) {
+                                      alert(`Failed: ${err.response?.data?.name?.[0] || err.message}`);
+                                    }
+                                  } else if (e.key === 'Escape') {
+                                    setAddingTagGroup(null);
+                                    setNewTagName('');
+                                  }
+                                }}
+                                placeholder={`New ${groupName.replace(/s$/, '').toLowerCase()} name...`}
+                                autoFocus
+                                className="flex-1 px-3 py-1.5 text-sm border border-emerald-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none text-gray-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const name = newTagName.trim();
+                                  if (!name) return;
+                                  const sampleTag = groupTags[0];
+                                  try {
+                                    const payload: any = { name };
+                                    const existingFull = await api.get(`/tags/${sampleTag.id}/`);
+                                    if (existingFull.data.group) payload.group = existingFull.data.group;
+                                    const res = await api.post('/tags/', payload);
+                                    const created = res.data;
+                                    setTags(prev => [...prev, created]);
+                                    setFormData(prev => ({ ...prev, tags: [...prev.tags, created.id] }));
+                                    setNewTagName('');
+                                    setAddingTagGroup(null);
+                                  } catch (err: any) {
+                                    alert(`Failed: ${err.response?.data?.name?.[0] || err.message}`);
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors"
+                              >
+                                Add
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setAddingTagGroup(null); setNewTagName(''); }}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
 
                           {!isCollapsed && (
                             <div className="px-4 pb-4">
