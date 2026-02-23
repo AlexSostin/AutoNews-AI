@@ -96,6 +96,10 @@ class BotProtectionMiddleware:
         if any(path.startswith(excluded) for excluded in EXCLUDED_PATHS):
             return self.get_response(request)
         
+        # Never block authenticated users (admin/staff making API calls via Axios etc.)
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            return self.get_response(request)
+        
         user_agent = request.META.get('HTTP_USER_AGENT', '')
         
         # Block empty User-Agent (no real browser sends empty UA)
