@@ -76,13 +76,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # CORS - MUST be first!
-    'news.bot_protection.BotProtectionMiddleware',  # Block bots/scrapers from API
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'news.bot_protection.BotProtectionMiddleware',  # Block bots — AFTER auth so we can skip authenticated users
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'news.middleware.MaintenanceModeMiddleware',  # Maintenance mode
