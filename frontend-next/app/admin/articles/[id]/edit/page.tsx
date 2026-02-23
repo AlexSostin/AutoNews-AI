@@ -16,6 +16,7 @@ interface Tag {
   id: number;
   name: string;
   slug: string;
+  group?: number;
   group_name?: string;
 }
 
@@ -1286,13 +1287,10 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                                     e.preventDefault();
                                     const name = newTagName.trim();
                                     if (!name) return;
-                                    // Find the group FK id from any tag in this group
-                                    const sampleTag = groupTags[0];
                                     try {
                                       const payload: any = { name };
-                                      // Get group id from API by looking at existing tag data
-                                      const existingFull = await api.get(`/tags/${sampleTag.id}/`);
-                                      if (existingFull.data.group) payload.group = existingFull.data.group;
+                                      const groupId = groupTags[0]?.group;
+                                      if (groupId) payload.group = groupId;
                                       const res = await api.post('/tags/', payload);
                                       const created = res.data;
                                       setTags(prev => [...prev, created]);
@@ -1300,7 +1298,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                                       setNewTagName('');
                                       setAddingTagGroup(null);
                                     } catch (err: any) {
-                                      alert(`Failed: ${err.response?.data?.name?.[0] || err.message}`);
+                                      alert(`Failed: ${err.response?.data?.name?.[0] || err.response?.data?.detail || err.message}`);
                                     }
                                   } else if (e.key === 'Escape') {
                                     setAddingTagGroup(null);
@@ -1316,11 +1314,10 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                                 onClick={async () => {
                                   const name = newTagName.trim();
                                   if (!name) return;
-                                  const sampleTag = groupTags[0];
                                   try {
                                     const payload: any = { name };
-                                    const existingFull = await api.get(`/tags/${sampleTag.id}/`);
-                                    if (existingFull.data.group) payload.group = existingFull.data.group;
+                                    const groupId = groupTags[0]?.group;
+                                    if (groupId) payload.group = groupId;
                                     const res = await api.post('/tags/', payload);
                                     const created = res.data;
                                     setTags(prev => [...prev, created]);
@@ -1328,7 +1325,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                                     setNewTagName('');
                                     setAddingTagGroup(null);
                                   } catch (err: any) {
-                                    alert(`Failed: ${err.response?.data?.name?.[0] || err.message}`);
+                                    alert(`Failed: ${err.response?.data?.name?.[0] || err.response?.data?.detail || err.message}`);
                                   }
                                 }}
                                 className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors"
