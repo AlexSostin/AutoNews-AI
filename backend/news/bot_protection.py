@@ -97,7 +97,7 @@ class BotProtectionMiddleware:
             return self.get_response(request)
         
         # Never block authenticated users (admin/staff making API calls via Axios etc.)
-        if hasattr(request, 'user') and request.user.is_authenticated:
+        if hasattr(request, 'user') and getattr(request.user, 'is_authenticated', False) is True:
             return self.get_response(request)
         
         user_agent = request.META.get('HTTP_USER_AGENT', '')
