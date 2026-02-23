@@ -841,12 +841,23 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => { setFormData({ ...formData, image: e.target.files?.[0] || null, delete_image: false }); setImageSource('uploaded'); }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setFormData({ ...formData, image: file, delete_image: false });
+                        setImageSource('uploaded');
+                      }}
                       className="hidden"
                     />
                   </label>
                   {formData.image && (
-                    <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image.name}</p>
+                    <div className="mt-2 relative h-32 rounded-lg overflow-hidden border-2 border-green-300 bg-gray-100">
+                      <img
+                        src={URL.createObjectURL(formData.image)}
+                        alt="Upload preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">📤 New Upload</span>
+                    </div>
                   )}
                   <div className="flex gap-1.5 mt-1">
                     <button
@@ -915,7 +926,14 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     />
                   </label>
                   {formData.image_2 && (
-                    <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image_2.name}</p>
+                    <div className="mt-2 relative h-32 rounded-lg overflow-hidden border-2 border-green-300 bg-gray-100">
+                      <img
+                        src={URL.createObjectURL(formData.image_2)}
+                        alt="Upload preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">📤 New Upload</span>
+                    </div>
                   )}
                   <div className="flex gap-1.5 mt-1">
                     <button
@@ -984,7 +1002,14 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     />
                   </label>
                   {formData.image_3 && (
-                    <p className="text-xs text-green-600 mt-1">✓ Will replace with: {formData.image_3.name}</p>
+                    <div className="mt-2 relative h-32 rounded-lg overflow-hidden border-2 border-green-300 bg-gray-100">
+                      <img
+                        src={URL.createObjectURL(formData.image_3)}
+                        alt="Upload preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">📤 New Upload</span>
+                    </div>
                   )}
                   <div className="flex gap-1.5 mt-1">
                     <button
