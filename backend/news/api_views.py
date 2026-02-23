@@ -1585,25 +1585,31 @@ Return ONLY the reformatted HTML — no markdown, no code fences, no explanation
         format_prompt = f"""Reformat this article HTML content following these strict rules:
 
 STRUCTURE RULES:
-- Use <h2> for main section headings (max 5-7 words per heading)
+- Use <h2> for main section headings (max 5-7 words per heading, descriptive and SEO-friendly)
 - Use <h3> for subsections if needed  
 - Use <p> for paragraphs — keep them SHORT (2-4 sentences max)
-- Use <ul><li> bullet lists for specifications, features, pricing
-- Use <strong> for key numbers, model names, and important terms
-- Wrap key statistics in <strong> tags (e.g. <strong>422 HP</strong>, <strong>650 km</strong>)
+- Use <ul><li> bullet lists for specifications, features, pros/cons
+- Every <h2> or <h3> MUST have content after it — if a section is empty, REMOVE the heading entirely
+- End the article with a proper concluding paragraph (don't leave articles hanging mid-sentence)
+
+BOLD (<strong>) RULES — BE CONSERVATIVE:
+- ONLY use <strong> for: car brand names (BMW, Tesla, etc.), specific model names (Model Y, M5, etc.), and key numerical specs (422 HP, 650 km range, $45,000)
+- Do NOT bold: years (2026), publication names (Sunday Times), generic terms (plug-in hybrid, EV, SUV), CEO names, or adjectives
+- Maximum 3-5 bold items per paragraph — if everything is bold, nothing stands out
+- When a brand+model appears together, bold the whole thing: <strong>BMW M5</strong>, not <strong>BMW</strong> <strong>M5</strong>
 
 CONTENT RULES:
 - Keep ALL factual information — do NOT remove real data
 - Do NOT add or invent any new information
-- Remove speculative/unconfirmed sections (e.g. "US Market Outlook", rumored pricing)
+- Remove speculative/unconfirmed sections (e.g. "US Market Outlook", rumored pricing without source)
 - Remove generic filler paragraphs with no real information
-- Remove duplicate information — if the same fact appears twice, keep it once
+- Remove duplicate information — if the same fact appears twice, keep once
 - Keep the article language as-is (don't translate)
 
-FORMATTING RULES:
-- No inline styles, no CSS classes
-- No <div> wrappers — use semantic tags only
-- No empty tags or extra whitespace
+CLEANUP RULES:
+- No inline styles, no CSS classes, no <div> wrappers
+- No empty tags (<p></p>, <h2></h2>) or whitespace-only elements
+- No empty sections (heading followed immediately by another heading with nothing between)
 - Images (<img>) should be preserved as-is
 - Ensure proper nesting of all HTML tags
 
@@ -1627,6 +1633,15 @@ Return ONLY the reformatted HTML."""
             cleaned = result.strip()
             cleaned = re.sub(r'^```(?:html)?\s*', '', cleaned)
             cleaned = re.sub(r'\s*```$', '', cleaned)
+            cleaned = cleaned.strip()
+            
+            # Post-processing: remove empty sections (heading with no content after it)
+            # Remove <h2>...</h2> or <h3>...</h3> followed immediately by another heading or end of content
+            cleaned = re.sub(r'<h([23])>[^<]*</h\1>\s*(?=<h[23]>|$)', '', cleaned)
+            # Remove empty paragraphs
+            cleaned = re.sub(r'<p>\s*</p>', '', cleaned)
+            # Clean up excessive whitespace
+            cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
             cleaned = cleaned.strip()
 
             if not cleaned or len(cleaned) < 50:

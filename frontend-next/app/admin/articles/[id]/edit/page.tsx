@@ -95,7 +95,10 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       });
       if (response.data.success) {
         const url = response.data.image_url;
-        if (slot === 1) setFormData(prev => ({ ...prev, current_image: url, delete_image: false, image: null }));
+        if (slot === 1) {
+          setFormData(prev => ({ ...prev, current_image: url, delete_image: false, image: null }));
+          setImageSource('ai_generated');
+        }
         if (slot === 2) setFormData(prev => ({ ...prev, current_image_2: url, delete_image_2: false, image_2: null }));
         if (slot === 3) setFormData(prev => ({ ...prev, current_image_3: url, delete_image_3: false, image_3: null }));
         alert('✅ AI image generated and saved!');
@@ -150,7 +153,10 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       });
       if (response.data.success) {
         const url = response.data.image_url;
-        if (photoSearchSlot === 1) setFormData(prev => ({ ...prev, current_image: url, delete_image: false, image: null }));
+        if (photoSearchSlot === 1) {
+          setFormData(prev => ({ ...prev, current_image: url, delete_image: false, image: null }));
+          setImageSource('pexels');
+        }
         if (photoSearchSlot === 2) setFormData(prev => ({ ...prev, current_image_2: url, delete_image_2: false, image_2: null }));
         if (photoSearchSlot === 3) setFormData(prev => ({ ...prev, current_image_3: url, delete_image_3: false, image_3: null }));
         setPhotoSearchOpen(false);
@@ -357,6 +363,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         formDataToSend.append('show_source', formData.show_source.toString());
         formDataToSend.append('show_youtube', formData.show_youtube.toString());
         formDataToSend.append('show_price', formData.show_price.toString());
+        formDataToSend.append('image_source', imageSource);
 
         if (formData.image) {
           formDataToSend.append('image', formData.image);
@@ -394,6 +401,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           show_source: formData.show_source,
           show_youtube: formData.show_youtube,
           show_price: formData.show_price,
+          image_source: imageSource,
         };
         if (slugEditable) payload.slug = formData.slug;
 
@@ -718,12 +726,14 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     imageSource === 'youtube' ? 'bg-red-100 text-red-700 border border-red-200' :
                       imageSource === 'rss_original' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
                         imageSource === 'uploaded' ? 'bg-green-100 text-green-700 border border-green-200' :
-                          'bg-gray-100 text-gray-600 border border-gray-200'
+                          imageSource === 'ai_generated' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                            'bg-gray-100 text-gray-600 border border-gray-200'
                     }`}>
                     {imageSource === 'pexels' && '📷 Pexels Stock'}
                     {imageSource === 'youtube' && '🎥 YouTube Thumbnail'}
                     {imageSource === 'rss_original' && `📰 Source: ${formData.author_name || 'Press Release'}`}
                     {imageSource === 'uploaded' && '📤 Manual Upload'}
+                    {imageSource === 'ai_generated' && '🤖 AI Generated'}
                   </span>
                 )}
               </h3>
@@ -831,7 +841,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null, delete_image: false })}
+                      onChange={(e) => { setFormData({ ...formData, image: e.target.files?.[0] || null, delete_image: false }); setImageSource('uploaded'); }}
                       className="hidden"
                     />
                   </label>
