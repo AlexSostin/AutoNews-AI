@@ -4,6 +4,13 @@ import { withSentryConfig } from "@sentry/nextjs";
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactCompiler: true,
+  // Minimize stale content — visitors always get fresh pages
+  experimental: {
+    staleTimes: {
+      dynamic: 0,   // Dynamic pages: never serve stale on client nav
+      static: 60,   // Static pages: max 60s stale (was 300s default)
+    },
+  },
   images: {
     remotePatterns: [
       {
