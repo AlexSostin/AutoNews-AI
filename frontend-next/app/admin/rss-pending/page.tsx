@@ -14,6 +14,7 @@ import {
     Filter,
 } from 'lucide-react';
 import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 interface RSSFeed {
     id: number;
@@ -126,13 +127,31 @@ export default function RSSNewsPage() {
                 provider: 'gemini',
             });
             if (response.data.success) {
-                alert(`✅ Article generated: ${response.data.message}`);
+                const title = response.data.message || 'Article generated';
+                const pendingId = response.data.pending_article_id;
+                toast.success(
+                    (t) => (
+                        <div>
+                            <p className="font-semibold">✅ {title}</p>
+                            {pendingId && (
+                                <a
+                                    href="/admin/pending-articles"
+                                    className="inline-block mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium underline"
+                                    onClick={() => toast.dismiss(t.id)}
+                                >
+                                    View in Pending Articles →
+                                </a>
+                            )}
+                        </div>
+                    ),
+                    { duration: 8000 }
+                );
                 fetchNewsItems();
             }
         } catch (error: any) {
             console.error('Error generating article:', error);
             const errorMsg = error.response?.data?.error || error.message;
-            alert(`❌ Generation failed:\n\n${errorMsg}`);
+            toast.error(`Generation failed: ${errorMsg}`, { duration: 6000 });
             fetchNewsItems();
         } finally {
             setGeneratingId(null);
