@@ -83,9 +83,22 @@ export default async function RootLayout({
   const gaId = await getGAId();
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="midnight-green" suppressHydrationWarning>
       <head>
         <link rel="alternate" type="application/rss+xml" title="Fresh Motors RSS Feed" href="/feed.xml" />
+        {/* Blocking theme script — restores user theme from localStorage BEFORE paint to avoid FOUC */}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+          (function(){
+            try {
+              var t = localStorage.getItem('user-theme-choice');
+              if (t !== null) {
+                if (t) { document.documentElement.setAttribute('data-theme', t); }
+                else { document.documentElement.removeAttribute('data-theme'); }
+              }
+            } catch(e){}
+          })();
+        `}} />
         {gaId && (
           <>
             <Script
