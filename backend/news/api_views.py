@@ -704,6 +704,40 @@ class ArticleViewSet(viewsets.ModelViewSet):
         logger.info(f"Article deleted and all cache cleared: id={article_id}, slug={slug}")
         return Response(status=status.HTTP_204_NO_CONTENT)
     
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+            url_path='toggle-publish')
+    def toggle_publish(self, request, slug=None):
+        """
+        Lightning-fast publish/draft toggle — no serializer overhead.
+        POST /api/v1/articles/{slug}/toggle-publish/
+        Returns: { is_published: true/false }
+        """
+        article = self.get_object()
+        new_status = not article.is_published
+        
+        # Direct DB update — 1 SQL query, no serializer
+        Article.objects.filter(pk=article.pk).update(is_published=new_status)
+        
+        # Lightweight cache invalidation
+        try:
+            invalidate_article_cache(article_id=article.id, slug=article.slug)
+        except Exception:
+            pass
+        
+        # Log the action
+        try:
+            from news.models import AdminActionLog
+            action_type = 'publish' if new_status else 'unpublish'
+            AdminActionLog.log(article, request.user, action_type)
+        except Exception:
+            pass
+        
+        return Response({
+            'success': True,
+            'is_published': new_status,
+            'message': 'Published' if new_status else 'Moved to drafts',
+        })
+    
     def update(self, request, *args, **kwargs):
         """Handle article update with special handling for FormData (multipart)"""
         import json

@@ -146,18 +146,18 @@ export default function ArticlesPage() {
   };
 
   const handleTogglePublish = async (id: number, currentStatus: boolean) => {
-    try {
-      console.log('🔄 Toggle publish status:', { id, currentStatus, newStatus: !currentStatus });
+    const article = articles.find(a => a.id === id);
+    if (!article) return;
 
+    try {
       // Optimistic update
-      setArticles(articles.map(a =>
+      setArticles(prev => prev.map(a =>
         a.id === id ? { ...a, is_published: !currentStatus } : a
       ));
 
-      const response = await api.patch(`/articles/${id}/`, { is_published: !currentStatus });
-      console.log('✅ Update successful:', response.data);
+      await api.post(`/articles/${article.slug}/toggle-publish/`);
 
-      // Show success toast with publish status
+      // Show success toast
       const newStatus = !currentStatus;
       setSuccessMessage(
         newStatus
@@ -166,11 +166,10 @@ export default function ArticlesPage() {
       );
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (error: any) {
-      console.error('❌ Failed to update published status:', error);
-      console.error('Error details:', error.response?.data || error.message);
+      console.error('❌ Failed to toggle publish:', error);
       alert('Failed to update status: ' + (error.response?.data?.detail || error.message));
       // Revert on error
-      setArticles(articles.map(a =>
+      setArticles(prev => prev.map(a =>
         a.id === id ? { ...a, is_published: currentStatus } : a
       ));
     }
