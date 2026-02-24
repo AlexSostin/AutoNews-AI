@@ -91,7 +91,12 @@ export const isAuthenticated = (): boolean => {
   if (cookieToken) {
     const token = cookieToken.split('=')[1];
     if (token && !_isTokenExpired(token)) return true;
-    // Token expired — clean up stale data
+
+    // Token is expired. Check if we have a refresh token before clearing!
+    const hasRefreshToken = document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token');
+    if (hasRefreshToken) return true; // Let api.ts interceptor handle the refresh
+
+    // Only clean up if BOTH are missing/expired
     _clearAuthData();
     return false;
   }
@@ -100,7 +105,11 @@ export const isAuthenticated = (): boolean => {
   const tokenFromStorage = localStorage.getItem('access_token');
   if (tokenFromStorage) {
     if (_isTokenExpired(tokenFromStorage)) {
-      // Token expired — clean up stale data
+      // Check if we have a refresh token before clearing
+      const hasRefreshToken = document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token');
+      if (hasRefreshToken) return true; // Let api.ts interceptor handle the refresh
+
+      // Token expired and no refresh token — clean up stale data
       _clearAuthData();
       return false;
     }
@@ -133,15 +142,29 @@ export const getAccessToken = (): string | null => {
     .split('; ')
     .find(row => row.startsWith('access_token='));
 
-  if (token) return token.split('=')[1];
+  if (token) {
+    const access = token.split('=')[1];
+    // If we have an access token, check if it's valid.
+    // Even if it's expired, if we have a refresh token, return it so the api interceptor can catch the 401 and refresh it.
+    if (!_isTokenExpired(access) || document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token')) {
+      return access;
+    }
+  }
 
   // Fallback to localStorage - if found, restore the cookie!
   const tokenFromStorage = localStorage.getItem('access_token');
   if (tokenFromStorage) {
-    // Restore the cookie for middleware
-    setCookie('access_token', tokenFromStorage);
+    if (!_isTokenExpired(tokenFromStorage) || document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token')) {
+      // Restore the cookie for middleware
+      setCookie('access_token', tokenFromStorage);
+      const refreshFromStorage = localStorage.getItem('refresh_token');
+      if (refreshFromStorage) {
+        setCookie('refresh_token', refreshFromStorage);
+      }
+      return tokenFromStorage;
+    }
   }
-  return tokenFromStorage;
+  return null;
 };
 
 // Alias for convenience
