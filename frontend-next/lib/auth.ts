@@ -1,4 +1,5 @@
-import api from './api';
+import api, { getApiUrl } from './api';
+import { authenticatedFetch } from './authenticatedFetch';
 import { AuthTokens, LoginCredentials, User } from '@/types';
 import { setUserContext, clearUserContext } from './errorTracking';
 
@@ -16,8 +17,8 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
   // Store tokens in cookies (needed for middleware)
   // Access token cookie lives 7 days (cookie presence allows middleware to pass)
   // The actual token validation happens on the backend
-  setCookie('access_token', access);
-  setCookie('refresh_token', refresh);
+  setCookie('access_token', access); // 7 days (default)
+  setCookie('refresh_token', refresh, 30 * 24 * 60 * 60); // 30 days
 
   // Also store in localStorage for client-side access
   localStorage.setItem('access_token', access);
@@ -66,12 +67,15 @@ export const logout = () => {
   window.location.href = '/login';
 };
 
-// Check if a JWT token is expired by reading its payload
 const _isTokenExpired = (token: string): boolean => {
   try {
     const payload = token.split('.')[1];
     if (!payload) return true;
-    const decoded = JSON.parse(atob(payload));
+
+    // JWT uses Base64Url, which atob doesn't directly support (needs + and / instead of - and _)
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(base64));
+
     if (!decoded.exp) return false; // No expiry = treat as valid
     // exp is in seconds, Date.now() is in ms. Add 30s buffer.
     return decoded.exp * 1000 < Date.now() + 30000;
@@ -175,21 +179,10 @@ export const getCurrentUser = async (token?: string): Promise<User | null> => {
     const accessToken = token || getAccessToken();
     if (!accessToken) return null;
 
-    // Runtime API URL detection
-    const getApiUrl = () => {
-      if (typeof window !== 'undefined') {
-        const host = window.location.hostname;
-        if (host !== 'localhost' && host !== '127.0.0.1') {
-          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-        }
-      }
-      return 'http://localhost:8000/api/v1';
-    };
-
-    const response = await fetch(`${getApiUrl()}/users/me/`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
+    // Use authenticatedFetch instead of raw fetch to ensure token refresh works
+    // if this is ever called outside of the immediate login flow
+    const response = await authenticatedFetch('/users/me/', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
     });
 
     if (!response.ok) return null;
