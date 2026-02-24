@@ -14,4 +14,4 @@ echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
 
 echo "=== Starting Daphne server ==="
-daphne -b 0.0.0.0 -p ${PORT:-8000} auto_news_site.asgi:application
+daphne -b 0.0.0.0 -p ${PORT:-8000} auto_news_site.asgi:application --access-log -
