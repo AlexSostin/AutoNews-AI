@@ -149,16 +149,34 @@ export function useLocaleUnits(): LocaleUnits {
             if (!savedCurrency) localStorage.setItem(STORAGE_KEY_CURRENCY, detected.currency);
         }
         setReady(true);
+
+        // Listen for changes from other components or tabs
+        const handleStorageChange = () => {
+            const newSystem = localStorage.getItem(STORAGE_KEY_SYSTEM) as UnitSystem | null;
+            const newCurrency = localStorage.getItem(STORAGE_KEY_CURRENCY) as CurrencyCode | null;
+            if (newSystem) setSystemState(newSystem);
+            if (newCurrency) setCurrencyState(newCurrency);
+        };
+
+        window.addEventListener('localeUnitsChanged', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('localeUnitsChanged', handleStorageChange);
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
     const setSystem = useCallback((s: UnitSystem) => {
         setSystemState(s);
         localStorage.setItem(STORAGE_KEY_SYSTEM, s);
+        window.dispatchEvent(new Event('localeUnitsChanged'));
     }, []);
 
     const setCurrency = useCallback((c: CurrencyCode) => {
         setCurrencyState(c);
         localStorage.setItem(STORAGE_KEY_CURRENCY, c);
+        window.dispatchEvent(new Event('localeUnitsChanged'));
     }, []);
 
     const formatDistance = useCallback((km: number | null): string => {
