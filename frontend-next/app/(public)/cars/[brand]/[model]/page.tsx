@@ -287,52 +287,62 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                         )}
 
                         {/* Trims Table — always show, even for 1 trim */}
-                        {data.trims.length > 0 && (
-                            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                                <div className="px-6 py-4 bg-gradient-to-r from-slate-700 to-slate-800">
-                                    <h2 className="text-xl font-bold text-white">
-                                        {data.trims.length > 1 ? '⚙️ Available Trims' : '⚙️ Trim Details'}
-                                    </h2>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-gray-50 border-b border-gray-200">
-                                            <tr>
-                                                {data.trims.length > 1 && (
-                                                    <th className="text-left px-6 py-3 font-semibold text-gray-600">Trim</th>
-                                                )}
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-600">Engine</th>
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-600">Power</th>
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-600">Torque</th>
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-600">Price</th>
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-600">Article</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {data.trims.map((trim, i) => (
-                                                <tr key={i} className="border-b border-gray-100 hover:bg-indigo-50/30 transition-colors">
-                                                    {data.trims.length > 1 && (
-                                                        <td className="px-6 py-3 font-bold text-gray-900">{trim.trim}</td>
+                        {data.trims.length > 0 && (() => {
+                            // Check if any trim has a meaningful name
+                            const hasMeaningfulTrims = data.trims.some(t =>
+                                t.trim && t.trim !== 'None' && t.trim !== 'Standard' && t.trim !== 'Base'
+                            );
+                            const showTrimColumn = hasMeaningfulTrims && data.trims.length > 1;
+
+                            return (
+                                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                                    <div className="px-6 py-4 bg-gradient-to-r from-slate-700 to-slate-800">
+                                        <h2 className="text-xl font-bold text-white">
+                                            {data.trims.length > 1 ? '⚙️ Available Trims' : '⚙️ Trim Details'}
+                                        </h2>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-gray-50 border-b border-gray-200">
+                                                <tr>
+                                                    {showTrimColumn && (
+                                                        <th className="text-left px-6 py-3 font-semibold text-gray-600">Trim</th>
                                                     )}
-                                                    <td className="px-4 py-3 text-gray-600">{trim.engine || '—'}</td>
-                                                    <td className="px-4 py-3 text-gray-600">{trim.horsepower || '—'}</td>
-                                                    <td className="px-4 py-3 text-gray-600">{trim.torque || '—'}</td>
-                                                    <td className="px-4 py-3 font-semibold text-indigo-700">{trim.price || '—'}</td>
-                                                    <td className="px-4 py-3">
-                                                        <Link
-                                                            href={`/articles/${trim.article_slug}`}
-                                                            className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
-                                                        >
-                                                            Read →
-                                                        </Link>
-                                                    </td>
+                                                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Engine</th>
+                                                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Power</th>
+                                                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Torque</th>
+                                                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Price</th>
+                                                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Article</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                {data.trims.map((trim, i) => (
+                                                    <tr key={i} className="border-b border-gray-100 hover:bg-indigo-50/30 transition-colors">
+                                                        {showTrimColumn && (
+                                                            <td className="px-6 py-3 font-bold text-gray-900">
+                                                                {(!trim.trim || trim.trim === 'None') ? 'Base' : trim.trim}
+                                                            </td>
+                                                        )}
+                                                        <td className="px-4 py-3 text-gray-600">{trim.engine || '—'}</td>
+                                                        <td className="px-4 py-3 text-gray-600">{trim.horsepower || '—'}</td>
+                                                        <td className="px-4 py-3 text-gray-600">{trim.torque || '—'}</td>
+                                                        <td className="px-4 py-3 font-semibold text-indigo-700">{trim.price || '—'}</td>
+                                                        <td className="px-4 py-3">
+                                                            <Link
+                                                                href={`/articles/${trim.article_slug}`}
+                                                                className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
+                                                            >
+                                                                Read →
+                                                            </Link>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         {/* Gallery — featured + grid layout */}
                         {galleryImages.length > 1 && (

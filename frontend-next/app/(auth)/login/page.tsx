@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import '../register/register-password.css';
@@ -18,6 +18,14 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already logged in (replaces deprecated middleware check)
+  useEffect(() => {
+    const token = document.cookie.split(';').find(c => c.trim().startsWith('access_token='));
+    if (token) {
+      router.replace('/');
+    }
+  }, [router]);
 
   // Check for registration success message
   useState(() => {

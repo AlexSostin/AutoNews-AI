@@ -250,8 +250,8 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
         if (!hasAnyPrice) return null;
 
         return (
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+                <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600 rounded-t-2xl">
                     <h2 className="text-xl font-bold text-white">💰 Pricing</h2>
                     <p className="text-white/70 text-sm mt-1">
                         Convert to your local currency

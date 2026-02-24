@@ -102,7 +102,7 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
       <div className="relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+          className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors text-sm font-bold text-gray-800"
         >
           <span>{selectedCurrency}</span>
           <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -110,7 +110,7 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
 
         {/* Dropdown */}
         {isOpen && (
-          <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 min-w-[160px] overflow-hidden">
+          <div className="absolute bottom-full right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 min-w-[160px] overflow-hidden">
             {currencies.map((currency) => {
               const convertedForPreview = rates
                 ? priceUsd * (rates[currency.code as keyof CurrencyRates] as number || 1)
