@@ -591,7 +591,7 @@ class TestGenerateTitleVariants:
         assert variants.count() >= 2
 
     @pytest.mark.slow
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('modules.ai_provider.get_ai_provider')
     def test_empty_ai_response(self, mock_provider, article):
         from ai_engine.main import generate_title_variants
         mock_ai = MagicMock()

@@ -359,13 +359,12 @@ class TestVehicleSpecsAIFill:
         mock_p = MagicMock()
         mock_p.generate_completion.side_effect = ValueError('API Offline')
         mock_provider.return_value = mock_p
-        try:
-            resp = staff_client.post('/api/v1/vehicle-specs/ai_fill/', {
-                'text': 'NIO ET9 produces 640 horsepower',
-            }, format='json', **UA)
-            assert resp.status_code == 500
-        except ValueError:
-            pass # Django test client intercepts exception signals when logged
+        
+        resp = staff_client.post('/api/v1/vehicle-specs/ai_fill/', {
+            'text': 'NIO ET9 produces 640 horsepower',
+        }, format='json', **UA)
+        assert resp.status_code == 500
+        assert resp.data['success'] is False
 
     def test_save_specs_update(self, staff_client, article):
         vs = VehicleSpecs.objects.create(

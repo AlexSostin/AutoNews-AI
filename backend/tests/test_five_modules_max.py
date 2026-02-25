@@ -404,7 +404,7 @@ class TestEnrichSpecsFromWeb:
     def test_drivetrain_chinese(self):
         """L224-229: Chinese drivetrain terms normalized."""
         from ai_engine.modules.specs_enricher import enrich_specs_from_web
-        web = '该车采用四驱系统。 ' * 3
+        web = '该车采用四驱系统。 ' * 10
         specs = {'drivetrain': None}
         result = enrich_specs_from_web(specs, web)
         assert result.get('drivetrain') == 'AWD'

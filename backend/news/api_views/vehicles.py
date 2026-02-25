@@ -31,6 +31,7 @@ import os
 import sys
 import re
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -240,9 +241,6 @@ RULES:
                 max_tokens=8000,
             )
 
-            # Parse the JSON response
-            import json
-            import re
             # Clean up potential markdown code fences
             cleaned = result.strip()
             cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
