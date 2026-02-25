@@ -12,13 +12,13 @@ from django_ratelimit.decorators import ratelimit
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import check_password
 from django.utils import timezone
-from ..models import (
+from news.models import (
     Article, Category, Tag, TagGroup, Comment, Rating, CarSpecification, 
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, AdminNotification,
     VehicleSpecs, NewsletterSubscriber, BrandAlias, AutomationSettings
 )
-from ..serializers import (
+from news.serializers import (
     ArticleListSerializer, ArticleDetailSerializer, 
     CategorySerializer, TagSerializer, TagGroupSerializer, CommentSerializer, 
     RatingSerializer, CarSpecificationSerializer, ArticleImageSerializer,
@@ -85,8 +85,8 @@ class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        from .validators import validate_password_strength
-        from .security_utils import log_security_event, get_client_ip, get_user_agent
+        from news.validators import validate_password_strength
+        from news.security_utils import log_security_event, get_client_ip, get_user_agent
         
         user = request.user
         old_password = request.data.get('old_password', '')
@@ -127,8 +127,8 @@ class EmailPreferencesView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        from .models import EmailPreferences
-        from .serializers import EmailPreferencesSerializer
+        from news.models import EmailPreferences
+        from news.serializers import EmailPreferencesSerializer
         
         # Get or create preferences for user
         prefs, created = EmailPreferences.objects.get_or_create(user=request.user)
@@ -136,8 +136,8 @@ class EmailPreferencesView(APIView):
         return Response(serializer.data)
     
     def patch(self, request):
-        from .models import EmailPreferences
-        from .serializers import EmailPreferencesSerializer
+        from news.models import EmailPreferences
+        from news.serializers import EmailPreferencesSerializer
         
         prefs, created = EmailPreferences.objects.get_or_create(user=request.user)
         serializer = EmailPreferencesSerializer(prefs, data=request.data, partial=True)
@@ -152,8 +152,8 @@ class RequestEmailChangeView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        from .models import EmailVerification
-        from .security_utils import get_client_ip
+        from news.models import EmailVerification
+        from news.security_utils import get_client_ip
         from django.utils import timezone
         from datetime import timedelta
         import random
@@ -198,8 +198,8 @@ class VerifyEmailChangeView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        from .models import EmailVerification
-        from .security_utils import log_security_event, get_client_ip, get_user_agent
+        from news.models import EmailVerification
+        from news.security_utils import log_security_event, get_client_ip, get_user_agent
         
         code = request.data.get('code', '').strip()
         
@@ -251,8 +251,8 @@ class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
-        from .models import PasswordResetToken
-        from .security_utils import get_client_ip
+        from news.models import PasswordResetToken
+        from news.security_utils import get_client_ip
         from django.utils import timezone
         from datetime import timedelta
         import uuid
@@ -294,9 +294,9 @@ class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
-        from .models import PasswordResetToken
-        from .validators import validate_password_strength
-        from .security_utils import log_security_event, get_client_ip, get_user_agent
+        from news.models import PasswordResetToken
+        from news.validators import validate_password_strength
+        from news.security_utils import log_security_event, get_client_ip, get_user_agent
         
         token = request.data.get('token', '').strip()
         new_password = request.data.get('new_password', '')
@@ -1058,10 +1058,10 @@ class NewsletterSubscribeView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
-        from .models import NewsletterSubscriber
+        from news.models import NewsletterSubscriber
         from django.core.validators import validate_email
         from django.core.exceptions import ValidationError
-        from .email_service import email_service
+        from news.email_service import email_service
         
         email = request.data.get('email', '').strip().lower()
         

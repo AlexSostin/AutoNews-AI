@@ -503,6 +503,7 @@ class ArticleTitleVariant(models.Model):
             cls.objects.filter(article_id=article_id).update(is_active=False)
             
             # Apply winning title to the article
+            from .content import Article
             article = Article.objects.get(id=article_id)
             article.title = best.title
             article.save(update_fields=['title'])

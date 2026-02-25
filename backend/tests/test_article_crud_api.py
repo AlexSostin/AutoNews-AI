@@ -271,19 +271,19 @@ class TestExtractSpecs:
 
 class TestInvalidateArticleCache:
 
-    @patch('news.api_views.cache')
+    @patch('news.api_views.articles.cache')
     def test_invalidate_with_article_id(self, mock_cache):
         from news.api_views import invalidate_article_cache
         invalidate_article_cache(article_id=1)
         assert mock_cache.delete_many.called or mock_cache.delete.called
 
-    @patch('news.api_views.cache')
+    @patch('news.api_views.articles.cache')
     def test_invalidate_with_slug(self, mock_cache):
         from news.api_views import invalidate_article_cache
         invalidate_article_cache(slug='test-slug')
         assert mock_cache.delete_many.called or mock_cache.delete.called
 
-    @patch('news.api_views.cache')
+    @patch('news.api_views.articles.cache')
     def test_invalidate_no_args(self, mock_cache):
         from news.api_views import invalidate_article_cache
         invalidate_article_cache()

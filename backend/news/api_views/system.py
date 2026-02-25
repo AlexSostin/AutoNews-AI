@@ -27,6 +27,7 @@ from ..serializers import (
     AdminNotificationSerializer, VehicleSpecsSerializer, BrandAliasSerializer,
     AutomationSettingsSerializer
 )
+import requests as http_requests
 import os
 import sys
 import re

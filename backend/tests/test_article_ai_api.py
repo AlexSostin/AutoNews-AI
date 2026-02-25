@@ -190,6 +190,73 @@ class TestGenerateAIImageView:
         assert resp.status_code == 400
         assert 'reference image' in resp.data['error'].lower()
 
+    @patch('ai_engine.modules.image_generator.generate_car_image')
+    @patch('django.db.models.fields.files.FieldFile.save')
+    def test_post_success_slot_1(self, mock_save, mock_generate, staff_client, article):
+        import base64
+        # Just mock the field assigning
+        article.image = 'test_image.jpg'
+        article.save()
+
+        mock_generate.return_value = {
+            'success': True,
+            'image_data': base64.b64encode(b"generated_fake_bytes").decode('utf-8'),
+            'mime_type': 'image/jpeg'
+        }
+        resp = staff_client.post(
+            f'{API}/articles/{article.pk}/generate-ai-image/',
+            {'style': 'urban', 'image_slot': 1},
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert resp.data['success'] is True
+        assert resp.data['image_slot'] == 1
+        assert resp.data['style'] == 'urban'
+
+    @patch('ai_engine.modules.image_generator.generate_car_image')
+    @patch('django.db.models.fields.files.FieldFile.save')
+    def test_post_success_slot_2_with_car_specs(self, mock_save, mock_generate, staff_client, article):
+        import base64
+        from news.models import CarSpecification
+        
+        article.image = 'test_image.jpg'
+        
+        # Test the spec extraction branch
+        spec = CarSpecification.objects.create(article=article, make="TestMake", model="TestModel")
+        article.car_specification = spec
+        article.save()
+
+        mock_generate.return_value = {
+            'success': True,
+            'image_data': base64.b64encode(b"generated_fake_bytes").decode('utf-8'),
+            'mime_type': 'image/png' # test png ext rule
+        }
+        resp = staff_client.post(
+            f'{API}/articles/{article.slug}/generate-ai-image/',
+            {'style': 'studio', 'image_slot': 2},
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert resp.data['image_slot'] == 2
+
+    @patch('ai_engine.modules.image_generator.generate_car_image')
+    @patch('django.db.models.fields.files.FieldFile.save')
+    def test_post_ai_failure(self, mock_save, mock_generate, staff_client, article):
+        article.image = 'test_image.jpg'
+        article.save()
+
+        mock_generate.return_value = {
+            'success': False,
+            'error': 'Gemini API Rate Limit'
+        }
+        resp = staff_client.post(
+            f'{API}/articles/{article.slug}/generate-ai-image/',
+            {'style': 'studio', 'image_slot': 3},
+            format='json',
+        )
+        assert resp.status_code == 500
+        assert resp.data['error'] == 'Gemini API Rate Limit'
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SearchPhotosView — GET /api/v1/articles/{slug}/search-photos/
@@ -227,6 +294,21 @@ class TestSearchPhotosView:
     def test_search_photos_not_found(self, staff_client):
         resp = staff_client.get(f'{API}/articles/no-such/search-photos/')
         assert resp.status_code == 404
+
+    @patch('ai_engine.modules.searcher.search_car_images')
+    def test_search_photos_no_spec_clean_title(self, mock_search, staff_client, article):
+        article.car_specification = None
+        article.title = "Review of the all-new 2024 Tesla Model 3 Long Range AWD 725km"
+        article.save()
+        
+        mock_search.return_value = []
+        resp = staff_client.get(
+            f'{API}/articles/{article.id}/search-photos/',
+        )
+        assert resp.status_code == 200
+        # Should clean words like Review, all-new, 725km, etc.
+        assert "2024 Tesla Model 3 Long AWD" in resp.data['query']
+        mock_search.assert_called_once()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

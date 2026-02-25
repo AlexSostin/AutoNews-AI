@@ -322,7 +322,7 @@ class TestFavoriteViewSet:
 
 class TestCurrencyRatesView:
 
-    @patch('news.api_views.http_requests.get')
+    @patch('news.api_views.system.http_requests.get')
     def test_get_rates(self, mock_get, anon_client):
         mock_get.return_value = MagicMock(
             status_code=200,

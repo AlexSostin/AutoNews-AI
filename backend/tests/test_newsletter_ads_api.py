@@ -161,7 +161,7 @@ class TestSubscriberExtendedActions:
 
 class TestCurrencyRatesView:
 
-    @patch('news.api_views.http_requests.get')
+    @patch('news.api_views.system.http_requests.get')
     def test_get_rates_success(self, mock_get, anon_client):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
@@ -175,7 +175,7 @@ class TestCurrencyRatesView:
         assert resp.status_code == 200
         assert 'EUR' in resp.data
 
-    @patch('news.api_views.http_requests.get', side_effect=Exception('Timeout'))
+    @patch('news.api_views.system.http_requests.get', side_effect=Exception('Timeout'))
     def test_get_rates_fallback(self, mock_get, anon_client):
         from django.core.cache import cache
         cache.clear()  # Clear cache_page cached response
