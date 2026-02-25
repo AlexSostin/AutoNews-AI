@@ -87,7 +87,7 @@ describe('Auth Utility Algorithms', () => {
             expect(window.location.href).toBe('/login');
 
             // Restore location
-            window.location = originalLocation;
+            (window as any).location = originalLocation;
         });
     });
 

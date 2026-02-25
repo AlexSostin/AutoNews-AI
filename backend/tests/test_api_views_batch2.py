@@ -314,16 +314,17 @@ class TestRegenerateDeep:
         assert article_with_youtube.content_original is not None
 
     @pytest.mark.slow
+    @patch('news.signals.threading.Thread.start')
     @patch('ai_engine.main.generate_title_variants')
     @patch('ai_engine.modules.article_generator.expand_press_release')
-    def test_regenerate_rss_source(self, mock_expand, mock_ab, staff_client, article_with_rss):
-        mock_expand.return_value = '<h2>ZEEKR 007 Full Review</h2><p>Expanded content about the ZEEKR 007 electric sedan featuring 800V architecture and impressive range figures for the global market</p>'
+    def test_regenerate_rss_source(self, mock_expand, mock_ab, mock_thread, staff_client, article_with_rss):
+        mock_expand.return_value = '<h2>ZEEKR 007 Full Review</h2><p>Expanded content about the ZEEKR 007 electric sedan featuring 800V architecture and impressive range figures for the global market. The vehicle comes fully equipped with the latest lidar-based autonomous driving features and dual-motor all-wheel drive, securing a phenomenal 0-100km/h sprint time.</p>'
         mock_ab.return_value = None
         resp = staff_client.post(
             f'/api/v1/articles/{article_with_rss.slug}/regenerate/',
             {'provider': 'gemini'}, format='json', **UA
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 200, resp.data
         assert resp.data['success'] is True
         assert 'rss' in resp.data.get('message', '').lower()
         article_with_rss.refresh_from_db()

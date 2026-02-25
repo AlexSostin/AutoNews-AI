@@ -161,6 +161,114 @@
       "total_time": 98.3,
       "spec_fields_filled": 7,
       "timestamp": "2026-02-24T17:31:36.486681"
+    },
+    {
+      "provider": "gemini",
+      "make": "Not Specified",
+      "quality_score": 0,
+      "spec_coverage": 0.0,
+      "total_time": 46.5,
+      "spec_fields_filled": 0,
+      "timestamp": "2026-02-25T08:40:06.422556"
+    },
+    {
+      "provider": "gemini",
+      "make": "Huawei Avatr",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 65.6,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-02-25T08:40:39.225857"
+    },
+    {
+      "provider": "gemini",
+      "make": "Not Specified",
+      "quality_score": 0,
+      "spec_coverage": 0.0,
+      "total_time": 80.6,
+      "spec_fields_filled": 0,
+      "timestamp": "2026-02-25T08:41:27.009089"
+    },
+    {
+      "provider": "gemini",
+      "make": "Not Specified",
+      "quality_score": 0,
+      "spec_coverage": 0.0,
+      "total_time": 66.9,
+      "spec_fields_filled": 0,
+      "timestamp": "2026-02-25T08:42:33.960141"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 106.8,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-25T12:53:30.126970"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 76.8,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-25T13:35:21.919552"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 75.8,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-25T14:09:59.770730"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 99.2,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-25T14:10:22.441798"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 67.6,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-25T14:31:24.071247"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 78.7,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-25T15:37:21.401458"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 68.1,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-25T16:18:11.439560"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 77.3,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-25T16:54:26.513350"
     }
   ]
 }

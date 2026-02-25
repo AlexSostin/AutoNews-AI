@@ -12,7 +12,8 @@ test.describe('Authentication and Session', () => {
 
     test('should login successfully and show user profile', async ({ page }) => {
         // Mock Login endpoint
-        await page.route('**/api/v1/token/**', async route => {
+        await page.route(url => url.href.includes('/token/'), async route => {
+            console.log('INTERCEPT LOGIN:', route.request().url());
             if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 200, headers: corsHeaders });
             await route.fulfill({
                 status: 200,
@@ -27,7 +28,8 @@ test.describe('Authentication and Session', () => {
         });
 
         // Mock users/me endpoint for Header
-        await page.route('**/api/v1/users/me/**', async route => {
+        await page.route(url => url.href.includes('/users/me'), async route => {
+            console.log('INTERCEPT USERS ME:', route.request().url());
             if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 200, headers: corsHeaders });
             await route.fulfill({
                 status: 200,
@@ -37,16 +39,30 @@ test.describe('Authentication and Session', () => {
             });
         });
 
+        // Mock favorites/check so homepage doesn't hit real Django server with fake JWT and trigger auto-logout
+        await page.route(url => url.href.includes('/favorites/check'), async route => {
+            if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 200, headers: corsHeaders });
+            await route.fulfill({ status: 200, headers: corsHeaders, body: JSON.stringify({ is_favorite: false }) });
+        });
+
         page.on('console', msg => console.log('BROWSER CONSOLE:', msg.text()));
+        page.on('response', response => console.log('RESPONSE TRACE:', response.status(), response.url()));
+        page.route('**/*', async route => {
+            // Just a silent sniffer if needed, but playwright logs are enough.
+            route.fallback();
+        });
+
         // 3. Navigate to login and submit form
         await page.goto('/login', { waitUntil: 'domcontentloaded' });
+        // Ensure hydration
+        await page.waitForTimeout(1500);
+
         await page.locator('#username').first().fill('testuser');
         await page.locator('#password').first().fill('password123');
         await page.click('button[type="submit"]');
 
-        await page.evaluate(() => console.log('LS BEFORE URL WAIT:', localStorage.getItem('access_token')));
         // 4. Verify we are redirected to homepage and header updates
-        await page.waitForURL('/', { waitUntil: 'domcontentloaded' });
+        await page.waitForURL('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
 
         await expect(page.locator('header')).toContainText('testuser', { timeout: 10000 });
     });

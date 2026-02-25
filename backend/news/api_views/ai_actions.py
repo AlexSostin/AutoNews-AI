@@ -45,6 +45,7 @@ class GenerateAIImageView(APIView):
         from ai_engine.modules.image_generator import get_available_styles
         return Response({'styles': get_available_styles()})
     
+    @method_decorator(ratelimit(key='user', rate='10/d', method='POST', block=True))
     def post(self, request, identifier=None):
         """Generate AI image for an article."""
         if not request.user.is_staff:
@@ -191,6 +192,7 @@ class SaveExternalImageView(APIView):
     """Download an external image URL and save it to an article's image slot."""
     permission_classes = [IsAuthenticated]
     
+    @method_decorator(ratelimit(key='user', rate='10/d', method='POST', block=True))
     def post(self, request, identifier=None):
         """Save an external image to an article."""
         if not request.user.is_staff:

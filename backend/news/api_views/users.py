@@ -272,11 +272,11 @@ class PasswordResetRequestView(APIView):
         # Generate unique token
         token = str(uuid.uuid4())
         
-        # Create reset token
+        # Create reset token (Valid for 15 minutes)
         reset = PasswordResetToken.objects.create(
             user=user,
             token=token,
-            expires_at=timezone.now() + timedelta(hours=1),
+            expires_at=timezone.now() + timedelta(minutes=15),
             ip_address=get_client_ip(request)
         )
         
@@ -361,7 +361,7 @@ class UserViewSet(viewsets.ViewSet):
         })
     
     @action(detail=False, methods=['post'], permission_classes=[])
-    @method_decorator(ratelimit(key='ip', rate='5/h', method='POST', block=True))
+    @method_decorator(ratelimit(key='ip', rate='1/h', method='POST', block=True))
     def register(self, request):
         """Register a new user with rate limiting to prevent spam"""
         import re
