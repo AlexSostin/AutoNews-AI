@@ -268,7 +268,7 @@ class TestSaveExternalImageView:
         )
         assert resp.status_code == 404
 
-    @patch('news.api_views.http_requests.get')
+    @patch('requests.get')
     def test_save_not_image_content_type(self, mock_get, staff_client, article):
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None

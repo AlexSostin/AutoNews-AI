@@ -136,7 +136,7 @@ class Article(models.Model):
     
     def save(self, *args, **kwargs):
         # Optimize images before saving
-        from .image_utils import optimize_image
+        from ..image_utils import optimize_image
         from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUploadedFile
         
         # Helper for batch optimization — only process genuinely NEW uploads
