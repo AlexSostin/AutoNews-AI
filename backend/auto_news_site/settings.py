@@ -55,6 +55,21 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [
     '.freshmotors.net',  # Wildcard for all subdomains
 ]
 
+# In DEBUG mode, also accept local network IPs (10.x.x.x, 192.168.x.x, etc.)
+# This allows testing from phones and other devices on the same LAN.
+if DEBUG:
+    import socket
+    try:
+        hostname = socket.gethostname()
+        local_ips = socket.getaddrinfo(hostname, None, socket.AF_INET)
+        for _, _, _, _, addr in local_ips:
+            if addr[0] not in ALLOWED_HOSTS:
+                ALLOWED_HOSTS.append(addr[0])
+    except Exception:
+        pass
+    # Wildcard for any private network IP during development
+    ALLOWED_HOSTS.append('*')
+
 
 # Application definition
 
@@ -540,7 +555,7 @@ SIMPLE_JWT = {
 
 # CORS Settings - PRODUCTION SECURE
 # Only allow requests from our own domains
-CORS_ALLOW_ALL_ORIGINS = False  # ✅ SECURE: Only whitelisted origins
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all origins in development, whitelist-only in production
 
 # Allowed origins - only our domains
 CORS_ALLOWED_ORIGINS = [

@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Plus } from 'lucide-react';
-import React from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import api from '@/lib/api';
 
 export interface GalleryImage {
     id: number;
@@ -9,21 +9,73 @@ export interface GalleryImage {
     order: number;
 }
 
-interface GallerySectionProps {
-    galleryImages: GalleryImage[];
-    newGalleryImages: File[];
-    setNewGalleryImages: React.Dispatch<React.SetStateAction<File[]>>;
-    deleteGalleryImage: (imageId: number) => Promise<void>;
-    uploadingGallery: boolean;
+export interface GallerySectionRef {
+    upload: () => Promise<void>;
 }
 
-export function GallerySection({
-    galleryImages,
-    newGalleryImages,
-    setNewGalleryImages,
-    deleteGalleryImage,
-    uploadingGallery
-}: GallerySectionProps) {
+interface GallerySectionProps {
+    articleId: string | null;
+}
+
+export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>(({ articleId }, ref) => {
+    const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+    const [newGalleryImages, setNewGalleryImages] = useState<File[]>([]);
+    const [uploadingGallery, setUploadingGallery] = useState(false);
+
+    useEffect(() => {
+        if (articleId) {
+            fetchGalleryImages(articleId);
+        }
+    }, [articleId]);
+
+    const fetchGalleryImages = async (id: string) => {
+        try {
+            const response = await api.get(`/article-images/?article=${id}`);
+            setGalleryImages(response.data.results || response.data || []);
+        } catch (error) {
+            console.error('Failed to fetch gallery images:', error);
+        }
+    };
+
+    const deleteGalleryImage = async (imageId: number) => {
+        if (!confirm('Delete this gallery image?')) return;
+        try {
+            await api.delete(`/article-images/${imageId}/`);
+            setGalleryImages(prev => prev.filter(img => img.id !== imageId));
+        } catch (error) {
+            console.error('Failed to delete gallery image:', error);
+            alert('Failed to delete image');
+        }
+    };
+
+    const uploadGalleryImages = async () => {
+        if (newGalleryImages.length === 0 || !articleId) return;
+        setUploadingGallery(true);
+        try {
+            await Promise.all(
+                newGalleryImages.map(file => {
+                    const formData = new FormData();
+                    formData.append('article', articleId);
+                    formData.append('image', file);
+                    formData.append('order', '0');
+                    return api.post('/article-images/', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                })
+            );
+            await fetchGalleryImages(articleId);
+            setNewGalleryImages([]);
+        } catch (error) {
+            console.error('Failed to upload gallery images:', error);
+            alert('Failed to upload some images');
+        } finally {
+            setUploadingGallery(false);
+        }
+    };
+
+    useImperativeHandle(ref, () => ({
+        upload: uploadGalleryImages
+    }));
 
     const removeNewGalleryImage = (index: number) => {
         setNewGalleryImages(prev => prev.filter((_, i) => i !== index));
@@ -42,7 +94,6 @@ export function GallerySection({
             <h3 className="text-lg font-bold text-gray-900 mb-2">Additional Gallery Images</h3>
             <p className="text-sm text-gray-600 mb-4">Add extra images that will appear in the Vehicle Gallery alongside the 3 main images above</p>
 
-            {/* Existing Gallery Images as individual cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 {galleryImages.map((img, index) => (
                     <div key={img.id}>
@@ -67,7 +118,6 @@ export function GallerySection({
                     </div>
                 ))}
 
-                {/* New gallery images to upload - individual cards */}
                 {newGalleryImages.map((file, index) => (
                     <div key={`new-${index}`}>
                         <label className="block text-sm font-bold text-gray-900 mb-2">Image {galleryImages.length + index + 4}</label>
@@ -93,7 +143,6 @@ export function GallerySection({
                 ))}
             </div>
 
-            {/* Add Image Button */}
             <div>
                 <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg border-2 border-dashed border-indigo-300 hover:bg-indigo-100 transition-colors cursor-pointer font-semibold">
                     <Plus size={20} />
@@ -117,4 +166,5 @@ export function GallerySection({
             </div>
         </div>
     );
-}
+});
+

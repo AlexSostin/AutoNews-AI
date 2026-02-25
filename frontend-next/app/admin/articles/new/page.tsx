@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X } from 'lucide-react';
+import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Search, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import GenerationProgress from '@/components/admin/GenerationProgress';
 import { TagSelector } from '../[id]/edit/components/TagSelector';
+import { PhotoSearchModal } from '../[id]/edit/components/PhotoSearchModal';
 
 interface Category {
   id: number;
@@ -44,6 +44,14 @@ export default function NewArticlePage() {
   const [showTranslatePreview, setShowTranslatePreview] = useState(false);
   const [savingTranslation, setSavingTranslation] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  // Photo Search State
+  const [photoSearchOpen, setPhotoSearchOpen] = useState(false);
+  const [photoSearchSlot, setPhotoSearchSlot] = useState<number>(1);
+  const [photoSearchQuery, setPhotoSearchQuery] = useState('');
+  const [photoSearchLoading, setPhotoSearchLoading] = useState(false);
+  const [photoSearchResults, setPhotoSearchResults] = useState<any[]>([]);
+  const [savingPhoto, setSavingPhoto] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -276,8 +284,58 @@ export default function NewArticlePage() {
     });
   };
 
+  const searchPhotosCustom = async () => {
+    if (!photoSearchQuery.trim()) return;
+    setPhotoSearchLoading(true);
+    setPhotoSearchResults([]);
+    try {
+      const { data } = await api.get('/articles/search_photos/', {
+        params: { query: photoSearchQuery, max_results: 30 }
+      });
+      setPhotoSearchResults(data.results || []);
+    } catch (err: any) {
+      alert('Failed to search photos: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setPhotoSearchLoading(false);
+    }
+  };
+
+  const handlePhotoSelect = async (url: string) => {
+    setSavingPhoto(url);
+    try {
+      // Create a Blob from the image URL to simulate a file upload in the formData
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const filename = `press_photo_${Date.now()}.jpg`;
+      const file = new File([blob], filename, { type: blob.type });
+
+      if (photoSearchSlot === 1) setFormData({ ...formData, image: file });
+      if (photoSearchSlot === 2) setFormData({ ...formData, image_2: file });
+      if (photoSearchSlot === 3) setFormData({ ...formData, image_3: file });
+
+      setPhotoSearchOpen(false);
+    } catch (err: any) {
+      alert('Failed to process image: ' + err.message);
+    } finally {
+      setSavingPhoto(null);
+    }
+  };
+
   return (
     <div>
+      <PhotoSearchModal
+        photoSearchOpen={photoSearchOpen}
+        setPhotoSearchOpen={setPhotoSearchOpen}
+        photoSearchSlot={photoSearchSlot}
+        photoSearchQuery={photoSearchQuery}
+        setPhotoSearchQuery={setPhotoSearchQuery}
+        searchPhotosCustom={searchPhotosCustom}
+        photoSearchLoading={photoSearchLoading}
+        photoSearchResults={photoSearchResults}
+        savingPhoto={savingPhoto}
+        selectPhoto={handlePhotoSelect}
+      />
+
       <div className="flex items-center gap-4 mb-6">
         <Link
           href="/admin/articles"
@@ -664,55 +722,53 @@ export default function NewArticlePage() {
             <p className="text-sm text-gray-600 mb-4">Upload up to 3 images or they will be auto-extracted from YouTube during AI generation</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Image 1 */}
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-2">Image 1 (Main)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
-                />
-                {formData.image && (
-                  <p className="text-xs text-green-600 mt-1">✓ {formData.image.name}</p>
-                )}
-              </div>
+              {[
+                { slot: 1, label: 'Image 1 (Main)', file: formData.image },
+                { slot: 2, label: 'Image 2', file: formData.image_2 },
+                { slot: 3, label: 'Image 3', file: formData.image_3 },
+              ].map((img) => (
+                <div key={img.slot} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-emerald-600" />
+                      {img.label}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhotoSearchSlot(img.slot);
+                        setPhotoSearchQuery(formData.title || formData.slug || '');
+                        setPhotoSearchOpen(true);
+                        setPhotoSearchResults([]);
+                      }}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5"
+                    >
+                      <Search className="w-3 h-3" />
+                      Search
+                    </button>
+                  </div>
 
-              {/* Image 2 */}
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-2">Image 2</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image_2: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
-                />
-                {formData.image_2 && (
-                  <p className="text-xs text-green-600 mt-1">✓ {formData.image_2.name}</p>
-                )}
-              </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      if (img.slot === 1) setFormData({ ...formData, image: file });
+                      if (img.slot === 2) setFormData({ ...formData, image_2: file });
+                      if (img.slot === 3) setFormData({ ...formData, image_3: file });
+                    }}
+                    className="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all cursor-pointer"
+                  />
 
-              {/* Image 3 */}
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-2">Image 3</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, image_3: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"
-                />
-                {formData.image_3 && (
-                  <p className="text-xs text-green-600 mt-1">✓ {formData.image_3.name}</p>
-                )}
-              </div>
+                  {img.file && (
+                    <div className="mt-3 flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg">
+                      <div className="flex-shrink-0 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="truncate">{img.file.name}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
-
-          {/* onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-              required
-            />
           </div>
 
           {/* Content */}

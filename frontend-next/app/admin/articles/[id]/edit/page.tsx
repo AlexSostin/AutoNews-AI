@@ -3,7 +3,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, Languages, Save, Sparkles, Youtube, ArrowLeft, Plus, X, Loader2, Search, ChevronDown, Zap, Lock, Unlock, Wand2, Maximize2, Download, EyeOff, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
@@ -24,7 +24,7 @@ interface ArticleData {
   youtube_url: string;
 }
 
-import { GallerySection, GalleryImage } from './components/GallerySection';
+import { GallerySection, GallerySectionRef } from './components/GallerySection';
 
 export default function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -33,9 +33,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-  const [newGalleryImages, setNewGalleryImages] = useState<File[]>([]);
-  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const galleryRef = useRef<GallerySectionRef>(null);
   const [reformatting, setReformatting] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -242,71 +240,12 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data.results || []);
       setTags(Array.isArray(tagsRes.data) ? tagsRes.data : tagsRes.data.results || []);
 
-      // Fetch gallery images
-      await fetchGalleryImages(id);
+      // Fetch gallery images is now handled internally by GallerySection
     } catch (error) {
       console.error('Failed to fetch data:', error);
       alert('Failed to load article');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchGalleryImages = async (articleId: string) => {
-    try {
-      const response = await api.get(`/article-images/?article=${articleId}`);
-      setGalleryImages(response.data.results || response.data || []);
-    } catch (error) {
-      console.error('Failed to fetch gallery images:', error);
-    }
-  };
-
-  const handleGalleryImageUpload = async (files: FileList | null) => {
-    if (!files || !articleId) return;
-
-    const filesArray = Array.from(files);
-    setNewGalleryImages(prev => [...prev, ...filesArray]);
-  };
-
-  const deleteGalleryImage = async (imageId: number) => {
-    if (!confirm('Delete this gallery image?')) return;
-
-    try {
-      await api.delete(`/article-images/${imageId}/`);
-      setGalleryImages(prev => prev.filter(img => img.id !== imageId));
-    } catch (error) {
-      console.error('Failed to delete gallery image:', error);
-      alert('Failed to delete image');
-    }
-  };
-
-  const uploadGalleryImages = async () => {
-    if (newGalleryImages.length === 0 || !articleId) return;
-
-    setUploadingGallery(true);
-    try {
-      // Upload all images in PARALLEL for 3x faster performance
-      await Promise.all(
-        newGalleryImages.map(file => {
-          const formData = new FormData();
-          formData.append('article', articleId);
-          formData.append('image', file);
-          formData.append('order', '0');
-
-          return api.post('/article-images/', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-        })
-      );
-
-      // Refresh gallery images
-      await fetchGalleryImages(articleId);
-      setNewGalleryImages([]);
-    } catch (error) {
-      console.error('Failed to upload gallery images:', error);
-      alert('Failed to upload some images');
-    } finally {
-      setUploadingGallery(false);
     }
   };
 
@@ -386,7 +325,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       }
 
       // Upload gallery images if any
-      await uploadGalleryImages();
+      await galleryRef.current?.upload();
 
       alert('Article updated successfully!');
       router.push('/admin/articles');
@@ -1011,11 +950,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             </div>
 
             <GallerySection
-              galleryImages={galleryImages}
-              newGalleryImages={newGalleryImages}
-              setNewGalleryImages={setNewGalleryImages}
-              deleteGalleryImage={deleteGalleryImage}
-              uploadingGallery={uploadingGallery}
+              ref={galleryRef}
+              articleId={articleId}
             />
 
             <TagSelector

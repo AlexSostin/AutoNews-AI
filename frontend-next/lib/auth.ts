@@ -148,16 +148,18 @@ export const getAccessToken = (): string | null => {
 
   if (token) {
     const access = token.split('=')[1];
-    // If we have an access token, check if it's valid.
-    // Even if it's expired, if we have a refresh token, return it so the api interceptor can catch the 401 and refresh it.
-    if (!_isTokenExpired(access) || document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token')) {
-      return access;
+    if (access && access !== 'null' && access !== 'undefined') {
+      // If we have an access token, check if it's valid.
+      // Even if it's expired, if we have a refresh token, return it so the api interceptor can catch the 401 and refresh it.
+      if (!_isTokenExpired(access) || document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token')) {
+        return access;
+      }
     }
   }
 
   // Fallback to localStorage - if found, restore the cookie!
   const tokenFromStorage = localStorage.getItem('access_token');
-  if (tokenFromStorage) {
+  if (tokenFromStorage && tokenFromStorage !== 'null' && tokenFromStorage !== 'undefined') {
     if (!_isTokenExpired(tokenFromStorage) || document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token')) {
       // Restore the cookie for middleware
       setCookie('access_token', tokenFromStorage);

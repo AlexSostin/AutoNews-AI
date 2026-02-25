@@ -14,7 +14,16 @@ export const getApiUrl = (): string => {
 
   // Client-side: detect based on hostname
   const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+
+  // Also match local LAN IPs (e.g. 192.168.x.x, 10.x.x.x) for local network testing
+  const isLocalNetwork = /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/.test(hostname);
+
+  if (isLocalNetwork) {
+    // If the hostname is an IP, we need to construct a local URL with it
+    // otherwise if it's localhost we just return LOCAL_API_URL
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return `http://${hostname}:8000/api/v1`;
+    }
     return LOCAL_API_URL;
   }
 

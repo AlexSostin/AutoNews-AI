@@ -488,15 +488,18 @@ class UserViewSet(viewsets.ViewSet):
             family_name = idinfo.get('family_name', '')
             picture = idinfo.get('picture', '')
             
-            # Get or create user
-            user, created = User.objects.get_or_create(
-                email=email,
-                defaults={
-                    'username': email.split('@')[0],  # Use email prefix as username
-                    'first_name': given_name,
-                    'last_name': family_name,
-                }
-            )
+            # Get or create user (case-insensitive)
+            user = User.objects.filter(email__iexact=email).first()
+            created = False
+            
+            if not user:
+                user = User.objects.create(
+                    email=email,  # save the lowercased version
+                    username=email.split('@')[0],
+                    first_name=given_name,
+                    last_name=family_name,
+                )
+                created = True
             
             # If username collision, append number
             if created and User.objects.filter(username=user.username).exclude(id=user.id).exists():

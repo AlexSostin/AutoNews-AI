@@ -77,10 +77,23 @@ function getTokenFromStorage(): string | null {
         .find(row => row.startsWith('access_token='))
         ?.split('=')[1];
 
-    if (token) return token;
+    if (token && token !== 'null' && token !== 'undefined') return token;
 
     // Fallback to localStorage
-    return localStorage.getItem('access_token');
+    const localToken = localStorage.getItem('access_token');
+    if (localToken && localToken !== 'null' && localToken !== 'undefined') return localToken;
+    return null;
+}
+
+function safeRefreshAccessToken(): Promise<string | null> {
+    if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = refreshAccessToken().finally(() => {
+            isRefreshing = false;
+            refreshPromise = null;
+        });
+    }
+    return refreshPromise || refreshAccessToken();
 }
 
 /**
@@ -133,15 +146,7 @@ export async function authenticatedFetch(
     }
 
     // 401 — try to refresh the token (prevent race conditions)
-    if (!isRefreshing) {
-        isRefreshing = true;
-        refreshPromise = refreshAccessToken().finally(() => {
-            isRefreshing = false;
-            refreshPromise = null;
-        });
-    }
-
-    const newToken = await (refreshPromise || refreshAccessToken());
+    const newToken = await safeRefreshAccessToken();
 
     if (!newToken) {
         // Refresh failed — clear everything and redirect
@@ -181,7 +186,7 @@ export async function silentAuthFetch<T>(
 
         if (response.status === 401) {
             // Try to refresh the token before giving up
-            const newToken = await refreshAccessToken();
+            const newToken = await safeRefreshAccessToken();
             if (newToken) {
                 // Retry with new token
                 headers['Authorization'] = `Bearer ${newToken}`;
