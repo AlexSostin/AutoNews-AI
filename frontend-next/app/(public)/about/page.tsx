@@ -10,19 +10,7 @@ interface SiteSettings {
   about_page_enabled: boolean;
 }
 
-// Default content if API doesn't provide custom content
-const defaultContent = `
-<h2>Our Story</h2>
-<p>Founded with a passion for automobiles and a commitment to delivering accurate, timely information, 
-Fresh Motors has grown into a comprehensive platform for car enthusiasts, industry professionals, 
-and everyday drivers alike.</p>
-<p>We believe that staying informed about the automotive world should be accessible, engaging, 
-and reliable. From breaking news about the latest electric vehicles to detailed reviews of 
-classic sports cars, we cover it all with expertise and enthusiasm.</p>
-<p>Our team of automotive journalists and industry experts work tirelessly to bring you the most 
-relevant and interesting content, helping you make informed decisions about your next vehicle 
-purchase or simply stay connected with the ever-evolving world of automobiles.</p>
-`;
+
 
 export default function AboutPage() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);

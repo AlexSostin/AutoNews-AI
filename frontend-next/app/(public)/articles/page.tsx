@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ArticleCard from '@/components/public/ArticleCard';
 import AdBanner from '@/components/public/AdBanner';
-import Pagination from '@/components/public/Pagination';
 import { ArticleGridSkeleton } from '@/components/public/Skeletons';
 import TagsDropdown from '@/components/public/TagsDropdown';
 import CategoriesDropdown from '@/components/public/CategoriesDropdown';
@@ -29,9 +28,9 @@ function ArticlesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [articles, setArticles] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [tags, setTags] = useState<any[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -182,7 +181,7 @@ function ArticlesContent() {
                       href={`/articles?${tag ? `tag=${tag}&` : ''}${search ? `search=${search}` : ''}`}
                       className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
-                      {categories.find((c: any) => c.slug === category)?.name} ✕
+                      {categories.find((c: Category) => c.slug === category)?.name} ✕
                     </Link>
                   )}
                   {tag && (
@@ -190,7 +189,7 @@ function ArticlesContent() {
                       href={`/articles?${category ? `category=${category}&` : ''}${search ? `search=${search}` : ''}`}
                       className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
-                      {tags.find((t: any) => t.slug === tag)?.name} ✕
+                      {tags.find((t: Tag) => t.slug === tag)?.name} ✕
                     </Link>
                   )}
                   {search && (
@@ -239,7 +238,7 @@ function ArticlesContent() {
                       <div key={rowIndex}>
                         {/* Row of articles */}
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                          {rowArticles.map((article: any, index: number) => (
+                          {rowArticles.map((article: Article, index: number) => (
                             <ArticleCard
                               key={article.id}
                               article={article}

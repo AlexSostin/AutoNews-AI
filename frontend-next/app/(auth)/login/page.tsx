@@ -6,7 +6,6 @@ import { Eye, EyeOff } from 'lucide-react';
 import '../register/register-password.css';
 import { useRouter } from 'next/navigation';
 import { login } from '@/lib/auth';
-import { LogIn } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
@@ -80,8 +79,9 @@ export default function LoginPage() {
           window.location.href = '/';
         }, 500);
       }
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || 'Invalid credentials';
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      const errorMessage = e.response?.data?.detail || 'Invalid credentials';
       setError(errorMessage);
       toast.error(errorMessage, {
         duration: 4000,
@@ -209,7 +209,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center space-y-2">
             <p className="text-gray-600 text-sm">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="text-indigo-600 hover:underline font-medium">
                 Register here
               </Link>

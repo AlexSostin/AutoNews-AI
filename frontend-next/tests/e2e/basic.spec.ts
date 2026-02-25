@@ -36,7 +36,7 @@ test.describe('Articles Page', () => {
   test('should load articles listing', async ({ page }) => {
     await page.goto('/articles');
     await page.waitForLoadState('networkidle');
-    const heading = page.getByRole('heading', { name: /articles/i });
+    const heading = page.getByRole('heading', { name: 'All Articles', exact: true });
     await expect(heading).toBeVisible({ timeout: 10000 });
   });
 

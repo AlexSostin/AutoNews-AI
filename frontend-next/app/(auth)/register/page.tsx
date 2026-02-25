@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import './register-password.css';
 import { useRouter } from 'next/navigation';
-import { UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
 import toast from 'react-hot-toast';

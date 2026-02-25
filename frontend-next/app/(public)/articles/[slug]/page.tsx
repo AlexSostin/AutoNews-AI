@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import ArticleCard from '@/components/public/ArticleCard';
 import AdBanner from '@/components/public/AdBanner';
 import ABTitle from '@/components/public/ABTitle';
 import ABImpressionTracker from '@/components/public/ABImpressionTracker';
@@ -27,13 +26,9 @@ import { Article } from '@/types';
 import {
   Calendar,
   User,
-  Eye,
   Tag,
-  Star,
   Youtube,
-  Handshake,
   ExternalLink,
-  AlertTriangle,
   Rss
 } from 'lucide-react';
 import type { Metadata } from 'next';
@@ -357,7 +352,7 @@ export default async function ArticleDetailPage({
       />
 
       {/* Track A/B impression */}
-      <ABImpressionTracker variantId={(article as any).ab_variant_id} />
+      <ABImpressionTracker variantId={(article as Article & { ab_variant_id?: number }).ab_variant_id} />
 
       {/* Reading Progress Bar */}
       <ReadingProgressBar />
@@ -522,7 +517,7 @@ export default async function ArticleDetailPage({
               {article.tags && article.tags.length > 0 && (
                 <SpecsCardLink
                   articleTitle={article.title}
-                  tagNames={(article.tags as any[]).map((t: any) => typeof t === 'string' ? t : t.name)}
+                  tagNames={(article.tags as ({ name: string } | string)[]).map((t: { name: string } | string) => typeof t === 'string' ? t : t.name)}
                 />
               )}
 
@@ -560,7 +555,7 @@ export default async function ArticleDetailPage({
 
                   // Add gallery images
                   if (article.images && article.images.length > 0) {
-                    article.images.forEach((img: any, i: number) => {
+                    article.images.forEach((img: { image_url?: string; image?: string; caption?: string }) => {
                       const imgUrl = img.image_url || img.image;
                       if (imgUrl) {
                         allImages.push({ url: fixUrl(imgUrl), alt: img.caption || `${article.title} - View ${allImages.length + 1}` });
