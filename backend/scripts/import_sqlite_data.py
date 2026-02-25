@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 # Read exported data
-with open('/app/sqlite_export.json', 'r') as f:
+with open('/app/data/sqlite_export.json', 'r') as f:
     data = json.load(f)
 
 print(f"Импортирую {len(data['categories'])} категорий...")

@@ -614,9 +614,9 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-# File upload limits
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+# File upload limits (Increased to 20MB for high-res press photos)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20971520  # 20MB (previously 5MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20971520  # 20MB (previously 5MB)
 
 # Note: Sentry is already initialized at the top of this file (lines 24-33)
 # Note: LOGGING is already configured above (lines 248-331) with file handlers and rotation

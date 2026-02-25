@@ -152,6 +152,15 @@
       "total_time": 69.5,
       "spec_fields_filled": 5,
       "timestamp": "2026-02-23T14:18:27.569370"
+    },
+    {
+      "provider": "gemini",
+      "make": "Huawei Avatr",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 98.3,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-02-24T17:31:36.486681"
     }
   ]
 }

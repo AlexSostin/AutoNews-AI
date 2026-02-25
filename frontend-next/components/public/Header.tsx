@@ -94,7 +94,11 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white shadow-lg sticky top-0 z-50">
+    <header
+      className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white shadow-lg sticky top-0 z-50"
+      data-is-logged-in={isLoggedIn}
+      data-user-name={user?.username || 'none'}
+    >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between py-4">
           <Link href="/" className="hover:scale-105 transition-transform mr-16">

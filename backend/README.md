@@ -206,12 +206,12 @@ docker exec -i autonews_postgres psql -U autonews_user autonews < backup.sql
 
 ## 📝 Дополнительная документация
 
-- [AD_SETUP_GUIDE.md](AD_SETUP_GUIDE.md) — настройка рекламы
-- [AUTH_SYSTEM.md](AUTH_SYSTEM.md) — система аутентификации
-- [GEMINI_SETUP.md](GEMINI_SETUP.md) — настройка Gemini AI
-- [PEXELS_SETUP.md](PEXELS_SETUP.md) — настройка Pexels API
-- [REDIS_SETUP.md](REDIS_SETUP.md) — настройка Redis
-- [SENTRY_SETUP.md](SENTRY_SETUP.md) — настройка Sentry
+- [docs/AD_SETUP_GUIDE.md](docs/AD_SETUP_GUIDE.md) — настройка рекламы
+- [docs/AUTH_SYSTEM.md](docs/AUTH_SYSTEM.md) — система аутентификации
+- [docs/GEMINI_SETUP.md](docs/GEMINI_SETUP.md) — настройка Gemini AI
+- [docs/PEXELS_SETUP.md](docs/PEXELS_SETUP.md) — настройка Pexels API
+- [docs/REDIS_SETUP.md](docs/REDIS_SETUP.md) — настройка Redis
+- [docs/SENTRY_SETUP.md](docs/SENTRY_SETUP.md) — настройка Sentry
 - [SECURITY.md](SECURITY.md) — безопасность backend
 
 ---

@@ -223,11 +223,12 @@ CRITICAL REQUIREMENTS:
    ❌ BAD: Mentioning the same spec in Introduction, Technology, Why This Matters, AND Conclusion.
    ✅ GOOD: State the spec once, then build on it with context, comparisons, or implications.
 
-6. **REGION-NEUTRAL writing**:
+26. **REGION-NEUTRAL writing**:
    - Do NOT focus on a single country's market (no "in Australia", "in the US", etc.)
    - Present prices in the ORIGINAL currency from the source, but don't frame the article around one country
    - Use STANDARD CURRENCY CODES: CNY (not RMB), JPY (not ¥), KRW, EUR, GBP, AUD, etc.
    - ALWAYS include approximate USD conversion: "CNY 299,800 (approximately $42,000)"
+   - NEVER speculate about US market entry, US tariffs, or North American availability for Chinese or European EVs. Do NOT add sections like "Will it come to the US?".
    - Do NOT reference country-specific safety ratings (ANCAP, IIHS, NHTSA) as the main focus — mention briefly if relevant
    - Do NOT include country-specific warranty terms, servicing plans, or dealer networks
    - Write for a GLOBAL car enthusiast audience
@@ -678,6 +679,7 @@ Content Guidelines:
   Present prices in the original currency from the source but write for a GLOBAL audience.
   Use STANDARD CURRENCY CODES: CNY (not RMB), JPY (not ¥), KRW, EUR, GBP, AUD, etc.
   ALWAYS include approximate USD conversion: "CNY 299,800 (approximately $42,000)".
+  NEVER speculate about US market entry, US tariffs, or North American availability for Chinese/European EVs.
   Skip country-specific safety ratings (ANCAP, IIHS), local warranty terms, and dealer-level details.
   Extract universal car facts from region-specific reviews.
 

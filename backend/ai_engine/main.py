@@ -975,6 +975,8 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
             images=result['image_paths'],  # JSON field
             featured_image=result['image_paths'][0] if result['image_paths'] else '',
             image_source='youtube',
+            author_name=result.get('author_name', ''),
+            author_channel_url=result.get('author_channel_url', ''),
             
             # Save structured data for draft safety
             specs=result['specs'],

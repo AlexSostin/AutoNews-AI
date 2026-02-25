@@ -21,7 +21,7 @@ async function refreshAccessToken(): Promise<string | null> {
     const refreshToken = document.cookie
         .split('; ')
         .find(row => row.startsWith('refresh_token='))
-        ?.split('=')[1];
+        ?.split('=')[1] || localStorage.getItem('refresh_token');
 
     if (!refreshToken) return null;
 

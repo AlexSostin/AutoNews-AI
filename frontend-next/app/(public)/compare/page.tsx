@@ -158,12 +158,12 @@ function CarPicker({
 
     return (
         <div className="relative">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{label}</label>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">{label}</label>
             <button
                 onClick={() => setOpen(!open)}
                 className={`w-full px-4 py-3.5 text-left rounded-xl border-2 transition-all font-semibold flex items-center justify-between ${selected.model
                     ? 'border-indigo-500 bg-indigo-50 text-gray-900'
-                    : 'border-gray-200 bg-white text-gray-400 hover:border-indigo-300'
+                    : 'border-gray-200 bg-white text-gray-500 hover:border-indigo-300'
                     }`}
             >
                 <span className="truncate">{displayText}</span>
@@ -193,7 +193,7 @@ function CarPicker({
                     <div className="overflow-y-auto max-h-60">
                         {filtered.map(brand => (
                             <div key={brand.slug}>
-                                <div className="px-4 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wider bg-gray-50">
+                                <div className="px-4 py-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-50">
                                     {brand.name}
                                 </div>
                                 {brand.models.map(model => (
@@ -215,7 +215,7 @@ function CarPicker({
                             </div>
                         ))}
                         {filtered.length === 0 && (
-                            <div className="p-6 text-center text-gray-400 text-sm">No cars match your search</div>
+                            <div className="p-6 text-center text-gray-500 text-sm">No cars match your search</div>
                         )}
                     </div>
                 </div>
@@ -248,13 +248,19 @@ function CompareContent() {
     useEffect(() => {
         const c1 = searchParams.get('car1');
         const c2 = searchParams.get('car2');
+
         if (c1) {
             const [b, m] = c1.split('/');
-            if (b && m) setCar1({ brand: b, model: m });
+            if (b && m) {
+                setCar1(prev => (prev.brand === b && prev.model === m ? prev : { brand: b, model: m }));
+            }
         }
+
         if (c2) {
             const [b, m] = c2.split('/');
-            if (b && m) setCar2({ brand: b, model: m });
+            if (b && m) {
+                setCar2(prev => (prev.brand === b && prev.model === m ? prev : { brand: b, model: m }));
+            }
         }
     }, [searchParams]);
 
@@ -287,10 +293,10 @@ function CompareContent() {
     };
 
     const getWinnerClass = (field: string, car: 'car1' | 'car2') => {
-        if (!data?.winners[field]) return '';
+        if (!data?.winners[field]) return 'text-gray-800 font-medium';
         if (data.winners[field] === car) return 'bg-emerald-50 text-emerald-700 font-bold';
-        if (data.winners[field] === 'tie') return 'bg-gray-50';
-        return '';
+        if (data.winners[field] === 'tie') return 'bg-gray-50 text-gray-800 font-medium';
+        return 'text-gray-800 font-medium';
     };
 
     const formatVal = (val: any, row: typeof SPEC_SECTIONS[0]['rows'][0]) => {
@@ -335,7 +341,7 @@ function CompareContent() {
                 {loading && (
                     <div className="text-center py-16">
                         <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
-                        <p className="mt-4 text-gray-500">Loading comparison...</p>
+                        <p className="mt-4 text-gray-700">Loading comparison...</p>
                     </div>
                 )}
 
@@ -346,8 +352,8 @@ function CompareContent() {
                 {!data && !loading && !error && (
                     <div className="text-center py-16">
                         <div className="text-7xl mb-4">🏎️</div>
-                        <h2 className="text-xl font-bold text-gray-700 mb-2">Select two cars to compare</h2>
-                        <p className="text-gray-400">Choose from the dropdowns above to see a detailed spec-by-spec comparison</p>
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">Select two cars to compare</h2>
+                        <p className="text-gray-600">Choose from the dropdowns above to see a detailed spec-by-spec comparison</p>
                     </div>
                 )}
 
@@ -407,17 +413,17 @@ function CompareContent() {
                                             {car1Wins > car2Wins && <Trophy size={18} className="inline mb-1 mr-1" />}
                                             {car1Wins}
                                         </div>
-                                        <div className="text-xs font-bold text-gray-500 mt-1">{data.car1.make}</div>
+                                        <div className="text-xs font-bold text-gray-600 mt-1">{data.car1.make}</div>
                                     </div>
                                     <div className="text-center">
-                                        <div className="text-lg font-bold text-gray-400">{ties} ties</div>
+                                        <div className="text-lg font-bold text-gray-600">{ties} ties</div>
                                     </div>
                                     <div className="text-center">
                                         <div className={`text-3xl font-black ${car2Wins > car1Wins ? 'text-emerald-600' : 'text-gray-700'}`}>
                                             {car2Wins > car1Wins && <Trophy size={18} className="inline mb-1 mr-1" />}
                                             {car2Wins}
                                         </div>
-                                        <div className="text-xs font-bold text-gray-500 mt-1">{data.car2.make}</div>
+                                        <div className="text-xs font-bold text-gray-600 mt-1">{data.car2.make}</div>
                                     </div>
                                 </div>
                             );
@@ -449,7 +455,7 @@ function CompareContent() {
                                                     <div className={`px-5 py-3 text-sm text-right ${getWinnerClass(row.key, 'car1')}`}>
                                                         {formatVal(v1, row)}
                                                     </div>
-                                                    <div className="px-3 py-3 text-xs font-bold text-gray-400 text-center whitespace-nowrap min-w-[100px] sm:min-w-[140px]">
+                                                    <div className="px-3 py-3 text-xs font-bold text-gray-700 text-center whitespace-nowrap min-w-[100px] sm:min-w-[140px]">
                                                         {row.label}
                                                         {data.winners[row.key] && data.winners[row.key] !== 'tie' && (
                                                             <Trophy size={12} className="inline ml-1 text-emerald-500 mb-0.5" />
@@ -497,7 +503,7 @@ export default function ComparePage() {
                 </div>
                 <div className="text-center py-16">
                     <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
-                    <p className="mt-4 text-gray-500">Loading...</p>
+                    <p className="mt-4 text-gray-700">Loading...</p>
                 </div>
             </div>
         }>
