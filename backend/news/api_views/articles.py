@@ -56,6 +56,24 @@ class ArticleViewSet(
     search_fields = ['title', 'content', 'summary']
     ordering_fields = ['created_at', 'views', 'title']
     ordering = ['-created_at']
+
+    def get_object(self):
+        """Support both slug and numeric ID lookup.
+        
+        Public pages use slug: /articles/tesla-model-3/
+        Admin pages use ID:    /articles/126/
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_value = self.kwargs.get(self.lookup_field, '')
+        
+        # If the lookup value is numeric, search by pk instead of slug
+        if lookup_value.isdigit():
+            obj = get_object_or_404(queryset, pk=int(lookup_value))
+        else:
+            obj = get_object_or_404(queryset, slug=lookup_value)
+        
+        self.check_object_permissions(self.request, obj)
+        return obj
     
     def get_permissions(self):
         """
