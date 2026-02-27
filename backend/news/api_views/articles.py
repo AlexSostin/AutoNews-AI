@@ -216,6 +216,16 @@ class ArticleViewSet(
                     serializer = self.get_serializer(instance)
                     response = Response(serializer.data)
                 
+                # If title was changed, clear stale A/B variants
+                try:
+                    from news.models import ArticleTitleVariant
+                    if 'title' in request.data:
+                        deleted_count, _ = ArticleTitleVariant.objects.filter(article=instance).delete()
+                        if deleted_count:
+                            logger.info(f"[UPDATE] Cleared {deleted_count} stale A/B variants for article {instance.id}")
+                except Exception:
+                    pass
+                
                 # Selectively invalidate cache
                 try:
                     invalidate_article_cache(

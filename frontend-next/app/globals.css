@@ -257,12 +257,6 @@ textarea::placeholder {
   @apply mb-6 text-lg leading-8 text-gray-700;
 }
 
-/* First paragraph - drop cap */
-.article-content-wrapper .article-element:first-child p:first-of-type::first-letter {
-  @apply float-left text-6xl font-bold leading-none mr-2 text-brand-600;
-  margin-top: 0.1em;
-}
-
 /* Headings */
 .article-content-wrapper h1 {
   @apply text-4xl font-bold mb-6 mt-12 text-gray-900 border-b-4 border-brand-500 pb-3;
