@@ -235,8 +235,10 @@ jobs:
           SECRET_KEY: test-secret-key-for-ci-pipeline
           DEBUG: 'True'
         run: |
+          mkdir -p logs
           python manage.py migrate
           python manage.py populate_db
+          DJANGO_SUPERUSER_USERNAME=e2e_admin DJANGO_SUPERUSER_EMAIL=e2e@test.com DJANGO_SUPERUSER_PASSWORD='E2eTestPass123!' python manage.py create_superuser_env
           python manage.py runserver 8000 &
           sleep 10
           curl -s http://localhost:8000/api/v1/articles/ > /dev/null
