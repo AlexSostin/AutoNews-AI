@@ -64,14 +64,17 @@ export default function ErrorProvider({ children }: { children: ReactNode }) {
             }
         };
 
-        // 4. Global fetch interceptor — catch ALL 5xx API responses silently
+        // 4. Global fetch interceptor — catch ALL 4xx/5xx API responses silently
         const originalFetch = window.fetch;
         window.fetch = async (...args: Parameters<typeof fetch>) => {
             const response = await originalFetch(...args);
-            if (response.status >= 500) {
+            if (response.status >= 400 && response.status !== 401) {
                 const input = args[0];
                 const url = typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString();
-                logApiError(url, response.status, response.statusText);
+                // Skip logging requests to /frontend-events/ to avoid infinite loops
+                if (!url.includes('frontend-events')) {
+                    logApiError(url, response.status, response.statusText);
+                }
             }
             return response;
         };

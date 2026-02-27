@@ -92,16 +92,19 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Log 5xx errors to FrontendEventLog (but NOT for /frontend-events/ to avoid loops)
+    // Log API errors to FrontendEventLog (4xx + 5xx, but NOT 401 or /frontend-events/)
+    const status = error.response?.status;
     if (
-      error.response?.status >= 500 &&
+      status &&
+      status >= 400 &&
+      status !== 401 && // 401 is handled by token refresh below
       typeof window !== 'undefined' &&
       !originalRequest?.url?.includes('frontend-events')
     ) {
       try {
         const { logApiError } = await import('@/lib/error-logger');
         const endpoint = originalRequest?.url || error.response?.config?.url || 'unknown';
-        logApiError(endpoint, error.response.status, error.response.statusText || 'Internal Server Error');
+        logApiError(endpoint, status, error.response.statusText || 'Error');
       } catch { /* never let logging break the app */ }
     }
 

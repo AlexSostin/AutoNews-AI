@@ -1098,11 +1098,15 @@ class FrontendEventLog(models.Model):
     Captures unhandled exceptions, 404s, and failed rendering states.
     """
     ERROR_TYPES = [
-        ('js_error', 'JavaScript Reference Error'),
+        ('js_error', 'JavaScript Error'),
         ('network', 'Network / API Failure'),
         ('hydration', 'React Hydration Mismatch'),
         ('resource_404', 'Missing Resource (404)'),
         ('performance', 'Performance Violation'),
+        ('react_crash', 'React Component Crash'),
+        ('api_4xx', 'API Client Error (4xx)'),
+        ('api_5xx', 'API Server Error (5xx)'),
+        ('unhandled_rejection', 'Unhandled Promise Rejection'),
         ('other', 'Other'),
     ]
 
