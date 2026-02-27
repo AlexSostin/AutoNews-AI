@@ -40,7 +40,7 @@ def check_duplicate(youtube_url):
     return None
 
 
-def check_car_duplicate(specs, send_progress=None):
+def check_car_duplicate(specs, send_progress=None, exclude_article_id=None):
     """
     Check if a RECENT article about the same car (make + model) already exists.
     
@@ -75,6 +75,8 @@ def check_car_duplicate(specs, send_progress=None):
             article__is_deleted=False,
             article__created_at__gte=cutoff,
         )
+        if exclude_article_id:
+            existing = existing.exclude(article_id=exclude_article_id)
         if trim and trim != 'Not specified':
             existing = existing.filter(trim__iexact=trim)
         
@@ -100,6 +102,8 @@ def check_car_duplicate(specs, send_progress=None):
         ).filter(
             title__icontains=car_make,
         )
+        if exclude_article_id:
+            draft_articles = draft_articles.exclude(id=exclude_article_id)
         if draft_articles.exists():
             article = draft_articles.first()
             msg = (f"⚠️ Duplicate detected: {car_make} {car_model} "

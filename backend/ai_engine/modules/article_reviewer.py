@@ -115,7 +115,7 @@ Return the corrected HTML only. Preserve the alt-texts div and the generation co
             prompt=review_prompt,
             system_prompt=system_prompt,
             temperature=0.3,  # Low temperature for precise editing
-            max_tokens=4000
+            max_tokens=6000
         )
         
         if not result or len(result.strip()) < 100:

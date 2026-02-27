@@ -314,7 +314,7 @@ RULES:
             prompt=improvement_prompt,
             system_prompt="You are an expert automotive editor. Fix the specific issues mentioned. Return only HTML.",
             temperature=0.3,
-            max_tokens=4000,
+            max_tokens=6000,
         )
         
         if not result or len(result.strip()) < 100:

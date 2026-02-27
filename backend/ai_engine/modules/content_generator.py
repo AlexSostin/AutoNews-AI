@@ -44,7 +44,7 @@ def _send_progress(task_id, step, progress, message):
         print(f"WebSocket progress error: {e}")
 
 
-def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None):
+def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None, skip_post_checks=False):
     """
     Internal function to generate article content without saving to DB.
     Returns dictionary with all article data.
@@ -178,7 +178,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             print(f"⚠️ Model tag auto-add failed: {e}")
         
         # 2.65. DUPLICATE CHECK — skip if article already exists for same car
-        dup_result = check_car_duplicate(specs, send_progress=send_progress)
+        dup_result = check_car_duplicate(specs, send_progress=send_progress, exclude_article_id=exclude_article_id)
         if dup_result and dup_result.get('is_duplicate'):
             return {'success': False, 'status': 'skipped', 'reason': dup_result['reason'],
                     'existing_article_id': dup_result.get('existing_article_id'),
@@ -277,7 +277,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         print(f"✍️  Generating article...")
         
         # Pass web context to generator
-        article_html = generate_article(analysis, provider=provider, web_context=web_context, source_title=video_title)
+        article_html = generate_article(analysis, provider=provider, web_context=web_context, source_title=video_title, skip_post_checks=skip_post_checks)
         
         if not article_html or len(article_html) < 100:
             send_progress(5, 100, "❌ Article generation failed")

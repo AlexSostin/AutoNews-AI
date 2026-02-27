@@ -163,6 +163,11 @@ def clean_source_title(title: str) -> str:
         r'\bfeatures\b', r'\bdetails\b', r'\bhighlights\b', r'\blaunch\b',
         r'\bunveiled\b', r'\brevealed\b', r'\bannounced\b', r'\bofficial\b',
         r'\bnew\b', r'\ball\s*new\b',
+        r'\bfirst\s+look\b', r'\bhands\s+on\b', r'\bfirst\s+drive\b',
+        r'\btest\s+drive\b', r'\bin\s+depth\b', r'\bfull\s+tour\b',
+        r'\bPOV\s+drive\b', r'\bcold\s+start\b', r'\bfull\s+review\b',
+        r'\bquick\s+review\b', r'\bowner\s+review\b', r'\bbuyer.s\s+guide\b',
+        r'\bcomparison\b', r'\bvs\.?\b',
     ]
     for desc in descriptors:
         clean = re.sub(desc, '', clean, flags=re.IGNORECASE)
@@ -306,6 +311,10 @@ def _extract_model_name(title: str, brand: Optional[str], brand_pos: int) -> Opt
         r'\bStarting Price\b', r'\bPrice\b', r'\bRange\b',
         r'\bUnveiled\b', r'\bRevealed\b', r'\bAnnounced\b', r'\bOfficial\b',
         r'\bEV\b',
+        r'\bFirst Look\b', r'\bHands On\b', r'\bTest Drive\b',
+        r'\bIn Depth\b', r'\bFull Tour\b', r'\bPOV Drive\b',
+        r'\bCold Start\b', r'\bFull Review\b', r'\bQuick Review\b',
+        r'\bOwner Review\b', r'\bBuyer.s Guide\b', r'\bComparison\b',
     ]
     for suffix in suffixes:
         clean = re.sub(suffix, '', clean, flags=re.IGNORECASE).strip()
@@ -318,6 +327,9 @@ def _extract_model_name(title: str, brand: Optional[str], brand_pos: int) -> Opt
     # Remove common separators and extra whitespace
     clean = re.sub(r'[:\-–—|/]', ' ', clean)
     clean = re.sub(r'\s+', ' ', clean).strip()
+    
+    # Remove trailing connector words left over after suffix stripping
+    clean = re.sub(r'\s+(?:and|or|the|a|an|with|for|in|on|vs)\s*$', '', clean, flags=re.IGNORECASE).strip()
     
     if not clean:
         return None
