@@ -227,16 +227,16 @@ The 911 GT3 is the gold standard for track-capable sports cars, offering an anal
                 title=article_data['title'],
                 defaults={
                     'slug': slugify(article_data['title'][:50]),
-                    'summary': article_data['excerpt'],  # Use 'summary' instead of 'excerpt'
+                    'summary': article_data['excerpt'],
                     'content': article_data['content'],
-                    'category': article_data['category'],
-                    # No 'author' field in Article model
                     'is_published': True,
-                    'views': 0,  # Real views only
+                    'views': 0,
                 }
             )
             
             if created:
+                # M2M fields must be set after creation
+                article.categories.add(article_data['category'])
                 article_tags = [tags[i] for i in article_data['tags_idx'] if i < len(tags)]
                 article.tags.set(article_tags)
                 self.stdout.write(f"✅ Created: {article.title[:50]}...")
