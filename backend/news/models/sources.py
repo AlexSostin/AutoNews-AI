@@ -8,7 +8,7 @@ from ..image_utils import optimize_image
 class YouTubeChannel(models.Model):
     """YouTube channels to monitor for new videos"""
     name = models.CharField(max_length=200, help_text="Channel name for display")
-    channel_url = models.URLField(help_text="YouTube channel URL (e.g., https://www.youtube.com/@ChannelName)")
+    channel_url = models.URLField(max_length=2000, help_text="YouTube channel URL (e.g., https://www.youtube.com/@ChannelName)")
     channel_id = models.CharField(max_length=100, blank=True, help_text="YouTube channel ID (auto-extracted)")
     
     # Settings
@@ -44,8 +44,8 @@ class RSSFeed(models.Model):
     ]
     
     name = models.CharField(max_length=200, help_text="Feed name for display (e.g., 'Mercedes-Benz Press')")
-    feed_url = models.URLField(unique=True, help_text="RSS/Atom feed URL")
-    website_url = models.URLField(blank=True, help_text="Main website URL")
+    feed_url = models.URLField(max_length=2000, unique=True, help_text="RSS/Atom feed URL")
+    website_url = models.URLField(max_length=2000, blank=True, help_text="Main website URL")
     source_type = models.CharField(max_length=20, choices=SOURCE_TYPES, default='brand')
     
     # Settings
@@ -62,7 +62,7 @@ class RSSFeed(models.Model):
     entries_processed = models.IntegerField(default=0)
     
     # Metadata
-    logo_url = models.URLField(blank=True, help_text="Brand/source logo URL")
+    logo_url = models.URLField(max_length=2000, blank=True, help_text="Brand/source logo URL")
     description = models.TextField(blank=True)
     
     # Content License Status
@@ -152,7 +152,7 @@ class RSSNewsItem(models.Model):
     title = models.CharField(max_length=500)
     content = models.TextField(blank=True, help_text="Raw HTML content from RSS")
     excerpt = models.TextField(blank=True, help_text="Plain text snippet for preview")
-    source_url = models.URLField(blank=True, help_text="Link to original article")
+    source_url = models.URLField(max_length=2000, blank=True, help_text="Link to original article")
     image_url = models.URLField(blank=True, max_length=1000, help_text="Featured image URL")
     content_hash = models.CharField(
         max_length=64, blank=True, db_index=True,

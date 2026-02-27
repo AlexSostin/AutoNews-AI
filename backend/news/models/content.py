@@ -83,11 +83,11 @@ class Article(models.Model):
     image = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Main featured image (screenshot 1)")
     image_2 = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Screenshot 2 from video")
     image_3 = models.ImageField(upload_to='articles/', blank=True, null=True, max_length=255, help_text="Screenshot 3 from video")
-    youtube_url = models.URLField(blank=True, help_text="YouTube video URL for AI generation")
+    youtube_url = models.URLField(max_length=2000, blank=True, help_text="YouTube video URL for AI generation")
     
     # Author / Source Credits
     author_name = models.CharField(max_length=200, blank=True, help_text="Original content creator name")
-    author_channel_url = models.URLField(blank=True, help_text="Original creator channel URL")
+    author_channel_url = models.URLField(max_length=2000, blank=True, help_text="Original creator channel URL")
     
     # Price field (in USD, converted to other currencies on frontend)
     price_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Price in USD (AI extracts from video)")
@@ -115,6 +115,17 @@ class Article(models.Model):
     show_price = models.BooleanField(default=True, help_text="Show price on public page")
     
     generation_metadata = models.JSONField(null=True, blank=True, help_text="AI generation stats: timing, provider, AI Editor diff")
+    
+    # ML Engagement Score — combines reader signals into one metric
+    engagement_score = models.FloatField(
+        default=0.0, db_index=True,
+        help_text="Reader engagement score (0-10). Computed from scroll depth, dwell time, ratings, comments."
+    )
+    engagement_updated_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When the engagement score was last recalculated"
+    )
+    
     image_source = models.CharField(
         max_length=20, choices=IMAGE_SOURCE_CHOICES, default='unknown',
         help_text="Where the article images came from (youtube, rss_original, pexels, uploaded)"
@@ -145,22 +156,32 @@ class Article(models.Model):
             if not img:
                 return
             img_name = getattr(img, 'name', str(img))
-            # Skip Cloudinary/external URLs BEFORE accessing .file (which triggers IOError)
-            if img_name.startswith('http') or 'cloudinary' in img_name:
+            
+            # Skip Cloudinary/external URLs/already prefixed paths
+            if (img_name.startswith('http') or 
+                'cloudinary' in img_name or 
+                img_name.startswith('articles/') or 
+                img_name.startswith('media/articles/')):
                 return
+                
             # Skip if already optimized
             if '_optimized' in img_name:
                 return
+                
             # Now safe to check if it's a fresh upload
             try:
+                # In-memory or temporary files are from user uploads/manual approve
+                from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUploadedFile
                 img_file = getattr(img, 'file', None)
-            except (IOError, OSError):
-                return  # Can't access file — skip optimization
-            if not isinstance(img_file, (InMemoryUploadedFile, TemporaryUploadedFile, BytesIO)):
+                if not isinstance(img_file, (InMemoryUploadedFile, TemporaryUploadedFile, BytesIO)):
+                    return
+            except (IOError, OSError, AttributeError):
                 return
+
             try:
                 optimized_img = optimize_image(img, max_width=1920, max_height=1080, quality=85)
                 if optimized_img:
+                    # By now optimize_image returns just a basename filename
                     setattr(self, field_name, optimized_img)
             except Exception as e:
                 import logging
@@ -242,16 +263,16 @@ class PendingArticle(models.Model):
     )
     
     # YouTube-specific fields (optional)
-    video_url = models.URLField(blank=True, help_text="Source YouTube video URL")
+    video_url = models.URLField(max_length=2000, blank=True, help_text="Source YouTube video URL")
     video_id = models.CharField(max_length=50, blank=True, db_index=True)
     video_title = models.CharField(max_length=500, blank=True)
     
     # Author / Source Credits (preserved from generation)
     author_name = models.CharField(max_length=200, blank=True, help_text="Original content creator name")
-    author_channel_url = models.URLField(blank=True, help_text="Original creator channel URL")
+    author_channel_url = models.URLField(max_length=2000, blank=True, help_text="Original creator channel URL")
     
     # RSS-specific fields (optional)
-    source_url = models.URLField(blank=True, help_text="Original article/press release URL")
+    source_url = models.URLField(max_length=2000, blank=True, help_text="Original article/press release URL")
     content_hash = models.CharField(max_length=64, blank=True, db_index=True, help_text="SHA256 hash for deduplication")
     
     # Generated content
@@ -264,7 +285,7 @@ class PendingArticle(models.Model):
     
     # Images (stored as JSON array of URLs)
     images = models.JSONField(default=list, blank=True)
-    featured_image = models.URLField(blank=True)
+    featured_image = models.URLField(max_length=2000, blank=True)
     image_source = models.CharField(
         max_length=20, choices=IMAGE_SOURCE_CHOICES, default='unknown',
         help_text="Where the images came from (youtube, rss_original, pexels, uploaded)"

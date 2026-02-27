@@ -171,14 +171,14 @@ def _pipeline_patches(func):
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.specs_enricher.enrich_specs_from_web')
     @patch('ai_engine.modules.searcher.get_web_context')
-    @patch('modules.article_reviewer.review_article')
-    @patch('ai_engine.main.extract_video_screenshots')
-    @patch('ai_engine.main.generate_article')
-    @patch('modules.analyzer.extract_specs_dict')
-    @patch('modules.analyzer.categorize_article')
-    @patch('ai_engine.main.analyze_transcript')
-    @patch('ai_engine.main.transcribe_from_youtube')
-    @patch('ai_engine.main.requests.get')
+    @patch('ai_engine.modules.article_reviewer.review_article')
+    @patch('ai_engine.modules.downloader.extract_video_screenshots')
+    @patch('ai_engine.modules.article_generator.generate_article')
+    @patch('ai_engine.modules.analyzer.extract_specs_dict')
+    @patch('ai_engine.modules.analyzer.categorize_article')
+    @patch('ai_engine.modules.analyzer.analyze_transcript')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
+    @patch('ai_engine.modules.content_generator.requests.get')
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
     return wrapper
@@ -362,7 +362,7 @@ class TestPriceSegmentTags:
             tags=['BYD', 'Electric'],
         )
 
-        with patch('modules.analyzer.extract_price_usd', return_value=65000):
+        with patch('ai_engine.modules.analyzer.extract_price_usd', return_value=65000):
             result = _generate_article_content(
                 'https://www.youtube.com/watch?v=premium_test',
                 provider='gemini'
@@ -385,7 +385,7 @@ class TestPriceSegmentTags:
             tags=['Mercedes', 'Electric'],
         )
 
-        with patch('modules.analyzer.extract_price_usd', return_value=120000):
+        with patch('ai_engine.modules.analyzer.extract_price_usd', return_value=120000):
             result = _generate_article_content(
                 'https://www.youtube.com/watch?v=luxury_test',
                 provider='gemini'
@@ -636,7 +636,7 @@ class TestTitleVariantsEmpty:
             is_published=True,
         )
 
-        with patch('modules.ai_provider.get_ai_provider') as mock_ai:
+        with patch('ai_engine.modules.ai_provider.get_ai_provider') as mock_ai:
             mock_provider = MagicMock()
             # Return only short lines < 10 chars or empty
             mock_provider.generate_completion.return_value = "OK\n\nHi\n"
@@ -657,7 +657,7 @@ class TestTitleVariantsEmpty:
             is_published=True,
         )
 
-        with patch('modules.ai_provider.get_ai_provider') as mock_ai:
+        with patch('ai_engine.modules.ai_provider.get_ai_provider') as mock_ai:
             mock_provider = MagicMock()
             # Lines start with numbering → filtered, then short → filtered
             mock_provider.generate_completion.return_value = "1. Short\n2. Tiny\n"

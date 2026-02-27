@@ -622,6 +622,11 @@ class RSSAggregator:
                 # Get publication date
                 pub_date = self.parse_entry_date(entry)
                 
+                # Defensive truncation to prevent varchar overflow
+                title = title[:500] if title else ''
+                source_url = source_url[:2000] if source_url else ''
+                featured_image = featured_image[:1000] if featured_image else ''
+                
                 # Create RSSNewsItem (raw, no AI processing)
                 RSSNewsItem.objects.create(
                     rss_feed=rss_feed,

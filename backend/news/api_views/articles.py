@@ -182,7 +182,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         Allow anyone to rate articles and check their rating,
         but require staff for other write operations
         """
-        if self.action in ['rate', 'get_user_rating', 'increment_views']:
+        if self.action in ['rate', 'get_user_rating', 'increment_views', 'recommended']:
             return [AllowAny()]
         return super().get_permissions()
     
@@ -213,8 +213,25 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return ArticleListSerializer
         return ArticleDetailSerializer
     
+    def perform_destroy(self, instance):
+        """Soft-delete article instead of hard delete — safer and recoverable"""
+        instance.is_deleted = True
+        instance.is_published = False
+        instance.save(update_fields=['is_deleted', 'is_published'])
+        
+        # Clear caches
+        try:
+            from news.api_views.rss_youtube import invalidate_article_cache
+            invalidate_article_cache()
+        except Exception:
+            pass
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Article soft-deleted: id={instance.id}, slug={instance.slug}")
+    
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().defer('engagement_score', 'engagement_updated_at')
         category = self.request.query_params.get('category', None)
         tag = self.request.query_params.get('tag', None)
         is_published = self.request.query_params.get('is_published', None)
@@ -249,13 +266,38 @@ class ArticleViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         # Don't cache for authenticated users (admins need to see fresh data)
         if request.user.is_authenticated:
-            return super().list(request, *args, **kwargs)
+            return self._relevance_aware_list(request, *args, **kwargs)
         # Cache for anonymous users only
         return self._cached_list(request, *args, **kwargs)
     
+    def _relevance_aware_list(self, request, *args, **kwargs):
+        """Apply relevance scoring when search param is present and no explicit ordering"""
+        queryset = self.filter_queryset(self.get_queryset())
+        search_query = request.query_params.get('search', '').strip()
+        explicit_ordering = request.query_params.get('ordering', '')
+        
+        if search_query and not explicit_ordering:
+            # Relevance scoring: title match (3pts) > summary (2pts) > tags/keywords (1pt)
+            queryset = queryset.annotate(
+                _search_relevance=Case(
+                    When(title__icontains=search_query, then=Value(3)),
+                    When(summary__icontains=search_query, then=Value(2)),
+                    When(Q(meta_keywords__icontains=search_query) | Q(tags__name__icontains=search_query), then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            ).order_by('-_search_relevance', '-views', '-created_at').distinct()
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
     @method_decorator(cache_page(300))  # Cache for 5 minutes — cache_signals handles invalidation on changes
     def _cached_list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        return self._relevance_aware_list(request, *args, **kwargs)
     
     def retrieve(self, request, *args, **kwargs):
         # Don't cache for authenticated users
@@ -885,6 +927,33 @@ class ArticleViewSet(viewsets.ModelViewSet):
             redis_conn = get_redis_connection("default")
             cache_key = f"article_views:{article.id}"
             
+            # --- START User Personalization Engine ---
+            user_identifier = None
+            if request.user.is_authenticated:
+                user_identifier = f"user_{request.user.id}"
+            else:
+                session_key = request.session.session_key
+                if session_key:
+                    user_identifier = f"session_{session_key}"
+                else:
+                    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+                    ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+                    user_identifier = f"ip_{ip}"
+                    
+            if user_identifier:
+                tags = article.tags.all()
+                tag_names = [t.name for t in tags]
+                
+                if tag_names:
+                    pref_key = f"user_prefs:{user_identifier}"
+                    try:
+                        for tag_name in tag_names:
+                            redis_conn.zincrby(pref_key, 1, tag_name)
+                        redis_conn.expire(pref_key, 60 * 60 * 24 * 30) # 30 days
+                    except Exception:
+                        pass
+            # --- END User Personalization Engine ---
+            
             # Atomic increment in Redis
             new_count = redis_conn.incr(cache_key)
             
@@ -897,14 +966,72 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     invalidate_article_cache(article_id=article.id, slug=article.slug)
                 except Exception:
                     pass
+                    
+            return Response({'status': 'success', 'views': new_count})
+        except Exception as e:
+            # Fallback to traditional DB increment if Redis fails
+            Article.objects.filter(id=article.id).update(views=models.F('views') + 1)
+            return Response({'status': 'fallback_success'})
             
-            return Response({'views': new_count})
+    @action(detail=False, methods=['get'])
+    def recommended(self, request):
+        """
+        User Personalization Engine: Returns articles based on the user's reading history tags.
+        """
+        user_identifier = None
+        if request.user.is_authenticated:
+            user_identifier = f"user_{request.user.id}"
+        else:
+            session_key = getattr(request, 'session', None)
+            session_key = session_key.session_key if session_key else None
+            
+            if session_key:
+                user_identifier = f"session_{session_key}"
+            else:
+                x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+                ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+                user_identifier = f"ip_{ip}"
+                
+        top_tags = []
+        try:
+            from django_redis import get_redis_connection
+            redis_conn = get_redis_connection("default")
+            pref_key = f"user_prefs:{user_identifier}"
+            
+            # Get top 3 tags by score (descending)
+            top_tags_bytes = redis_conn.zrevrange(pref_key, 0, 2)
+            top_tags = [t.decode('utf-8') for t in top_tags_bytes]
+            
         except Exception:
-            # Fallback to database if Redis unavailable
-            article.views += 1
-            article.save(update_fields=['views'])
-            return Response({'views': article.views})
-    
+            pass
+            
+        # Get base queryset — always show only published articles for recommendations
+        queryset = self.get_queryset().filter(is_published=True)
+        page_size = int(request.query_params.get('page_size', 5))
+        
+        if top_tags:
+            # Use tags as a BOOST, not a priority override
+            # Articles with matching tags get a bonus, but views always dominate
+            from django.db.models import Case, When, Value, IntegerField
+            queryset = queryset.annotate(
+                has_matching_tag=Case(
+                    When(tags__name__in=top_tags, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+            ).distinct().order_by('-views', '-has_matching_tag', '-created_at')
+        else:
+            # Fallback to general trending if no history
+            queryset = queryset.order_by('-views', '-created_at')
+            
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = ArticleListSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+
+        serializer = ArticleListSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+
     @action(detail=True, methods=['post'], url_path='feedback',
             permission_classes=[AllowAny])
     def submit_feedback(self, request, slug=None):
@@ -1100,20 +1227,165 @@ class ArticleViewSet(viewsets.ModelViewSet):
             'ctr': winner.ctr
         })
 
+    @action(detail=True, methods=['get'], url_path='ab-image',
+            permission_classes=[AllowAny])
+    def ab_image(self, request, slug=None):
+        """Get the A/B test image variant for this visitor."""
+        import random
+        from news.models.system import ArticleImageVariant
+        from django.db.models import F
+        
+        article = self.get_object()
+        variants = list(ArticleImageVariant.objects.filter(article=article))
+        
+        if not variants:
+            return Response({
+                'image_source': article.image_source,
+                'variant': None,
+                'ab_active': False
+            })
+            
+        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+        is_bot = any(bot in user_agent for bot in ['googlebot', 'bingbot', 'yandex', 'spider', 'crawler'])
+        
+        cookie_key = f'ab_img_{article.id}'
+        assigned_variant = request.COOKIES.get(cookie_key)
+        
+        if is_bot:
+            assigned_variant = 'A'
+            
+        if assigned_variant and assigned_variant in [v.variant for v in variants]:
+            chosen = next(v for v in variants if v.variant == assigned_variant)
+        else:
+            chosen = random.choice(variants)
+            assigned_variant = chosen.variant
+            
+        if not is_bot:
+            ArticleImageVariant.objects.filter(id=chosen.id).update(
+                impressions=F('impressions') + 1
+            )
+            
+        response = Response({
+            'image_url': chosen.image_url,
+            'image_source': chosen.image_source,
+            'variant': chosen.variant,
+            'ab_active': True
+        })
+        
+        if not is_bot:
+            response.set_cookie(
+                cookie_key,
+                assigned_variant,
+                max_age=30 * 24 * 60 * 60,
+                httponly=False,
+                samesite='Lax'
+            )
+            
+        return response
+
+    @action(detail=True, methods=['post'], url_path='ab-image-click',
+            permission_classes=[AllowAny])
+    def ab_image_click(self, request, slug=None):
+        """Record a click (conversion) for an A/B test image variant."""
+        from news.models.system import ArticleImageVariant
+        from django.db.models import F
+        
+        article = self.get_object()
+        variant_letter = request.data.get('variant') or request.COOKIES.get(f'ab_img_{article.id}')
+        
+        if not variant_letter:
+            return Response({'success': False, 'error': 'No variant specified'}, status=400)
+            
+        updated = ArticleImageVariant.objects.filter(
+            article=article, variant=variant_letter
+        ).update(clicks=F('clicks') + 1)
+        
+        return Response({'success': updated > 0})
+
+    @action(detail=True, methods=['get'], url_path='ab-image-stats',
+            permission_classes=[IsAdminUser])
+    def ab_image_stats(self, request, slug=None):
+        """Get A/B test statistics for an article image (admin only)."""
+        from news.models.system import ArticleImageVariant
+        
+        article = self.get_object()
+        variants = ArticleImageVariant.objects.filter(article=article)
+        
+        data = []
+        for v in variants:
+            data.append({
+                'id': v.id,
+                'variant': v.variant,
+                'image_url': v.image_url,
+                'image_source': v.image_source,
+                'impressions': v.impressions,
+                'clicks': v.clicks,
+                'ctr': v.ctr,
+                'is_winner': v.is_winner,
+            })
+            
+        return Response({
+            'article_id': article.id,
+            'original_image_source': article.image_source,
+            'variants': data,
+            'total_impressions': sum(v.impressions for v in variants),
+            'total_clicks': sum(v.clicks for v in variants),
+        })
+
+    @action(detail=True, methods=['post'], url_path='ab-image-pick-winner',
+            permission_classes=[IsAdminUser])
+    def ab_image_pick_winner(self, request, slug=None):
+        """Pick the winning A/B image variant."""
+        from news.models.system import ArticleImageVariant
+        
+        article = self.get_object()
+        variant_letter = request.data.get('variant')
+        
+        if not variant_letter:
+            return Response({'error': 'Specify variant (A, B, or C)'}, status=400)
+            
+        try:
+            winner = ArticleImageVariant.objects.get(article=article, variant=variant_letter)
+        except ArticleImageVariant.DoesNotExist:
+            return Response({'error': f'Variant {variant_letter} not found'}, status=404)
+            
+        ArticleImageVariant.objects.filter(article=article).update(is_winner=False, is_active=False)
+        winner.is_winner = True
+        winner.save(update_fields=['is_winner'])
+        
+        # Apply winner to article model
+        article.image_source = winner.image_source
+        article.save(update_fields=['image_source'])
+        
+        return Response({
+            'success': True,
+            'new_image_source': winner.image_source,
+            'variant': winner.variant,
+            'ctr': winner.ctr
+        })
+
     @action(detail=False, methods=['get'])
     @method_decorator(cache_page(60 * 15))  # Cache trending for 15 minutes
     def trending(self, request):
-        """Get trending articles (most viewed in last 7 days)"""
+        """Get trending articles (most viewed in last 7 days, fallback to all-time)"""
         from django.utils import timezone
         from datetime import timedelta
         
-        # Get articles from last 7 days, sorted by views
+        # Try articles from last 7 days first
         week_ago = timezone.now() - timedelta(days=7)
-        trending = Article.objects.filter(
+        trending = Article.objects.defer('engagement_score', 'engagement_updated_at').filter(
             is_published=True,
             is_deleted=False,
-            created_at__gte=week_ago
+            created_at__gte=week_ago,
+            views__gt=0,
         ).order_by('-views')[:10]
+        
+        # Fallback to all-time popular if no recent views
+        if not trending.exists():
+            trending = Article.objects.defer('engagement_score', 'engagement_updated_at').filter(
+                is_published=True,
+                is_deleted=False,
+            ).order_by('-views')[:10]
         
         serializer = ArticleListSerializer(trending, many=True, context={'request': request})
         return Response(serializer.data)
@@ -1122,7 +1394,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
     @method_decorator(cache_page(60 * 60))  # Cache popular for 1 hour
     def popular(self, request):
         """Get most popular articles (all time)"""
-        popular = Article.objects.filter(
+        popular = Article.objects.defer('engagement_score', 'engagement_updated_at').filter(
             is_published=True,
             is_deleted=False
         ).order_by('-views')[:10]
@@ -1401,7 +1673,8 @@ Return ONLY the reformatted HTML."""
                 expanded_content = expand_press_release(
                     press_release_text=press_release_text,
                     source_url=source_url,
-                    provider=provider
+                    provider=provider,
+                    source_title=article.title
                 )
                 
                 if not expanded_content or len(expanded_content) < 200:

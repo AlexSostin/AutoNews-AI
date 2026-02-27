@@ -1,9 +1,23 @@
+"""
+AI Auto News Generator — Orchestrator.
+
+This is the main entry point for article generation. It orchestrates the
+generation pipeline and provides two workflows:
+
+1. generate_article_from_youtube() — Direct publish (legacy/manual flow)
+2. create_pending_article() — PendingArticle creation (new flow used by scheduler)
+
+All heavy logic has been extracted into focused modules:
+- modules/title_utils.py — Title validation/extraction
+- modules/duplicate_checker.py — Duplicate detection
+- modules/content_generator.py — Article generation pipeline
+- modules/ab_variants.py — A/B title variant generation
+"""
 import argparse
 import os
 import sys
 import re
 import logging
-import requests
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +26,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# Import config first to ensure it's available
+# Import config
 try:
     from ai_engine.config import GROQ_API_KEY
 except ImportError:
@@ -21,820 +35,52 @@ except ImportError:
     except ImportError:
         GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
-# Import modules
+# Import publisher
 try:
-    from ai_engine.modules.downloader import download_audio_and_thumbnail
-    from ai_engine.modules.transcriber import transcribe_from_youtube
-    from ai_engine.modules.analyzer import analyze_transcript
-    from ai_engine.modules.article_generator import generate_article
     from ai_engine.modules.publisher import publish_article
-    from ai_engine.modules.downloader import extract_video_screenshots
 except ImportError:
-    from modules.downloader import download_audio_and_thumbnail
-    from modules.transcriber import transcribe_from_youtube
-    from modules.analyzer import analyze_transcript
-    from modules.article_generator import generate_article
     from modules.publisher import publish_article
-    from modules.downloader import extract_video_screenshots
 
-# Generic section headers that AI generates as part of article structure.
-# These should NEVER be used as article titles.
-GENERIC_SECTION_HEADERS = [
-    'performance & specs', 'performance and specs',
-    'performance & specifications', 'performance and specifications',
-    'performance \u0026 specifications', 'performance \u0026amp; specifications',
-    'performance \u0026 specs', 'performance \u0026amp; specs',
-    'design & interior', 'design and interior',
-    'design \u0026 interior', 'design \u0026amp; interior',
-    'technology & features', 'technology and features',
-    'technology \u0026 features', 'technology \u0026amp; features',
-    'driving experience', 'driving impressions',
-    'pros & cons', 'pros and cons', 'pros \u0026 cons',
-    'conclusion', 'summary', 'overview', 'introduction',
-    'us market availability & pricing', 'us market availability',
-    'global market & regional availability', 'global market',
-    'market availability & pricing', 'pricing & availability',
-    'pricing and availability', 'specifications', 'features',
-    'details', 'information', 'title:', 'new car review',
-    'interior & comfort', 'safety & technology',
-    'exterior design', 'interior design',
-    'engine & performance', 'powertrain',
-    'battery & range', 'charging & range',
-]
+# ═══════════════════════════════════════════════════════════════════════════
+# Backward-compatible re-exports
+# All existing `from ai_engine.main import X` continue to work unchanged.
+# ═══════════════════════════════════════════════════════════════════════════
+try:
+    from ai_engine.modules.title_utils import (
+        GENERIC_SECTION_HEADERS, _is_generic_header, _contains_non_latin,
+        validate_title, extract_title,
+    )
+    from ai_engine.modules.duplicate_checker import check_duplicate, check_car_duplicate
+    from ai_engine.modules.content_generator import _generate_article_content
+    from ai_engine.modules.ab_variants import generate_title_variants
+except ImportError:
+    from modules.title_utils import (
+        GENERIC_SECTION_HEADERS, _is_generic_header, _contains_non_latin,
+        validate_title, extract_title,
+    )
+    from modules.duplicate_checker import check_duplicate, check_car_duplicate
+    from modules.content_generator import _generate_article_content
+    from modules.ab_variants import generate_title_variants
 
 
-def _is_generic_header(text: str) -> bool:
-    """
-    Check if a text is a generic section header that shouldn't be a title.
-    Uses fuzzy matching to catch variations.
-    """
-    clean = text.strip().lower()
-    # Remove HTML entities
-    clean = clean.replace('&amp;', '&').replace('\u0026amp;', '&').replace('\u0026', '&')
-    # Remove leading/trailing punctuation
-    clean = re.sub(r'^[\s\-:]+|[\s\-:]+$', '', clean)
-    
-    # Exact or substring match against known headers
-    for header in GENERIC_SECTION_HEADERS:
-        if clean == header or (header in clean and len(clean) < 50):
-            return True
-    
-    # Regex patterns for common generic headers
-    generic_patterns = [
-        r'^(the\s+)?\d{4}\s+(performance|specs|design)',  # "2025 Performance"
-        r'^(pros|cons)\s*(\u0026|and|&)',
-        r'^(key\s+)?(features|specifications|highlights)$',
-        r'^(final\s+)?(verdict|thoughts|conclusion)s?$',
-        r'^(driving|ride|road)\s+(experience|test|review)$',
-    ]
-    for pattern in generic_patterns:
-        if re.match(pattern, clean, re.IGNORECASE):
-            return True
-    
-    return False
-
-
-def _contains_non_latin(text: str) -> bool:
-    """Check if text contains non-Latin characters (Cyrillic, Chinese, Arabic, etc.)."""
-    # Allow: ASCII, common punctuation, digits, extended Latin (accents)
-    # Reject: Cyrillic (0400-04FF), Chinese (4E00-9FFF), Arabic (0600-06FF), etc.
-    non_latin = re.findall(r'[\u0400-\u04FF\u4E00-\u9FFF\u0600-\u06FF\u3040-\u309F\u30A0-\u30FF]', text)
-    # If more than 2 non-Latin chars, it's likely a non-English title
-    return len(non_latin) > 2
-
-
-def validate_title(title: str, video_title: str = None, specs: dict = None) -> str:
-    """
-    Validates and fixes article title. Returns a good title or constructs one from available data.
-    
-    Priority:
-    1. Use provided title if it's valid (not generic, long enough, in English)
-    2. Use video_title if available
-    3. Construct from specs (Year Make Model Review)
-    4. Last resort: generic but unique-ish fallback
-    """
-    # Check if title is valid
-    if title and len(title) > 15 and not _is_generic_header(title):
-        # Reject non-English titles (Cyrillic, Chinese, etc.)
-        if _contains_non_latin(title):
-            logger.warning(f"[TITLE] Rejected non-English title: {title[:60]}")
-            # Fall through to fallbacks below
-        else:
-            return title.strip()
-    
-    # Fallback 1: Use video title (cleaned up)
-    if video_title and len(video_title) > 10:
-        # Clean video title (remove channel name suffixes, etc.)
-        clean_vt = re.sub(r'\s*[|\-–]\s*[^|\-–]+$', '', video_title).strip()
-        if clean_vt and len(clean_vt) > 10 and not _contains_non_latin(clean_vt):
-            return clean_vt
-        if not _contains_non_latin(video_title):
-            return video_title.strip()
-    
-    # Fallback 2: Construct from specs
-    if specs:
-        make = specs.get('make', '')
-        model = specs.get('model', '')
-        year = specs.get('year', '')
-        trim = specs.get('trim', '')
-        
-        if make and make != 'Not specified' and model and model != 'Not specified':
-            year_str = f"{year} " if year else ""
-            trim_str = f" {trim}" if trim and trim != 'Not specified' else ""
-            return f"{year_str}{make} {model}{trim_str} Review"
-    
-    # Last resort
-    if title and len(title) > 5 and not _contains_non_latin(title):
-        return title
-    return "New Car Review"
-
-
-def extract_title(html_content):
-    """
-    Extracts the main article title from generated HTML.
-    Ignores generic section headers like 'Performance & Specifications'.
-    """
-    # Find all h2 tags (handle attributes in tags)
-    h2_matches = re.findall(r'<h2[^>]*>(.*?)</h2>', html_content, re.IGNORECASE | re.DOTALL)
-    
-    for title in h2_matches:
-        # Strip HTML tags inside the h2 (e.g., <strong>, <em>)
-        clean_t = re.sub(r'<[^>]+>', '', title).strip()
-        clean_t = clean_t.replace('Title:', '').strip()
-        
-        # Skip empty or very short
-        if len(clean_t) < 10:
-            continue
-        
-        # Skip generic section headers
-        if _is_generic_header(clean_t):
-            continue
-        
-        return clean_t
-    
-    return None  # Return None instead of fallback — let validate_title handle it
+# ═══════════════════════════════════════════════════════════════════════════
+# CLI Entry Point
+# ═══════════════════════════════════════════════════════════════════════════
 
 def main(youtube_url):
     print(f"Starting pipeline for: {youtube_url}")
     
-    # 1. Download
-    # audio_path, thumbnail_path = download_audio_and_thumbnail(youtube_url)
-    
-    # 2. Transcribe
-    # transcript = transcribe_audio(audio_path)
-    
-    # For testing without wasting API credits/Time, let's mock if needed
-    # transcript = "Mock transcript..."
-    
-    # 3. Analyze
-    # analysis = analyze_transcript(transcript)
-    
-    # 4. Generate Article
-    # article_html = generate_article(analysis)
-    
-    # Mocking for demonstration since we don't have API keys set up
     article_html = "<h2>2026 Future Car Review</h2><p>This is a generated article with a mockup image.</p>"
     
-    # 5. Publish
     title = extract_title(article_html)
-    
-    # Pass thumbnail_path if we had real download
-    # publish_article(title, article_html, image_path=thumbnail_path)
-    
-    # Mock publish
     publish_article(title, article_html)
     
     print("Pipeline finished.")
 
-def check_duplicate(youtube_url):
-    """
-    Проверяет, не генерировали ли мы уже статью с этого видео.
-    """
-    # Setup Django if not configured
-    import django
-    if not django.apps.apps.ready:
-        import os
-        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        sys.path.append(BASE_DIR)
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
-        django.setup()
-    
-    from news.models import Article
-    
-    existing = Article.objects.filter(youtube_url=youtube_url).first()
-    if existing:
-        print(f"⚠️  Статья уже существует: {existing.slug} (ID: {existing.id})")
-        return existing
-    return None
 
-
-def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None):
-    """
-    Internal function to generate article content without saving to DB.
-    Returns dictionary with all article data.
-    """
-    def send_progress(step, progress, message):
-        """Send progress update via WebSocket"""
-        if not task_id:
-            print(f"[{progress}%] {message}")
-            return
-        try:
-            from asgiref.sync import async_to_sync
-            from channels.layers import get_channel_layer
-            channel_layer = get_channel_layer()
-            if channel_layer:
-                async_to_sync(channel_layer.group_send)(
-                    f"generation_{task_id}",
-                    {
-                        "type": "send_progress",
-                        "step": step,
-                        "progress": progress,
-                        "message": message
-                    }
-                )
-        except Exception as e:
-            print(f"WebSocket progress error: {e}")
-
-    try:
-        import time as _time
-        _t_start = _time.time()
-        _timings = {}
-        
-        provider_name = "Groq" if provider == 'groq' else "Google Gemini"
-        send_progress(1, 5, f"🚀 Starting generation with {provider_name}...")
-        print(f"🚀 Starting generation from: {youtube_url} using {provider_name}")
-        
-        # 0. Получаем заголовок видео и информацию о канале
-        author_name = ''
-        author_channel_url = ''
-        try:
-            oembed_url = f"https://www.youtube.com/oembed?url={youtube_url}&format=json"
-            resp = requests.get(oembed_url, timeout=5)
-            if resp.status_code == 200:
-                oembed_data = resp.json()
-                if not video_title:
-                    video_title = oembed_data.get('title')
-                    print(f"🎥 Fetched Video Title: {video_title}")
-                author_name = oembed_data.get('author_name', '')
-                author_channel_url = oembed_data.get('author_url', '')
-                print(f"👤 Channel: {author_name} ({author_channel_url})")
-        except Exception as e:
-            print(f"⚠️ Could not fetch video metadata: {e}")
-
-        # 1. Получаем транскрипт
-        _t_step = _time.time()
-        send_progress(2, 20, "📝 Fetching subtitles from YouTube...")
-        print("📝 Fetching transcript...")
-        transcript = transcribe_from_youtube(youtube_url)
-        _timings['transcript'] = round(_time.time() - _t_step, 1)
-        
-        if not transcript or len(transcript) < 5 or transcript.startswith("ERROR:"):
-            error_msg = transcript if transcript and transcript.startswith("ERROR:") else "Failed to retrieve transcript or it is too short"
-            send_progress(2, 100, f"❌ {error_msg}")
-            raise Exception(error_msg)
-        
-        send_progress(2, 30, f"✓ Transcript received ({len(transcript)} chars)")
-        
-        # 2. Analyze transcript
-        _t_step = _time.time()
-        send_progress(3, 40, f"🔍 Analyzing transcript with {provider_name} AI...")
-        print("🔍 Analyzing transcript...")
-        analysis = analyze_transcript(transcript, video_title=video_title, provider=provider)
-        
-        if not analysis:
-            send_progress(3, 100, "❌ Analysis failed")
-            raise Exception("Failed to analyze transcript")
-        
-        _timings['analysis'] = round(_time.time() - _t_step, 1)
-        send_progress(3, 50, "✓ Analysis complete")
-        
-        # 2.5. Categorize and Tags
-        send_progress(4, 55, "🏷️ Categorizing...")
-        from modules.analyzer import categorize_article, extract_specs_dict
-        
-        category_name, tag_names = categorize_article(analysis)
-        
-        # 2.6. Extract Specs
-        specs = extract_specs_dict(analysis)
-        send_progress(4, 60, f"✓ {specs['make']} {specs['model']}")
-        
-        # 2.6.1 AUTO-ADD YEAR TAG if not already present
-        year = specs.get('year')
-        if year:
-            year_str = str(year)
-            # Check if any year tag is already present
-            has_year_tag = any(t.isdigit() and len(t) == 4 for t in tag_names)
-            if not has_year_tag:
-                tag_names.append(year_str)
-                print(f"🏷️ Auto-added year tag: {year_str}")
-        
-        # 2.6.2 AUTO-ADD DRIVETRAIN TAG from enriched specs
-        drivetrain = specs.get('drivetrain')
-        if drivetrain and drivetrain not in ('Not specified', '', None):
-            dt_upper = drivetrain.upper()
-            has_dt_tag = any(t.upper() in ('AWD', 'FWD', 'RWD', '4WD') for t in tag_names)
-            if not has_dt_tag and dt_upper in ('AWD', 'FWD', 'RWD', '4WD'):
-                tag_names.append(dt_upper)
-                print(f"🏷️ Auto-added drivetrain tag: {dt_upper}")
-        
-        # 2.6.3 AUTO-ADD MODEL TAG from DB if not already present
-        try:
-            from news.models import Tag
-            model_name = specs.get('model')
-            make_name = specs.get('make')
-            if model_name and model_name != 'Not specified':
-                # Check if any Models-group tag matches
-                has_model_tag = False
-                model_tags = Tag.objects.filter(group__name='Models').values_list('name', flat=True)
-                tag_names_lower = [t.lower() for t in tag_names]
-                for mt in model_tags:
-                    if mt.lower() in tag_names_lower:
-                        has_model_tag = True
-                        break
-                if not has_model_tag:
-                    # Try to find a matching Model tag in DB
-                    for mt in model_tags:
-                        if model_name.lower() in mt.lower() or mt.lower() in model_name.lower():
-                            tag_names.append(mt)
-                            print(f"🏷️ Auto-added model tag: {mt}")
-                            break
-        except Exception as e:
-            print(f"⚠️ Model tag auto-add failed: {e}")
-        
-        # 2.65. DUPLICATE CHECK — skip if article already exists for same car
-        if specs.get('make') and specs['make'] != 'Not specified' and specs.get('model') and specs['model'] != 'Not specified':
-            try:
-                from news.models import CarSpecification, PendingArticle as PA, Article as ART
-                from difflib import SequenceMatcher
-                
-                car_make = specs['make']
-                car_model = specs['model']
-                trim = specs.get('trim', 'Not specified')
-                
-                # Check 1: CarSpecification for PUBLISHED articles (original check)
-                existing = CarSpecification.objects.filter(
-                    make__iexact=car_make,
-                    model__iexact=car_model,
-                    article__is_published=True,
-                )
-                if trim and trim != 'Not specified':
-                    existing_same_trim = existing.filter(trim__iexact=trim)
-                    if existing_same_trim.exists():
-                        existing_article = existing_same_trim.first().article
-                        msg = (f"⚠️ Duplicate detected: {car_make} {car_model} {trim} "
-                               f"already exists (Article #{existing_article.id}: \"{existing_article.title}\")")
-                        print(msg)
-                        send_progress(4, 100, f"⚠️ Skipped — duplicate of article #{existing_article.id}")
-                        return {'success': False, 'status': 'skipped', 'reason': 'duplicate',
-                                'existing_article_id': existing_article.id, 'error': msg}
-                else:
-                    if existing.exists():
-                        existing_article = existing.first().article
-                        msg = (f"⚠️ Duplicate detected: {car_make} {car_model} "
-                               f"already exists (Article #{existing_article.id}: \"{existing_article.title}\")")
-                        print(msg)
-                        send_progress(4, 100, f"⚠️ Skipped — duplicate of article #{existing_article.id}")
-                        return {'success': False, 'status': 'skipped', 'reason': 'duplicate',
-                                'existing_article_id': existing_article.id, 'error': msg}
-                
-                # Check 2: ALL articles (including DRAFTS) by title containing make+model
-                from datetime import timedelta
-                from django.utils import timezone
-                cutoff = timezone.now() - timedelta(days=90)
-                
-                draft_articles = ART.objects.filter(
-                    created_at__gte=cutoff,
-                ).filter(
-                    title__icontains=car_model,
-                ).filter(
-                    title__icontains=car_make,
-                )
-                if draft_articles.exists():
-                    existing_article = draft_articles.first()
-                    msg = (f"⚠️ Duplicate detected: {car_make} {car_model} "
-                           f"already exists as article (#{existing_article.id}: \"{existing_article.title}\", "
-                           f"published={existing_article.is_published})")
-                    print(msg)
-                    send_progress(4, 100, f"⚠️ Skipped — duplicate of article #{existing_article.id}")
-                    return {'success': False, 'status': 'skipped', 'reason': 'duplicate',
-                            'existing_article_id': existing_article.id, 'error': msg}
-                
-                # Check 3: PendingArticle for same car (not yet published)
-                pending_same_car = PA.objects.filter(
-                    status='pending',
-                    title__icontains=car_model,
-                )
-                if car_make:
-                    pending_same_car = pending_same_car.filter(title__icontains=car_make)
-                if pending_same_car.exists():
-                    pending_art = pending_same_car.first()
-                    msg = (f"⚠️ Duplicate detected: {car_make} {car_model} "
-                           f"already pending (PendingArticle #{pending_art.id}: \"{pending_art.title}\")")
-                    print(msg)
-                    send_progress(4, 100, f"⚠️ Skipped — same car already pending #{pending_art.id}")
-                    return {'success': False, 'status': 'skipped', 'reason': 'duplicate_pending',
-                            'existing_pending_id': pending_art.id, 'error': msg}
-                            
-            except Exception as e:
-                print(f"⚠️ Duplicate check failed (continuing anyway): {e}")
-        
-        # 2.7 WEB SEARCH ENRICHMENT
-        web_context = ""
-        try:
-            from ai_engine.modules.searcher import get_web_context
-            send_progress(4, 62, "🌐 Searching web for facts...")
-            
-            # Helper to clean model name if it's "Chin L"
-            if "Chin" in specs.get('model', '') and "Qin" not in specs.get('model', ''):
-                specs['model'] = specs['model'].replace("Chin", "Qin")
-                
-            web_context = get_web_context(specs)
-            if web_context:
-                print(f"✓ Web search successful")
-        except Exception as e:
-            print(f"⚠️ Web search failed: {e}")
-        
-        # 2.8 SPECS ENRICHMENT — fill gaps using web data
-        if web_context:
-            try:
-                from ai_engine.modules.specs_enricher import enrich_specs_from_web
-                send_progress(4, 63, "🔍 Cross-referencing specs...")
-                specs = enrich_specs_from_web(specs, web_context)
-                
-                # Build enriched analysis to give the generator better data
-                enriched_lines = []
-                for key in ['make', 'model', 'trim', 'year', 'engine', 'torque', 
-                           'acceleration', 'top_speed', 'drivetrain', 'battery', 'range', 'price']:
-                    val = specs.get(key, 'Not specified')
-                    if val and val != 'Not specified':
-                        enriched_lines.append(f"{key.replace('_', ' ').title()}: {val}")
-                hp = specs.get('horsepower')
-                if hp:
-                    enriched_lines.append(f"Horsepower: {hp} hp")
-                
-                if enriched_lines:
-                    analysis += f"\n\n[ENRICHED SPECS FROM WEB]:\n" + '\n'.join(enriched_lines)
-            except Exception as e:
-                print(f"⚠️ Specs enrichment failed (continuing): {e}")
-        
-        # 2.85 SPEC REFILL — AI-fill remaining gaps if coverage < 70%
-        try:
-            from ai_engine.modules.spec_refill import refill_missing_specs, compute_coverage
-            _, _, pre_coverage, _ = compute_coverage(specs)
-            if pre_coverage < 70:
-                send_progress(4, 64, f"🔄 Spec refill ({pre_coverage:.0f}% coverage)...")
-                specs = refill_missing_specs(specs, article_html if 'article_html' in dir() else '', web_context, provider)
-                refill_meta = specs.pop('_refill_meta', {})
-                if refill_meta.get('triggered'):
-                    _timings['spec_refill'] = True
-                    print(f"🔄 Spec refill: {refill_meta.get('coverage_before', 0)}% → {refill_meta.get('coverage_after', 0)}%")
-        except Exception as e:
-            print(f"⚠️ Spec refill failed (continuing): {e}")
-        
-        # 2.9 POST-ENRICHMENT: auto-add drivetrain tag if enricher found it
-        drivetrain = specs.get('drivetrain')
-        if drivetrain and drivetrain not in ('Not specified', '', None):
-            dt_upper = drivetrain.upper()
-            has_dt_tag = any(t.upper() in ('AWD', 'FWD', 'RWD', '4WD') for t in tag_names)
-            if not has_dt_tag and dt_upper in ('AWD', 'FWD', 'RWD', '4WD'):
-                tag_names.append(dt_upper)
-                print(f"🏷️ Auto-added drivetrain tag (post-enrichment): {dt_upper}")
-        
-        # 2.10 AUTO-ADD SEGMENT TAG based on price
-        try:
-            from modules.analyzer import extract_price_usd
-            price_usd = extract_price_usd(analysis)
-            if price_usd and price_usd > 0:
-                # Check if any price-based segment already assigned
-                price_segments = {'Budget', 'Premium', 'Luxury'}
-                has_price_segment = any(t in price_segments for t in tag_names)
-                if not has_price_segment:
-                    if price_usd < 25000:
-                        tag_names.append('Budget')
-                        print(f"🏷️ Auto-added segment: Budget (${price_usd:,.0f})")
-                    elif 50000 <= price_usd < 80000:
-                        tag_names.append('Premium')
-                        print(f"🏷️ Auto-added segment: Premium (${price_usd:,.0f})")
-                    elif price_usd >= 80000:
-                        tag_names.append('Luxury')
-                        print(f"🏷️ Auto-added segment: Luxury (${price_usd:,.0f})")
-        except Exception as e:
-            print(f"⚠️ Price segment auto-add failed: {e}")
-        
-        # 3. Generate Article
-        _t_step = _time.time()
-        send_progress(5, 65, f"✍️ Generating article with {provider_name}...")
-        print(f"✍️  Generating article...")
-        
-        # Pass web context to generator
-        article_html = generate_article(analysis, provider=provider, web_context=web_context)
-        
-        if not article_html or len(article_html) < 100:
-            send_progress(5, 100, "❌ Article generation failed")
-            raise Exception("Article content is empty or too short")
-        
-        # Stamp the article with AI provider info (hidden from readers, visible in admin)
-        from datetime import datetime
-        gen_stamp = f"<!-- Generated by: {provider_name} | {datetime.now().strftime('%Y-%m-%d %H:%M')} -->"
-        article_html = article_html.strip() + f"\n\n{gen_stamp}\n"
-        
-        _timings['generation'] = round(_time.time() - _t_step, 1)
-        send_progress(5, 75, "✓ Article generated")
-        
-        # 4. Определяем заголовок (Title) — multi-layer validation
-        title = None
-        
-        # Priority 1: SEO Title from Analysis
-        if specs.get('seo_title') and len(specs['seo_title']) > 5:
-            candidate = specs['seo_title'].replace('"', '').replace("'", "")
-            if not _is_generic_header(candidate):
-                title = candidate
-                print(f"📌 Using SEO Title from Analysis: {title}")
-            
-        # Priority 2: Extract from HTML <h2> (first non-generic header)
-        if not title:
-            extracted = extract_title(article_html)
-            if extracted:
-                title = extracted
-                print(f"📌 Extracted Title from HTML: {title}")
-        
-        # Priority 3: Construct from Specs (if Make/Model exist)
-        if not title and specs.get('make') and specs.get('model') and specs['make'] != 'Not specified':
-            year = specs.get('year', '')
-            year_str = f"{year} " if year else ""
-            trim = specs.get('trim', '')
-            trim_str = f" {trim}" if trim and trim != 'Not specified' else ""
-            title = f"{year_str}{specs['make']} {specs['model']}{trim_str} Review"
-            print(f"📌 Constructed Title from Specs: {title}")
-            
-        # Final validation — catches anything that slipped through
-        title = validate_title(title, video_title=video_title, specs=specs)
-        print(f"✅ Final validated title: {title}")
-        
-        # 5. Извлекаем 3 скриншота из видео
-        _t_step = _time.time()
-        send_progress(6, 80, "📸 Extracting screenshots...")
-        print("📸 Extracting screenshots...")
-        screenshot_paths = []
-        try:
-            screenshots_dir = os.path.join(current_dir, 'output', 'screenshots')
-            os.makedirs(screenshots_dir, exist_ok=True)
-            local_paths = extract_video_screenshots(youtube_url, output_dir=screenshots_dir, count=3)
-            
-            if local_paths:
-                # Upload to Cloudinary immediately
-                import cloudinary
-                import cloudinary.uploader
-                import shutil
-                from django.conf import settings
-                
-                print(f"☁️ Uploading {len(local_paths)} screenshots to Cloudinary...")
-                for path in local_paths:
-                    if os.path.exists(path):
-                        uploaded = False
-                        try:
-                            # Try Cloudinary first
-                            if os.getenv('CLOUDINARY_URL'):
-                                upload_result = cloudinary.uploader.upload(
-                                    path, 
-                                    folder="pending_articles",
-                                    resource_type="image"
-                                )
-                                secure_url = upload_result.get('secure_url')
-                                if secure_url:
-                                    screenshot_paths.append(secure_url)
-                                    print(f"  ✓ Uploaded: {secure_url}")
-                                    uploaded = True
-                        except Exception as cloud_err:
-                            print(f"  ⚠️ Cloudinary upload failed for {path}: {cloud_err}")
-                        
-                        # Fallback to local media if not uploaded
-                        if not uploaded:
-                            try:
-                                # Copy to MEDIA_ROOT
-                                media_dir = os.path.join(settings.MEDIA_ROOT, 'screenshots')
-                                os.makedirs(media_dir, exist_ok=True)
-                                filename = os.path.basename(path)
-                                dest_path = os.path.join(media_dir, filename)
-                                shutil.copy2(path, dest_path)
-                                # Store relative URL for DB and frontend
-                                relative_url = os.path.join(settings.MEDIA_URL, 'screenshots', filename)
-                                screenshot_paths.append(relative_url)
-                                print(f"  ✓ Copied to media: {dest_path} -> {relative_url}")
-                            except Exception as copy_err:
-                                print(f"  ❌ Failed to copy to media: {copy_err}")
-                                screenshot_paths.append(path) # Last resort
-                    else:
-                        screenshot_paths.append(path)
-                        
-                send_progress(6, 85, f"✓ Extracted and uploaded {len(screenshot_paths)} screenshots")
-            else:
-                send_progress(6, 85, "⚠️ No screenshots found")
-        except Exception as e:
-            print(f"⚠️  Ошибка при извлечении/загрузке скриншотов: {e}")
-            screenshot_paths = []
-        
-        # 6. Создаем краткое описание
-        _timings['screenshots'] = round(_time.time() - _t_step, 1)
-        send_progress(7, 90, "📝 Creating description...")
-        import html
-        
-        # Try to extract summary from AI analysis if available
-        summary = ""
-        if isinstance(analysis, str) and 'Summary:' in analysis:
-            summary = analysis.split('Summary:')[-1].split('\n')[0].strip()
-        elif isinstance(analysis, dict) and analysis.get('summary'):
-            summary = analysis.get('summary')
-            
-        if not summary:
-            # Scrape from HTML, but skip the first heading (it's often redundant)
-            # and thoroughly clean tags and unescape content
-            temp_content = article_html
-            # Skip first h2 if it exists
-            if '</h2>' in temp_content:
-                temp_content = temp_content.split('</h2>', 1)[-1]
-            
-            import re
-            match = re.search(r'<p>(.*?)</p>', temp_content, re.DOTALL)
-            if match:
-                raw_text = match.group(1)
-                # Unescape first to catch &lt;h2&gt; etc.
-                clean_text = html.unescape(raw_text)
-                # Strip any remaining tags
-                summary = re.sub(r'<[^>]+>', '', clean_text).strip()[:300]
-            else:
-                # Absolute fallback from whole content
-                clean_all = re.sub(r'<[^>]+>', '', html.unescape(temp_content))
-                summary = clean_all.strip()[:300]
-                
-        if not summary:
-            summary = f"Comprehensive review of the {specs.get('make', '')} {specs.get('model', '')}"
-        
-        # 6.5. Генерация SEO keywords
-        from modules.seo_helpers import generate_seo_keywords
-        seo_keywords = ''
-        if isinstance(analysis, dict):
-            seo_keywords = generate_seo_keywords(analysis, title)
-        
-        # 7. AI Editor — second pass quality check
-        _t_step = _time.time()
-        send_progress(8, 92, "🧠 AI Editor: quality check...")
-        content_original = article_html  # Save original before review
-        ai_editor_diff = None
-        try:
-            from modules.article_reviewer import review_article
-            article_html = review_article(article_html, specs, provider)
-            if article_html != content_original:
-                send_progress(8, 95, "✅ AI Editor: article improved")
-                ai_editor_diff = {
-                    'changed': True,
-                    'original_chars': len(content_original),
-                    'reviewed_chars': len(article_html),
-                    'diff_chars': len(article_html) - len(content_original),
-                }
-            else:
-                send_progress(8, 95, "✅ AI Editor: no changes needed")
-                ai_editor_diff = {'changed': False}
-        except Exception as e:
-            print(f"⚠️ AI Editor failed, using original: {e}")
-            send_progress(8, 95, "⚠️ AI Editor: skipped")
-            ai_editor_diff = {'changed': False, 'error': str(e)}
-        _timings['ai_editor'] = round(_time.time() - _t_step, 1)
-        
-        # Build generation metadata
-        _timings['total'] = round(_time.time() - _t_start, 1)
-        generation_metadata = {
-            'provider': provider,
-            'timestamp': datetime.utcnow().isoformat(),
-            'timings': _timings,
-            'ai_editor': ai_editor_diff,
-        }
-        print(f"📊 Generation timing: {_timings}")
-        
-        # Record provider performance for tracking
-        try:
-            from ai_engine.modules.provider_tracker import record_generation
-            from ai_engine.modules.spec_refill import compute_coverage
-            _, _, _spec_cov, _ = compute_coverage(specs)
-            record_generation(
-                provider=provider,
-                make=specs.get('make', ''),
-                quality_score=0,  # filled later by quality_scorer
-                spec_coverage=_spec_cov,
-                total_time=_timings.get('total', 0),
-                spec_fields_filled=int(_spec_cov / 10),
-            )
-        except Exception as e:
-            print(f"⚠️ Provider tracking failed: {e}")
-        
-        return {
-            'success': True,
-            'title': title,
-            'content': article_html,
-            'content_original': content_original,
-            'summary': summary,
-            'category_name': category_name,
-            'tag_names': tag_names,
-            'specs': specs,
-            'meta_keywords': seo_keywords,
-            'image_paths': screenshot_paths,
-            'analysis': analysis,
-            'web_context': web_context,
-            'video_title': video_title,
-            'author_name': author_name,
-            'author_channel_url': author_channel_url,
-            'generation_metadata': generation_metadata
-        }
-        
-    except Exception as e:
-        print(f"❌ Error in _generate_article_content: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        return {
-            'success': False,
-            'error': str(e)
-        }
-
-def generate_title_variants(article, provider='gemini'):
-    """Generate A/B title variants for an article using AI.
-    Creates 3 variants: A (original), B and C (AI-generated alternatives).
-    Returns the created variants or empty list on failure."""
-    try:
-        from news.models import ArticleTitleVariant
-        
-        # Skip if variants already exist
-        if ArticleTitleVariant.objects.filter(article=article).exists():
-            print(f"📊 A/B variants already exist for article #{article.id}")
-            return []
-        
-        # Generate alternatives using AI
-        from modules.ai_provider import get_ai_provider
-        ai = get_ai_provider(provider)
-        
-        prompt = f"""You are an SEO expert and headline writer for an automotive news website.
-
-Given this article title: "{article.title}"
-
-Generate exactly 2 alternative headline variants that:
-- Are roughly the same length (±20%)
-- Highlight different angles or benefits (performance, price, tech, etc.)
-- Are engaging, click-worthy, but NOT clickbait
-- Maintain factual accuracy
-- Include the car make/model name
-
-Reply with ONLY the two alternative titles, one per line. No numbering, no explanations, no quotes."""
-
-        result = ai.generate_completion(prompt, temperature=0.9, max_tokens=200)
-        
-        lines = [l.strip().strip('"').strip("'") for l in result.strip().split('\n') if l.strip()]
-        # Filter out lines that look like numbering or explanations
-        lines = [l for l in lines if len(l) > 10 and not l.startswith(('1.', '2.', '-', '*', '#'))]
-        # Remove leading numbers like "1) " or "2) "
-        import re
-        lines = [re.sub(r'^\d+[\)\.]\s*', '', l) for l in lines]
-        
-        alt_titles = lines[:2]  # Max 2 alternatives
-        
-        if not alt_titles:
-            print(f"⚠️ AI returned no valid title alternatives")
-            return []
-        
-        # Create variant A (original)
-        variants = []
-        variants.append(ArticleTitleVariant.objects.create(
-            article=article,
-            variant='A',
-            title=article.title
-        ))
-        
-        # Create variant B
-        if len(alt_titles) >= 1:
-            variants.append(ArticleTitleVariant.objects.create(
-                article=article,
-                variant='B',
-                title=alt_titles[0][:500]
-            ))
-        
-        # Create variant C
-        if len(alt_titles) >= 2:
-            variants.append(ArticleTitleVariant.objects.create(
-                article=article,
-                variant='C',
-                title=alt_titles[1][:500]
-            ))
-        
-        print(f"📊 Created {len(variants)} A/B title variants:")
-        for v in variants:
-            print(f"   [{v.variant}] {v.title}")
-        
-        return variants
-        
-    except Exception as e:
-        print(f"⚠️ A/B title variant generation failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return []
-
+# ═══════════════════════════════════════════════════════════════════════════
+# Workflow 1: Direct Publish (legacy/manual)
+# ═══════════════════════════════════════════════════════════════════════════
 
 def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', is_published=True):
     """Generate and publish immediately (LEGACY/MANUAL flow)"""
@@ -899,19 +145,23 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', 
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Workflow 2: Pending Article (new scheduler flow)
+# ═══════════════════════════════════════════════════════════════════════════
+
 def create_pending_article(youtube_url, channel_id, video_title, video_id, provider='gemini'):
     """Generate article and save as PendingArticle (NEW flow)"""
     
     # Setup Django
     import django
     if not django.apps.apps.ready:
-        import os
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         sys.path.append(BASE_DIR)
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
         django.setup()
         
     from news.models import PendingArticle, YouTubeChannel, Category, Article
+    from django.utils import timezone
     
     # 1. Check if article exists (only non-deleted)
     existing = Article.objects.filter(youtube_url=youtube_url, is_deleted=False).exists()
@@ -919,9 +169,11 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         print(f"Skipping {youtube_url} - already exists")
         return {'success': False, 'reason': 'exists', 'error': 'Article already exists in the database'}
         
-    # 2. Check if already pending/published for this video_id (any status except rejected)
+    # 2. Check if already pending for this video_id (skip if rejected/published — allows re-generation)
     if video_id:
-        pending_exists = PendingArticle.objects.filter(video_id=video_id).exclude(status='rejected').exists()
+        pending_exists = PendingArticle.objects.filter(
+            video_id=video_id
+        ).exclude(status__in=['rejected', 'published', 'auto_failed']).exists()
         if pending_exists:
             print(f"Skipping {youtube_url} - PendingArticle already exists for video_id={video_id}")
             return {'success': False, 'reason': 'pending', 'error': 'Article is already in the pending queue'}
@@ -953,13 +205,14 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
     
     if not video_id:
         # Try to extract from URL
-        import re
         id_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', youtube_url)
         video_id = id_match.group(1) if id_match else f"ext_{int(timezone.now().timestamp())}"
 
     try:
         # Re-check right before create to minimize race window
-        if video_id and PendingArticle.objects.filter(video_id=video_id).exclude(status='rejected').exists():
+        if video_id and PendingArticle.objects.filter(
+            video_id=video_id
+        ).exclude(status__in=['rejected', 'published', 'auto_failed']).exists():
             print(f"Skipping {youtube_url} - duplicate detected after content generation")
             return {'success': False, 'reason': 'pending', 'error': 'Duplicate detected'}
 
@@ -992,6 +245,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
     
     print(f"✅ Created PendingArticle: {pending.title}")
     return {'success': True, 'pending_id': pending.id}
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Auto News Generator")
