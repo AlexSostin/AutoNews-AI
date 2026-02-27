@@ -186,6 +186,19 @@ class ArticleViewSet(
             val = request.data.get(key)
             return val and str(val).lower() == 'true'
 
+        # Strip internal-only warnings from content before saving
+        import re
+        content = request.data.get('content')
+        if content and 'entity-mismatch-warning' in content:
+            cleaned = re.sub(
+                r'<div[^>]*class="entity-mismatch-warning"[^>]*>[\s\S]*?</div>',
+                '', content
+            ).strip()
+            if hasattr(request.data, '_mutable'):
+                request.data._mutable = True
+            request.data['content'] = cleaned
+            logger.info(f"[UPDATE] Stripped entity-mismatch-warning from article content")
+
         # Perform update in atomic transaction
         try:
             from django.db import transaction

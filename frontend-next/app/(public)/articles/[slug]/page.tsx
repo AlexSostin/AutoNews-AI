@@ -148,8 +148,11 @@ export default async function ArticleDetailPage({
 
   const fullUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.freshmotors.net'}/articles/${article.slug}`;
 
-  // Prepare article content HTML - strip inline iframes (video shown separately below)
-  const articleContentHtml = (article.content || '').replace(/<div[^>]*class="video-container"[^>]*>[\s\S]*?<\/div>/g, '').replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/g, '');
+  // Prepare article content HTML - strip inline iframes and internal warnings
+  const articleContentHtml = (article.content || '')
+    .replace(/<div[^>]*class="video-container"[^>]*>[\s\S]*?<\/div>/g, '')
+    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/g, '')
+    .replace(/<div[^>]*class="entity-mismatch-warning"[^>]*>[\s\S]*?<\/div>/g, '');
   const hasYoutubeVideo = Boolean(article.youtube_url) && article.show_youtube !== false;
   const youtubeEmbedUrl = article.youtube_url
     ? `https://www.youtube.com/embed/${article.youtube_url.match(/(?:watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || ''}`
