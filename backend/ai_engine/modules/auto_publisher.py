@@ -156,25 +156,7 @@ def auto_publish_pending():
     
     for pending in eligible:
         try:
-            # === Layer 4: Entity Consistency Gate ===
-            # Compare source title entities against generated content
-            if pending.content:
-                try:
-                    from ai_engine.modules.entity_validator import validate_entities
-                    entity_result = validate_entities(pending.title, pending.content)
-                    if not entity_result.is_valid:
-                        mismatch_detail = '; '.join(entity_result.mismatches)
-                        _log_decision(pending, 'skipped_entity_mismatch',
-                            f"Entity mismatch detected: {mismatch_detail}")
-                        logger.warning(
-                            f"[AUTO-PUBLISHER] ⚠️ Entity mismatch — skipping: {pending.title[:50]} "
-                            f"({mismatch_detail})"
-                        )
-                        pending.review_notes = f'Entity mismatch: {mismatch_detail[:200]}'
-                        pending.save(update_fields=['review_notes'])
-                        continue
-                except Exception as ev_err:
-                    logger.warning(f"[AUTO-PUBLISHER] Entity validation skipped: {ev_err}")
+            # (Entity validation gate removed — caused too many false positive rejections)
             
             # Build tag list
             tag_names = pending.tags if isinstance(pending.tags, list) else []

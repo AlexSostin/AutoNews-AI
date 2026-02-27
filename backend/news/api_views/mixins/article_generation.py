@@ -519,7 +519,7 @@ Return ONLY the HTML-formatted version with every word preserved."""
                 # YouTube article → re-download transcript and regenerate
                 source_type = 'youtube'
                 from ai_engine.main import _generate_article_content, generate_title_variants
-                result = _generate_article_content(youtube_url, provider=provider, exclude_article_id=article.id, skip_post_checks=True)
+                result = _generate_article_content(youtube_url, provider=provider, exclude_article_id=article.id)
                 
                 if not result.get('success'):
                     return Response({
@@ -586,7 +586,6 @@ Return ONLY the HTML-formatted version with every word preserved."""
                     source_url=source_url,
                     provider=provider,
                     source_title=article.title,
-                    skip_post_checks=True,
                 )
                 
                 if not expanded_content or len(expanded_content) < 200:

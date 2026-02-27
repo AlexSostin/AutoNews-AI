@@ -44,7 +44,7 @@ def _send_progress(task_id, step, progress, message):
         print(f"WebSocket progress error: {e}")
 
 
-def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None, skip_post_checks=False):
+def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None):
     """
     Internal function to generate article content without saving to DB.
     Returns dictionary with all article data.
@@ -277,7 +277,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         print(f"✍️  Generating article...")
         
         # Pass web context to generator
-        article_html = generate_article(analysis, provider=provider, web_context=web_context, source_title=video_title, skip_post_checks=skip_post_checks)
+        article_html = generate_article(analysis, provider=provider, web_context=web_context, source_title=video_title)
         
         if not article_html or len(article_html) < 100:
             send_progress(5, 100, "❌ Article generation failed")
@@ -428,32 +428,10 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         if isinstance(analysis, dict):
             seo_keywords = generate_seo_keywords(analysis, title)
         
-        # 7. AI Editor — second pass quality check
+        # 7. AI Editor — removed (rules consolidated into main generation prompt)
         _t_step = _time.time()
-        send_progress(8, 92, "🧠 AI Editor: quality check...")
-        content_original = article_html  # Save original before review
-        ai_editor_diff = None
-        try:
-            try:
-                from ai_engine.modules.article_reviewer import review_article
-            except ImportError:
-                from modules.article_reviewer import review_article
-            article_html = review_article(article_html, specs, provider)
-            if article_html != content_original:
-                send_progress(8, 95, "✅ AI Editor: article improved")
-                ai_editor_diff = {
-                    'changed': True,
-                    'original_chars': len(content_original),
-                    'reviewed_chars': len(article_html),
-                    'diff_chars': len(article_html) - len(content_original),
-                }
-            else:
-                send_progress(8, 95, "✅ AI Editor: no changes needed")
-                ai_editor_diff = {'changed': False}
-        except Exception as e:
-            print(f"⚠️ AI Editor failed, using original: {e}")
-            send_progress(8, 95, "⚠️ AI Editor: skipped")
-            ai_editor_diff = {'changed': False, 'error': str(e)}
+        send_progress(8, 95, "✅ Generation complete")
+        ai_editor_diff = {'changed': False, 'skipped': True, 'reason': 'consolidated_into_prompt'}
         _timings['ai_editor'] = round(_time.time() - _t_step, 1)
         
         # 8. SEO Internal Linking

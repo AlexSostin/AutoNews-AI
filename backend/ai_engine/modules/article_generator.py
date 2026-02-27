@@ -147,7 +147,7 @@ def _clean_banned_phrases(html: str) -> str:
     
     return html
 
-def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None, skip_post_checks=False):
+def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
     
@@ -444,50 +444,8 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
             except Exception as fc_err:
                 print(f"⚠️ Fact-check module failed: {fc_err}")
         
-        # Entity validation (Layer 2: anti-hallucination)
-        if source_title and not skip_post_checks:
-            try:
-                from ai_engine.modules.entity_validator import validate_entities, inject_entity_warning
-                entity_result = validate_entities(source_title, article_content)
-                if not entity_result.is_valid:
-                    print(f"⚠️ Entity mismatch detected: {entity_result.mismatches}")
-                    if entity_result.auto_fixed and entity_result.fixed_html:
-                        article_content = entity_result.fixed_html
-                        print("  ✅ Auto-fixed entity names in generated article")
-                    article_content = inject_entity_warning(article_content, entity_result.mismatches)
-                else:
-                    print("✅ Entity validation passed")
-            except Exception as ev_err:
-                print(f"⚠️ Entity validation failed: {ev_err}")
-        elif skip_post_checks:
-            print("⏭️ Skipping entity validation (regeneration mode)")
-        
-        # RLAIF Judge (AI Quality Evaluation with improvement loop)
-        if not skip_post_checks:
-            try:
-                from ai_engine.modules.rlaif_judge import judge_and_improve
-                print("🧑‍⚖️ RLAIF Judge: Evaluating article quality...")
-                judge_result = judge_and_improve(
-                    article_content,
-                    source_title=source_title or '',
-                    specs={},
-                    provider=provider,
-                )
-                article_content = judge_result['html']
-                score = judge_result['judge_score']
-                dims = judge_result.get('judge_result', {}).get('dimensions', {})
-                print(
-                    f"  📊 Judge Score: {score}/10 "
-                    f"(acc={dims.get('accuracy', {}).get('score', '?')}, "
-                    f"eng={dims.get('engagement', {}).get('score', '?')}, "
-                    f"seo={dims.get('seo_quality', {}).get('score', '?')})"
-                )
-                if judge_result.get('improved'):
-                    print(f"  ✨ Article improved by RLAIF ({judge_result['attempts']} attempts)")
-            except Exception as rlaif_err:
-                print(f"⚠️ RLAIF Judge failed (using original article): {rlaif_err}")
-        else:
-            print("⏭️ Skipping RLAIF Judge (regeneration mode)")
+        # (Entity validation removed — entity_anchor in prompt is sufficient)
+        # (RLAIF Judge removed — was the main source of content truncation/duplication)
         
         # Dedup guard: if the article's first H2 appears twice, trim at second occurrence
         first_h2 = re.search(r'<h2[^>]*>.*?</h2>', article_content, re.DOTALL)
@@ -595,7 +553,7 @@ def ensure_html_only(content):
     return clean_html_markup(content)
 
 
-def expand_press_release(press_release_text, source_url, provider='gemini', web_context=None, source_title=None, skip_post_checks=False):
+def expand_press_release(press_release_text, source_url, provider='gemini', web_context=None, source_title=None):
     """
     Expands a short press release (200-300 words) into a full automotive article (600-800 words).
     
@@ -800,12 +758,7 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
         article_content = ensure_html_only(article_content)
         article_content = _clean_banned_phrases(article_content)
         
-        # AI Review: second pass for quality (lazy cons, repetition, filler openers)
-        try:
-            from ai_engine.modules.article_reviewer import review_article
-            article_content = review_article(article_content, {}, provider)
-        except Exception as review_err:
-            logger.warning(f"AI Review skipped for RSS article: {review_err}")
+        # (review_article removed — rules consolidated into main prompt)
             
         # Запуск Fact-Checking (если есть web_context)
         if web_context:
@@ -833,44 +786,8 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
                     article_content = article_content[:last_tag.end()]
                     print(f"  → Trimmed to {len(article_content)} chars")
         
-        # Entity validation (Layer 2: anti-hallucination)
-        if source_title and not skip_post_checks:
-            try:
-                from ai_engine.modules.entity_validator import validate_entities, inject_entity_warning
-                entity_result = validate_entities(source_title, article_content)
-                if not entity_result.is_valid:
-                    print(f"⚠️ Entity mismatch detected: {entity_result.mismatches}")
-                    if entity_result.auto_fixed and entity_result.fixed_html:
-                        article_content = entity_result.fixed_html
-                        print("  ✅ Auto-fixed entity names in generated article")
-                    article_content = inject_entity_warning(article_content, entity_result.mismatches)
-                else:
-                    print("✅ Entity validation passed")
-            except Exception as ev_err:
-                print(f"⚠️ Entity validation failed: {ev_err}")
-        elif skip_post_checks:
-            print("⏭️ Skipping entity validation (regeneration mode)")
-        
-        # RLAIF Judge (AI Quality Evaluation with improvement loop)
-        if not skip_post_checks:
-            try:
-                from ai_engine.modules.rlaif_judge import judge_and_improve
-                print("🧑‍⚖️ RLAIF Judge: Evaluating article quality...")
-                judge_result = judge_and_improve(
-                    article_content,
-                    source_title=source_title or '',
-                    specs={},
-                    provider=provider,
-                )
-                article_content = judge_result['html']
-                score = judge_result['judge_score']
-                print(f"  📊 Judge Score: {score}/10")
-                if judge_result.get('improved'):
-                    print(f"  ✨ Article improved by RLAIF ({judge_result['attempts']} attempts)")
-            except Exception as rlaif_err:
-                print(f"⚠️ RLAIF Judge failed (using original article): {rlaif_err}")
-        else:
-            print("⏭️ Skipping RLAIF Judge (regeneration mode)")
+        # (Entity validation removed — entity_anchor in prompt is sufficient)
+        # (RLAIF Judge removed — was the main source of content truncation/duplication)
         
         # Dedup guard: if the article's first H2 appears twice, trim at second occurrence
         first_h2 = re.search(r'<h2[^>]*>.*?</h2>', article_content, re.DOTALL)
