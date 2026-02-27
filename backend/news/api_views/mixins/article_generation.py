@@ -389,45 +389,41 @@ class ArticleGenerationMixin:
             return Response({'success': False, 'message': 'Content too short to reformat'},
                           status=status.HTTP_400_BAD_REQUEST)
 
-        system_prompt = """You are a professional article HTML formatter for an automotive news website.
-Your job is to reformat the given HTML content into clean, well-structured, SEO-friendly HTML.
-Return ONLY the reformatted HTML — no markdown, no code fences, no explanation."""
+        system_prompt = """You are an HTML formatter. Your ONLY job is to wrap text in proper HTML tags.
+You must NOT change, remove, shorten, or rewrite ANY text. Keep every single word exactly as-is.
+Return ONLY the formatted HTML — no markdown, no code fences, no explanation."""
 
-        format_prompt = f"""Reformat this article HTML content following these strict rules:
+        format_prompt = f"""Take this article text and wrap it in proper HTML tags. 
 
-STRUCTURE RULES:
-- Use <h2> for main section headings (max 5-7 words per heading, descriptive and SEO-friendly)
-- Use <h3> for subsections if needed  
-- Use <p> for paragraphs — keep them SHORT (2-4 sentences max)
-- Use <ul><li> bullet lists for specifications, features, pros/cons
-- Every <h2> or <h3> MUST have content after it — if a section is empty, REMOVE the heading entirely
-- End the article with a proper concluding paragraph (don't leave articles hanging mid-sentence)
+⚠️ CRITICAL: Do NOT change the text content AT ALL. Every sentence, every word, every number 
+must remain EXACTLY as in the original. You are ONLY adding/fixing HTML tags.
 
-BOLD (<strong>) RULES — BE CONSERVATIVE:
-- ONLY use <strong> for: car brand names (BMW, Tesla, etc.), specific model names (Model Y, M5, etc.), and key numerical specs (422 HP, 650 km range, $45,000)
-- Do NOT bold: years (2026), publication names (Sunday Times), generic terms (plug-in hybrid, EV, SUV), CEO names, or adjectives
-- Maximum 3-5 bold items per paragraph — if everything is bold, nothing stands out
-- When a brand+model appears together, bold the whole thing: <strong>BMW M5</strong>, not <strong>BMW</strong> <strong>M5</strong>
+FORMATTING RULES:
+- Wrap section titles in <h2> tags (or <h3> for sub-sections)
+- Wrap paragraphs in <p> tags
+- Wrap bullet-point lists in <ul><li> tags
+- Use <strong> ONLY for: brand names (BMW, Tesla), model names (Model Y), and key specs (680 HP, $36,000)
+- Do NOT bold years, generic terms, or adjectives
+- Keep the article title as the first <h2>
 
-CONTENT RULES:
-- Keep ALL factual information — do NOT remove real data
-- Do NOT add or invent any new information
-- Remove speculative/unconfirmed sections (e.g. "US Market Outlook", rumored pricing without source)
-- Remove generic filler paragraphs with no real information
-- Remove duplicate information — if the same fact appears twice, keep once
-- Keep the article language as-is (don't translate)
+DO NOT:
+- Remove ANY sections, paragraphs, or sentences
+- Shorten or summarize ANY text
+- Change wording, rephrase, or "improve" anything
+- Add new information or commentary
+- Remove inline styles from existing tags if present
+- Change the article language
 
-CLEANUP RULES:
-- No inline styles, no CSS classes, no <div> wrappers
-- No empty tags (<p></p>, <h2></h2>) or whitespace-only elements
-- No empty sections (heading followed immediately by another heading with nothing between)
-- Images (<img>) should be preserved as-is
-- Ensure proper nesting of all HTML tags
+PRESERVE:
+- ALL text content word-for-word
+- ALL sections including pricing, availability, market info
+- ALL images (<img> tags) as-is
+- The original article structure and order
 
-HTML CONTENT TO REFORMAT:
+TEXT TO FORMAT:
 {content[:15000]}
 
-Return ONLY the reformatted HTML."""
+Return ONLY the HTML-formatted version with every word preserved."""
 
         try:
             from ai_engine.modules.ai_provider import get_ai_provider
@@ -435,8 +431,8 @@ Return ONLY the reformatted HTML."""
             result = provider.generate_completion(
                 format_prompt,
                 system_prompt=system_prompt,
-                temperature=0.2,
-                max_tokens=8000,
+                temperature=0.1,
+                max_tokens=12000,
             )
 
             # Clean up potential markdown code fences
