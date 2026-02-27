@@ -211,6 +211,27 @@ class ArticleEngagementMixin:
             return x_forwarded_for.split(',')[0].strip()
         return request.META.get('REMOTE_ADDR')
 
+    @action(detail=True, methods=['post'], url_path='toggle-publish', permission_classes=[IsAdminUser])
+    def toggle_publish(self, request, slug=None):
+        """Toggle article published/draft status."""
+        article = self.get_object()
+        article.is_published = not article.is_published
+        article.save(update_fields=['is_published'])
+        
+        try:
+            invalidate_article_cache(article_id=article.id, slug=article.slug)
+        except Exception:
+            pass
+        
+        new_status = 'published' if article.is_published else 'draft'
+        logger.info(f"[TOGGLE-PUBLISH] Article {article.id} '{article.title[:50]}' → {new_status}")
+        
+        return Response({
+            'success': True,
+            'is_published': article.is_published,
+            'status': new_status,
+        })
+
     @action(detail=True, methods=['get'], url_path='ab-title', permission_classes=[AllowAny])
     def ab_title(self, request, slug=None):
         """Get the A/B test title variant for this visitor."""

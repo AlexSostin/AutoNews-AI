@@ -102,7 +102,7 @@ const getApiUrl = () => {
 
 async function getArticle(slug: string): Promise<Article | null> {
   const res = await fetch(`${getApiUrl()}/articles/${slug}/`, {
-    next: { revalidate: 300 } // cache for 5 minutes
+    next: { revalidate: 30 } // cache for 30 seconds
   });
 
   if (!res.ok) {
