@@ -575,7 +575,7 @@ class TestGenerateTitleVariants:
         result = generate_title_variants(article)
         assert result == []
 
-    @patch('modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_creates_variants(self, mock_provider, article):
         from ai_engine.main import generate_title_variants
         mock_ai = MagicMock()
@@ -591,7 +591,7 @@ class TestGenerateTitleVariants:
         assert variants.count() >= 2
 
     @pytest.mark.slow
-    @patch('modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_empty_ai_response(self, mock_provider, article):
         from ai_engine.main import generate_title_variants
         mock_ai = MagicMock()
@@ -601,7 +601,7 @@ class TestGenerateTitleVariants:
         result = generate_title_variants(article)
         assert result == []
 
-    @patch('modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_ai_exception_returns_empty(self, mock_provider):
         # Create a fresh article for this test to avoid variant collision
         art = Article.objects.create(

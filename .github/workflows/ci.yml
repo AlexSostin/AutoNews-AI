@@ -228,9 +228,9 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: autonews_db
-          DB_USER: autonews_user
-          DB_PASSWORD: autonews_password
+          POSTGRES_DB: autonews_db
+          POSTGRES_USER: autonews_user
+          POSTGRES_PASSWORD: autonews_password
           REDIS_URL: redis://localhost:6379/1
           SECRET_KEY: test-secret-key-for-ci-pipeline
           DEBUG: 'True'
