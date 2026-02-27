@@ -36,8 +36,9 @@ test.describe('Articles Page', () => {
   test('should load articles listing', async ({ page }) => {
     await page.goto('/articles');
     await page.waitForLoadState('networkidle');
-    const heading = page.getByRole('heading', { name: 'All Articles', exact: true });
-    await expect(heading).toBeVisible({ timeout: 10000 });
+    // The h1 shows the article count e.g. "5 Articles", and there's a badge with "📰 All Articles"
+    const heading = page.getByRole('heading', { name: /Articles/i });
+    await expect(heading.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should have working article links', async ({ page }) => {

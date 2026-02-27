@@ -236,6 +236,7 @@ jobs:
           DEBUG: 'True'
         run: |
           python manage.py migrate
+          python manage.py populate_db
           python manage.py runserver 8000 &
           sleep 10
           curl -s http://localhost:8000/api/v1/articles/ > /dev/null
