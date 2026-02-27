@@ -429,6 +429,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             seo_keywords = generate_seo_keywords(analysis, title)
         
         # 7. AI Editor — removed (rules consolidated into main generation prompt)
+        content_original = article_html  # preserve for metadata
         _t_step = _time.time()
         send_progress(8, 95, "✅ Generation complete")
         ai_editor_diff = {'changed': False, 'skipped': True, 'reason': 'consolidated_into_prompt'}
