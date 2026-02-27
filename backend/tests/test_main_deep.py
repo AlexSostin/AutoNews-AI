@@ -88,14 +88,14 @@ def full_pipeline_patches(func):
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.specs_enricher.enrich_specs_from_web')
     @patch('ai_engine.modules.searcher.get_web_context')
-    @patch('modules.article_reviewer.review_article')
-    @patch('ai_engine.main.extract_video_screenshots')
-    @patch('ai_engine.main.generate_article')
-    @patch('modules.analyzer.extract_specs_dict')
-    @patch('modules.analyzer.categorize_article')
-    @patch('ai_engine.main.analyze_transcript')
-    @patch('ai_engine.main.transcribe_from_youtube')
-    @patch('ai_engine.main.requests.get')
+    @patch('ai_engine.modules.article_reviewer.review_article')
+    @patch('ai_engine.modules.downloader.extract_video_screenshots')
+    @patch('ai_engine.modules.article_generator.generate_article')
+    @patch('ai_engine.modules.analyzer.extract_specs_dict')
+    @patch('ai_engine.modules.analyzer.categorize_article')
+    @patch('ai_engine.modules.analyzer.analyze_transcript')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
+    @patch('ai_engine.modules.content_generator.requests.get')
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
     return wrapper
@@ -130,8 +130,8 @@ class TestWebSocketProgress:
         mock_record.return_value = None
 
         # Patch channels to exist but raise on group_send
-        with patch('ai_engine.main.async_to_sync', create=True) as mock_async, \
-             patch('ai_engine.main.get_channel_layer', create=True) as mock_layer:
+        with patch('ai_engine.modules.content_generator.async_to_sync', create=True) as mock_async, \
+             patch('ai_engine.modules.content_generator.get_channel_layer', create=True) as mock_layer:
             mock_layer.return_value = MagicMock()
             mock_async.side_effect = Exception('Channel unavailable')
 

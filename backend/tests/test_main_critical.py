@@ -74,11 +74,11 @@ MOCK_SPECS = {
 def _build_full_mock_patchset():
     """Returns dict of patches needed for _generate_article_content."""
     return {
-        'ai_engine.main.transcribe_from_youtube': MOCK_ANALYSIS[:200],
-        'ai_engine.main.analyze_transcript': MOCK_ANALYSIS,
-        'ai_engine.main.generate_article': MOCK_ARTICLE_HTML,
-        'ai_engine.main.extract_video_screenshots': [],
-        'ai_engine.main.publish_article': MagicMock(),
+        'ai_engine.modules.transcriber.transcribe_from_youtube': MOCK_ANALYSIS[:200],
+        'ai_engine.modules.analyzer.analyze_transcript': MOCK_ANALYSIS,
+        'ai_engine.modules.article_generator.generate_article': MOCK_ARTICLE_HTML,
+        'ai_engine.modules.downloader.extract_video_screenshots': [],
+        'ai_engine.modules.publisher.publish_article': MagicMock(),
     }
 
 
@@ -155,13 +155,13 @@ class TestCheckDuplicate:
 
 class TestGenerateArticleContent:
 
-    @patch('ai_engine.main.requests.get')
-    @patch('ai_engine.main.transcribe_from_youtube')
-    @patch('ai_engine.main.analyze_transcript')
+    @patch('ai_engine.modules.content_generator.requests.get')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
+    @patch('ai_engine.modules.analyzer.analyze_transcript')
     @patch('ai_engine.modules.analyzer.categorize_article')
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
-    @patch('ai_engine.main.generate_article')
-    @patch('ai_engine.main.extract_video_screenshots')
+    @patch('ai_engine.modules.article_generator.generate_article')
+    @patch('ai_engine.modules.downloader.extract_video_screenshots')
     @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.searcher.get_web_context')
     @patch('ai_engine.modules.specs_enricher.enrich_specs_from_web')
@@ -203,7 +203,7 @@ class TestGenerateArticleContent:
         assert 'specs' in result
         assert 'tag_names' in result
 
-    @patch('ai_engine.main.transcribe_from_youtube')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
     def test_transcript_failure(self, mock_transcribe):
         from ai_engine.main import _generate_article_content
         mock_transcribe.return_value = 'ERROR: No transcript found'
@@ -215,7 +215,7 @@ class TestGenerateArticleContent:
         assert result['success'] is False
         assert 'error' in result
 
-    @patch('ai_engine.main.transcribe_from_youtube')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
     def test_transcript_too_short(self, mock_transcribe):
         from ai_engine.main import _generate_article_content
         mock_transcribe.return_value = 'Hi'
@@ -226,9 +226,9 @@ class TestGenerateArticleContent:
         )
         assert result['success'] is False
 
-    @patch('ai_engine.main.requests.get')
-    @patch('ai_engine.main.transcribe_from_youtube')
-    @patch('ai_engine.main.analyze_transcript')
+    @patch('ai_engine.modules.content_generator.requests.get')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
+    @patch('ai_engine.modules.analyzer.analyze_transcript')
     def test_analysis_failure(self, mock_analyze, mock_transcribe, mock_oembed):
         from ai_engine.main import _generate_article_content
         mock_oembed.return_value = MagicMock(status_code=404)
@@ -241,13 +241,13 @@ class TestGenerateArticleContent:
         )
         assert result['success'] is False
 
-    @patch('ai_engine.main.requests.get')
-    @patch('ai_engine.main.transcribe_from_youtube')
-    @patch('ai_engine.main.analyze_transcript')
+    @patch('ai_engine.modules.content_generator.requests.get')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
+    @patch('ai_engine.modules.analyzer.analyze_transcript')
     @patch('ai_engine.modules.analyzer.categorize_article')
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
-    @patch('ai_engine.main.generate_article')
-    @patch('ai_engine.main.extract_video_screenshots')
+    @patch('ai_engine.modules.article_generator.generate_article')
+    @patch('ai_engine.modules.downloader.extract_video_screenshots')
     @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.provider_tracker.record_generation')
@@ -276,13 +276,13 @@ class TestGenerateArticleContent:
         assert result['success'] is False
         assert result.get('reason') == 'duplicate'
 
-    @patch('ai_engine.main.requests.get')
-    @patch('ai_engine.main.transcribe_from_youtube')
-    @patch('ai_engine.main.analyze_transcript')
+    @patch('ai_engine.modules.content_generator.requests.get')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
+    @patch('ai_engine.modules.analyzer.analyze_transcript')
     @patch('ai_engine.modules.analyzer.categorize_article')
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
-    @patch('ai_engine.main.generate_article')
-    @patch('ai_engine.main.extract_video_screenshots')
+    @patch('ai_engine.modules.article_generator.generate_article')
+    @patch('ai_engine.modules.downloader.extract_video_screenshots')
     @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.provider_tracker.record_generation')
@@ -311,12 +311,12 @@ class TestGenerateArticleContent:
         )
         assert result['success'] is True
 
-    @patch('ai_engine.main.requests.get')
-    @patch('ai_engine.main.transcribe_from_youtube')
-    @patch('ai_engine.main.analyze_transcript')
+    @patch('ai_engine.modules.content_generator.requests.get')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
+    @patch('ai_engine.modules.analyzer.analyze_transcript')
     @patch('ai_engine.modules.analyzer.categorize_article')
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
-    @patch('ai_engine.main.generate_article')
+    @patch('ai_engine.modules.article_generator.generate_article')
     def test_article_too_short(
         self, mock_gen_article, mock_specs, mock_categorize,
         mock_analyze, mock_transcribe, mock_oembed
@@ -336,13 +336,13 @@ class TestGenerateArticleContent:
         )
         assert result['success'] is False
 
-    @patch('ai_engine.main.requests.get')
-    @patch('ai_engine.main.transcribe_from_youtube')
-    @patch('ai_engine.main.analyze_transcript')
+    @patch('ai_engine.modules.content_generator.requests.get')
+    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
+    @patch('ai_engine.modules.analyzer.analyze_transcript')
     @patch('ai_engine.modules.analyzer.categorize_article')
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
-    @patch('ai_engine.main.generate_article')
-    @patch('ai_engine.main.extract_video_screenshots')
+    @patch('ai_engine.modules.article_generator.generate_article')
+    @patch('ai_engine.modules.downloader.extract_video_screenshots')
     @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.provider_tracker.record_generation')
