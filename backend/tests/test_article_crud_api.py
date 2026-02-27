@@ -133,9 +133,10 @@ class TestArticleRetrieve:
         assert resp.status_code == 404
 
     def test_retrieve_by_id(self, anon_client, article):
-        """ID-based lookup should return 404 since lookup_field='slug'."""
+        """ID-based lookup should work via get_object pk fallback."""
         resp = anon_client.get(f'{API}/articles/{article.id}/')
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        assert resp.data['slug'] == article.slug
 
 
 # ═══════════════════════════════════════════════════════════════════════════
