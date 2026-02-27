@@ -74,7 +74,9 @@ if DEBUG:
 # Application definition
 
 INSTALLED_APPS = [
-    'daphne',  # WebSocket support - must be before django.contrib.staticfiles
+    # Daphne ASGI server — only in production (in dev, its sync_to_async thread pool
+    # gets starved by background scheduler threads, causing API requests to hang)
+    *(['daphne'] if not DEBUG else []),
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -97,6 +99,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'news.error_capture.ErrorCaptureMiddleware',  # Log all 500s to BackendErrorLog
     'news.bot_protection.BotProtectionMiddleware',  # Block bots — AFTER auth so we can skip authenticated users
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -210,7 +213,7 @@ else:
             'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
             'HOST': os.getenv('DB_HOST', '127.0.0.1'),
             'PORT': os.getenv('DB_PORT', '5433'),
-            'CONN_MAX_AGE': 600,  # Reuse DB connections for 10 minutes
+            'CONN_MAX_AGE': 0 if DEBUG else 600,  # Fresh connections in dev, reuse in prod
         }
     }
 

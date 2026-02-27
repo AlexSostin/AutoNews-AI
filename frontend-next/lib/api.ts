@@ -52,6 +52,8 @@ api.interceptors.request.use(
     // Set baseURL dynamically on each request
     config.baseURL = getApiUrl();
 
+
+
     if (typeof window !== 'undefined') {
       const token = document.cookie
         .split('; ')
@@ -84,11 +86,24 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Response interceptor - handle 401 and refresh token
+// Response interceptor - handle 401 and log 5xx errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Log 5xx errors to FrontendEventLog (but NOT for /frontend-events/ to avoid loops)
+    if (
+      error.response?.status >= 500 &&
+      typeof window !== 'undefined' &&
+      !originalRequest?.url?.includes('frontend-events')
+    ) {
+      try {
+        const { logApiError } = await import('@/lib/error-logger');
+        const endpoint = originalRequest?.url || error.response?.config?.url || 'unknown';
+        logApiError(endpoint, error.response.status, error.response.statusText || 'Internal Server Error');
+      } catch { /* never let logging break the app */ }
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {

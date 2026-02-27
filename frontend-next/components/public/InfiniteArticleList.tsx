@@ -4,18 +4,21 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import ArticleCard from './ArticleCard';
 import AdBanner from './AdBanner';
 import { ArticleCardSkeleton } from './Skeletons';
+import { getApiUrl } from '@/lib/config';
 import type { Article } from '@/types';
 
 interface InfiniteArticleListProps {
     initialArticles: Article[];
     initialPage?: number;
     pageSize?: number;
+    mobileRecommendedSlot?: React.ReactNode;
 }
 
 export default function InfiniteArticleList({
     initialArticles,
     initialPage = 1,
     pageSize = 18,
+    mobileRecommendedSlot,
 }: InfiniteArticleListProps) {
     const [articles, setArticles] = useState<Article[]>(initialArticles);
     const [page, setPage] = useState(initialPage);
@@ -25,14 +28,6 @@ export default function InfiniteArticleList({
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const loadingRef = useRef(false);
-
-    // Get API URL
-    const getApiUrl = () => {
-        if (typeof window !== 'undefined') {
-            return process.env.NEXT_PUBLIC_API_URL || 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-        }
-        return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-    };
 
     // Load more articles
     const loadMore = useCallback(async () => {
@@ -110,6 +105,14 @@ export default function InfiniteArticleList({
 
             // Add ad after every 6 articles (but not after the last one)
             if ((index + 1) % 6 === 0 && index !== articles.length - 1) {
+                // Inject mobile recommended section after the first 6 articles
+                if (index === 5 && mobileRecommendedSlot) {
+                    items.push(
+                        <div key="mobile-recommended" className="col-span-1 md:col-span-2 xl:col-span-3 lg:hidden my-4">
+                            {mobileRecommendedSlot}
+                        </div>
+                    );
+                }
                 items.push(
                     <div key={`ad-${index}`} className="col-span-1 md:col-span-2 xl:col-span-3 flex justify-center my-8">
                         <AdBanner position="between_articles" />

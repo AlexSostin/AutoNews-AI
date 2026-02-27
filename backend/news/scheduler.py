@@ -23,6 +23,45 @@ DISABLED_CHECK_INTERVAL = 60  # Check again in 60s if disabled
 _recovery_triggered = set()
 
 
+def _log_scheduler_error(task_name, exception, severity='error'):
+    """Log scheduler task failure to BackendErrorLog for dashboard visibility."""
+    try:
+        import traceback as tb_module
+        from django.utils import timezone
+        from datetime import timedelta
+        from news.models.system import BackendErrorLog
+
+        error_class = type(exception).__name__
+        message = str(exception)[:1000]
+        full_tb = tb_module.format_exc()
+
+        one_hour_ago = timezone.now() - timedelta(hours=1)
+        existing = BackendErrorLog.objects.filter(
+            source='scheduler',
+            task_name=task_name,
+            error_class=error_class,
+            last_seen__gte=one_hour_ago,
+            resolved=False,
+        ).first()
+
+        if existing:
+            existing.occurrence_count += 1
+            existing.message = message
+            existing.traceback = full_tb
+            existing.save(update_fields=['occurrence_count', 'last_seen', 'message', 'traceback'])
+        else:
+            BackendErrorLog.objects.create(
+                source='scheduler',
+                severity=severity,
+                error_class=error_class,
+                message=message,
+                traceback=full_tb,
+                task_name=task_name,
+            )
+    except Exception:
+        pass  # Never let error logging break the scheduler
+
+
 def _run_gsc_sync():
     """Sync GSC data and schedule next run."""
     try:
@@ -38,6 +77,7 @@ def _run_gsc_sync():
             logger.warning("⚠️ GSC Service not initialized — missing credentials")
     except Exception as e:
         logger.error(f"❌ Scheduled GSC sync error: {e}")
+        _log_scheduler_error('gsc_sync', e)
     finally:
         # Schedule next run
         _schedule_gsc_sync()
@@ -58,6 +98,7 @@ def _run_currency_update():
         logger.info(f"💱 Scheduled currency update: {updated} prices updated, {errors} errors")
     except Exception as e:
         logger.error(f"❌ Scheduled currency update error: {e}")
+        _log_scheduler_error('currency_update', e)
     finally:
         _schedule_currency_update()
 
@@ -126,6 +167,7 @@ def _run_rss_scan():
         
     except Exception as e:
         logger.error(f"[SCHEDULER/RSS] ❌ Fatal error: {e}", exc_info=True)
+        _log_scheduler_error('rss_scan', e)
         _schedule_rss_scan(5 * 60)  # Retry in 5 min on error
 
 
@@ -228,6 +270,7 @@ def _run_youtube_scan():
         
     except Exception as e:
         logger.error(f"[SCHEDULER/YOUTUBE] ❌ Fatal error: {e}", exc_info=True)
+        _log_scheduler_error('youtube_scan', e)
         _schedule_youtube_scan(5 * 60)
 
 
@@ -263,6 +306,7 @@ def _run_auto_publish():
         
     except Exception as e:
         logger.error(f"[SCHEDULER/AUTO-PUBLISH] ❌ Fatal error: {e}", exc_info=True)
+        _log_scheduler_error('auto_publish', e)
         _schedule_auto_publish(AUTO_PUBLISH_CHECK_INTERVAL)
 
 
@@ -292,6 +336,7 @@ def _score_new_pending_articles():
                 
     except Exception as e:
         logger.error(f"[SCHEDULER/SCORING] ❌ Fatal error: {e}", exc_info=True)
+        _log_scheduler_error('scoring', e)
 
 
 # =============================================================================
@@ -362,12 +407,12 @@ def _run_deep_specs_backfill():
                     specs_dict = {
                         'make': car_spec.make or '',
                         'model': car_spec.model or '',
-                        'year': car_spec.year or '',
+                        'year': car_spec.release_date or '',
                         'trim': car_spec.trim or '',
-                        'engine': car_spec.engine_type or '',
+                        'engine': car_spec.engine or '',
                         'horsepower': car_spec.horsepower or '',
                         'drivetrain': car_spec.drivetrain or '',
-                        'price': car_spec.price_usd or '',
+                        'price': car_spec.price or '',
                     }
                 
                 logger.info(f"[SCHEDULER/DEEP-SPECS] ⚙️ Generating VehicleSpecs for [{article.id}] {article.title[:50]}")
@@ -394,6 +439,7 @@ def _run_deep_specs_backfill():
 
     except Exception as e:
         logger.error(f"[SCHEDULER/DEEP-SPECS] ❌ Fatal error: {e}", exc_info=True)
+        _log_scheduler_error('deep_specs', e)
         try:
             settings = AutomationSettings.objects.first()
             if settings:
@@ -557,4 +603,44 @@ def start_scheduler():
     deep_specs_timer.daemon = True
     deep_specs_timer.start()
 
+    # Auto-resolve stale errors — start after 600 seconds, then every 6 hours
+    stale_timer = threading.Timer(600, _auto_resolve_stale_errors)
+    stale_timer.daemon = True
+    stale_timer.start()
 
+
+def _auto_resolve_stale_errors():
+    """Auto-resolve errors older than 24h that haven't repeated recently."""
+    try:
+        from news.models.system import BackendErrorLog, FrontendEventLog
+        from django.utils import timezone
+        from datetime import timedelta
+
+        cutoff = timezone.now() - timedelta(hours=24)
+
+        # Resolve stale backend errors
+        stale_backend = BackendErrorLog.objects.filter(
+            resolved=False,
+            last_seen__lt=cutoff,
+        ).update(resolved=True, resolved_at=timezone.now(), resolution_notes='Auto-resolved: no recurrence in 24h')
+
+        # Resolve stale frontend errors
+        try:
+            stale_frontend = FrontendEventLog.objects.filter(
+                resolved=False,
+                last_seen__lt=cutoff,
+            ).update(resolved=True, resolved_at=timezone.now(), resolution_notes='Auto-resolved: no recurrence in 24h')
+        except Exception:
+            stale_frontend = 0
+
+        total = stale_backend + stale_frontend
+        if total > 0:
+            logger.info(f"[SCHEDULER/STALE-CLEANUP] ✅ Auto-resolved {total} stale errors ({stale_backend} backend, {stale_frontend} frontend)")
+
+    except Exception as e:
+        logger.warning(f"[SCHEDULER/STALE-CLEANUP] ⚠️ Failed: {e}")
+    finally:
+        # Reschedule every 6 hours
+        next_timer = threading.Timer(6 * 3600, _auto_resolve_stale_errors)
+        next_timer.daemon = True
+        next_timer.start()

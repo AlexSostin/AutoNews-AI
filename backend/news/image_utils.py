@@ -42,7 +42,7 @@ def convert_to_webp(image_file, quality=85):
         output.seek(0)
         
         # Generate new filename
-        original_name = os.path.splitext(image_file.name)[0]
+        original_name = os.path.basename(os.path.splitext(image_file.name)[0])
         new_filename = f"{original_name}.webp"
         
         return ContentFile(output.read(), name=new_filename)
@@ -91,7 +91,7 @@ def optimize_image(image_file, max_width=1920, max_height=1080, quality=85):
         output.seek(0)
         
         # Generate new filename
-        original_name = os.path.splitext(image_file.name)[0]
+        original_name = os.path.basename(os.path.splitext(image_file.name)[0])
         new_filename = f"{original_name}_optimized.webp"
         
         return ContentFile(output.read(), name=new_filename)

@@ -30,10 +30,10 @@ export function ensureABSeed(): string {
 // ─── Tracking ───────────────────────────────────────────────────────
 
 /** Fire an impression event for an A/B variant (non-blocking) */
-export function trackImpression(variantId: number | null | undefined) {
+export function trackImpression(variantId: number | null | undefined, type: 'title' | 'image' = 'title') {
     if (!variantId) return;
 
-    const body = JSON.stringify({ variant_id: variantId });
+    const body = JSON.stringify({ variant_id: variantId, type });
 
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
         const blob = new Blob([body], { type: 'application/json' });
@@ -50,10 +50,10 @@ export function trackImpression(variantId: number | null | undefined) {
 }
 
 /** Fire a click event for an A/B variant (non-blocking) */
-export function trackClick(variantId: number | null | undefined) {
+export function trackClick(variantId: number | null | undefined, type: 'title' | 'image' = 'title') {
     if (!variantId) return;
 
-    const body = JSON.stringify({ variant_id: variantId });
+    const body = JSON.stringify({ variant_id: variantId, type });
 
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
         const blob = new Blob([body], { type: 'application/json' });

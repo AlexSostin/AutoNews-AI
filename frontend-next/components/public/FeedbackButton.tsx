@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { MessageSquareWarning, X, Send, CheckCircle } from 'lucide-react';
+import { getApiUrl } from '@/lib/config';
 
 interface FeedbackButtonProps {
     articleSlug: string;
@@ -21,17 +22,6 @@ export default function FeedbackButton({ articleSlug }: FeedbackButtonProps) {
     const [message, setMessage] = useState('');
     const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState('');
-
-    const getApiUrl = () => {
-        if (typeof window !== 'undefined') {
-            const host = window.location.hostname;
-            if (host !== 'localhost' && host !== '127.0.0.1') {
-                return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-            }
-        }
-        return 'http://localhost:8000/api/v1';
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!category || message.length < 5) return;

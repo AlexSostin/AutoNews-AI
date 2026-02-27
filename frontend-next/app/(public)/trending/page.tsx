@@ -5,6 +5,7 @@ import ArticleCard from '@/components/public/ArticleCard';
 import Pagination from '@/components/public/Pagination';
 import { ArticleGridSkeleton } from '@/components/public/Skeletons';
 import { TrendingUp } from 'lucide-react';
+import { usePageAnalytics } from '@/hooks/usePageAnalytics';
 
 // Runtime API URL detection for client components
 const getApiUrl = () => {
@@ -22,6 +23,7 @@ export default function TrendingPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 12;
+  usePageAnalytics('trending');
 
   useEffect(() => {
     const fetchTrendingArticles = async () => {
@@ -59,7 +61,7 @@ export default function TrendingPage() {
 
       <main className="flex-1 bg-gray-50 min-h-screen">
         {/* Hero Header */}
-        <section className="bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 text-white py-16 relative overflow-hidden">
+        <section className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white py-16 relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="container mx-auto px-4 relative z-10 text-center">
             <div className="inline-flex items-center gap-3 bg-white/20 backdrop-blur-sm px-6 py-2 rounded-full mb-6">

@@ -90,79 +90,86 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
     };
 
     return (
-        <div className="border-t pt-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Additional Gallery Images</h3>
-            <p className="text-sm text-gray-600 mb-4">Add extra images that will appear in the Vehicle Gallery alongside the 3 main images above</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                {galleryImages.map((img, index) => (
-                    <div key={img.id}>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">Image {index + 4}</label>
-                        <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group">
-                            <img
-                                src={getImageUrl(img.image)}
-                                alt={img.caption || `Gallery image ${index + 4}`}
-                                className="w-full h-full object-cover"
-                            />
-                            <div className="absolute top-1 right-1 flex gap-1">
-                                <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">Current</span>
-                                <button
-                                    type="button"
-                                    onClick={() => deleteGalleryImage(img.id)}
-                                    className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-
-                {newGalleryImages.map((file, index) => (
-                    <div key={`new-${index}`}>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">Image {galleryImages.length + index + 4}</label>
-                        <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-green-300 group">
-                            <img
-                                src={URL.createObjectURL(file)}
-                                alt={file.name}
-                                className="w-full h-full object-cover"
-                            />
-                            <div className="absolute top-1 right-1 flex gap-1">
-                                <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">New</span>
-                                <button
-                                    type="button"
-                                    onClick={() => removeNewGalleryImage(index)}
-                                    className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                        </div>
-                        <p className="text-xs text-green-600 mt-1">✓ Will upload: {file.name}</p>
-                    </div>
-                ))}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="border-b border-gray-100 bg-gray-50/50 p-6 flex items-center gap-3">
+                <div className="p-2 bg-white rounded-lg shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-teal-500"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900">Additional Gallery Images</h2>
             </div>
+            <div className="p-6">
+                <p className="text-sm text-gray-500 mb-4">Add extra images that will appear in the Vehicle Gallery alongside the 3 main images above</p>
 
-            <div>
-                <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg border-2 border-dashed border-indigo-300 hover:bg-indigo-100 transition-colors cursor-pointer font-semibold">
-                    <Plus size={20} />
-                    + Add More Images
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                            if (e.target.files?.[0]) {
-                                const newFile = e.target.files[0];
-                                setNewGalleryImages(prev => [...prev, newFile]);
-                                e.target.value = '';
-                            }
-                        }}
-                        className="hidden"
-                    />
-                </label>
-                {uploadingGallery && (
-                    <span className="ml-3 text-sm text-gray-600">Uploading...</span>
-                )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {galleryImages.map((img, index) => (
+                        <div key={img.id}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Image {index + 4}</label>
+                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group">
+                                <img
+                                    src={getImageUrl(img.image)}
+                                    alt={img.caption || `Gallery image ${index + 4}`}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute top-1 right-1 flex gap-1">
+                                    <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">Current</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => deleteGalleryImage(img.id)}
+                                        className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    {newGalleryImages.map((file, index) => (
+                        <div key={`new-${index}`}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Image {galleryImages.length + index + 4}</label>
+                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-green-300 group">
+                                <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={file.name}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute top-1 right-1 flex gap-1">
+                                    <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">New</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeNewGalleryImage(index)}
+                                        className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-xs text-green-600 mt-1">✓ Will upload: {file.name}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <div>
+                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg border-2 border-dashed border-indigo-300 hover:bg-indigo-100 transition-colors cursor-pointer font-semibold">
+                        <Plus size={20} />
+                        + Add More Images
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                    const newFile = e.target.files[0];
+                                    setNewGalleryImages(prev => [...prev, newFile]);
+                                    e.target.value = '';
+                                }
+                            }}
+                            className="hidden"
+                        />
+                    </label>
+                    {uploadingGallery && (
+                        <span className="ml-3 text-sm text-gray-600">Uploading...</span>
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -352,7 +352,10 @@ export default async function ArticleDetailPage({
       />
 
       {/* Track A/B impression */}
-      <ABImpressionTracker variantId={(article as Article & { ab_variant_id?: number }).ab_variant_id} />
+      <ABImpressionTracker
+        variantId={(article as Article & { ab_variant_id?: number }).ab_variant_id}
+        imageVariantId={(article as Article & { ab_image_variant_id?: number }).ab_image_variant_id}
+      />
 
       {/* Reading Progress Bar */}
       <ReadingProgressBar />
@@ -510,12 +513,15 @@ export default async function ArticleDetailPage({
                   images={articleImages}
                   imageSource={article.image_source}
                   authorName={article.author_name}
+                  articleId={article.id}
+                  apiUrl={getApiUrl()}
                 />
               </div>
 
               {/* Link to Vehicle Specs Card — only shows if /cars/ page exists */}
               {article.tags && article.tags.length > 0 && (
                 <SpecsCardLink
+                  articleId={article.id}
                   articleTitle={article.title}
                   tagNames={(article.tags as ({ name: string } | string)[]).map((t: { name: string } | string) => typeof t === 'string' ? t : t.name)}
                 />
@@ -615,6 +621,7 @@ export default async function ArticleDetailPage({
                 <RelatedCarousel
                   categorySlug={article.categories[0].slug}
                   currentArticleSlug={article.slug}
+                  currentArticleId={article.id}
                 />
               )}
 

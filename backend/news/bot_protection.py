@@ -30,8 +30,6 @@ BOT_UA_PATTERNS = [
     r'mechanize',
     r'php/',
     r'ruby/',
-    r'axios/',       # Server-side Node.js scraping
-    r'node-fetch',
     r'aiohttp',
     r'httpie',
 ]
@@ -63,6 +61,9 @@ ALLOWED_BOTS = [
     r'telegrambot',
     r'applebot',
     r'freshmotors-ssr', # Our Next.js SSR
+    r'next',           # Next.js SSR
+    r'node-fetch',     # Next.js Server Components
+    r'axios'           # Frontend components
 ]
 
 ALLOWED_BOT_REGEX = re.compile('|'.join(ALLOWED_BOTS), re.IGNORECASE)

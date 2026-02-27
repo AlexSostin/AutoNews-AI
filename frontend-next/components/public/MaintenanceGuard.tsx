@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getToken } from '@/lib/auth';
+import { getApiUrl } from '@/lib/config';
 
 interface MaintenanceGuardProps {
     maintenanceMode: boolean;
@@ -36,17 +37,6 @@ export default function MaintenanceGuard({
             setChecked(true);
             return;
         }
-
-        const getApiUrl = () => {
-            if (typeof window !== 'undefined') {
-                const host = window.location.hostname;
-                if (host !== 'localhost' && host !== '127.0.0.1') {
-                    return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-                }
-            }
-            return 'http://localhost:8000/api/v1';
-        };
-
         fetch(`${getApiUrl()}/users/me/`, {
             headers: { 'Authorization': `Bearer ${token}` },
         })

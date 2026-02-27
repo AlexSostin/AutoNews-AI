@@ -45,7 +45,15 @@ export const fixImageUrl = (url: string | null | undefined): string => {
 
   // If it's a relative URL, prepend media URL
   if (!fixedUrl.startsWith('http')) {
-    fixedUrl = `${mediaUrl}${fixedUrl.startsWith('/') ? '' : '/'}${fixedUrl}`;
+    // Ensure we have a leading slash
+    let path = fixedUrl.startsWith('/') ? fixedUrl : `/${fixedUrl}`;
+
+    // Inject /media if it's missing and it's not an API route or explicit external path
+    if (!path.startsWith('/media/') && !path.startsWith('/api/')) {
+      path = `/media${path}`;
+    }
+
+    fixedUrl = `${mediaUrl}${path}`;
   }
 
   return fixedUrl;

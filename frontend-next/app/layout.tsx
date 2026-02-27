@@ -74,6 +74,7 @@ export const metadata: Metadata = {
 };
 
 import GoogleAuthProvider from "@/components/auth/GoogleAuthProvider";
+import ErrorProvider from "@/components/providers/ErrorProvider";
 
 export default async function RootLayout({
   children,
@@ -140,37 +141,39 @@ export default async function RootLayout({
         <AdSenseScript />
       </head>
       <body className="antialiased min-h-screen flex flex-col bg-gray-50">
-        <GoogleAuthProvider>
-          <Toaster
-            position="top-center"
-            reverseOrder={false}
-            toastOptions={{
-              duration: 3000,
-              style: {
-                borderRadius: '12px',
-                fontSize: '16px',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#10B981',
-                  secondary: '#fff',
+        <ErrorProvider>
+          <GoogleAuthProvider>
+            <Toaster
+              position="top-center"
+              reverseOrder={false}
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  borderRadius: '12px',
+                  fontSize: '16px',
                 },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#EF4444',
-                  secondary: '#fff',
+                success: {
+                  iconTheme: {
+                    primary: '#10B981',
+                    secondary: '#fff',
+                  },
                 },
-              },
-            }}
-          />
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
-          <BackToTop />
-          <CookieConsent />
-          <WebVitals />
-        </GoogleAuthProvider>
+                error: {
+                  iconTheme: {
+                    primary: '#EF4444',
+                    secondary: '#fff',
+                  },
+                },
+              }}
+            />
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+            <BackToTop />
+            <CookieConsent />
+            <WebVitals />
+          </GoogleAuthProvider>
+        </ErrorProvider>
       </body>
     </html>
   );

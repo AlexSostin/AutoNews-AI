@@ -4,12 +4,16 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { TrendingUp, Eye } from 'lucide-react';
+import { fixImageUrl } from '@/lib/config';
+import { getApiUrl } from '@/lib/config';
 
 interface TrendingArticle {
   id: number;
   title: string;
+  display_title?: string;
   slug: string;
   image: string | null;
+  display_image?: string | null;
   views: number;
   categories: { id: number; name: string; slug: string }[];
 }
@@ -19,28 +23,38 @@ export default function TrendingSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getApiUrl = () => {
-      if (typeof window !== 'undefined') {
-        const host = window.location.hostname;
-        if (host !== 'localhost' && host !== '127.0.0.1') {
-          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-        }
-      }
-      return 'http://localhost:8000/api/v1';
-    };
     const apiUrl = getApiUrl();
 
-    fetch(`${apiUrl}/articles/?is_published=true&ordering=-views&page_size=5`)
-      .then(res => res.json())
-      .then(data => {
-        // Ensure we only show exactly 5 articles
-        const results = data.results || [];
-        setArticles(results.slice(0, 5));
-        setLoading(false);
+    const processResults = (data: { results?: TrendingArticle[] }) => {
+      const results = data.results || [];
+      const seen = new Set<number>();
+      const unique = results.filter((a: TrendingArticle) => {
+        if (seen.has(a.id)) return false;
+        seen.add(a.id);
+        return true;
+      });
+      setArticles(unique.slice(0, 5));
+      setLoading(false);
+    };
+
+    fetch(`${apiUrl}/articles/recommended/?page_size=10`)
+      .then(res => {
+        if (!res.ok) throw new Error(`API returned ${res.status}`);
+        return res.json();
       })
-      .catch(err => {
-        console.error('Failed to load trending articles:', err);
-        setLoading(false);
+      .then(processResults)
+      .catch(() => {
+        // Fallback to trending if recommended fails (e.g. during backend restart)
+        fetch(`${apiUrl}/articles/trending/`)
+          .then(res => {
+            if (!res.ok) throw new Error(`Trending API returned ${res.status}`);
+            return res.json();
+          })
+          .then(data => processResults({ results: Array.isArray(data) ? data : data.results || [] }))
+          .catch(err => {
+            console.error('Failed to load articles:', err);
+            setLoading(false);
+          });
       });
   }, []);
 
@@ -48,8 +62,8 @@ export default function TrendingSection() {
     return (
       <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl">
         <div className="flex items-center gap-2 mb-6">
-          <TrendingUp className="text-white animate-bounce" size={24} />
-          <h2 className="text-2xl font-bold text-white">Trending Now</h2>
+          <Eye className="text-white animate-pulse" size={24} />
+          <h2 className="text-2xl font-bold text-white">Recommended for You</h2>
         </div>
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
@@ -64,8 +78,8 @@ export default function TrendingSection() {
     return (
       <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl sticky top-24">
         <div className="flex items-center gap-2 mb-6">
-          <TrendingUp className="text-white" size={24} />
-          <h2 className="text-2xl font-bold text-white">🔥 Trending Now</h2>
+          <Eye className="text-white" size={24} />
+          <h2 className="text-2xl font-bold text-white">🎯 Recommended</h2>
         </div>
         <div className="text-center py-8">
           <p className="text-white/80 text-lg">No articles yet</p>
@@ -78,8 +92,8 @@ export default function TrendingSection() {
   return (
     <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl sticky top-24">
       <div className="flex items-center gap-2 mb-6">
-        <TrendingUp className="text-white animate-bounce" size={24} />
-        <h2 className="text-2xl font-bold text-white">🔥 Trending Now</h2>
+        <Eye className="text-white animate-pulse" size={24} />
+        <h2 className="text-2xl font-bold text-white">🎯 Recommended for You</h2>
       </div>
 
       <div className="space-y-4">
@@ -96,19 +110,11 @@ export default function TrendingSection() {
               </div>
 
               {/* Image */}
-              {article.image && (
+              {(article.display_image || article.image) && (
                 <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden">
                   <Image
-                    src={(() => {
-                      const mediaUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-                        ? 'https://heroic-healing-production-2365.up.railway.app'
-                        : 'http://localhost:8000';
-                      if (article.image.startsWith('http')) {
-                        return article.image.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
-                      }
-                      return `${mediaUrl}${article.image}`;
-                    })()}
-                    alt={article.title}
+                    src={fixImageUrl(article.display_image || article.image)}
+                    alt={article.display_title || article.title}
                     fill
                     className="object-cover group-hover:scale-110 transition-transform"
                     unoptimized
@@ -119,18 +125,16 @@ export default function TrendingSection() {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <h3 className="text-white font-semibold text-sm line-clamp-2 group-hover:text-yellow-200 transition-colors mb-1">
-                  {article.title}
+                  {article.display_title || article.title}
                 </h3>
                 <div className="flex items-center gap-2 text-xs text-white/80 flex-wrap">
                   <span className="px-2 py-0.5 bg-white/20 rounded-full truncate max-w-[80px]">
                     {article.categories?.[0]?.name || 'News'}
                   </span>
-                  {article.views > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Eye size={12} />
-                      <span>{article.views}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <Eye size={12} />
+                    <span>{article.views}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -142,7 +146,7 @@ export default function TrendingSection() {
         href="/trending"
         className="mt-4 block text-center bg-white/20 hover:bg-white/30 text-white font-semibold py-2 rounded-lg transition-colors"
       >
-        View All Trending →
+        View All Popular →
       </Link>
     </div>
   );

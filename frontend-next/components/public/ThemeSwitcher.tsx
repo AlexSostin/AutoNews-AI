@@ -28,7 +28,7 @@ export default function ThemeSwitcher() {
         <div ref={ref} className="relative">
             <button
                 onClick={() => setOpen(!open)}
-                className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all"
+                className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all"
                 title="Change color theme"
                 aria-label="Change color theme"
             >
@@ -48,8 +48,8 @@ export default function ThemeSwitcher() {
                                 setOpen(false);
                             }}
                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${theme === t.id
-                                    ? 'bg-gray-100 font-bold text-gray-900'
-                                    : 'text-gray-600 hover:bg-gray-50'
+                                ? 'bg-gray-100 font-bold text-gray-900'
+                                : 'text-gray-600 hover:bg-gray-50'
                                 }`}
                         >
                             <span

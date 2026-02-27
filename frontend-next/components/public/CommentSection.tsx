@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { MessageCircle, User, Mail, Send, Reply, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '@/lib/api';
 import { getUserFromStorage, isAuthenticated } from '@/lib/auth';
+import { getApiUrl } from '@/lib/config';
 
 interface Comment {
   id: number;
@@ -55,8 +56,6 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
   }, [articleId]);
 
   // Helper to get API URL
-  const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
   const fetchComments = async () => {
     try {
       // Use fetch instead of api.get to avoid sending auth token for public endpoint

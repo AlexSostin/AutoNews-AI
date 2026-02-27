@@ -160,7 +160,42 @@ def calculate_quality_score(title: str, content: str, specs: dict = None,
 
 
 def score_pending_article(pending_article) -> int:
-    """Calculate and save quality score for a PendingArticle instance."""
+    """
+    Calculate and save quality score for a PendingArticle instance.
+    Tries ML model first, falls back to heuristic if ML not available.
+    """
+    # Try ML scorer first
+    try:
+        from ai_engine.modules.ml_quality_scorer import predict_quality
+        
+        # Determine source type and provider
+        source_type = pending_article.image_source or 'unknown'
+        provider = ''
+        
+        ml_result = predict_quality(
+            title=pending_article.title,
+            content=pending_article.content,
+            specs=pending_article.specs,
+            tags=pending_article.tags,
+            featured_image=pending_article.featured_image,
+            images=pending_article.images,
+            provider=provider,
+            source_type=source_type,
+        )
+        
+        if ml_result.get('method') == 'ml':
+            score = int(round(ml_result['score']))
+            logger.info(
+                f"🧠 ML quality score: {score}/10 "
+                f"(confidence={ml_result.get('confidence', 0):.2f})"
+            )
+            pending_article.quality_score = score
+            pending_article.save(update_fields=['quality_score'])
+            return score
+    except Exception as e:
+        logger.debug(f"ML scorer unavailable, using heuristic: {e}")
+    
+    # Fallback to heuristic
     score = calculate_quality_score(
         title=pending_article.title,
         content=pending_article.content,

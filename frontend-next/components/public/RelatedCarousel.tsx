@@ -11,6 +11,7 @@ import { formatDate } from '@/lib/utils';
 interface RelatedCarouselProps {
     categorySlug: string;
     currentArticleSlug: string;
+    currentArticleId?: number;
 }
 
 const getApiUrl = () => {
@@ -22,7 +23,7 @@ const getApiUrl = () => {
     return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 };
 
-export default function RelatedCarousel({ categorySlug, currentArticleSlug }: RelatedCarouselProps) {
+export default function RelatedCarousel({ categorySlug, currentArticleSlug, currentArticleId }: RelatedCarouselProps) {
     const [articles, setArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(true);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -149,6 +150,21 @@ export default function RelatedCarousel({ categorySlug, currentArticleSlug }: Re
                         key={article.id}
                         href={`/articles/${article.slug}`}
                         className="flex-shrink-0 w-[280px] sm:w-[320px] snap-start group"
+                        onClick={() => {
+                            if (currentArticleId) {
+                                try {
+                                    const payload = {
+                                        source_article_id: currentArticleId,
+                                        destination_url: `/articles/${article.slug}`,
+                                        link_type: 'related_carousel'
+                                    };
+                                    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+                                    navigator.sendBeacon(`${getApiUrl()}/analytics/link-click/`, blob);
+                                } catch (e) {
+                                    console.error('Failed to track carousel click', e);
+                                }
+                            }
+                        }}
                     >
                         <div className="relative h-44 mb-3 rounded-lg overflow-hidden border border-gray-100 shadow-sm">
                             <Image

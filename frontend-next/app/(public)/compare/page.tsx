@@ -158,7 +158,10 @@ function CarPicker({
 
     return (
         <div className="relative">
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">{label}</label>
+            <label className="block text-sm font-extrabold text-indigo-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                {label}
+            </label>
             <button
                 onClick={() => setOpen(!open)}
                 className={`w-full px-4 py-3.5 text-left rounded-xl border-2 transition-all font-semibold flex items-center justify-between ${selected.model
@@ -308,19 +311,20 @@ function CompareContent() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30">
             {/* Hero */}
-            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white">
-                <div className="max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
+            <div className="relative bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50"></div>
+                <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
                     <h1 className="text-3xl sm:text-5xl font-extrabold mb-3">
                         <ArrowLeftRight className="inline-block mr-3 mb-1" size={36} />
                         Compare Cars
                     </h1>
-                    <p className="text-indigo-200 text-lg max-w-xl mx-auto">
+                    <p className="text-purple-200 text-lg max-w-xl mx-auto">
                         Side-by-side comparison of specifications, performance, and pricing
                     </p>
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-4 -mt-8">
+            <div className="max-w-6xl mx-auto px-4 -mt-4">
                 {/* Picker Card */}
                 <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 mb-8">
                     <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
@@ -496,8 +500,9 @@ export default function ComparePage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30">
-                <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white">
-                    <div className="max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
+                <div className="relative bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white">
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50"></div>
+                    <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
                         <h1 className="text-3xl sm:text-5xl font-extrabold mb-3">Compare Cars</h1>
                     </div>
                 </div>

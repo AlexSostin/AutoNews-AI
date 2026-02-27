@@ -81,3 +81,7 @@ langchain==0.3.15
 langchain-google-genai==2.0.8
 langchain-community==0.3.15
 faiss-cpu==1.9.0.post1
+
+# ML Quality Scorer
+scikit-learn>=1.5.0
+joblib>=1.4.0

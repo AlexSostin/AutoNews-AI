@@ -32,9 +32,11 @@ import {
   Megaphone,
   Bot,
   Users,
+  Activity,
   LucideIcon
 } from 'lucide-react';
 import { logout, isSuperuser } from '@/lib/auth';
+import api from '@/lib/api';
 
 interface MenuItem {
   href: string;
@@ -98,6 +100,7 @@ const menuSections: MenuSection[] = [
       { href: '/admin/automation', icon: Bot, label: 'Automation' },
       { href: '/admin/ab-testing', icon: FlaskConical, label: 'A/B Testing' },
       { href: '/admin/ads', icon: Megaphone, label: 'Ads / Sponsors' },
+      { href: '/admin/health', icon: Activity, label: 'System Health' },
     ],
   },
   {
@@ -120,9 +123,23 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [isSuperuserState, setIsSuperuserState] = useState(false);
+  const [errorCount, setErrorCount] = useState(0);
 
   useEffect(() => {
     setIsSuperuserState(isSuperuser());
+  }, []);
+
+  // Fetch unresolved error count for badge
+  useEffect(() => {
+    const fetchErrorCount = async () => {
+      try {
+        const { data } = await api.get('/health/errors-summary/');
+        setErrorCount(data.total_unresolved || 0);
+      } catch { /* silent */ }
+    };
+    fetchErrorCount();
+    const interval = setInterval(fetchErrorCount, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
@@ -224,6 +241,11 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
                     >
                       <Icon size={18} className="flex-shrink-0" />
                       {!isCollapsed && <span className="truncate">{item.label}</span>}
+                      {item.href === '/admin/health' && errorCount > 0 && (
+                        <span className={`${isCollapsed ? 'absolute top-0 right-1' : 'ml-auto'} bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1`}>
+                          {errorCount > 99 ? '99+' : errorCount}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

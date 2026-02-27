@@ -29,7 +29,7 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
         }
       } catch (error: any) {
         // Silently ignore 401 errors - endpoint allows anonymous access
-        if (error.response?.status !== 401) {
+        if (error.response?.status !== 401 && error.response?.status !== 404) {
           console.error('Failed to load user rating:', error);
         }
       } finally {
@@ -106,8 +106,8 @@ export default function RatingStars({ articleSlug, initialRating, ratingCount }:
               <Star
                 size={40}
                 className={`${star <= (hoveredStar || userRating)
-                    ? 'fill-amber-400 text-amber-400'
-                    : 'text-gray-300'
+                  ? 'fill-amber-400 text-amber-400'
+                  : 'text-gray-300'
                   } transition-colors`}
               />
             </button>

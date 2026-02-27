@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/Python-3.13-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
 ![Redis](https://img.shields.io/badge/Redis-7-red)
-![pytest](https://img.shields.io/badge/tests-75_passing-brightgreen)
+![pytest](https://img.shields.io/badge/tests-391%2B_passing-brightgreen)
 
 Backend API для платформы автомобильных новостей FreshMotors. Развёрнут на Railway, фронтенд на Vercel (Next.js 16).
 
@@ -27,9 +27,10 @@ docker exec autonews_backend pytest tests/ -v
 ```
 
 **Endpoints:**
-- 📡 API: http://localhost:8000/api/v1/
-- 🔧 Django Admin: http://localhost:8000/admin/
-- ❤️ Health: http://localhost:8000/api/v1/health/
+
+- 📡 API: <http://localhost:8000/api/v1/>
+- 🔧 Django Admin: <http://localhost:8000/admin/>
+- ❤️ Health: <http://localhost:8000/api/v1/health/>
 
 ---
 
@@ -47,7 +48,7 @@ docker exec autonews_backend pytest tests/ -v
 | **Pexels API** | Поиск стоковых фотографий |
 | **Sentry** | Error tracking |
 | **yt-dlp** | Извлечение транскриптов YouTube |
-| **pytest** | 75 тестов |
+| **pytest** | 391+ тестов |
 
 ---
 
@@ -57,27 +58,31 @@ docker exec autonews_backend pytest tests/ -v
 backend/
 ├── auto_news_site/            # Django settings, urls, wsgi/asgi
 ├── news/                      # Core app
-│   ├── models.py              # 20+ моделей (Article, Brand, RSS, A/B, Ads...)
-│   ├── api_views.py           # 30+ DRF ViewSets
-│   ├── api_urls.py            # API routing (50+ endpoints)
+│   ├── models/                # Модели (package: articles, vehicles, system, ...)
+│   ├── api_views/             # 20+ DRF ViewSets (разделены по доменам)
+│   │   ├── mixins/            # ArticleGenerationMixin, ArticleEnrichmentMixin
+│   │   ├── articles.py        # ArticleViewSet
+│   │   ├── system.py          # Health, ErrorLog, Notifications
+│   │   └── ...                # auth, rss, youtube, vehicles, etc.
+│   ├── api_urls.py            # API routing (60+ endpoints)
 │   ├── serializers.py         # Сериализация + A/B variant injection
-│   ├── ab_testing_views.py    # A/B тестирование заголовков
-│   ├── cars_views.py          # Каталог брендов
-│   ├── search_analytics_views.py  # Поиск + Аналитика + GSC + AI Stats
-│   ├── signals.py             # Auto-notifications, spec extraction
-│   ├── health.py              # Health checks
-│   └── migrations/            # 69 миграций
+│   ├── error_capture.py       # ErrorCaptureMiddleware (auto-logs 500s)
+│   ├── management/commands/   # verify_migrations, reformat_rss_articles
+│   └── migrations/            # 88+ миграций
 ├── ai_engine/                 # AI генерация
 │   ├── main.py                # Pipeline orchestrator
 │   └── modules/
 │       ├── transcriber.py     # YouTube транскрипт
 │       ├── analyzer.py        # AI анализ + спеки
+│       ├── article_generator.py   # RSS press release expansion
+│       ├── entity_validator.py    # Anti-hallucination валидатор
+│       ├── deep_specs.py          # Deep vehicle specs обогащение
 │       ├── publisher.py       # Публикация в БД
 │       ├── article_reviewer.py    # AI Editor
 │       ├── auto_publisher.py      # Автопаблишер
 │       ├── content_formatter.py   # Форматирование контента
 │       └── screenshot_extractor.py # Скриншоты из видео
-├── tests/                     # pytest (75 тестов)
+├── tests/                     # pytest (391+ тестов)
 │   ├── conftest.py            # Fixtures
 │   ├── test_ab_testing.py     # A/B тестирование (10)
 │   ├── test_analytics_api.py  # Аналитика (8)
@@ -86,7 +91,8 @@ backend/
 │   ├── test_models.py         # Модели (12)
 │   ├── test_search_api.py     # Поиск (11)
 │   ├── test_article_generation.py  # Генерация (6)
-│   └── test_seo_helpers.py    # SEO (8)
+│   ├── test_seo_helpers.py    # SEO (8)
+│   └── + 20 more test files   # CRUD, auth, brands, cars, comments, etc.
 └── Dockerfile
 ```
 
@@ -95,6 +101,7 @@ backend/
 ## 📡 Ключевые API Endpoints
 
 ### Контент
+
 ```
 GET/POST /api/v1/articles/                    # CRUD статей
 POST     /api/v1/articles/generate_from_youtube/  # AI генерация
@@ -104,6 +111,7 @@ GET      /api/v1/pending-articles/            # Модерация
 ```
 
 ### A/B Testing
+
 ```
 POST /api/v1/ab/impression/     # Track impression
 POST /api/v1/ab/click/          # Track click
@@ -113,6 +121,7 @@ POST /api/v1/ab/auto-pick/      # Auto-pick (admin)
 ```
 
 ### Автоматизация
+
 ```
 GET/PATCH /api/v1/automation/settings/       # Настройки
 GET       /api/v1/automation/stats/          # Статистика
@@ -120,6 +129,7 @@ POST      /api/v1/automation/trigger/{type}/ # Ручной запуск
 ```
 
 ### Аналитика
+
 ```
 GET /api/v1/analytics/overview/        # Dashboard
 GET /api/v1/analytics/articles/top/    # Топ статьи
@@ -186,7 +196,7 @@ docker exec autonews_backend pytest tests/test_ab_testing.py -v
 docker exec autonews_backend pytest tests/ --cov=news --cov-report=term-missing
 ```
 
-**75 тестов** покрывающие: API endpoints, модели, автопаблишер, A/B тестирование, поиск, аналитику, SEO, генерацию.
+**391+ тестов** покрывающие: API endpoints, модели, автопаблишер, A/B тестирование, поиск, аналитику, SEO, генерацию, error tracking, CRUD, auth, brands, cars, comments, ratings.
 
 ---
 

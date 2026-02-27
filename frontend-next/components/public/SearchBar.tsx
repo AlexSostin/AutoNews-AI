@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Search, X, Loader2, ArrowRight, Sparkles } from 'lucide-react';
+import { getApiUrl } from '@/lib/config';
 
 interface SearchResult {
   id: number;
@@ -23,17 +24,6 @@ export default function SearchBar() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-
-  const getApiUrl = () => {
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      if (host !== 'localhost' && host !== '127.0.0.1') {
-        return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-      }
-    }
-    return 'http://localhost:8000/api/v1';
-  };
-
   const getMediaUrl = () => {
     if (typeof window !== 'undefined') {
       const host = window.location.hostname;
@@ -130,7 +120,7 @@ export default function SearchBar() {
       {/* Search Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-xl transition-all text-gray-600 hover:text-gray-900"
+        className="flex items-center gap-2 p-2 hover:bg-white/10 rounded-xl transition-all text-white/70 hover:text-white"
         aria-label="Search"
       >
         <Search size={20} />
@@ -227,8 +217,8 @@ export default function SearchBar() {
                           href={`/articles/${article.slug}`}
                           onClick={handleClose}
                           className={`flex items-center gap-4 p-3 rounded-xl transition-all group ${selectedIndex === index
-                              ? 'bg-purple-600/30 border border-purple-500/50'
-                              : 'hover:bg-white/5 border border-transparent'
+                            ? 'bg-purple-600/30 border border-purple-500/50'
+                            : 'hover:bg-white/5 border border-transparent'
                             }`}
                         >
                           {/* Thumbnail */}
@@ -264,8 +254,8 @@ export default function SearchBar() {
 
                           {/* Arrow */}
                           <ArrowRight size={18} className={`flex-shrink-0 transition-all ${selectedIndex === index
-                              ? 'text-purple-400 translate-x-0 opacity-100'
-                              : 'text-gray-600 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
+                            ? 'text-purple-400 translate-x-0 opacity-100'
+                            : 'text-gray-600 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
                             }`} />
                         </Link>
                       );

@@ -8,18 +8,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
 import toast from 'react-hot-toast';
+import { getApiUrl } from '@/lib/config';
 
 // Hardcoded production API URL to avoid build-time variable issues
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host !== 'localhost' && host !== '127.0.0.1') {
-      return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-    }
-  }
-  return 'http://localhost:8000/api/v1';
-};
-
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({

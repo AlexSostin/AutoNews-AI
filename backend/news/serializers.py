@@ -6,7 +6,7 @@ from .models import (
     ArticleImage, SiteSettings, Favorite, Subscriber, NewsletterHistory,
     YouTubeChannel, RSSFeed, RSSNewsItem, PendingArticle, EmailPreferences,
     AdminNotification, VehicleSpecs, NewsletterSubscriber, BrandAlias, Brand,
-    AdPlacement, AutomationSettings
+    AdPlacement, AutomationSettings, FrontendEventLog, BackendErrorLog
 )
 
 
@@ -18,13 +18,15 @@ def _fix_cloudinary_image_urls(representation):
     creating broken URLs like: cloudinary.com/.../media/https://cloudinary.com/...
     This extracts the real URL.
     """
-    for field in ('image', 'image_2', 'image_3'):
+    for field in ('image', 'image_2', 'image_3', 'display_image', 'thumbnail_url', 'image_2_url', 'image_3_url'):
         val = representation.get(field)
-        if val and isinstance(val, str) and val.count('https://') > 1:
-            # Extract the last full URL (the real one)
-            last_https = val.rfind('https://')
-            if last_https > 0:
-                representation[field] = val[last_https:]
+        if val and isinstance(val, str):
+            # Fix double https
+            if val.count('https://') > 1:
+                last_https = val.rfind('https://')
+                if last_https > 0:
+                    val = val[last_https:]
+            representation[field] = val
     return representation
 
 
@@ -265,16 +267,42 @@ class ArticleListSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep = _fix_cloudinary_image_urls(rep)
-        # Inject A/B test variant title for public users
+        # Inject A/B test variant title and image for public users
         request = self.context.get('request')
         if request and not getattr(request.user, 'is_staff', False):
-            from news.ab_testing_views import get_variant_for_request
-            display_title, variant_id = get_variant_for_request(instance, request)
-            rep['display_title'] = display_title
-            rep['ab_variant_id'] = variant_id
+            try:
+                from news.ab_testing_views import get_variant_for_request, get_image_variant_for_request
+                display_title, variant_id = get_variant_for_request(instance, request)
+                rep['display_title'] = display_title
+                rep['ab_variant_id'] = variant_id
+                
+                display_image, image_variant_id = get_image_variant_for_request(instance, request)
+                if display_image:
+                    if hasattr(display_image, 'url'):
+                        val = display_image.url
+                    else:
+                        val = str(display_image)
+                        
+                    # Apply Cloudinary double-URL fix manually
+                    if val and isinstance(val, str) and val.count('https://') > 1:
+                        last_https = val.rfind('https://')
+                        if last_https > 0:
+                            val = val[last_https:]
+                    rep['display_image'] = val
+                else:
+                    rep['display_image'] = rep.get('thumbnail_url') or rep.get('image')
+                rep['ab_image_variant_id'] = image_variant_id
+            except Exception:
+                # Graceful degradation if A/B testing tables have issues
+                rep['display_title'] = rep['title']
+                rep['ab_variant_id'] = None
+                rep['display_image'] = rep.get('thumbnail_url') or rep.get('image')
+                rep['ab_image_variant_id'] = None
         else:
             rep['display_title'] = rep['title']
             rep['ab_variant_id'] = None
+            rep['display_image'] = rep.get('thumbnail_url') or rep.get('image')
+            rep['ab_image_variant_id'] = None
         return rep
 
 
@@ -373,16 +401,42 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep = _fix_cloudinary_image_urls(rep)
-        # Inject A/B test variant title for public users
+        # Inject A/B test variant title and image for public users
         request = self.context.get('request')
         if request and not getattr(request.user, 'is_staff', False):
-            from news.ab_testing_views import get_variant_for_request
-            display_title, variant_id = get_variant_for_request(instance, request)
-            rep['display_title'] = display_title
-            rep['ab_variant_id'] = variant_id
+            try:
+                from news.ab_testing_views import get_variant_for_request, get_image_variant_for_request
+                display_title, variant_id = get_variant_for_request(instance, request)
+                rep['display_title'] = display_title
+                rep['ab_variant_id'] = variant_id
+                
+                display_image, image_variant_id = get_image_variant_for_request(instance, request)
+                if display_image:
+                    if hasattr(display_image, 'url'):
+                        val = display_image.url
+                    else:
+                        val = str(display_image)
+                        
+                    # Apply Cloudinary double-URL fix manually
+                    if val and isinstance(val, str) and val.count('https://') > 1:
+                        last_https = val.rfind('https://')
+                        if last_https > 0:
+                            val = val[last_https:]
+                    rep['display_image'] = val
+                else:
+                    rep['display_image'] = rep.get('thumbnail_url') or rep.get('image')
+                rep['ab_image_variant_id'] = image_variant_id
+            except Exception:
+                # Graceful degradation if A/B testing tables have issues
+                rep['display_title'] = rep['title']
+                rep['ab_variant_id'] = None
+                rep['display_image'] = rep.get('thumbnail_url') or rep.get('image')
+                rep['ab_image_variant_id'] = None
         else:
             rep['display_title'] = rep['title']
             rep['ab_variant_id'] = None
+            rep['display_image'] = rep.get('thumbnail_url') or rep.get('image')
+            rep['ab_image_variant_id'] = None
         return rep
     
     def get_vehicle_specs(self, obj):
@@ -868,3 +922,43 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             'deep_specs_last_run', 'deep_specs_last_status', 'deep_specs_today_count',
             'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock', 'deep_specs_lock',
         ]
+
+
+class FrontendEventLogSerializer(serializers.ModelSerializer):
+    """Serializer for Next.js frontend errors/events."""
+    class Meta:
+        model = FrontendEventLog
+        fields = [
+            'id', 'error_type', 'message', 'stack_trace', 
+            'url', 'user_agent', 'occurrence_count', 
+            'first_seen', 'last_seen', 'resolved', 
+            'resolved_at', 'resolution_notes'
+        ]
+        read_only_fields = [
+            'id', 'occurrence_count', 'first_seen', 'last_seen', 
+            'resolved_at', 'resolution_notes'
+        ]
+
+
+class BackendErrorLogSerializer(serializers.ModelSerializer):
+    """Serializer for backend API/scheduler errors."""
+    source_display = serializers.CharField(source='get_source_display', read_only=True)
+    severity_display = serializers.CharField(source='get_severity_display', read_only=True)
+
+    class Meta:
+        model = BackendErrorLog
+        fields = [
+            'id', 'source', 'source_display', 'severity', 'severity_display',
+            'error_class', 'message', 'traceback',
+            'request_method', 'request_path', 'request_user', 'request_ip',
+            'task_name', 'occurrence_count',
+            'first_seen', 'last_seen',
+            'resolved', 'resolved_at', 'resolution_notes',
+        ]
+        read_only_fields = [
+            'id', 'source', 'source_display', 'severity', 'severity_display',
+            'error_class', 'message', 'traceback',
+            'request_method', 'request_path', 'request_user', 'request_ip',
+            'task_name', 'occurrence_count', 'first_seen', 'last_seen',
+        ]
+

@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework import status
 from django.db.models import F, Sum
-from news.models import ArticleTitleVariant, Article
+from news.models import ArticleTitleVariant, ArticleImageVariant, Article
 
 
 class ABImpressionView(APIView):
@@ -23,9 +23,16 @@ class ABImpressionView(APIView):
         if not variant_id:
             return Response({'error': 'variant_id required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        updated = ArticleTitleVariant.objects.filter(
-            id=variant_id, is_active=True
-        ).update(impressions=F('impressions') + 1)
+        variant_type = request.data.get('type', 'title')
+        
+        if variant_type == 'image':
+            updated = ArticleImageVariant.objects.filter(
+                id=variant_id, is_active=True
+            ).update(impressions=F('impressions') + 1)
+        else:
+            updated = ArticleTitleVariant.objects.filter(
+                id=variant_id, is_active=True
+            ).update(impressions=F('impressions') + 1)
 
         if not updated:
             return Response({'error': 'variant not found or inactive'}, status=status.HTTP_404_NOT_FOUND)
@@ -45,9 +52,16 @@ class ABClickView(APIView):
         if not variant_id:
             return Response({'error': 'variant_id required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        updated = ArticleTitleVariant.objects.filter(
-            id=variant_id, is_active=True
-        ).update(clicks=F('clicks') + 1)
+        variant_type = request.data.get('type', 'title')
+        
+        if variant_type == 'image':
+            updated = ArticleImageVariant.objects.filter(
+                id=variant_id, is_active=True
+            ).update(clicks=F('clicks') + 1)
+        else:
+            updated = ArticleTitleVariant.objects.filter(
+                id=variant_id, is_active=True
+            ).update(clicks=F('clicks') + 1)
 
         if not updated:
             return Response({'error': 'variant not found or inactive'}, status=status.HTTP_404_NOT_FOUND)
@@ -191,3 +205,25 @@ def get_variant_for_request(article, request):
     chosen = variants[hash_val % len(variants)]
 
     return chosen.title, chosen.id
+
+def get_image_variant_for_request(article, request):
+    """Determine which image variant to show for a given request.
+    Uses a cookie-based seed for consistent assignment per visitor.
+    Returns (image_url, variant_id) or (article.image, None) if no active test.
+    """
+    variants = list(article.image_variants.filter(is_active=True, is_winner=False))
+    if len(variants) < 2:
+        return article.image, None
+
+    # Use cookie or IP for consistent variant assignment
+    seed = request.COOKIES.get('ab_seed', '')
+    if not seed:
+        seed = request.META.get('REMOTE_ADDR', 'unknown')
+
+    # Deterministic hash → variant index
+    hash_val = int(hashlib.md5(
+        f"image:{seed}:{article.id}".encode()
+    ).hexdigest(), 16)
+    chosen = variants[hash_val % len(variants)]
+
+    return chosen.image_url, chosen.id

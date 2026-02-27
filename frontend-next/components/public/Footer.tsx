@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Facebook, Instagram, Youtube, Linkedin, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { getApiUrl } from '@/lib/config';
 
 // Custom SVG Icons
 const XIcon = ({ size = 24 }: { size?: number }) => (
@@ -59,17 +60,7 @@ export default function Footer() {
   const [email, setEmail] = useState('');
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
-  useEffect(() => {
-    const getApiUrl = () => {
-      if (typeof window !== 'undefined') {
-        const host = window.location.hostname;
-        if (host !== 'localhost' && host !== '127.0.0.1') {
-          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-        }
-      }
-      return 'http://localhost:8000/api/v1';
-    };
-    const apiUrl = getApiUrl();
+  useEffect(() => {    const apiUrl = getApiUrl();
 
     // Cache duration: 10 minutes
     const CACHE_DURATION = 10 * 60 * 1000;
@@ -124,16 +115,6 @@ export default function Footer() {
     setSubscribeStatus('loading');
 
     try {
-      const getApiUrl = () => {
-        if (typeof window !== 'undefined') {
-          const host = window.location.hostname;
-          if (host !== 'localhost' && host !== '127.0.0.1') {
-            return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-          }
-        }
-        return 'http://localhost:8000/api/v1';
-      };
-
       const response = await fetch(`${getApiUrl()}/newsletter/subscribe/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

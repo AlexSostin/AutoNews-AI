@@ -128,18 +128,27 @@ export default function ArticlesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, slug: string) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
 
     setDeletingId(id);
     try {
-      await api.delete(`/articles/${id}/`);
+      await api.delete(`/articles/${slug}/`);
       setArticles(prev => prev.filter(a => a.id !== id));
       setSuccessMessage('Article deleted successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete article:', error);
-      alert('Failed to delete article');
+      const status = error.response?.status;
+      const detail = error.response?.data?.detail || error.response?.data?.error || '';
+      if (status === 403) {
+        alert(`⛔ No permission to delete. Please re-login.\n\n${detail}`);
+      } else if (status === 404) {
+        alert('Article not found — it may have been deleted already.');
+        setArticles(prev => prev.filter(a => a.id !== id));
+      } else {
+        alert(`Failed to delete article (${status || 'network error'})\n\n${detail || error.message}`);
+      }
     } finally {
       setDeletingId(null);
     }
@@ -176,14 +185,14 @@ export default function ArticlesPage() {
   };
 
 
-  const handleToggleHero = async (id: number, currentStatus: boolean) => {
+  const handleToggleHero = async (id: number, slug: string, currentStatus: boolean) => {
     try {
       // Optimistic update
       setArticles(articles.map(a =>
         a.id === id ? { ...a, is_hero: !currentStatus } : a
       ));
 
-      await api.patch(`/articles/${id}/`, { is_hero: !currentStatus });
+      await api.patch(`/articles/${slug}/`, { is_hero: !currentStatus });
     } catch (error: any) {
       console.error('Failed to update hero status:', error);
       alert('Failed to update status: ' + (error.response?.data?.detail || error.message));
@@ -542,7 +551,7 @@ export default function ArticlesPage() {
                         <input
                           type="checkbox"
                           checked={article.is_hero || false}
-                          onChange={() => handleToggleHero(article.id, article.is_hero)}
+                          onChange={() => handleToggleHero(article.id, article.slug, article.is_hero)}
                           className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 border-gray-300"
                         />
                         <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold ${article.is_hero
@@ -580,7 +589,7 @@ export default function ArticlesPage() {
                           <Edit size={16} />
                         </Link>
                         <button
-                          onClick={() => handleDelete(article.id)}
+                          onClick={() => handleDelete(article.id, article.slug)}
                           disabled={deletingId === article.id}
                           className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           title="Delete"

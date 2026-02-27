@@ -133,8 +133,9 @@ class TestArticleRetrieve:
         assert resp.status_code == 404
 
     def test_retrieve_by_id(self, anon_client, article):
+        """ID-based lookup should return 404 since lookup_field='slug'."""
         resp = anon_client.get(f'{API}/articles/{article.id}/')
-        assert resp.status_code == 200
+        assert resp.status_code == 404
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -271,19 +272,19 @@ class TestExtractSpecs:
 
 class TestInvalidateArticleCache:
 
-    @patch('news.api_views.articles.cache')
+    @patch('news.api_views._shared.cache')
     def test_invalidate_with_article_id(self, mock_cache):
         from news.api_views import invalidate_article_cache
         invalidate_article_cache(article_id=1)
         assert mock_cache.delete_many.called or mock_cache.delete.called
 
-    @patch('news.api_views.articles.cache')
+    @patch('news.api_views._shared.cache')
     def test_invalidate_with_slug(self, mock_cache):
         from news.api_views import invalidate_article_cache
         invalidate_article_cache(slug='test-slug')
         assert mock_cache.delete_many.called or mock_cache.delete.called
 
-    @patch('news.api_views.articles.cache')
+    @patch('news.api_views._shared.cache')
     def test_invalidate_no_args(self, mock_cache):
         from news.api_views import invalidate_article_cache
         invalidate_article_cache()

@@ -9,6 +9,7 @@ import SearchBar from './SearchBar';
 import ThemeSwitcher from './ThemeSwitcher';
 import { isAuthenticated, getUserFromStorage, logout, isAdmin } from '@/lib/auth';
 import type { User as UserType } from '@/types';
+import { getApiUrl } from '@/lib/config';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,7 +22,7 @@ export default function Header() {
 
   const categoriesRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileCategoriesRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -49,15 +50,6 @@ export default function Header() {
     window.addEventListener('authChange', handleAuthChange);
 
     // Load categories
-    const getApiUrl = () => {
-      if (typeof window !== 'undefined') {
-        const host = window.location.hostname;
-        if (host !== 'localhost' && host !== '127.0.0.1') {
-          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-        }
-      }
-      return 'http://localhost:8000/api/v1';
-    };
     fetch(`${getApiUrl()}/categories/`)
       .then(res => res.json())
       .then(data => {
@@ -74,20 +66,40 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // Close categories only if clicking outside BOTH desktop and mobile refs
+      const insideDesktopCats = categoriesRef.current?.contains(target);
+      const insideMobileCats = mobileCategoriesRef.current?.contains(target);
+      if (!insideDesktopCats && !insideMobileCats) {
         setIsCategoriesOpen(false);
       }
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+      // Close user menu
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setIsUserMenuOpen(false);
-      }
-      if (mobileMenuRef.current && mobileMenuRef.current.contains(event.target as Node)) {
-        return;
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close mobile menu when resizing to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close categories when mobile menu closes
+  useEffect(() => {
+    if (!isMenuOpen) {
+      setIsCategoriesOpen(false);
+    }
+  }, [isMenuOpen]);
 
   const handleLogout = () => {
     logout();
@@ -112,6 +124,7 @@ export default function Header() {
             />
           </Link>
 
+          {/* ─── Desktop Navigation ─── */}
           <nav className="hidden md:flex space-x-6 items-center">
             <Link href="/" className="hover:text-purple-300 transition-colors">Home</Link>
             <Link href="/articles" className="hover:text-purple-300 transition-colors">Articles</Link>
@@ -237,147 +250,138 @@ export default function Header() {
             <SearchBar />
           </nav>
 
-          <div className="flex items-center gap-2">
-            {/* Mobile Search */}
-            <div className="md:hidden">
-              <SearchBar />
-            </div>
-
+          {/* ─── Mobile Controls (top bar) ─── */}
+          <div className="flex items-center gap-3 md:hidden">
+            <SearchBar />
+            <ThemeSwitcher />
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden text-gray-900"
+              className="text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* ─── Mobile Menu ─── */}
         {isMenuOpen && (
-          <div ref={mobileMenuRef} className="md:hidden pb-4 space-y-2">
-            <Link href="/" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
-            <Link href="/articles" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Articles</Link>
-            <Link href="/cars" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Cars</Link>
-            <Link href="/compare" className="block py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>Compare</Link>
+          <div className="md:hidden pb-4 border-t border-white/10 pt-3 animate-in slide-in-from-top duration-200">
+            {/* Navigation Links */}
+            <nav className="space-y-1">
+              <Link href="/" className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-white/10 transition-colors" onClick={() => setIsMenuOpen(false)}>
+                Home
+              </Link>
+              <Link href="/articles" className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-white/10 transition-colors" onClick={() => setIsMenuOpen(false)}>
+                Articles
+              </Link>
+              <Link href="/cars" className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-white/10 transition-colors" onClick={() => setIsMenuOpen(false)}>
+                Cars
+              </Link>
+              <Link href="/compare" className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-white/10 transition-colors" onClick={() => setIsMenuOpen(false)}>
+                Compare
+              </Link>
 
-            {/* Theme Switcher — Mobile */}
-            <div className="py-2 border-t border-purple-800/50">
-              <div className="text-xs text-purple-400/60 uppercase tracking-wider mb-2">Color Theme</div>
-              <ThemeSwitcher />
-            </div>
+              {/* Mobile Categories Accordion */}
+              <div ref={mobileCategoriesRef}>
+                <button
+                  onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
+                  className="flex items-center justify-between w-full py-2.5 px-3 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <span>Categories</span>
+                  <ChevronDown size={16} className={`transition-transform duration-200 ${isCategoriesOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-            {/* Mobile Categories */}
-            <div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsCategoriesOpen(!isCategoriesOpen);
-                }}
-                className="flex items-center gap-1 py-2 hover:text-purple-300 transition-colors w-full text-left"
-              >
-                Categories
-                <ChevronDown size={16} className={`transition-transform ${isCategoriesOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isCategoriesOpen && (
-                <div className="mt-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20 overflow-hidden shadow-lg">
-                  <div className="py-1">
+                {isCategoriesOpen && (
+                  <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-purple-400/30 pl-3">
                     {categories.map((category) => (
-                      <a
+                      <Link
                         key={category.id}
                         href={`/categories/${category.slug}`}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const slug = category.slug;
+                        onClick={() => {
                           setIsMenuOpen(false);
                           setIsCategoriesOpen(false);
-                          router.push(`/categories/${slug}`);
                         }}
-                        className="block px-4 py-2 text-white hover:bg-white/20 transition-colors cursor-pointer"
+                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/10 transition-colors text-sm"
                       >
-                        <div className="font-medium">{category.name}</div>
+                        <span className="text-purple-100">{category.name}</span>
                         {category.article_count > 0 && (
-                          <div className="text-xs text-purple-200 opacity-80">{category.article_count} articles</div>
+                          <span className="text-[10px] font-bold bg-white/10 text-purple-300 px-2 py-0.5 rounded-full">
+                            {category.article_count}
+                          </span>
                         )}
-                      </a>
+                      </Link>
                     ))}
-                    <a
+                    <Link
                       href="/articles"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                      onClick={() => {
                         setIsMenuOpen(false);
                         setIsCategoriesOpen(false);
-                        router.push('/articles');
                       }}
-                      className="block px-4 py-2 mt-1 border-t border-white/20 text-purple-300 hover:bg-white/20 font-medium transition-colors cursor-pointer"
+                      className="flex items-center gap-2 py-2 px-3 text-purple-300 hover:text-purple-200 text-sm font-medium transition-colors"
                     >
-                      View All Categories →
-                    </a>
+                      View All <ArrowRight size={14} />
+                    </Link>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </nav>
 
-            {/* Mobile Admin Link - Only for staff */}
+            {/* Admin Link - Only for staff */}
             {isAdminUser && (
-              <Link href="/admin" className="flex items-center gap-2 py-2 hover:text-purple-300" onClick={() => setIsMenuOpen(false)}>
-                <Settings size={18} />
-                Admin
-              </Link>
+              <div className="mt-2 pt-2 border-t border-white/10">
+                <Link href="/admin" className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-white/10 transition-colors" onClick={() => setIsMenuOpen(false)}>
+                  <Settings size={18} />
+                  Admin Panel
+                </Link>
+              </div>
             )}
 
-            {/* Mobile User Menu */}
-            {isLoggedIn ? (
-              <div className="border-t border-white/20 pt-2 mt-2">
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mb-2">
-                  <div className="font-bold">{user?.username}</div>
-                  <div className="text-xs text-purple-200">{user?.email}</div>
-                </div>
+            {/* User Section */}
+            <div className="mt-2 pt-2 border-t border-white/10">
+              {isLoggedIn ? (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3 px-3 py-2 bg-white/5 rounded-lg mb-2">
+                    <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
+                      {user?.username?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{user?.username}</div>
+                      <div className="text-xs text-purple-300">{user?.email}</div>
+                    </div>
+                  </div>
 
+                  <Link href="/profile" className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-white/10 transition-colors" onClick={() => setIsMenuOpen(false)}>
+                    <User size={18} />
+                    My Profile
+                  </Link>
+
+                  <Link href="/profile/favorites" className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-white/10 transition-colors" onClick={() => setIsMenuOpen(false)}>
+                    <BookMarked size={18} />
+                    Favorites
+                  </Link>
+
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-red-500/20 transition-colors text-red-300 w-full text-left"
+                  >
+                    <LogOut size={18} />
+                    Logout
+                  </button>
+                </div>
+              ) : (
                 <Link
-                  href="/profile"
-                  className="flex items-center gap-2 py-2 hover:text-purple-300"
+                  href="/login"
+                  className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 px-4 py-3 rounded-lg transition-colors font-medium"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <User size={18} />
-                  My Profile
+                  Sign In
                 </Link>
-
-                <Link
-                  href="/profile/favorites"
-                  className="flex items-center gap-2 py-2 hover:text-purple-300"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <BookMarked size={18} />
-                  Favorites
-                </Link>
-
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    handleLogout();
-                  }}
-                  className="flex items-center gap-2 py-2 text-red-300 hover:text-red-200 w-full"
-                >
-                  <LogOut size={18} />
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors font-medium mt-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <User size={18} />
-                Login
-              </Link>
-            )}
-
-            {/* Mobile Search */}
-            <div className="mt-2">
-              <SearchBar />
+              )}
             </div>
           </div>
         )}

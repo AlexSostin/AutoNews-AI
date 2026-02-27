@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 # Added inter-module imports
-from .articles import IsStaffOrReadOnly
+from ._shared import IsStaffOrReadOnly
 
 
 
@@ -671,4 +671,281 @@ class AdminActionStatsView(APIView):
             'recent_actions': recent,
             'insights': insights,
         })
+
+
+class FrontendEventLogViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Next.js frontend telemetry and anomaly reporting.
+    POST /api/v1/frontend-events/ : Open endpoint (rate-limited) to log errors
+    GET /api/v1/frontend-events/ : Admin endpoint to read anomalies
+    """
+    
+    _table_ensured = False  # Class-level flag to avoid repeated checks
+    
+    @classmethod
+    def _ensure_table(cls):
+        """Create the news_frontendeventlog table if it doesn't exist.
+        
+        Workaround for Docker/WSL2 environments where recently migrated
+        tables may be invisible to the running server process.
+        """
+        if cls._table_ensured:
+            return
+        from django.db import connection
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS news_frontendeventlog (
+                        id bigserial PRIMARY KEY,
+                        error_type varchar(50) NOT NULL,
+                        message text NOT NULL,
+                        stack_trace text,
+                        url varchar(2048) NOT NULL DEFAULT '',
+                        user_agent varchar(512) NOT NULL DEFAULT '',
+                        occurrence_count integer NOT NULL DEFAULT 1,
+                        first_seen timestamp with time zone NOT NULL DEFAULT NOW(),
+                        last_seen timestamp with time zone NOT NULL DEFAULT NOW(),
+                        resolved boolean NOT NULL DEFAULT false,
+                        resolved_at timestamp with time zone,
+                        resolution_notes text NOT NULL DEFAULT ''
+                    )
+                """)
+            cls._table_ensured = True
+            logger.info("FrontendEventLog table ensured")
+        except Exception as e:
+            logger.warning(f"Failed to ensure FrontendEventLog table: {e}")
+    
+    def get_queryset(self):
+        from ..models.system import FrontendEventLog
+        self._ensure_table()
+        return FrontendEventLog.objects.all()
+    
+    def get_serializer_class(self):
+        from ..serializers import FrontendEventLogSerializer
+        return FrontendEventLogSerializer
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle ProgrammingError gracefully."""
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            logger.warning(f"FrontendEventLog list error: {e}")
+            return Response({
+                'count': 0,
+                'next': None,
+                'previous': None,
+                'results': [],
+            })
+    
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [AllowAny()]
+        return [IsAdminUser()]
+    
+    @method_decorator(ratelimit(key='ip', rate='30/m', method='POST', block=True))
+    def create(self, request, *args, **kwargs):
+        # Basic validation to prevent completely empty spam
+        if not request.data.get('message') and not request.data.get('stack_trace'):
+            return Response({'error': 'Message or stack trace required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Optional: Deduplicate exact same JS errors matching message/url in last hour
+        try:
+            from django.utils import timezone
+            from datetime import timedelta
+            recent = self.get_queryset().filter(
+                message=request.data.get('message', ''),
+                url=request.data.get('url', ''),
+                last_seen__gte=timezone.now() - timedelta(hours=1)
+            ).first()
+            
+            if recent:
+                recent.occurrence_count += 1
+                recent.save(update_fields=['occurrence_count', 'last_seen'])
+                serializer_class = self.get_serializer_class()
+                return Response(serializer_class(recent).data, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.warning(f"Error deduplicating frontend event: {e}")
+            
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            logger.warning(f"FrontendEventLog create error: {e}")
+            return Response(
+                {'status': 'error_logged', 'detail': 'Event noted but could not be persisted'},
+                status=status.HTTP_202_ACCEPTED
+            )
+
+    @action(detail=False, methods=['post'], url_path='resolve-all')
+    def resolve_all(self, request):
+        """Mark all unresolved frontend events as resolved."""
+        from django.utils import timezone
+        try:
+            count = self.get_queryset().filter(resolved=False).update(
+                resolved=True, resolved_at=timezone.now()
+            )
+        except Exception as e:
+            logger.warning(f"FrontendEventLog resolve_all error: {e}")
+            count = 0
+        return Response({'resolved': count})
+
+
+class BackendErrorLogViewSet(viewsets.ModelViewSet):
+    """
+    Admin-only CRUD for backend error logs (API 500s + scheduler failures).
+    GET    /api/v1/backend-errors/           — list all errors (newest first)
+    PATCH  /api/v1/backend-errors/{id}/      — mark resolved, add notes
+    DELETE /api/v1/backend-errors/{id}/      — delete error entry
+    POST   /api/v1/backend-errors/resolve-all/ — mark all unresolved as resolved
+    """
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        from ..models.system import BackendErrorLog
+        qs = BackendErrorLog.objects.all()
+
+        # Optional filters
+        source = self.request.query_params.get('source')
+        if source:
+            qs = qs.filter(source=source)
+
+        severity = self.request.query_params.get('severity')
+        if severity:
+            qs = qs.filter(severity=severity)
+
+        resolved = self.request.query_params.get('resolved')
+        if resolved == 'true':
+            qs = qs.filter(resolved=True)
+        elif resolved == 'false':
+            qs = qs.filter(resolved=False)
+
+        return qs
+
+    def get_serializer_class(self):
+        from ..serializers import BackendErrorLogSerializer
+        return BackendErrorLogSerializer
+
+    def perform_update(self, serializer):
+        """Auto-set resolved_at when marking as resolved."""
+        instance = serializer.save()
+        if instance.resolved and not instance.resolved_at:
+            instance.resolved_at = timezone.now()
+            instance.save(update_fields=['resolved_at'])
+
+    @action(detail=False, methods=['post'], url_path='resolve-all')
+    def resolve_all(self, request):
+        """Mark all unresolved errors as resolved."""
+        count = self.get_queryset().filter(resolved=False).update(
+            resolved=True, resolved_at=timezone.now()
+        )
+        return Response({'resolved': count})
+
+    @action(detail=False, methods=['post'], url_path='clear-stale')
+    def clear_stale(self, request):
+        """Resolve errors older than 1 hour without recent repetition."""
+        from ..models.system import FrontendEventLog
+        from datetime import timedelta
+
+        cutoff = timezone.now() - timedelta(hours=1)
+
+        backend_count = self.get_queryset().filter(
+            resolved=False, last_seen__lt=cutoff,
+        ).update(resolved=True, resolved_at=timezone.now(), resolution_notes='Manually cleared as stale')
+
+        try:
+            frontend_count = FrontendEventLog.objects.filter(
+                resolved=False, last_seen__lt=cutoff,
+            ).update(resolved=True, resolved_at=timezone.now(), resolution_notes='Manually cleared as stale')
+        except Exception:
+            frontend_count = 0
+
+        return Response({'resolved': backend_count + frontend_count})
+
+
+class HealthSummaryView(APIView):
+    """
+    GET /api/v1/health/errors-summary/
+    Unified error summary across all sources — for the System Health Dashboard.
+    Admin-only.
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from ..models.system import BackendErrorLog, FrontendEventLog
+        from datetime import timedelta
+
+        now = timezone.now()
+        last_24h = now - timedelta(hours=24)
+
+        # Backend errors
+        backend_qs = BackendErrorLog.objects.all()
+        backend_total = backend_qs.count()
+        backend_unresolved = backend_qs.filter(resolved=False).count()
+        backend_24h = backend_qs.filter(last_seen__gte=last_24h).count()
+
+        # Split backend by source
+        api_unresolved = backend_qs.filter(source='api', resolved=False).count()
+        scheduler_unresolved = backend_qs.filter(source='scheduler', resolved=False).count()
+        api_24h = backend_qs.filter(source='api', last_seen__gte=last_24h).count()
+        scheduler_24h = backend_qs.filter(source='scheduler', last_seen__gte=last_24h).count()
+
+        # Frontend errors
+        try:
+            frontend_qs = FrontendEventLog.objects.all()
+            frontend_total = frontend_qs.count()
+            frontend_unresolved = frontend_qs.filter(resolved=False).count()
+            frontend_24h = frontend_qs.filter(last_seen__gte=last_24h).count()
+        except Exception:
+            frontend_total = frontend_unresolved = frontend_24h = 0
+
+        # Overall status
+        total_unresolved = backend_unresolved + frontend_unresolved
+        if total_unresolved == 0:
+            overall_status = 'healthy'
+        elif total_unresolved <= 5:
+            overall_status = 'degraded'
+        else:
+            overall_status = 'critical'
+
+        # 7-day trend
+        trend = []
+        for i in range(6, -1, -1):
+            day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = day_start + timedelta(days=1)
+            api_count = backend_qs.filter(source='api', last_seen__gte=day_start, last_seen__lt=day_end).count()
+            sched_count = backend_qs.filter(source='scheduler', last_seen__gte=day_start, last_seen__lt=day_end).count()
+            try:
+                fe_count = frontend_qs.filter(last_seen__gte=day_start, last_seen__lt=day_end).count()
+            except Exception:
+                fe_count = 0
+            trend.append({
+                'date': day_start.strftime('%Y-%m-%d'),
+                'api': api_count,
+                'scheduler': sched_count,
+                'frontend': fe_count,
+            })
+
+        return Response({
+            'backend_errors': {
+                'total': backend_total,
+                'unresolved': backend_unresolved,
+                'last_24h': backend_24h,
+            },
+            'api_errors': {
+                'unresolved': api_unresolved,
+                'last_24h': api_24h,
+            },
+            'scheduler_errors': {
+                'unresolved': scheduler_unresolved,
+                'last_24h': scheduler_24h,
+            },
+            'frontend_errors': {
+                'total': frontend_total,
+                'unresolved': frontend_unresolved,
+                'last_24h': frontend_24h,
+            },
+            'overall_status': overall_status,
+            'total_unresolved': total_unresolved,
+            'trend': trend,
+        })
+
 

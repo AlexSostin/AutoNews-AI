@@ -125,6 +125,39 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
                         content = ContentFile(file_content)
                         filename = os.path.basename(img_path)
                 
+                # Case D: Cloudinary relative paths (similar to rss_youtube.py fix)
+                elif not img_path.startswith('/'):
+                    from django.core.files.storage import default_storage
+                    print(f"  ☁️ Attempting to download from default storage URL for: {img_path}")
+                    try:
+                        file_url = default_storage.url(img_path)
+                        
+                        # Fix double https issues if Cloudinary is misconfigured
+                        if file_url.count('https://') > 1:
+                            file_url = file_url[file_url.rfind('https://'):]
+                            
+                        resp = requests.get(file_url, timeout=15)
+                        
+                        # Cloudinary sometimes adds v1/media/ to the URL which breaks for media not in the media/ folder
+                        if resp.status_code == 404:
+                            print(f"  ⚠️ Storage URL {file_url} returned 404. Trying alternative paths...")
+                            alt_url_1 = file_url.replace('/v1/media/', '/')
+                            alt_url_2 = file_url.replace('/media/', '/')
+                            for alt_url in [alt_url_1, alt_url_2]:
+                                resp_alt = requests.get(alt_url, timeout=15)
+                                if resp_alt.status_code == 200:
+                                    resp = resp_alt
+                                    print(f"  ✓ Success with alternative URL: {alt_url}")
+                                    break
+
+                        if resp.status_code == 200:
+                            content = ContentFile(resp.content)
+                            filename = f"image_{i+1}.jpg"
+                        else:
+                            print(f"  ❌ Download from storage failed with status {resp.status_code}")
+                    except Exception as storage_err:
+                         print(f"  ❌ Error processing storage URL: {storage_err}")
+                
                 else:
                     print(f"  ⚠️ Image file not found: {img_path}")
                     
@@ -160,6 +193,31 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
                 file_content = File(f, name=filename)
                 article.image.save(filename, file_content, save=False)
                 print(f"  ✓ Image attached: {filename}")
+        elif not image_path.startswith('/'):
+            import requests
+            from django.core.files.base import ContentFile
+            from django.core.files.storage import default_storage
+            print(f"  ☁️ Attempting to download from default storage URL for single image: {image_path}")
+            try:
+                file_url = default_storage.url(image_path)
+                if file_url.count('https://') > 1:
+                    file_url = file_url[file_url.rfind('https://'):]
+                resp = requests.get(file_url, timeout=15)
+                if resp.status_code == 404:
+                    alt_url_1 = file_url.replace('/v1/media/', '/')
+                    alt_url_2 = file_url.replace('/media/', '/')
+                    for alt_url in [alt_url_1, alt_url_2]:
+                        resp_alt = requests.get(alt_url, timeout=15)
+                        if resp_alt.status_code == 200:
+                            resp = resp_alt
+                            break
+                if resp.status_code == 200:
+                    content = ContentFile(resp.content)
+                    filename = f"single_image.jpg"
+                    article.image.save(filename, content, save=False)
+                    print(f"  ✓ Image attached from storage URL")
+            except Exception as e:
+                print(f"  ❌ Error processing single image storage URL: {e}")
     
     article.save()
     print(f"  ✓ Article saved with slug: {article.slug}")
@@ -282,35 +340,125 @@ def generate_seo_title(title):
 
 def _add_spec_based_tags(article, specs):
     """
-    Add tags based on specs data (make/model).
+    Add tags based on specs data (make/model/drivetrain/engine/year/body type).
     Only adds tags that already exist in the database — never creates new ones.
-    This ensures the brand is always properly tagged even if the AI misses it.
+    This ensures proper tagging even if the AI misses some categories.
     """
     added = []
     
-    # Add manufacturer tag
-    make = specs.get('make', 'Not specified')
-    if make and make != 'Not specified':
-        make_slug = slugify(make)
+    def _try_add_tag(slug_value, label=""):
+        """Try to find and add a tag by slug. Returns True if added."""
+        if not slug_value or slug_value in ('Not specified', 'N/A', 'Unknown', ''):
+            return False
+        tag_slug = slugify(slug_value)
         try:
-            tag = Tag.objects.get(slug=make_slug)
+            tag = Tag.objects.get(slug=tag_slug)
             if not article.tags.filter(pk=tag.pk).exists():
                 article.tags.add(tag)
-                added.append(f"make:{tag.name}")
+                added.append(f"{label}:{tag.name}" if label else tag.name)
+                return True
         except Tag.DoesNotExist:
-            pass  # Brand not in DB, skip
+            pass
+        return False
     
-    # Add model tag
-    model = specs.get('model', 'Not specified')
+    # 1. Manufacturer tag
+    make = specs.get('make', '')
+    _try_add_tag(make, 'make')
+    
+    # 2. Model tag (try "Make Model" combo first, then just model)
+    model = specs.get('model', '')
     if model and model != 'Not specified':
-        model_slug = slugify(model)
-        try:
-            tag = Tag.objects.get(slug=model_slug)
-            if not article.tags.filter(pk=tag.pk).exists():
-                article.tags.add(tag)
-                added.append(f"model:{tag.name}")
-        except Tag.DoesNotExist:
-            pass  # Model not in DB, skip
+        if make:
+            _try_add_tag(f"{make} {model}", 'model')
+        _try_add_tag(model, 'model')
+    
+    # 3. Year tag
+    year = specs.get('year', '')
+    if not year:
+        # Try to extract year from title
+        import re
+        year_match = re.search(r'20\d{2}', article.title)
+        if year_match:
+            year = year_match.group(0)
+    _try_add_tag(str(year), 'year')
+    
+    # 4. Drivetrain tag (AWD, FWD, RWD, 4WD)
+    drivetrain = specs.get('drivetrain', '')
+    _try_add_tag(drivetrain, 'drivetrain')
+    
+    # 5. Fuel/powertrain type tags
+    engine = specs.get('engine', '')
+    fuel_types_to_check = []
+    
+    # Detect from engine/powertrain field
+    engine_lower = (engine or '').lower()
+    title_lower = article.title.lower()
+    content_lower = (article.content[:2000] if article.content else '').lower()
+    combined = f"{engine_lower} {title_lower} {content_lower}"
+    
+    if any(kw in combined for kw in ['electric', 'ev', 'kwh battery', 'battery electric', 'bev']):
+        fuel_types_to_check.append('Electric')
+        fuel_types_to_check.append('EV')
+        fuel_types_to_check.append('BEV')
+    if any(kw in combined for kw in ['hybrid', 'phev', 'plug-in']):
+        fuel_types_to_check.append('Hybrid')
+        fuel_types_to_check.append('PHEV')
+        fuel_types_to_check.append('Plug-in Hybrid')
+    if any(kw in combined for kw in ['diesel', 'tdi', 'cdi', 'dci']):
+        fuel_types_to_check.append('Diesel')
+    if any(kw in combined for kw in ['turbo', 'turbocharged']):
+        fuel_types_to_check.append('Turbocharged')
+    if any(kw in combined for kw in ['hydrogen', 'fuel cell', 'fcev']):
+        fuel_types_to_check.append('Hydrogen')
+    if any(kw in combined for kw in ['gasoline', 'petrol', 'v6', 'v8', 'v12', 'inline-4', 'i4']):
+        fuel_types_to_check.append('Gasoline')
+    
+    for ft in fuel_types_to_check:
+        _try_add_tag(ft, 'fuel')
+    
+    # 6. Body type tags
+    body_types_to_check = []
+    if any(kw in combined for kw in ['suv', 'crossover']):
+        body_types_to_check.extend(['SUV', 'Crossover'])
+    if any(kw in combined for kw in ['sedan', 'saloon']):
+        body_types_to_check.append('Sedan')
+    if any(kw in combined for kw in ['hatchback', 'hatch']):
+        body_types_to_check.append('Hatchback')
+    if any(kw in combined for kw in ['coupe', 'coupé']):
+        body_types_to_check.append('Coupe')
+    if any(kw in combined for kw in ['convertible', 'cabriolet', 'roadster', 'spider']):
+        body_types_to_check.extend(['Convertible', 'Roadster'])
+    if any(kw in combined for kw in ['truck', 'pickup']):
+        body_types_to_check.extend(['Truck', 'Pickup'])
+    if any(kw in combined for kw in ['van', 'minivan', 'mpv']):
+        body_types_to_check.extend(['Van', 'Minivan', 'MPV'])
+    if any(kw in combined for kw in ['wagon', 'estate', 'shooting brake']):
+        body_types_to_check.extend(['Wagon', 'Estate'])
+    if any(kw in combined for kw in ['supercar', 'hypercar']):
+        body_types_to_check.extend(['Supercar', 'Hypercar'])
+    
+    for bt in body_types_to_check:
+        _try_add_tag(bt, 'body')
+    
+    # 7. Tech & Features tags
+    tech_to_check = []
+    if any(kw in combined for kw in ['autonomous', 'self-driving', 'autopilot', 'adas']):
+        tech_to_check.extend(['Autonomous Driving', 'ADAS'])
+    if any(kw in combined for kw in ['lidar', 'radar']):
+        tech_to_check.append('LiDAR')
+    if any(kw in combined for kw in ['air suspension']):
+        tech_to_check.append('Air Suspension')
+    if any(kw in combined for kw in ['4-wheel steering', 'rear-wheel steering', 'four-wheel steering']):
+        tech_to_check.append('4-Wheel Steering')
+    if any(kw in combined for kw in ['heads-up display', 'head-up display', 'hud']):
+        tech_to_check.append('Heads-Up Display')
+    if any(kw in combined for kw in ['panoramic roof', 'glass roof', 'sunroof']):
+        tech_to_check.append('Panoramic Roof')
+    if any(kw in combined for kw in ['wireless charging', 'inductive charging']):
+        tech_to_check.append('Wireless Charging')
+    
+    for tech in tech_to_check:
+        _try_add_tag(tech, 'tech')
     
     if added:
         print(f"  ✓ Spec-based tags added: {', '.join(added)}")

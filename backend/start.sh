@@ -4,6 +4,9 @@
 echo "=== Running migrations ==="
 python manage.py migrate --noinput
 
+echo "=== Verifying database schema ==="
+python manage.py verify_migrations
+
 echo "=== Creating superuser from env (if set) ==="
 python manage.py create_superuser_env || true
 

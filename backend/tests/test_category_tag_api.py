@@ -137,6 +137,14 @@ class TestTagViewSet:
     """Tests for /api/v1/tags/"""
 
     def test_list_tags_anonymous(self, api_client, tag):
+        # Tag must be linked to a published article to appear for anonymous users
+        from news.models import Article
+        article = Article.objects.create(
+            title='EV News', slug='ev-news',
+            content='<p>Content</p>', is_published=True,
+        )
+        article.tags.add(tag)
+
         resp = api_client.get('/api/v1/tags/')
         assert resp.status_code == status.HTTP_200_OK
         assert isinstance(resp.data, list)

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { trackArticleView, trackArticleRead } from '@/lib/analytics';
+import { useReadMetrics } from '@/hooks/useReadMetrics';
+import { getApiUrl } from '@/lib/config';
 
 interface ViewTrackerProps {
   articleSlug: string;
@@ -14,6 +16,9 @@ export default function ViewTracker({ articleSlug, articleId, articleTitle, cate
   const tracked = useRef(false);
   const scrollMilestones = useRef<Set<number>>(new Set());
   const startTime = useRef<number>(Date.now());
+
+  // Track ML engagement metrics (Dwell Time & Scroll Depth)
+  useReadMetrics(articleId);
 
   // Send read time to GA4 on page unload
   const sendReadTime = useCallback(() => {
@@ -33,17 +38,6 @@ export default function ViewTracker({ articleSlug, articleId, articleTitle, cate
     // Only track once per page load
     if (tracked.current) return;
     tracked.current = true;
-
-    const getApiUrl = () => {
-      if (typeof window !== 'undefined') {
-        const host = window.location.hostname;
-        if (host !== 'localhost' && host !== '127.0.0.1') {
-          return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-        }
-      }
-      return 'http://localhost:8000/api/v1';
-    };
-
     // Small delay to avoid counting quick bounces
     const timer = setTimeout(() => {
       // 1. Increment view count in our DB (existing)

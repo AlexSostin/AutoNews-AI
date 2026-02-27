@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Bell, User, Menu, MessageSquare, UserPlus, FileText, Youtube, AlertTriangle, Info, Check, CheckCheck, X, Loader2 } from 'lucide-react';
+import {
+  Bell, User, Menu, MessageSquare, UserPlus, FileText, Youtube,
+  AlertTriangle, Info, Check, CheckCheck, X, Loader2, Activity,
+  Server, Zap, Globe
+} from 'lucide-react';
 import api, { getApiUrl } from '@/lib/api';
 
 interface Notification {
@@ -15,6 +19,14 @@ interface Notification {
   is_read: boolean;
   created_at: string;
   time_ago: string;
+}
+
+interface HealthSummary {
+  api_errors: { unresolved: number; last_24h: number };
+  scheduler_errors: { unresolved: number; last_24h: number };
+  frontend_errors: { unresolved: number; last_24h: number };
+  total_unresolved: number;
+  overall_status: string;
 }
 
 interface AdminHeaderProps {
@@ -43,6 +55,8 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [healthData, setHealthData] = useState<HealthSummary | null>(null);
+  const [activeTab, setActiveTab] = useState<'notifications' | 'health'>('notifications');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch notifications
@@ -52,9 +66,16 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
       setNotifications(response.data.notifications || []);
       setUnreadCount(response.data.unread_count || 0);
     } catch (error) {
-      // Silently fail - don't spam console with auth errors
-      // console.error('Failed to fetch notifications:', error);
+      // Silently fail
     }
+  };
+
+  // Fetch health errors
+  const fetchHealth = async () => {
+    try {
+      const response = await api.get('/health/errors-summary/');
+      setHealthData(response.data);
+    } catch { /* silent */ }
   };
 
   // Mark single notification as read
@@ -87,7 +108,11 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   // Fetch on mount and poll every 30 seconds
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
+    fetchHealth();
+    const interval = setInterval(() => {
+      fetchNotifications();
+      fetchHealth();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -113,6 +138,41 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     setIsOpen(false);
   };
 
+  // Total badge count: notifications + errors
+  const totalBadge = unreadCount + (healthData?.total_unresolved || 0);
+
+  // Health error items for the health tab
+  const healthItems = [];
+  if (healthData) {
+    if (healthData.api_errors.unresolved > 0) {
+      healthItems.push({
+        icon: <Server size={16} className="text-blue-500" />,
+        label: 'API Errors',
+        count: healthData.api_errors.unresolved,
+        last24h: healthData.api_errors.last_24h,
+        color: 'border-l-red-500',
+      });
+    }
+    if (healthData.scheduler_errors.unresolved > 0) {
+      healthItems.push({
+        icon: <Zap size={16} className="text-purple-500" />,
+        label: 'Scheduler Errors',
+        count: healthData.scheduler_errors.unresolved,
+        last24h: healthData.scheduler_errors.last_24h,
+        color: 'border-l-orange-500',
+      });
+    }
+    if (healthData.frontend_errors.unresolved > 0) {
+      healthItems.push({
+        icon: <Globe size={16} className="text-cyan-500" />,
+        label: 'Frontend Errors',
+        count: healthData.frontend_errors.unresolved,
+        last24h: healthData.frontend_errors.last_24h,
+        color: 'border-l-amber-500',
+      });
+    }
+  }
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 py-3 sm:py-4">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between">
@@ -131,103 +191,193 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Notifications */}
+          {/* Notifications + Health Bell */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => {
                 setIsOpen(!isOpen);
-                if (!isOpen) fetchNotifications();
+                if (!isOpen) {
+                  fetchNotifications();
+                  fetchHealth();
+                }
               }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
-              title="Notifications"
+              title="Notifications & System Health"
             >
               <Bell size={18} className="sm:w-5 sm:h-5 text-gray-700" />
-              {unreadCount > 0 && (
+              {totalBadge > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                  {unreadCount > 99 ? '99+' : unreadCount}
+                  {totalBadge > 99 ? '99+' : totalBadge}
                 </span>
               )}
             </button>
 
-            {/* Notifications Dropdown */}
+            {/* Dropdown */}
             {isOpen && (
               <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[80vh] overflow-hidden">
-                {/* Header */}
-                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                  <h3 className="font-bold text-gray-900">Notifications</h3>
-                  <div className="flex items-center gap-2">
+                {/* Tab Header */}
+                <div className="flex border-b border-gray-100 bg-gray-50">
+                  <button
+                    onClick={() => setActiveTab('notifications')}
+                    className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors relative ${activeTab === 'notifications'
+                      ? 'text-gray-900 bg-white'
+                      : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    <Bell size={14} className="inline mr-1.5 -mt-0.5" />
+                    Notifications
                     {unreadCount > 0 && (
-                      <button
-                        onClick={markAllAsRead}
-                        disabled={loading}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                      >
-                        {loading ? <Loader2 size={12} className="animate-spin" /> : <CheckCheck size={14} />}
-                        Mark all read
-                      </button>
+                      <span className="ml-1.5 bg-blue-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] inline-flex items-center justify-center px-1">
+                        {unreadCount}
+                      </span>
                     )}
-                    <button
-                      onClick={() => setIsOpen(false)}
-                      className="p-1 hover:bg-gray-200 rounded"
-                    >
-                      <X size={16} className="text-gray-500" />
-                    </button>
-                  </div>
+                    {activeTab === 'notifications' && (
+                      <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-600 rounded-full" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('health')}
+                    className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors relative ${activeTab === 'health'
+                      ? 'text-gray-900 bg-white'
+                      : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    <Activity size={14} className="inline mr-1.5 -mt-0.5" />
+                    System Health
+                    {(healthData?.total_unresolved || 0) > 0 && (
+                      <span className="ml-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] inline-flex items-center justify-center px-1">
+                        {healthData!.total_unresolved}
+                      </span>
+                    )}
+                    {activeTab === 'health' && (
+                      <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-600 rounded-full" />
+                    )}
+                  </button>
                 </div>
 
-                {/* Notifications List */}
+                {/* Tab Content */}
                 <div className="overflow-y-auto max-h-[60vh]">
-                  {notifications.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-gray-500">
-                      <Bell size={32} className="mx-auto mb-2 text-gray-300" />
-                      <p className="font-medium">No notifications yet</p>
-                      <p className="text-sm">We&apos;ll notify you about important updates</p>
-                    </div>
-                  ) : (
-                    notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        onClick={() => handleNotificationClick(notification)}
-                        className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${priorityColors[notification.priority]} ${!notification.is_read ? 'bg-blue-50/50' : ''
-                          }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5">
-                            {notificationIcons[notification.notification_type] || notificationIcons.info}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className={`text-sm font-medium truncate ${!notification.is_read ? 'text-gray-900' : 'text-gray-600'}`}>
-                                {notification.title}
-                              </p>
-                              {!notification.is_read && (
-                                <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {notification.time_ago}
-                            </p>
-                          </div>
+                  {/* ── Notifications Tab ──────────────────────── */}
+                  {activeTab === 'notifications' && (
+                    <>
+                      {/* Mark all read */}
+                      {unreadCount > 0 && (
+                        <div className="px-4 py-2 border-b border-gray-50 flex justify-end">
+                          <button
+                            onClick={markAllAsRead}
+                            disabled={loading}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                          >
+                            {loading ? <Loader2 size={12} className="animate-spin" /> : <CheckCheck size={14} />}
+                            Mark all read
+                          </button>
                         </div>
-                      </div>
-                    ))
+                      )}
+
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-gray-500">
+                          <Bell size={32} className="mx-auto mb-2 text-gray-300" />
+                          <p className="font-medium">No notifications yet</p>
+                          <p className="text-sm">We&apos;ll notify you about important updates</p>
+                        </div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${priorityColors[notification.priority]} ${!notification.is_read ? 'bg-blue-50/50' : ''
+                              }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5">
+                                {notificationIcons[notification.notification_type] || notificationIcons.info}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className={`text-sm font-medium truncate ${!notification.is_read ? 'text-gray-900' : 'text-gray-600'}`}>
+                                    {notification.title}
+                                  </p>
+                                  {!notification.is_read && (
+                                    <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {notification.time_ago}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </>
+                  )}
+
+                  {/* ── System Health Tab ──────────────────────── */}
+                  {activeTab === 'health' && (
+                    <>
+                      {/* Status Banner */}
+                      {healthData && (
+                        <div className={`px-4 py-3 border-b border-gray-50 flex items-center gap-2 ${healthData.overall_status === 'healthy' ? 'bg-emerald-50' :
+                          healthData.overall_status === 'degraded' ? 'bg-amber-50' : 'bg-red-50'
+                          }`}>
+                          {healthData.overall_status === 'healthy' && <Check size={16} className="text-emerald-600" />}
+                          {healthData.overall_status === 'degraded' && <AlertTriangle size={16} className="text-amber-600" />}
+                          {healthData.overall_status === 'critical' && <AlertTriangle size={16} className="text-red-600" />}
+                          <span className={`text-sm font-semibold capitalize ${healthData.overall_status === 'healthy' ? 'text-emerald-700' :
+                            healthData.overall_status === 'degraded' ? 'text-amber-700' : 'text-red-700'
+                            }`}>
+                            System {healthData.overall_status}
+                          </span>
+                          <span className="text-xs text-gray-500 ml-auto">
+                            {healthData.total_unresolved} unresolved
+                          </span>
+                        </div>
+                      )}
+
+                      {healthItems.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-gray-500">
+                          <Check size={32} className="mx-auto mb-2 text-emerald-400" />
+                          <p className="font-medium">All systems healthy</p>
+                          <p className="text-sm">No unresolved errors detected</p>
+                        </div>
+                      ) : (
+                        healthItems.map((item, i) => (
+                          <a
+                            key={i}
+                            href="/admin/health"
+                            className={`block px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${item.color}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="mt-0.5">{item.icon}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {item.last24h} in last 24h
+                                </p>
+                              </div>
+                              <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                {item.count}
+                              </span>
+                            </div>
+                          </a>
+                        ))
+                      )}
+                    </>
                   )}
                 </div>
 
                 {/* Footer */}
-                {notifications.length > 0 && (
-                  <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
-                    <a
-                      href="/admin/notifications"
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium block text-center"
-                    >
-                      View all notifications
-                    </a>
-                  </div>
-                )}
+                <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
+                  <a
+                    href={activeTab === 'notifications' ? '/admin/notifications' : '/admin/health'}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium block text-center"
+                  >
+                    {activeTab === 'notifications' ? 'View all notifications' : 'Open System Health Monitor'}
+                  </a>
+                </div>
               </div>
             )}
           </div>

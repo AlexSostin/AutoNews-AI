@@ -1,17 +1,12 @@
 'use client';
 
-import * as Sentry from '@sentry/nextjs';
-import { useEffect } from 'react';
-
 export default function GlobalError({
   error,
+  reset,
 }: {
   error: Error & { digest?: string };
+  reset: () => void;
 }) {
-  useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
-
   return (
     <html>
       <body>
@@ -38,16 +33,16 @@ export default function GlobalError({
               color: '#1f2937',
               marginBottom: '1rem'
             }}>
-              Critical Error
+              Something went wrong
             </h1>
             <p style={{
               color: '#6b7280',
               marginBottom: '1.5rem'
             }}>
-              A serious error occurred. Please reload the page.
+              A critical error occurred. Please reload the page.
             </p>
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => reset()}
               style={{
                 background: 'linear-gradient(to right, #4f46e5, #7c3aed)',
                 color: 'white',
@@ -55,11 +50,26 @@ export default function GlobalError({
                 borderRadius: '0.5rem',
                 fontWeight: '600',
                 border: 'none',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                marginRight: '0.5rem'
               }}
             >
-              Reload
+              Try Again
             </button>
+            <a
+              href="/"
+              style={{
+                display: 'inline-block',
+                background: '#e5e7eb',
+                color: '#374151',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '0.5rem',
+                fontWeight: '600',
+                textDecoration: 'none'
+              }}
+            >
+              Go Home
+            </a>
           </div>
         </div>
       </body>

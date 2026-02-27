@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Article } from '@/types';
@@ -8,10 +9,13 @@ import { Calendar, Star } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
 import { fixImageUrl } from '@/lib/config';
 import { trackClick } from '@/lib/ab-tracking';
+import { trackEvent } from '@/hooks/usePageAnalytics';
 
 interface ArticleCardProps {
   article: Article;
   priority?: boolean;
+  cardPosition?: number;
+  cardType?: 'grid' | 'hero' | 'recommended' | 'trending' | 'search';
 }
 
 const FUEL_TYPES = new Set(['Electric', 'Hybrid', 'PHEV', 'Plug-in Hybrid', 'Gasoline', 'Diesel', 'Hydrogen']);
@@ -39,21 +43,34 @@ function prioritizeTags(tags: string[]): string[] {
   return [...years, ...models.slice(0, 1), ...fuelTypes, ...drivetrains, ...models.slice(1)].slice(0, 3);
 }
 
-export default function ArticleCard({ article, priority = false }: ArticleCardProps) {
+export default function ArticleCard({ article, priority = false, cardPosition, cardType = 'grid' }: ArticleCardProps) {
+  const [imgError, setImgError] = useState(false);
+
   // Use first screenshot from video as background
   const defaultImage = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&h=400&fit=crop';
 
   // Priority: image (screenshot 1) > thumbnail_url
-  const thumbnailUrl = article.thumbnail_url || article.image;
-  const imageUrl = thumbnailUrl ? fixImageUrl(thumbnailUrl) : defaultImage;
+  const thumbnailUrl = article.display_image || article.thumbnail_url || article.image;
+  const imageUrl = imgError ? defaultImage : (thumbnailUrl ? fixImageUrl(thumbnailUrl) : defaultImage);
 
   // A/B testing: use display_title if available (backend assigns variant)
   const title = article.display_title || article.title;
 
   const handleClick = () => {
+    // A/B test tracking
     if (article.ab_variant_id) {
-      trackClick(article.ab_variant_id);
+      trackClick(article.ab_variant_id, 'title');
     }
+    if (article.ab_image_variant_id) {
+      trackClick(article.ab_image_variant_id, 'image');
+    }
+    // CTR analytics tracking
+    trackEvent('card_click', 'articles', {
+      article_id: article.id,
+      card_position: cardPosition,
+      card_type: cardType,
+      article_slug: article.slug,
+    });
   };
 
   return (
@@ -68,6 +85,8 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             priority={priority}
             loading={priority ? "eager" : "lazy"}
+            unoptimized={true}
+            onError={() => setImgError(true)}
           />
           {article.categories && article.categories.length > 0 && (
             <span className="absolute top-3 left-3 bg-indigo-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">
@@ -85,7 +104,7 @@ export default function ArticleCard({ article, priority = false }: ArticleCardPr
 
         <div className="p-5 flex-1 flex flex-col">
           <h3 className="text-xl font-black mb-3 text-gray-950 group-hover:text-indigo-600 transition-all duration-300 line-clamp-2 leading-tight group-hover:translate-x-1">
-            {title}
+            {title} <span className="hidden debug-url">{imageUrl}</span>
           </h3>
 
           <p className="text-gray-700 mb-4 line-clamp-2 text-sm leading-relaxed font-medium">

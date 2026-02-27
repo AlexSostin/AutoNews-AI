@@ -4,22 +4,28 @@ import { useEffect, useRef } from 'react';
 import { trackImpression } from '@/lib/ab-tracking';
 
 interface ABImpressionTrackerProps {
-    variantId: number | null | undefined;
+    variantId?: number | null;
+    imageVariantId?: number | null;
 }
 
 /**
  * Fires a single impression event when the article page is rendered.
  * Only fires once per mount (StrictMode-safe via ref).
  */
-export default function ABImpressionTracker({ variantId }: ABImpressionTrackerProps) {
-    const sent = useRef(false);
+export default function ABImpressionTracker({ variantId, imageVariantId }: ABImpressionTrackerProps) {
+    const sentTitle = useRef(false);
+    const sentImage = useRef(false);
 
     useEffect(() => {
-        if (variantId && !sent.current) {
-            sent.current = true;
-            trackImpression(variantId);
+        if (variantId && !sentTitle.current) {
+            sentTitle.current = true;
+            trackImpression(variantId, 'title');
         }
-    }, [variantId]);
+        if (imageVariantId && !sentImage.current) {
+            sentImage.current = true;
+            trackImpression(imageVariantId, 'image');
+        }
+    }, [variantId, imageVariantId]);
 
     return null;
 }

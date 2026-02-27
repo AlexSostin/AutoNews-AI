@@ -23,10 +23,10 @@ except ImportError:
 
 # Import utils
 try:
-    from ai_engine.modules.utils import clean_title, calculate_reading_time, validate_article_quality
+    from ai_engine.modules.utils import clean_title, calculate_reading_time, validate_article_quality, clean_html_markup
     from ai_engine.modules.ai_provider import get_ai_provider
 except ImportError:
-    from modules.utils import clean_title, calculate_reading_time, validate_article_quality
+    from modules.utils import clean_title, calculate_reading_time, validate_article_quality, clean_html_markup
     from modules.ai_provider import get_ai_provider
 
 # Legacy Groq client for backwards compatibility
@@ -147,7 +147,7 @@ def _clean_banned_phrases(html: str) -> str:
     
     return html
 
-def generate_article(analysis_data, provider='gemini', web_context=None):
+def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
     
@@ -155,6 +155,7 @@ def generate_article(analysis_data, provider='gemini', web_context=None):
         analysis_data: The analysis from the transcript
         provider: 'groq' (default) or 'gemini'
         web_context: Optional string containing web search results
+        source_title: Original title from RSS/YouTube source (for entity grounding)
     
     Returns:
         HTML article content
@@ -166,9 +167,21 @@ def generate_article(analysis_data, provider='gemini', web_context=None):
     if web_context:
         web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to fill missing specs/facts):\n{web_context}\n"
     
+    # Build entity anchor from source title (Layer 1: anti-hallucination)
+    entity_anchor = ""
+    if source_title:
+        try:
+            from ai_engine.modules.entity_validator import build_entity_anchor
+            entity_anchor = build_entity_anchor(source_title)
+            if entity_anchor:
+                entity_anchor = f"\n{entity_anchor}\n"
+        except Exception:
+            pass
+    
     current_date = datetime.now().strftime("%B %Y")
     
     prompt = f"""
+{entity_anchor}
 {web_data_section}
 TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
 
@@ -356,6 +369,8 @@ ALT_TEXT_3: [descriptive alt text for detail/tech image]
 Analysis Data:
 {analysis_data}
 
+{f'FINAL CHECK: The vehicle name MUST be exactly as specified in the MANDATORY VEHICLE IDENTITY section above. If you wrote a different model name or number, your article is WRONG. Go back and fix it.' if entity_anchor else ''}
+
 Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, accurate, and entertaining. Quality over quantity — every sentence should earn its place.
 """
     
@@ -420,6 +435,54 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
         reading_time = calculate_reading_time(article_content)
         print(f"📖 Reading time: ~{reading_time} min")
 
+        # Запуск Fact-Checking (если есть web_context)
+        if web_context:
+            try:
+                print("🕵️ Running secondary LLM Fact-Check pass...")
+                from ai_engine.modules.fact_checker import run_fact_check
+                article_content = run_fact_check(article_content, web_context, provider)
+            except Exception as fc_err:
+                print(f"⚠️ Fact-check module failed: {fc_err}")
+        
+        # Entity validation (Layer 2: anti-hallucination)
+        if source_title:
+            try:
+                from ai_engine.modules.entity_validator import validate_entities, inject_entity_warning
+                entity_result = validate_entities(source_title, article_content)
+                if not entity_result.is_valid:
+                    print(f"⚠️ Entity mismatch detected: {entity_result.mismatches}")
+                    if entity_result.auto_fixed and entity_result.fixed_html:
+                        article_content = entity_result.fixed_html
+                        print("  ✅ Auto-fixed entity names in generated article")
+                    article_content = inject_entity_warning(article_content, entity_result.mismatches)
+                else:
+                    print("✅ Entity validation passed")
+            except Exception as ev_err:
+                print(f"⚠️ Entity validation failed: {ev_err}")
+        
+        # RLAIF Judge (AI Quality Evaluation with improvement loop)
+        try:
+            from ai_engine.modules.rlaif_judge import judge_and_improve
+            print("🧑‍⚖️ RLAIF Judge: Evaluating article quality...")
+            judge_result = judge_and_improve(
+                article_content,
+                source_title=source_title or '',
+                specs={},
+                provider=provider,
+            )
+            article_content = judge_result['html']
+            score = judge_result['judge_score']
+            dims = judge_result.get('judge_result', {}).get('dimensions', {})
+            print(
+                f"  📊 Judge Score: {score}/10 "
+                f"(acc={dims.get('accuracy', {}).get('score', '?')}, "
+                f"eng={dims.get('engagement', {}).get('score', '?')}, "
+                f"seo={dims.get('seo_quality', {}).get('score', '?')})"
+            )
+            if judge_result.get('improved'):
+                print(f"  ✨ Article improved by RLAIF ({judge_result['attempts']} attempts)")
+        except Exception as rlaif_err:
+            print(f"⚠️ RLAIF Judge failed (using original article): {rlaif_err}")
         
         return article_content
     except Exception as e:
@@ -514,12 +577,12 @@ def ensure_html_only(content):
                         new_blocks.append(f"<p>{b}</p>")
                 content = '\n\n'.join(new_blocks)
                 
-            return content
+            return clean_html_markup(content)
 
-    return content
+    return clean_html_markup(content)
 
 
-def expand_press_release(press_release_text, source_url, provider='gemini', web_context=None):
+def expand_press_release(press_release_text, source_url, provider='gemini', web_context=None, source_title=None):
     """
     Expands a short press release (200-300 words) into a full automotive article (600-800 words).
     
@@ -528,6 +591,7 @@ def expand_press_release(press_release_text, source_url, provider='gemini', web_
         source_url: URL of the original press release (for attribution)
         provider: 'groq' (default) or 'gemini'
         web_context: Optional additional context from web search
+        source_title: Original title from RSS source (for entity grounding)
     
     Returns:
         HTML article content with proper attribution
@@ -539,9 +603,21 @@ def expand_press_release(press_release_text, source_url, provider='gemini', web_
     if web_context:
         web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to enrich the article):\n{web_context}\n"
     
+    # Build entity anchor from source title (Layer 1: anti-hallucination)
+    entity_anchor = ""
+    if source_title:
+        try:
+            from ai_engine.modules.entity_validator import build_entity_anchor
+            entity_anchor = build_entity_anchor(source_title)
+            if entity_anchor:
+                entity_anchor = f"\n{entity_anchor}\n"
+        except Exception:
+            pass
+    
     current_date = datetime.now().strftime("%B %Y")
     
     prompt = f"""
+{entity_anchor}
 {web_data_section}
 TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
 
@@ -685,6 +761,8 @@ Content Guidelines:
 
 ⚠️ MODEL ACCURACY: Use the EXACT car model name from the press release.
 
+{f'FINAL CHECK: The vehicle name MUST be exactly as specified in the MANDATORY VEHICLE IDENTITY section above. If you wrote a different model name or number, your article is WRONG.' if entity_anchor else ''}
+
 Remember: Every sentence should earn its place. Be accurate, engaging, and helpful.
 """
     
@@ -715,6 +793,15 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
             article_content = review_article(article_content, {}, provider)
         except Exception as review_err:
             logger.warning(f"AI Review skipped for RSS article: {review_err}")
+            
+        # Запуск Fact-Checking (если есть web_context)
+        if web_context:
+            try:
+                print("🕵️ Running secondary LLM Fact-Check pass for Press Release...")
+                from ai_engine.modules.fact_checker import run_fact_check
+                article_content = run_fact_check(article_content, web_context, provider)
+            except Exception as fc_err:
+                print(f"⚠️ Fact-check module failed: {fc_err}")
         
         # Validate quality
         quality = validate_article_quality(article_content)
@@ -732,6 +819,40 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
                 if last_tag:
                     article_content = article_content[:last_tag.end()]
                     print(f"  → Trimmed to {len(article_content)} chars")
+        
+        # Entity validation (Layer 2: anti-hallucination)
+        if source_title:
+            try:
+                from ai_engine.modules.entity_validator import validate_entities, inject_entity_warning
+                entity_result = validate_entities(source_title, article_content)
+                if not entity_result.is_valid:
+                    print(f"⚠️ Entity mismatch detected: {entity_result.mismatches}")
+                    if entity_result.auto_fixed and entity_result.fixed_html:
+                        article_content = entity_result.fixed_html
+                        print("  ✅ Auto-fixed entity names in generated article")
+                    article_content = inject_entity_warning(article_content, entity_result.mismatches)
+                else:
+                    print("✅ Entity validation passed")
+            except Exception as ev_err:
+                print(f"⚠️ Entity validation failed: {ev_err}")
+        
+        # RLAIF Judge (AI Quality Evaluation with improvement loop)
+        try:
+            from ai_engine.modules.rlaif_judge import judge_and_improve
+            print("🧑‍⚖️ RLAIF Judge: Evaluating article quality...")
+            judge_result = judge_and_improve(
+                article_content,
+                source_title=source_title or '',
+                specs={},
+                provider=provider,
+            )
+            article_content = judge_result['html']
+            score = judge_result['judge_score']
+            print(f"  📊 Judge Score: {score}/10")
+            if judge_result.get('improved'):
+                print(f"  ✨ Article improved by RLAIF ({judge_result['attempts']} attempts)")
+        except Exception as rlaif_err:
+            print(f"⚠️ RLAIF Judge failed (using original article): {rlaif_err}")
         
         return article_content
         

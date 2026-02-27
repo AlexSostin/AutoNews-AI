@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 # Added inter-module imports
-from .articles import invalidate_article_cache, IsStaffOrReadOnly
+from ._shared import invalidate_article_cache, IsStaffOrReadOnly
 
 
 
@@ -128,18 +128,22 @@ class TagViewSet(viewsets.ModelViewSet):
         # Annotate article count to avoid N+1 queries in serializer
         if self.action == 'list':
             queryset = queryset.annotate(
-                _article_count=Count('article')
+                _article_count=Count('article', filter=Q(article__is_published=True, article__is_deleted=False))
             )
+            # For public users: hide empty tags and sort by popularity
+            if not (self.request.user.is_authenticated and self.request.user.is_staff):
+                queryset = queryset.filter(_article_count__gt=0).order_by('-_article_count', 'name')
+            else:
+                queryset = queryset.order_by('-_article_count', 'name')
         return queryset
 
     def list(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            return super().list(request, *args, **kwargs)
-        return self._cached_list(request, *args, **kwargs)
-
-    @method_decorator(cache_page(300))  # Cache for 5 minutes
-    def _cached_list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        queryset = self.filter_queryset(self.get_queryset())
+        # Apply popularity ordering AFTER DRF's filter pipeline
+        if not request.query_params.get('ordering'):
+            queryset = queryset.order_by('-_article_count', 'name')
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         super().perform_create(serializer)

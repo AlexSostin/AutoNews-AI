@@ -7,6 +7,7 @@ import MaintenanceGuard from '@/components/public/MaintenanceGuard';
 import Hero from '@/components/public/Hero';
 import InfiniteArticleList from '@/components/public/InfiniteArticleList';
 import JsonLd from '@/components/public/JsonLd';
+import PageAnalyticsTracker from '@/components/public/PageAnalyticsTracker';
 import Link from 'next/link';
 import { fixImageUrl } from '@/lib/config';
 import type { Metadata } from 'next';
@@ -133,6 +134,7 @@ export default async function Home() {
       fallback={<MaintenancePage message={settings?.maintenance_message} />}
     >
       <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
+        <PageAnalyticsTracker pageType="home" />
         {/* Schema.org JSON-LD for Home Page */}
         <JsonLd data={{
           "@context": "https://schema.org",
@@ -279,12 +281,13 @@ export default async function Home() {
                   initialArticles={articles.slice(0, 18)}
                   initialPage={1}
                   pageSize={18}
+                  mobileRecommendedSlot={<TrendingSection />}
                 />
               )}
             </div>
 
-            {/* Sidebar - Trending */}
-            <div className="lg:col-span-1 space-y-6">
+            {/* Sidebar - Trending (hidden on mobile, shown inline after 6th article instead) */}
+            <div className="hidden lg:block lg:col-span-1 space-y-6">
               <TrendingSection />
               <AdBanner position="sidebar" />
             </div>

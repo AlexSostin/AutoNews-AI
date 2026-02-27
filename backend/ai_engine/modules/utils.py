@@ -229,6 +229,34 @@ def generate_meta_keywords(title, content, max_keywords=10):
     return ', '.join(top_words)
 
 
+def clean_html_markup(html_content):
+    """
+    Очищает и валидирует HTML-разметку с помощью BeautifulSoup4.
+    - Автоматически закрывает незакрытые теги (например, <p>)
+    - Удаляет артефакты markdown (```html и т.д.)
+    - Убирает лишние пустые теги
+    """
+    from bs4 import BeautifulSoup
+    import re
+    
+    # Сначала удаляем markdown артефакты, если они остались
+    cleaned = re.sub(r'```[a-z]*\n?', '', html_content)
+    cleaned = cleaned.replace('```', '')
+    
+    # Парсим через bs4
+    soup = BeautifulSoup(cleaned, 'html.parser')
+    
+    # Удаляем пустые теги
+    for tag in soup.find_all(['p', 'h2', 'h3', 'ul', 'li']):
+        if not tag.contents or (tag.string and not tag.string.strip()):
+            tag.decompose()
+            
+    # Возвращаем форматированный HTML без <html>, <head>, <body>
+    # Если bs4 обернул все в <html><body>, извлекаем только содержимое body
+    if soup.body:
+        return ''.join(str(tag) for tag in soup.body.children).strip()
+    return str(soup).strip()
+
 if __name__ == "__main__":
     # Тесты
     print("Testing utils...")

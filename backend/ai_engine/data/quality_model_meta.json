@@ -1,0 +1,43 @@
+{
+  "trained_at": "2026-02-26T16:46:07.822747",
+  "samples": 68,
+  "feature_names": [
+    "avg_words_per_paragraph",
+    "char_count",
+    "has_featured_image",
+    "has_pros_cons",
+    "heading_count",
+    "image_count",
+    "is_gemini",
+    "is_groq",
+    "is_popular_brand",
+    "is_rss",
+    "is_youtube",
+    "list_item_count",
+    "number_density",
+    "paragraph_count",
+    "price_segment",
+    "red_flag_count",
+    "spec_field_count",
+    "tag_count",
+    "title_length",
+    "title_word_count",
+    "word_count"
+  ],
+  "cv_r2_mean": 1.0,
+  "cv_r2_std": 0.0,
+  "top_features": {
+    "avg_words_per_paragraph": 0.0,
+    "char_count": 0.0,
+    "has_featured_image": 0.0,
+    "has_pros_cons": 0.0,
+    "heading_count": 0.0,
+    "image_count": 0.0,
+    "is_gemini": 0.0,
+    "is_groq": 0.0
+  },
+  "target_range": [
+    5.0,
+    5.0
+  ]
+}

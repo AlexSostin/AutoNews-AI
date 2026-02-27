@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { fixImageUrl } from '@/lib/config';
 
 interface Article {
     id: number;
@@ -181,7 +182,7 @@ function SearchContent() {
                                 {article.image && (
                                     <div className="relative h-48 overflow-hidden">
                                         <img
-                                            src={article.image}
+                                            src={fixImageUrl(article.image)}
                                             alt={article.title}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                         />

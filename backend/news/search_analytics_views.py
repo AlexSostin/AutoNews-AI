@@ -4,7 +4,7 @@ Search and Analytics API Views
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from django.db.models import Q, Count, Sum
+from django.db.models import Q, Count, Sum, Case, When, Value, IntegerField
 from django.utils import timezone
 from datetime import timedelta
 from news.models import Article, Category, Tag, Comment, Subscriber
@@ -52,11 +52,17 @@ class SearchAPIView(APIView):
         elif sort == 'popular':
             articles = articles.order_by('-views', '-created_at')
         else:  # relevant - default
-            # Simple relevance: title matches first, then most views
             if query:
-                articles = articles.extra(
-                    select={'title_match': f"CASE WHEN LOWER(title) LIKE LOWER('%%{query}%%') THEN 1 ELSE 0 END"}
-                ).order_by('-title_match', '-views', '-created_at')
+                # Relevance scoring: title match (3pts) > summary (2pts) > tags/keywords (1pt)
+                articles = articles.annotate(
+                    relevance=Case(
+                        When(title__icontains=query, then=Value(3)),
+                        When(summary__icontains=query, then=Value(2)),
+                        When(Q(meta_keywords__icontains=query) | Q(tags__name__icontains=query), then=Value(1)),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    )
+                ).order_by('-relevance', '-views', '-created_at').distinct()
             else:
                 articles = articles.order_by('-created_at')
         
@@ -557,7 +563,7 @@ class AnalyticsProviderStatsAPIView(APIView):
     Returns per-provider quality averages and per-brand breakdown.
     """
     permission_classes = [IsAuthenticated]
-
+    
     def get(self, request):
         try:
             from ai_engine.modules.provider_tracker import get_provider_summary
@@ -570,3 +576,306 @@ class AnalyticsProviderStatsAPIView(APIView):
                 'total_records': 0,
                 'error': str(e),
             })
+
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+from rest_framework import status
+
+class TrackReadMetricView(APIView):
+    """
+    Endpoint to receive Dwell Time and Scroll Depth signals from the frontend.
+    These metrics are recorded when the user leaves an article page.
+    """
+    permission_classes = [AllowAny]
+    
+    @method_decorator(ratelimit(key='ip', rate='30/m', method='POST', block=True))
+    def post(self, request, *args, **kwargs):
+        article_id = request.data.get('article_id')
+        dwell_time = request.data.get('dwell_time_seconds', 0)
+        scroll_depth = request.data.get('max_scroll_depth_pct', 0)
+        
+        if not article_id:
+            return Response({'error': 'article_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Cap values to prevent malicious data pollution
+        try:
+            dwell_time = min(int(dwell_time), 3600)  # Cap at 1 hour
+            scroll_depth = min(int(scroll_depth), 100) # Cap at 100%
+        except (ValueError, TypeError):
+            return Response({'error': 'Invalid metric values'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Don't save useless bouncing sessions for ML
+        if dwell_time < 2 and scroll_depth < 10:
+            return Response({'status': 'ignored_bounce'}, status=status.HTTP_200_OK)
+            
+        from news.models import Article
+        from news.models.interactions import ReadMetric
+        
+        try:
+            article = Article.objects.get(id=article_id, is_published=True)
+            
+            # Fetch user / session info
+            user = request.user if request.user.is_authenticated else None
+            session_key = request.session.session_key if hasattr(request, 'session') and request.session.session_key else ''
+            
+            # Get real IP (considering Cloudflare headers)
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0].strip()
+            else:
+                ip = request.META.get('REMOTE_ADDR')
+            
+            # Save the metric
+            ReadMetric.objects.create(
+                article=article,
+                user=user,
+                session_key=session_key,
+                ip_address=ip,
+                dwell_time_seconds=dwell_time,
+                max_scroll_depth_pct=scroll_depth
+            )
+            
+            return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
+            
+        except Article.DoesNotExist:
+            return Response({'error': 'Article not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TrackLinkClickView(APIView):
+    """
+    Endpoint to receive internal link click events from the frontend.
+    """
+    permission_classes = [AllowAny]
+    
+    @method_decorator(ratelimit(key='ip', rate='60/m', method='POST', block=True))
+    def post(self, request, *args, **kwargs):
+        article_id = request.data.get('source_article_id')
+        destination_url = request.data.get('destination_url')
+        link_type = request.data.get('link_type', 'other')
+        
+        if not article_id or not destination_url:
+            return Response({'error': 'source_article_id and destination_url are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from news.models import Article
+        from news.models.interactions import InternalLinkClick
+        
+        try:
+            article = Article.objects.get(id=article_id, is_published=True)
+            
+            # Fetch user / session info
+            user = request.user if request.user.is_authenticated else None
+            session_key = request.session.session_key if hasattr(request, 'session') and request.session.session_key else ''
+            
+            # Get real IP
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0].strip()
+            else:
+                ip = request.META.get('REMOTE_ADDR')
+            
+            # Save the metric
+            InternalLinkClick.objects.create(
+                source_article=article,
+                destination_url=destination_url[:500],
+                link_type=link_type,
+                user=user,
+                session_key=session_key,
+                ip_address=ip
+            )
+            
+            return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
+            
+        except Article.DoesNotExist:
+            return Response({'error': 'Article not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TrackMicroFeedbackView(APIView):
+    """
+    Endpoint to receive granular RLHF feedback (Thumbs Up / Down) on specific AI components like Vehicle Specs.
+    """
+    permission_classes = [AllowAny]
+    
+    @method_decorator(ratelimit(key='ip', rate='20/m', method='POST', block=True))
+    def post(self, request, *args, **kwargs):
+        article_id = request.data.get('article_id')
+        component_type = request.data.get('component_type')
+        is_helpful = request.data.get('is_helpful')
+        
+        if not article_id or not component_type or is_helpful is None:
+            return Response({'error': 'article_id, component_type, and is_helpful are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from news.models import Article
+        from news.models.interactions import ArticleMicroFeedback
+        
+        try:
+            article = Article.objects.get(id=article_id, is_published=True)
+            
+            # Fetch user / session info
+            user = request.user if request.user.is_authenticated else None
+            session_key = request.session.session_key if hasattr(request, 'session') and request.session.session_key else ''
+            
+            # Get real IP
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0].strip()
+            else:
+                ip = request.META.get('REMOTE_ADDR')
+            
+            ArticleMicroFeedback.objects.create(
+                article=article,
+                user=user,
+                session_key=session_key,
+                ip_address=ip,
+                component_type=component_type,
+                is_helpful=bool(is_helpful)
+            )
+            
+            return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
+            
+        except Article.DoesNotExist:
+            return Response({'error': 'Article not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TrackPageAnalyticsView(APIView):
+    """
+    Universal page analytics event endpoint.
+    Accepts a single event or batch of events (up to 10).
+    
+    POST /api/v1/analytics/page-events/
+    {
+        "events": [
+            {
+                "event_type": "page_leave",
+                "page_type": "articles",
+                "page_url": "/articles",
+                "metrics": {"dwell_seconds": 45, "scroll_depth_pct": 78},
+                "referrer_page": "home",
+                "device_type": "desktop",
+                "viewport_width": 1920,
+                "session_hash": "abc123"
+            }
+        ]
+    }
+    """
+    permission_classes = [AllowAny]
+    
+    VALID_EVENT_TYPES = {
+        'page_view', 'page_leave', 'card_click', 'search', 'filter_use',
+        'recommended_impression', 'recommended_click', 'compare_use',
+        'infinite_scroll', 'ad_impression', 'ad_click',
+    }
+    VALID_PAGE_TYPES = {
+        'home', 'articles', 'article_detail', 'trending', 'cars',
+        'car_detail', 'compare', 'categories', 'category_detail', 'other',
+    }
+    
+    @method_decorator(ratelimit(key='ip', rate='60/m', method='POST', block=True))
+    def post(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        from news.models.system import PageAnalyticsEvent
+        
+        # Support single event or batch
+        events_data = request.data.get('events', [])
+        if not events_data:
+            # Single event mode
+            events_data = [request.data]
+        
+        # Cap batch size
+        events_data = events_data[:10]
+        
+        # Get IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR')
+        
+        created_count = 0
+        for event in events_data:
+            event_type = event.get('event_type', '')
+            page_type = event.get('page_type', 'other')
+            
+            if not event_type:
+                continue
+                
+            # Clamp to valid values
+            if event_type not in self.VALID_EVENT_TYPES:
+                continue
+            if page_type not in self.VALID_PAGE_TYPES:
+                page_type = 'other'
+            
+            try:
+                vw = event.get('viewport_width', 0)
+                vw_int = min(int(vw or 0), 9999)
+                
+                PageAnalyticsEvent.objects.create(
+                    event_type=event_type,
+                    page_type=page_type,
+                    page_url=str(event.get('page_url', ''))[:500],
+                    metrics=event.get('metrics') or {},
+                    referrer_page=str(event.get('referrer_page', ''))[:200],
+                    device_type=str(event.get('device_type', ''))[:10],
+                    viewport_width=vw_int if vw_int > 0 else None,
+                    ip_address=ip,
+                    session_hash=str(event.get('session_hash', ''))[:64],
+                )
+                created_count += 1
+            except Exception:
+                continue
+        
+        return Response({'status': 'ok', 'created': created_count}, status=status.HTTP_201_CREATED)
+
+
+class ReadingNowView(APIView):
+    """
+    Real-time "currently reading" counter using Redis.
+    
+    GET /api/v1/analytics/reading-now/<article_id>/
+    → {"reading_now": 5}
+    
+    POST /api/v1/analytics/reading-now/<article_id>/
+    {"action": "join"} or {"action": "leave"}
+    """
+    permission_classes = [AllowAny]
+    
+    def _get_redis(self):
+        try:
+            import redis
+            return redis.Redis(host='redis', port=6379, db=0)
+        except Exception:
+            return None
+    
+    def get(self, request, article_id):
+        r = self._get_redis()
+        if not r:
+            return Response({'reading_now': 0})
+        
+        key = f"reading_now:{article_id}"
+        count = r.get(key)
+        return Response({'reading_now': int(count) if count else 0})
+    
+    @method_decorator(ratelimit(key='ip', rate='30/m', method='POST', block=True))
+    def post(self, request, article_id):
+        action = request.data.get('action', 'join')
+        
+        r = self._get_redis()
+        if not r:
+            return Response({'reading_now': 0})
+        
+        key = f"reading_now:{article_id}"
+        
+        if action == 'join':
+            count = r.incr(key)
+            r.expire(key, 300)  # Auto-expire after 5 min (safety net)
+        elif action == 'leave':
+            count = r.decr(key)
+            # Don't go below 0
+            if int(count) < 0:
+                r.set(key, 0)
+                count = 0
+        else:
+            count = r.get(key) or 0
+        
+        return Response({'reading_now': max(int(count), 0)})

@@ -3,12 +3,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Search, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Search, Image as ImageIcon, Loader2, RefreshCw, Zap } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import GenerationProgress from '@/components/admin/GenerationProgress';
 import { TagSelector } from '../[id]/edit/components/TagSelector';
 import { PhotoSearchModal } from '../[id]/edit/components/PhotoSearchModal';
+import { PageHeader } from '@/app/admin/components/ui/PageHeader';
+import { ArticleBasicInfo } from '@/app/admin/articles/components/ArticleBasicInfo';
+import { ArticleContentEditor } from '@/app/admin/articles/components/ArticleContentEditor';
+import { ArticleSeoMeta } from '@/app/admin/articles/components/ArticleSeoMeta';
+import { ArticlePublishSettings } from '@/app/admin/articles/components/ArticlePublishSettings';
+import { ArticleImageManager } from '@/app/admin/articles/components/ArticleImageManager';
 
 interface Category {
   id: number;
@@ -52,6 +58,9 @@ export default function NewArticlePage() {
   const [photoSearchLoading, setPhotoSearchLoading] = useState(false);
   const [photoSearchResults, setPhotoSearchResults] = useState<any[]>([]);
   const [savingPhoto, setSavingPhoto] = useState<string | null>(null);
+  const [imageSource, setImageSource] = useState<string>('unknown');
+  const [generatingAI, setGeneratingAI] = useState<number | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -68,6 +77,15 @@ export default function NewArticlePage() {
     image: null as File | null,
     image_2: null as File | null,
     image_3: null as File | null,
+    current_image: '',
+    current_image_2: '',
+    current_image_3: '',
+    delete_image: false,
+    delete_image_2: false,
+    delete_image_3: false,
+    show_source: true,
+    show_youtube: true,
+    show_price: true,
   });
 
   useEffect(() => {
@@ -247,6 +265,10 @@ export default function NewArticlePage() {
       if (formData.author_channel_url) {
         formDataToSend.append('author_channel_url', formData.author_channel_url);
       }
+      formDataToSend.append('show_source', formData.show_source.toString());
+      formDataToSend.append('show_youtube', formData.show_youtube.toString());
+      formDataToSend.append('show_price', formData.show_price.toString());
+      formDataToSend.append('image_source', imageSource);
 
       // Add images if selected
       if (formData.image) {
@@ -309,7 +331,10 @@ export default function NewArticlePage() {
       const filename = `press_photo_${Date.now()}.jpg`;
       const file = new File([blob], filename, { type: blob.type });
 
-      if (photoSearchSlot === 1) setFormData({ ...formData, image: file });
+      if (photoSearchSlot === 1) {
+        setFormData({ ...formData, image: file });
+        setImageSource('pexels');
+      }
       if (photoSearchSlot === 2) setFormData({ ...formData, image_2: file });
       if (photoSearchSlot === 3) setFormData({ ...formData, image_3: file });
 
@@ -607,7 +632,7 @@ export default function NewArticlePage() {
       </div>
 
       {/* Manual Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Autofill Success Banner */}
         {translateResult?.success && formData.title && (
           <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
@@ -631,205 +656,62 @@ export default function NewArticlePage() {
           </div>
         )}
 
-        <div className="space-y-6">
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Title *</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-              required
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <ArticleBasicInfo
+              title={formData.title}
+              slug={formData.slug}
+              summary={formData.summary}
+              onTitleChange={handleTitleChange}
+              onSlugChange={(v) => setFormData({ ...formData, slug: v })}
+              onSummaryChange={(v) => setFormData({ ...formData, summary: v })}
+            />
+            <ArticleContentEditor
+              content={formData.content}
+              onContentChange={(newContent) => setFormData({ ...formData, content: newContent })}
+              onReformat={() => alert('Save the article first to use AI Reformat')}
+              onEnrich={() => alert('Save the article first to use AI Enrich')}
+              onRegenerate={() => alert('Save the article first to use AI Regenerate')}
+              isReformatting={false}
+              isEnriching={false}
+              isRegenerating={false}
+              hasYoutubeUrl={!!formData.youtube_url}
+            />
+            <ArticleImageManager
+              formData={formData}
+              setFormData={setFormData}
+              imageSource={imageSource}
+              setImageSource={setImageSource}
+              setPreviewImage={setPreviewImage}
+              openPhotoSearch={(slot: number) => {
+                setPhotoSearchSlot(slot);
+                setPhotoSearchQuery(formData.title || formData.slug || '');
+                setPhotoSearchOpen(true);
+                setPhotoSearchResults([]);
+              }}
+              photoSearchLoading={photoSearchLoading}
+              generateAIImage={async () => {
+                alert('Please save the article first before generating AI images.');
+              }}
+              generatingAI={generatingAI}
             />
           </div>
 
-          {/* Slug */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Slug *</label>
-            <input
-              type="text"
-              value={formData.slug}
-              onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-              required
+          <div className="space-y-6">
+            <ArticlePublishSettings
+              isPublished={formData.published}
+              isHero={formData.is_hero}
+              onPublishedChange={(v: boolean) => setFormData({ ...formData, published: v })}
+              onHeroChange={(v: boolean) => setFormData({ ...formData, is_hero: v })}
             />
-          </div>
-
-          {/* YouTube URL */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">YouTube URL</label>
-            <input
-              type="url"
-              value={formData.youtube_url}
-              onChange={(e) => setFormData({ ...formData, youtube_url: e.target.value })}
-              placeholder="https://youtube.com/watch?v=..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-            />
-          </div>
-
-          {/* Content Source Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Content Source</label>
-              <input
-                type="text"
-                value={formData.author_name}
-                onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
-                placeholder="e.g., Toyota Global, Doug DeMuro, Carwow"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Source URL</label>
-              <input
-                type="url"
-                value={formData.author_channel_url}
-                onChange={(e) => setFormData({ ...formData, author_channel_url: e.target.value })}
-                placeholder="https://global.toyota/... or YouTube channel"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-              />
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Summary *</label>
-            <textarea
-              value={formData.summary}
-              onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-medium"
-              required
-            />
-          </div>
-
-          {/* Content */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Content (HTML) *</label>
-            <textarea
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              rows={12}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-mono text-sm"
-              required
-            />
-          </div>
-
-          {/* Images Section */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Images (Optional)</h3>
-            <p className="text-sm text-gray-600 mb-4">Upload up to 3 images or they will be auto-extracted from YouTube during AI generation</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { slot: 1, label: 'Image 1 (Main)', file: formData.image },
-                { slot: 2, label: 'Image 2', file: formData.image_2 },
-                { slot: 3, label: 'Image 3', file: formData.image_3 },
-              ].map((img) => (
-                <div key={img.slot} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-emerald-600" />
-                      {img.label}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPhotoSearchSlot(img.slot);
-                        setPhotoSearchQuery(formData.title || formData.slug || '');
-                        setPhotoSearchOpen(true);
-                        setPhotoSearchResults([]);
-                      }}
-                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5"
-                    >
-                      <Search className="w-3 h-3" />
-                      Search
-                    </button>
-                  </div>
-
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      if (img.slot === 1) setFormData({ ...formData, image: file });
-                      if (img.slot === 2) setFormData({ ...formData, image_2: file });
-                      if (img.slot === 3) setFormData({ ...formData, image_3: file });
-                    }}
-                    className="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all cursor-pointer"
-                  />
-
-                  {img.file && (
-                    <div className="mt-3 flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg">
-                      <div className="flex-shrink-0 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="truncate">{img.file.name}</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Content (HTML) *</label>
-            <textarea
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              rows={12}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 font-mono text-sm"
-              required
-            />
-          </div>
-
-          <TagSelector
-            categories={categories}
-            tags={tags}
-            setTags={setTags}
-            formData={formData}
-            setFormData={setFormData}
-            handleTagToggle={handleTagToggle}
-          />
-
-          {/* Published Status & Hero */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="published"
-                checked={formData.published}
-                onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <label htmlFor="published" className="text-sm font-bold text-gray-900">
-                Publish immediately
-              </label>
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="is_hero"
-                checked={formData.is_hero}
-                onChange={(e) => setFormData({ ...formData, is_hero: e.target.checked })}
-                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <label htmlFor="is_hero" className="text-sm font-bold text-gray-900 cursor-pointer">
-                ⭐ Show in Hero Section
-              </label>
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex gap-4 pt-4">
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2 mb-4"
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <Loader2 size={20} className="animate-spin" />
                   Creating...
                 </>
               ) : (
@@ -839,12 +721,32 @@ export default function NewArticlePage() {
                 </>
               )}
             </button>
-            <Link
-              href="/admin/articles"
-              className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-bold hover:bg-gray-300 transition-colors"
-            >
-              Cancel
-            </Link>
+            <ArticleSeoMeta
+              youtubeUrl={formData.youtube_url}
+              onYoutubeUrlChange={(v: string) => setFormData({ ...formData, youtube_url: v })}
+              showYoutube={formData.show_youtube}
+              onShowYoutubeChange={(v: boolean) => setFormData({ ...formData, show_youtube: v })}
+              categorySelector={
+                <TagSelector
+                  categories={categories}
+                  tags={[]}
+                  setTags={() => { }}
+                  formData={formData}
+                  setFormData={setFormData}
+                  handleTagToggle={() => { }}
+                />
+              }
+              tagSelector={
+                <TagSelector
+                  categories={[]}
+                  tags={tags}
+                  setTags={setTags}
+                  formData={formData}
+                  setFormData={setFormData}
+                  handleTagToggle={handleTagToggle}
+                />
+              }
+            />
           </div>
         </div>
       </form>

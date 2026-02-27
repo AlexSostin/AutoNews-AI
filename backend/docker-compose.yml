@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: autonews_postgres
     environment:
       POSTGRES_DB: autonews
@@ -31,6 +31,7 @@ services:
       - .env
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py verify_migrations &&
              python manage.py collectstatic --noinput &&
              python manage.py runserver 0.0.0.0:8000"
     volumes:

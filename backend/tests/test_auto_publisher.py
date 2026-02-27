@@ -63,7 +63,7 @@ def _make_pending(category, feed=None, quality=8, title='Test Article', has_imag
     """Helper to create a PendingArticle."""
     return PendingArticle.objects.create(
         title=title,
-        content='<p>Test content for the article.</p>',
+        content=f'<p>Review of the {title} model with full specs.</p>',
         suggested_category=category,
         rss_feed=feed,
         quality_score=quality,
@@ -75,7 +75,7 @@ def _make_pending(category, feed=None, quality=8, title='Test Article', has_imag
 def _make_article(title='Test Article'):
     """Helper to create an Article (uses M2M categories, not FK)."""
     return Article.objects.create(
-        title=title, content='<p>Content</p>', is_published=True
+        title=title, content=f'<p>Content about {title} model.</p>', is_published=True
     )
 
 
@@ -96,9 +96,11 @@ class TestAutoPublisher:
         assert count == 0
         assert 'disabled' in reason
 
+    @patch('ai_engine.modules.entity_validator.validate_entities')
     @patch('ai_engine.modules.publisher.publish_article')
-    def test_quality_threshold(self, mock_publish, settings, category, safe_feed):
+    def test_quality_threshold(self, mock_publish, mock_validate, settings, category, safe_feed):
         """Only articles meeting quality threshold get published."""
+        mock_validate.return_value = MagicMock(is_valid=True, mismatches=[])
         mock_publish.return_value = _make_article('Published')
 
         _make_pending(category, safe_feed, quality=4, title='Low Quality')
@@ -128,9 +130,11 @@ class TestAutoPublisher:
         assert log is not None
         assert 'unsafe' in log.reason.lower()
 
+    @patch('ai_engine.modules.entity_validator.validate_entities')
     @patch('ai_engine.modules.publisher.publish_article')
-    def test_safety_off_allows_unsafe(self, mock_publish, settings, category, unsafe_feed):
+    def test_safety_off_allows_unsafe(self, mock_publish, mock_validate, settings, category, unsafe_feed):
         """When require_safe_feed=False, unsafe feeds are allowed."""
+        mock_validate.return_value = MagicMock(is_valid=True, mismatches=[])
         settings.auto_publish_require_safe_feed = False
         settings.save()
 
@@ -157,9 +161,11 @@ class TestAutoPublisher:
         assert count == 0
         assert 'daily limit' in reason
 
+    @patch('ai_engine.modules.entity_validator.validate_entities')
     @patch('ai_engine.modules.publisher.publish_article')
-    def test_score_ordering(self, mock_publish, settings, category, safe_feed):
+    def test_score_ordering(self, mock_publish, mock_validate, settings, category, safe_feed):
         """Higher quality articles should be published first."""
+        mock_validate.return_value = MagicMock(is_valid=True, mismatches=[])
         articles_published = []
 
         def track_publish(**kwargs):
@@ -182,9 +188,11 @@ class TestAutoPublisher:
         assert articles_published[1] == 'Score 8'
         assert articles_published[2] == 'Score 7'
 
+    @patch('ai_engine.modules.entity_validator.validate_entities')
     @patch('ai_engine.modules.publisher.publish_article')
-    def test_decision_logging(self, mock_publish, settings, category, safe_feed, unsafe_feed):
+    def test_decision_logging(self, mock_publish, mock_validate, settings, category, safe_feed, unsafe_feed):
         """All decisions should be logged to AutoPublishLog."""
+        mock_validate.return_value = MagicMock(is_valid=True, mismatches=[])
         mock_publish.return_value = _make_article('Published')
 
         _make_pending(category, safe_feed, quality=9, title='Good Article')
@@ -200,9 +208,11 @@ class TestAutoPublisher:
         assert 'drafted' in decisions or 'published' in decisions
         assert 'skipped_safety' in decisions
 
+    @patch('ai_engine.modules.entity_validator.validate_entities')
     @patch('ai_engine.modules.publisher.publish_article')
-    def test_require_image_skips_no_image(self, mock_publish, settings, category, safe_feed):
+    def test_require_image_skips_no_image(self, mock_publish, mock_validate, settings, category, safe_feed):
         """Articles without images are skipped when require_image=True and auto_image=off."""
+        mock_validate.return_value = MagicMock(is_valid=True, mismatches=[])
         settings.auto_publish_require_image = True
         settings.save()
 

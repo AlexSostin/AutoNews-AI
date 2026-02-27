@@ -27,6 +27,10 @@ import {
     EyeOff
 } from 'lucide-react';
 import { authenticatedFetch } from '@/lib/authenticatedFetch';
+import { UserRoleBadge } from './components/UserRoleBadge';
+import { DeleteUserModal, RoleModal } from './components/UserActionsModal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { UserTable } from './components/UserTable';
 import { isSuperuser } from '@/lib/auth';
 
 interface UserData {
@@ -70,11 +74,18 @@ export default function UsersPage() {
     const [accessDenied, setAccessDenied] = useState(false);
 
     // Modal states
+    const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [deleteModal, setDeleteModal] = useState<UserData | null>(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+
     const [resetModal, setResetModal] = useState<UserData | null>(null);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [newPassword, setNewPassword] = useState('');
     const [copied, setCopied] = useState(false);
+    const [copiedId, setCopiedId] = useState<number | null>(null);
+
     const [editModal, setEditModal] = useState<UserData | null>(null);
+    const [showRoleModal, setShowRoleModal] = useState(false);
     const [editRole, setEditRole] = useState('');
 
     // Create user modal
@@ -403,520 +414,41 @@ export default function UsersPage() {
                     </div>
 
                     {/* Users Table */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        {loading ? (
-                            <div className="flex items-center justify-center py-20">
-                                <Loader2 className="animate-spin text-indigo-500" size={32} />
-                            </div>
-                        ) : users.length === 0 ? (
-                            <div className="text-center py-20 text-gray-500">
-                                <Users size={48} className="mx-auto mb-3 opacity-30" />
-                                <p className="font-medium">No users found</p>
-                                <p className="text-sm mt-1">Try adjusting your search or filters</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="bg-gray-50/80 border-b border-gray-100">
-                                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
-                                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Joined</th>
-                                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Last Login</th>
-                                            <th className="text-right px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {users.map((user) => {
-                                            const isSelf = user.id === currentUserId;
-                                            return (
-                                                <tr key={user.id} className={`hover:bg-gray-50/50 transition-colors ${!user.is_active ? 'opacity-60' : ''}`}>
-                                                    {/* User info */}
-                                                    <td className="px-5 py-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${user.is_superuser
-                                                                ? 'bg-gradient-to-br from-amber-400 to-orange-500'
-                                                                : user.is_staff
-                                                                    ? 'bg-gradient-to-br from-blue-400 to-indigo-500'
-                                                                    : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                                                                }`}>
-                                                                {user.username.charAt(0).toUpperCase()}
-                                                            </div>
-                                                            <div>
-                                                                <div className="font-semibold text-gray-900 flex items-center gap-1.5">
-                                                                    {user.username}
-                                                                    {isSelf && (
-                                                                        <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">YOU</span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="text-sm text-gray-500">{user.email}</div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
+                    <UserTable
+                        users={users}
+                        onToggleActive={toggleActive}
+                        onChangeRole={(user: any) => { setEditModal(user); setEditRole(user.role.toLowerCase()); }}
+                        onResetPassword={(user: any) => { setResetModal(user); setNewPassword(''); setCopied(false); }}
+                        onDeleteUser={(user: any) => setDeleteModal(user)}
+                        onCopyPassword={copyPassword}
+                        formatDate={formatDate}
+                        copiedId={copiedId}
+                        currentUser={currentUserId}
+                    />
 
-                                                    {/* Role */}
-                                                    <td className="px-5 py-4">{getRoleBadge(user.role)}</td>
+                    {/* Pagination */}
 
-                                                    {/* Status */}
-                                                    <td className="px-5 py-4">
-                                                        {user.is_active ? (
-                                                            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-full">
-                                                                <CheckCircle size={12} /> Active
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 px-2 py-1 rounded-full">
-                                                                <Ban size={12} /> Banned
-                                                            </span>
-                                                        )}
-                                                    </td>
+                    {/* Delete User Modal */}
+                    <DeleteUserModal
+                        isOpen={deleteModal !== null}
+                        onClose={() => setDeleteModal(null)}
+                        onConfirm={deleteUser}
+                        user={deleteModal}
+                        isSaving={actionLoading === deleteModal?.id}
+                    />
 
-                                                    {/* Joined */}
-                                                    <td className="px-5 py-4 text-sm text-gray-500 hidden md:table-cell">
-                                                        {formatDate(user.date_joined)}
-                                                    </td>
+                    {/* Role Management Modal */}
+                    <RoleModal
+                        isOpen={editModal !== null}
+                        onClose={() => setEditModal(null)}
+                        onConfirm={changeRole}
+                        user={editModal}
+                        isSaving={actionLoading === editModal?.id}
+                    />
 
-                                                    {/* Last login */}
-                                                    <td className="px-5 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                                                        {formatDate(user.last_login)}
-                                                    </td>
-
-                                                    {/* Actions */}
-                                                    <td className="px-5 py-4">
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            {/* Change Role */}
-                                                            <button
-                                                                onClick={() => { setEditModal(user); setEditRole(user.role.toLowerCase()); }}
-                                                                disabled={isSelf || actionLoading === user.id}
-                                                                className="p-2 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                                                title="Change Role"
-                                                            >
-                                                                <ShieldAlert size={16} />
-                                                            </button>
-
-                                                            {/* Toggle Active */}
-                                                            <button
-                                                                onClick={() => toggleActive(user)}
-                                                                disabled={isSelf || actionLoading === user.id}
-                                                                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${user.is_active
-                                                                    ? 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
-                                                                    : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
-                                                                    }`}
-                                                                title={user.is_active ? 'Ban User' : 'Unban User'}
-                                                            >
-                                                                {actionLoading === user.id ? (
-                                                                    <Loader2 size={16} className="animate-spin" />
-                                                                ) : user.is_active ? (
-                                                                    <Ban size={16} />
-                                                                ) : (
-                                                                    <CheckCircle size={16} />
-                                                                )}
-                                                            </button>
-
-                                                            {/* Reset Password */}
-                                                            <button
-                                                                onClick={() => { setResetModal(user); setNewPassword(''); setCopied(false); }}
-                                                                disabled={actionLoading === user.id}
-                                                                className="p-2 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors disabled:opacity-30"
-                                                                title="Reset Password"
-                                                            >
-                                                                <KeyRound size={16} />
-                                                            </button>
-
-                                                            {/* Delete */}
-                                                            <button
-                                                                onClick={() => setDeleteModal(user)}
-                                                                disabled={isSelf || actionLoading === user.id}
-                                                                className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                                                title="Delete User"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* Pagination */}
-                        {!loading && pagination.total_pages > 1 && (
-                            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 bg-gray-50/50">
-                                <p className="text-sm text-gray-600">
-                                    Showing <strong>{(pagination.page - 1) * pagination.page_size + 1}</strong>–<strong>{Math.min(pagination.page * pagination.page_size, pagination.total_count)}</strong> of <strong>{pagination.total_count}</strong> users
-                                </p>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                                        disabled={page <= 1}
-                                        className="p-2 rounded-lg text-gray-500 hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                    >
-                                        <ChevronLeft size={18} />
-                                    </button>
-                                    {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
-                                        let pageNum: number;
-                                        if (pagination.total_pages <= 5) {
-                                            pageNum = i + 1;
-                                        } else if (page <= 3) {
-                                            pageNum = i + 1;
-                                        } else if (page >= pagination.total_pages - 2) {
-                                            pageNum = pagination.total_pages - 4 + i;
-                                        } else {
-                                            pageNum = page - 2 + i;
-                                        }
-                                        return (
-                                            <button
-                                                key={pageNum}
-                                                onClick={() => setPage(pageNum)}
-                                                className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${pageNum === page
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'text-gray-600 hover:bg-gray-200'
-                                                    }`}
-                                            >
-                                                {pageNum}
-                                            </button>
-                                        );
-                                    })}
-                                    <button
-                                        onClick={() => setPage(p => Math.min(pagination.total_pages, p + 1))}
-                                        disabled={page >= pagination.total_pages}
-                                        className="p-2 rounded-lg text-gray-500 hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                    >
-                                        <ChevronRight size={18} />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Delete Confirmation Modal */}
-                    {deleteModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setDeleteModal(null)}>
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-3 rounded-full bg-red-100">
-                                        <AlertTriangle size={24} className="text-red-600" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900">Delete User</h3>
-                                        <p className="text-sm text-gray-500">This action cannot be undone</p>
-                                    </div>
-                                </div>
-                                <p className="text-gray-700 mb-6">
-                                    Are you sure you want to delete <strong>{deleteModal.username}</strong> ({deleteModal.email})?
-                                    All their data including comments and favorites will be removed.
-                                </p>
-                                <div className="flex gap-3 justify-end">
-                                    <button
-                                        onClick={() => setDeleteModal(null)}
-                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={deleteUser}
-                                        disabled={actionLoading === deleteModal.id}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                                    >
-                                        {actionLoading === deleteModal.id && <Loader2 size={14} className="animate-spin" />}
-                                        Delete User
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Reset Password Modal */}
-                    {resetModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setResetModal(null); setNewPassword(''); }}>
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-3 rounded-full bg-purple-100">
-                                            <KeyRound size={24} className="text-purple-600" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-bold text-gray-900">Reset Password</h3>
-                                            <p className="text-sm text-gray-500">{resetModal.username}</p>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => { setResetModal(null); setNewPassword(''); }} className="p-1 hover:bg-gray-100 rounded-lg">
-                                        <X size={20} className="text-gray-400" />
-                                    </button>
-                                </div>
-
-                                {!newPassword ? (
-                                    <>
-                                        <p className="text-gray-700 mb-6">
-                                            Generate a new random password for <strong>{resetModal.username}</strong>?
-                                            The new password will be shown only once.
-                                        </p>
-                                        <div className="flex gap-3 justify-end">
-                                            <button
-                                                onClick={() => { setResetModal(null); setNewPassword(''); }}
-                                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={resetPassword}
-                                                disabled={actionLoading === resetModal.id}
-                                                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                                            >
-                                                {actionLoading === resetModal.id && <Loader2 size={14} className="animate-spin" />}
-                                                Generate Password
-                                            </button>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="mb-4">
-                                            <label className="text-xs font-medium text-gray-500 mb-1.5 block">New Password (copy it now!)</label>
-                                            <div className="flex items-center gap-2">
-                                                <code className="flex-1 px-3 py-2.5 bg-gray-900 text-green-400 rounded-lg font-mono text-sm select-all">
-                                                    {newPassword}
-                                                </code>
-                                                <button
-                                                    onClick={copyPassword}
-                                                    className={`p-2.5 rounded-lg transition-colors ${copied
-                                                        ? 'bg-green-100 text-green-600'
-                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                        }`}
-                                                >
-                                                    {copied ? <Check size={18} /> : <Copy size={18} />}
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-end">
-                                            <button
-                                                onClick={() => { setResetModal(null); setNewPassword(''); }}
-                                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-                                            >
-                                                Done
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Change Role Modal */}
-                    {editModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditModal(null)}>
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-3 rounded-full bg-indigo-100">
-                                            <Shield size={24} className="text-indigo-600" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-bold text-gray-900">Change Role</h3>
-                                            <p className="text-sm text-gray-500">{editModal.username}</p>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => setEditModal(null)} className="p-1 hover:bg-gray-100 rounded-lg">
-                                        <X size={20} className="text-gray-400" />
-                                    </button>
-                                </div>
-
-                                <div className="space-y-2 mb-6">
-                                    {[
-                                        { value: 'user', label: 'Regular User', desc: 'Can access public site only', icon: UserIcon, color: 'gray' },
-                                        { value: 'staff', label: 'Staff', desc: 'Can access admin panel', icon: ShieldCheck, color: 'blue' },
-                                        { value: 'superuser', label: 'Superuser', desc: 'Full access + user management', icon: Crown, color: 'amber' },
-                                    ].map((opt) => {
-                                        const Icon = opt.icon;
-                                        const isSelected = editRole === opt.value;
-                                        return (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => setEditRole(opt.value)}
-                                                className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${isSelected
-                                                    ? `border-${opt.color === 'amber' ? 'amber' : opt.color === 'blue' ? 'blue' : 'gray'}-400 bg-${opt.color === 'amber' ? 'amber' : opt.color === 'blue' ? 'blue' : 'gray'}-50`
-                                                    : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                <div className={`p-2 rounded-lg ${opt.color === 'amber' ? 'bg-amber-100' : opt.color === 'blue' ? 'bg-blue-100' : 'bg-gray-100'
-                                                    }`}>
-                                                    <Icon size={18} className={
-                                                        opt.color === 'amber' ? 'text-amber-600' : opt.color === 'blue' ? 'text-blue-600' : 'text-gray-500'
-                                                    } />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-900 text-sm">{opt.label}</div>
-                                                    <div className="text-xs text-gray-500">{opt.desc}</div>
-                                                </div>
-                                                {isSelected && (
-                                                    <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center">
-                                                        <Check size={12} className="text-white" />
-                                                    </div>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="flex gap-3 justify-end">
-                                    <button
-                                        onClick={() => setEditModal(null)}
-                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={changeRole}
-                                        disabled={editRole === editModal.role.toLowerCase() || actionLoading === editModal.id}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                                    >
-                                        {actionLoading === editModal.id && <Loader2 size={14} className="animate-spin" />}
-                                        Save Role
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Create User Modal */}
-                    {createModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setCreateModal(false)}>
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-between mb-5">
-                                    <h3 className="text-lg font-bold text-gray-900">Create New User</h3>
-                                    <button onClick={() => setCreateModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                                        <X size={18} className="text-gray-400" />
-                                    </button>
-                                </div>
-
-                                {createError && (
-                                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
-                                        <AlertTriangle size={16} />
-                                        {createError}
-                                    </div>
-                                )}
-
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-                                            <input
-                                                type="text"
-                                                value={createForm.username}
-                                                onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                                                placeholder="johndoe"
-                                                autoComplete="off"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                            <input
-                                                type="email"
-                                                value={createForm.email}
-                                                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                                                placeholder="john@example.com"
-                                                autoComplete="off"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                                            <input
-                                                type="text"
-                                                value={createForm.first_name}
-                                                onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                                                placeholder="John"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                                            <input
-                                                type="text"
-                                                value={createForm.last_name}
-                                                onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                                                placeholder="Doe"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                                        <div className="relative">
-                                            <input
-                                                type={showCreatePassword ? 'text' : 'password'}
-                                                value={createForm.password}
-                                                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                                                className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                                                placeholder="Minimum 8 characters"
-                                                autoComplete="new-password"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowCreatePassword(!showCreatePassword)}
-                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                            >
-                                                {showCreatePassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {[
-                                                { value: 'user', label: 'User', icon: UserIcon, color: 'gray' },
-                                                { value: 'staff', label: 'Staff', icon: Shield, color: 'blue' },
-                                                { value: 'superuser', label: 'Superuser', icon: Crown, color: 'amber' },
-                                            ].map((r) => {
-                                                const RIcon = r.icon;
-                                                return (
-                                                    <button
-                                                        key={r.value}
-                                                        type="button"
-                                                        onClick={() => setCreateForm({ ...createForm, role: r.value })}
-                                                        className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-sm font-medium ${createForm.role === r.value
-                                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                                                            }`}
-                                                    >
-                                                        <RIcon size={18} />
-                                                        {r.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 justify-end mt-6">
-                                    <button
-                                        onClick={() => setCreateModal(false)}
-                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={createUser}
-                                        disabled={!createForm.username || !createForm.password || createLoading}
-                                        className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center gap-2"
-                                    >
-                                        {createLoading && <Loader2 size={14} className="animate-spin" />}
-                                        Create User
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

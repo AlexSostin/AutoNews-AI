@@ -17,6 +17,7 @@
 ## 🌟 Ключевые возможности
 
 ### 🤖 AI-движок генерации контента
+
 - **Dual-провайдер**: Google Gemini 2.0 Flash (основной) + Groq Llama 3 (фоллбэк)
 - **AI-редактор**: Автоматическая проверка и улучшение сгенерированных статей
 - **Извлечение скриншотов**: 3 кадра из видео (15%, 50%, 85%)
@@ -26,6 +27,7 @@
 - **AI Image Generation**: Генерация изображений через Gemini + поиск через Pexels API
 
 ### 🤖 Система автоматизации
+
 - **Auto-Publisher**: Автоматическая публикация статей из RSS лент с quality scoring
 - **Circuit Breaker**: Интеллектуальная система повторов (MAX_RETRIES=3, exponential backoff, auto_failed статус)
 - **Draft/Publish Toggle**: Переключатель режима в админке — черновики или прямая публикация
@@ -37,13 +39,17 @@
 - **Панель управления**: Настройки автоматизации, статистика, ручной триггер задач
 
 ### 📊 Аналитика и мониторинг
+
 - **Google Analytics 4**: Отслеживание просмотров, scroll depth (25/50/75/100%), read time
 - **Google Search Console**: Интеграция с GSC для данных по кликам/показам
 - **Redis view tracking**: Высокопроизводительный подсчёт просмотров с батч-синхронизацией в БД
 - **Dashboard**: Метрики роста, популярные статьи, статистика категорий
 - **AI Stats**: Обогащение покрытие (vehicle specs, A/B titles, tags, car specs, images)
+- **Health Dashboard**: Мониторинг backend и frontend ошибок с resolve/resolve-all/clear-stale
+- **Error Tracking**: BackendErrorLog (API 500s, scheduler failures) + FrontendEventLog (JS ошибки)
 
 ### 🧪 A/B Тестирование
+
 - **Варианты заголовков**: AI генерирует 2-3 варианта заголовка для статьи
 - **Детерминированное назначение**: Cookie-based seed для консистентности по сессиям
 - **Трекинг**: Impression/click отслеживание через API
@@ -51,6 +57,7 @@
 - **Ручной выбор**: Админ может вручную выбрать победителя
 
 ### 🌐 Публичный сайт
+
 - **SSR/SSG**: Server-side rendering и static generation с Next.js 16
 - **Каталог брендов**: Страницы брендов и моделей с автоматическим обогащением
 - **SEO**: Dynamic metadata, canonical tags, JSON-LD structured data, sitemap.xml
@@ -61,11 +68,15 @@
 - **Адаптивный дизайн**: Mobile-first, все breakpoints
 
 ### ⚛️ Админ-панель (Next.js)
+
+- **TinyMCE Editor**: Визуальный WYSIWYG редактор статей (self-hosted, без API ключа)
+- **AI кнопки**: ✨ Reformat with AI, ⚡ Re-enrich Specs, 🔄 Regenerate
 - **Управление контентом**: CRUD статей, категорий, тегов, car specs
 - **YouTube генерация**: Генерация статей из YouTube URL
 - **Batch генерация**: Одновременная генерация до 5 статей
 - **RSS агрегатор**: Мониторинг RSS лент брендов с дедупликацией и safety scoring
 - **Pending Articles**: Модерация сгенерированных статей перед публикацией
+- **Health Dashboard**: Мониторинг ошибок backend/frontend с resolve-all
 - **Модерация**: Комментарии, фидбэки с resolve/reopen
 - **Brand менеджмент**: Каталог брендов с алиасами, логотипами, мержем
 - **Подписчики**: Управление newsletter подписками
@@ -77,6 +88,7 @@
 - **Настройки**: Site settings, account settings, уведомления
 
 ### 🔐 Безопасность
+
 - **JWT аутентификация** с auto-refresh токенов
 - **Google OAuth 2.0** — социальный логин
 - **Email верификация** — смена email через 6-значный код
@@ -86,14 +98,17 @@
 - **Bot Protection**: User-Agent middleware для блокировки автоматических запросов
 
 ### ✅ CI/CD
-- **GitHub Actions**: Автоматические pytest тесты (391 тест, 28 файлов) при каждом пуше
+
+- **GitHub Actions**: Автоматические pytest тесты (391+ тестов, 28+ файлов) при каждом пуше
 - **E2E тесты**: Playwright (14 тестов: homepage, articles, SEO, performance, mobile)
 - **Backend тесты**: PostgreSQL + Redis в CI, pytest с полным покрытием
 - **Frontend checks**: Lint, type checking, build verification
 - **Security**: Проверка уязвимостей Python зависимостей (safety)
 - **Auto-deploy**: Railway (backend) + Vercel (frontend) из GitHub
+- **Startup Verification**: `verify_migrations` — проверка схемы БД при старте
 
 ### ⚡ Performance & Caching
+
 - **Redis Cache**: `@cache_page` на article list (5 мин), settings (5 мин), robots.txt (24ч)
 - **Cache Invalidation**: Авто-очистка кеша при изменении статей/категорий/тегов
 - **Next.js ISR**: Homepage revalidation каждые 120с
@@ -104,6 +119,7 @@
 ## 🛠 Технологический стек
 
 ### Backend
+
 | Технология | Назначение |
 |-----------|-----------|
 | **Django 6.0.1** + DRF 3.15 | REST API framework |
@@ -116,18 +132,22 @@
 | **Sentry** | Error tracking и мониторинг |
 | **yt-dlp** | Извлечение транскриптов YouTube |
 | **Pexels API** | Поиск стоковых фотографий |
-| **pytest** | Тестовый фреймворк (391 тест, 28 файлов) |
+| **TinyMCE 8** | WYSIWYG HTML-редактор статей (self-hosted) |
+| **pytest** | Тестовый фреймворк (391+ тестов, 28+ файлов) |
 
 ### Frontend
+
 | Технология | Назначение |
 |-----------|-----------|
 | **Next.js 16.1** | App Router, SSR, SSG |
 | **TypeScript 5.0** | Type safety |
 | **Tailwind CSS** | Styling |
+| **TinyMCE React** | WYSIWYG редактор контента |
 | **Lucide React** | Иконки |
 | **Google Analytics 4** | Трекинг пользователей |
 
 ### Инфраструктура
+
 | Технология | Назначение |
 |-----------|-----------|
 | **Docker Compose** | Локальная разработка (backend + redis) |
@@ -147,23 +167,27 @@ AutoNews-AI/
 ├── backend/                   # Django REST API
 │   ├── auto_news_site/        # Django settings, urls, wsgi
 │   ├── news/                  # Core app
-│   │   ├── models.py          # Article, Category, Tag, Brand, RSS, A/B, Ads...
-│   │   ├── api_views.py       # 30+ DRF ViewSets
-│   │   ├── api_urls.py        # API routing
+│   │   ├── models/            # Модели (Article, Brand, RSS, A/B, Ads, ErrorLog...)
+│   │   ├── api_views/         # 30+ DRF ViewSets (разделены по модулям)
+│   │   │   ├── mixins/        # ArticleGenerationMixin, ArticleEnrichmentMixin...
+│   │   │   ├── articles.py    # ArticleViewSet
+│   │   │   ├── system.py      # Health, ErrorLog, Notifications
+│   │   │   └── ...            # auth, rss, youtube, vehicles, etc.
+│   │   ├── api_urls.py        # API routing (60+ endpoints)
 │   │   ├── serializers.py     # Data serialization (with AB variant injection)
-│   │   ├── ab_testing_views.py # A/B test tracking & admin endpoints
-│   │   ├── cars_views.py      # Brand catalog API
-│   │   └── search_analytics_views.py # Search + Analytics endpoints
+│   │   ├── management/commands/ # verify_migrations, reformat_rss_articles
+│   │   └── error_capture.py   # ErrorCaptureMiddleware (auto-logs 500s)
 │   ├── ai_engine/             # AI article generation
 │   │   ├── main.py            # Pipeline orchestrator
-│   │   └── modules/           # Transcriber, analyzer, publisher, reviewer, auto_publisher, tag_suggester
-│   ├── tests/                 # Pytest test suite (391 tests, 28 files)
+│   │   └── modules/           # transcriber, analyzer, publisher, entity_validator,
+│   │                          # article_generator, deep_specs, auto_publisher, tag_suggester
+│   ├── tests/                 # Pytest test suite (391+ tests, 28+ files)
 │   └── Dockerfile
 │
 ├── frontend-next/             # Next.js 16 (App Router)
 │   ├── app/
 │   │   ├── (public)/          # Public pages (articles, brands, profile)
-│   │   └── admin/             # Admin dashboard (25+ pages)
+│   │   └── admin/             # Admin dashboard (25+ pages, incl. health)
 │   ├── components/            # Reusable components
 │   └── lib/                   # API client, auth, analytics, utils
 │
@@ -178,18 +202,21 @@ AutoNews-AI/
 ## 🚀 Быстрый старт
 
 ### Системные требования
+
 - Python 3.13+
 - Node.js 18+
 - Docker & Docker Compose
 - Redis (через Docker или установленный)
 
 ### 1. Клонирование
+
 ```bash
 git clone https://github.com/AlexSostin/AutoNews-AI.git
 cd AutoNews-AI
 ```
 
 ### 2. Backend (Docker)
+
 ```bash
 # Запуск backend + Redis
 docker-compose up -d
@@ -202,6 +229,7 @@ docker exec -it autonews_backend python3 manage.py createsuperuser
 ```
 
 ### 3. Frontend
+
 ```bash
 cd frontend-next
 npm install
@@ -209,20 +237,23 @@ npm run dev
 ```
 
 ### 4. Запуск тестов
+
 ```bash
 docker exec autonews_backend pytest tests/ -v
 ```
 
 ### 5. Открыть
-- 🌐 Публичный сайт: http://localhost:3000
-- ⚙️ Админ-панель: http://localhost:3000/admin
-- 📡 API: http://localhost:8000/api/v1/
+
+- 🌐 Публичный сайт: <http://localhost:3000>
+- ⚙️ Админ-панель: <http://localhost:3000/admin>
+- 📡 API: <http://localhost:8000/api/v1/>
 
 ---
 
 ## 📡 Основные API Endpoints
 
 ### Аутентификация
+
 ```
 POST /api/v1/token/                    # JWT Login
 POST /api/v1/token/refresh/            # Refresh token
@@ -233,6 +264,7 @@ POST /api/v1/auth/email/request-change/ # Email change (verification)
 ```
 
 ### Контент
+
 ```
 GET    /api/v1/articles/                      # Список статей
 POST   /api/v1/articles/generate_from_youtube/ # AI генерация
@@ -246,6 +278,7 @@ GET    /api/v1/pending-articles/              # Pending articles (admin)
 ```
 
 ### Каталог автомобилей
+
 ```
 GET  /api/v1/cars/brands/                       # Все бренды
 GET  /api/v1/cars/brands/{slug}/                # Детали бренда
@@ -255,6 +288,7 @@ GET  /api/v1/vehicle-specs/                     # Vehicle specs
 ```
 
 ### Аналитика
+
 ```
 GET  /api/v1/analytics/overview/       # Dashboard overview
 GET  /api/v1/analytics/articles/top/   # Top articles
@@ -265,6 +299,7 @@ GET  /api/v1/analytics/ai-stats/       # AI enrichment statistics
 ```
 
 ### A/B Testing
+
 ```
 POST /api/v1/ab/impression/     # Track impression (public)
 POST /api/v1/ab/click/          # Track click (public)
@@ -274,6 +309,7 @@ POST /api/v1/ab/auto-pick/      # Auto-pick eligible (admin)
 ```
 
 ### Автоматизация
+
 ```
 GET/PATCH /api/v1/automation/settings/        # Automation settings
 GET       /api/v1/automation/stats/           # Stats & decision log
@@ -281,6 +317,7 @@ POST      /api/v1/automation/trigger/{type}/  # Manual trigger
 ```
 
 ### RSS & YouTube
+
 ```
 GET  /api/v1/youtube-channels/         # YouTube каналы
 GET  /api/v1/rss-feeds/                # RSS ленты
@@ -288,13 +325,34 @@ GET  /api/v1/rss-news-items/           # RSS новости
 ```
 
 ### AI Image
+
 ```
 POST /api/v1/articles/{id}/generate-ai-image/  # AI image generation
 POST /api/v1/articles/{id}/search-photos/       # Pexels photo search
 POST /api/v1/articles/{id}/save-external-image/ # Save external image
 ```
 
+### AI Контент
+
+```
+POST /api/v1/articles/{slug}/reformat-content/  # ✨ AI reformat HTML
+POST /api/v1/articles/{slug}/regenerate/         # 🔄 Regenerate article
+POST /api/v1/articles/{slug}/re-enrich-specs/    # ⚡ Re-enrich specs
+```
+
+### Error Tracking
+
+```
+GET  /api/v1/backend-errors/               # Backend error logs
+POST /api/v1/backend-errors/resolve-all/   # Resolve all backend errors
+POST /api/v1/backend-errors/clear-stale/   # Clear stale errors
+GET  /api/v1/health/errors-summary/        # Error summary (sidebar badge)
+GET  /api/v1/frontend-events/              # Frontend JS error logs
+POST /api/v1/frontend-events/resolve-all/  # Resolve all frontend errors
+```
+
 ### Реклама & Прочее
+
 ```
 GET  /api/v1/ad-placements/         # Ad placements
 GET  /api/v1/subscribers/           # Newsletter subscribers

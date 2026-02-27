@@ -10,6 +10,7 @@ import { ArticleGridSkeleton } from '@/components/public/Skeletons';
 import TagsDropdown from '@/components/public/TagsDropdown';
 import CategoriesDropdown from '@/components/public/CategoriesDropdown';
 import SearchInput from '@/components/public/SearchInput';
+import { usePageAnalytics, trackEvent } from '@/hooks/usePageAnalytics';
 import { Article, Category, Tag } from '@/types';
 
 // Runtime API URL detection for client components
@@ -27,6 +28,7 @@ export const dynamic = 'force-dynamic';
 function ArticlesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  usePageAnalytics('articles');
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -76,6 +78,19 @@ function ArticlesContent() {
     };
   }, [page, category, tag, search]);
 
+  // Track search and filter usage for analytics
+  useEffect(() => {
+    if (search) {
+      trackEvent('search', 'articles', { query: search, results_count: totalCount });
+    }
+    if (category) {
+      trackEvent('filter_use', 'articles', { filter_type: 'category', filter_value: category });
+    }
+    if (tag) {
+      trackEvent('filter_use', 'articles', { filter_type: 'tag', filter_value: tag });
+    }
+  }, [category, tag, search]);
+
   // Load categories and tags only once
   useEffect(() => {
     let isMounted = true;
@@ -122,14 +137,23 @@ function ArticlesContent() {
   return (
     <>
       <main className="flex-1 bg-gray-50">
-        <div className="container mx-auto px-4 py-12">
-          {/* Page Header */}
-          <div className="mb-12 text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4">All Articles</h1>
-            <p className="text-lg sm:text-xl text-gray-600">
-              {totalCount} {totalCount === 1 ? 'article' : 'articles'} found
+        {/* Hero Header — full-width outside container */}
+        <section className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white py-16 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50"></div>
+          <div className="container mx-auto px-4 relative z-10 text-center">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-5 py-1.5 rounded-full mb-5 text-sm font-semibold tracking-wide">
+              📰 All Articles
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-bold mb-4 drop-shadow-lg">
+              {totalCount} {totalCount === 1 ? 'Article' : 'Articles'}
+            </h1>
+            <p className="text-lg sm:text-xl text-white/80 max-w-2xl mx-auto">
+              Browse our collection of automotive news, reviews, and analysis
             </p>
           </div>
+        </section>
+
+        <div className="container mx-auto px-4 py-12">
 
           {/* Top Ad */}
           <div className="flex justify-center mb-8">
@@ -230,19 +254,19 @@ function ArticlesContent() {
                 </div>
               ) : (
                 <div className="space-y-8">
-                  {/* Group articles into rows of 3 */}
-                  {Array.from({ length: Math.ceil(articles.length / 3) }, (_, rowIndex) => {
-                    const rowArticles = articles.slice(rowIndex * 3, rowIndex * 3 + 3);
+                  {/* Group articles into rows */}
+                  {Array.from({ length: Math.ceil(articles.length / 4) }, (_, rowIndex) => {
+                    const rowArticles = articles.slice(rowIndex * 4, rowIndex * 4 + 4);
 
                     return (
                       <div key={rowIndex}>
                         {/* Row of articles */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
                           {rowArticles.map((article: Article, index: number) => (
                             <ArticleCard
                               key={article.id}
                               article={article}
-                              priority={rowIndex === 0 && index < 3}
+                              priority={rowIndex === 0 && index < 4}
                             />
                           ))}
                         </div>

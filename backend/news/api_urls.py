@@ -15,7 +15,7 @@ from .api_views import (
     AdPlacementViewSet,
     AutomationSettingsView, AutomationStatsView, AutomationTriggerView,
     SiteThemeView, ThemeAnalyticsView,
-    AdminActionStatsView,
+    AdminActionStatsView, FrontendEventLogViewSet, BackendErrorLogViewSet, HealthSummaryView
 )
 from .health import health_check, health_check_detailed, readiness_check
 from .ab_testing_views import (
@@ -60,6 +60,8 @@ router.register(r'vehicle-specs', VehicleSpecsViewSet, basename='vehicle-specs')
 router.register(r'brand-aliases', BrandAliasViewSet, basename='brand-alias')
 router.register(r'feedback', ArticleFeedbackViewSet, basename='feedback')
 router.register(r'ads', AdPlacementViewSet, basename='ad')
+router.register(r'frontend-events', FrontendEventLogViewSet, basename='frontend-event')
+router.register(r'backend-errors', BackendErrorLogViewSet, basename='backend-error')
 from .api_views import (
     CurrencyRatesView, CurrentUserView, ChangePasswordView, EmailPreferencesView,
     RequestEmailChangeView, VerifyEmailChangeView,
@@ -69,13 +71,15 @@ from .search_analytics_views import (
     SearchAPIView, AnalyticsOverviewAPIView, AnalyticsTopArticlesAPIView,
     AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView, GSCAnalyticsAPIView,
     AnalyticsAIStatsAPIView, AnalyticsAIGenerationAPIView, AnalyticsPopularModelsAPIView,
-    AnalyticsProviderStatsAPIView
+    AnalyticsProviderStatsAPIView, TrackReadMetricView, TrackLinkClickView,
+    TrackMicroFeedbackView, TrackPageAnalyticsView, ReadingNowView
 )
 from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet, CarCompareView, CarPickerListView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
     path('health/', health_check, name='health_check'),
+    path('health/errors-summary/', HealthSummaryView.as_view(), name='health_errors_summary'),
     path('health/detailed/', health_check_detailed, name='health_check_detailed'),
     path('health/ready/', readiness_check, name='readiness_check'),
     
@@ -115,6 +119,11 @@ urlpatterns = [
     path('analytics/ai-generation/', AnalyticsAIGenerationAPIView.as_view(), name='analytics_ai_generation'),
     path('analytics/popular-models/', AnalyticsPopularModelsAPIView.as_view(), name='analytics_popular_models'),
     path('analytics/provider-stats/', AnalyticsProviderStatsAPIView.as_view(), name='analytics_provider_stats'),
+    path('analytics/read-metrics/', TrackReadMetricView.as_view(), name='analytics_read_metrics'),
+    path('analytics/link-click/', TrackLinkClickView.as_view(), name='analytics_link_click'),
+    path('analytics/micro-feedback/', TrackMicroFeedbackView.as_view(), name='analytics_micro_feedback'),
+    path('analytics/page-events/', TrackPageAnalyticsView.as_view(), name='analytics_page_events'),
+    path('analytics/reading-now/<int:article_id>/', ReadingNowView.as_view(), name='analytics_reading_now'),
     
     # Car Catalog endpoints
     path('cars/brands/', CarBrandsListView.as_view(), name='car_brands_list'),

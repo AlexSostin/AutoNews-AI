@@ -478,6 +478,97 @@ class ArticleTitleVariant(models.Model):
         ).values_list('article_id', flat=True).distinct()
         
         for article_id in active_article_ids:
+            variants = list(cls.objects.filter(article_id=article_id, is_active=True).order_by('-impressions'))
+            if len(variants) < 2:
+                continue
+            
+            # Check if all active variants crossed threshold
+            if all(v.impressions >= v.auto_pick_threshold for v in variants):
+                # Pick winner (highest CTR)
+                winner = max(variants, key=lambda x: x.ctr)
+                
+                # Mark winner
+                winner.is_winner = True
+                winner.is_active = False
+                winner.save()
+                
+                # Mark others as inactive
+                cls.objects.filter(article_id=article_id).exclude(id=winner.id).update(
+                    is_active=False, is_winner=False
+                )
+                
+                # Update actual article title
+                from .content import Article
+                Article.objects.filter(id=article_id).update(title=winner.title)
+                
+                winners.append((article_id, winner.variant))
+                logger.info(f"A/B winner picked: Article {article_id} → Variant {winner.variant} ({winner.ctr}% CTR)")
+                
+        return winners
+
+
+class ArticleImageVariant(models.Model):
+    """A/B testing variants for article images (thumbnails).
+    Tracks impressions/clicks to determine the best-performing image source."""
+    
+    VARIANT_CHOICES = [
+        ('A', 'Variant A (Original)'),
+        ('B', 'Variant B'),
+        ('C', 'Variant C'),
+    ]
+
+    IMAGE_SOURCE_CHOICES = [
+        ('youtube', 'YouTube Thumbnail'),
+        ('rss_original', 'Original Source'),
+        ('pexels', 'Pexels'),
+        ('ai_generated', 'AI Generated'),
+        ('uploaded', 'Manual Upload'),
+        ('unknown', 'Unknown')
+    ]
+    
+    article = models.ForeignKey('news.Article', on_delete=models.CASCADE, related_name='image_variants')
+    variant = models.CharField(max_length=1, choices=VARIANT_CHOICES)
+    image_url = models.CharField(max_length=1000, help_text="URL or Cloudinary path to the image")
+    image_source = models.CharField(max_length=20, choices=IMAGE_SOURCE_CHOICES, default='unknown')
+    impressions = models.PositiveIntegerField(default=0, help_text="Number of times shown")
+    clicks = models.PositiveIntegerField(default=0, help_text="Number of click-throughs")
+    is_winner = models.BooleanField(default=False, help_text="Winning variant (applied as main image)")
+    is_active = models.BooleanField(default=True, help_text="Is this test still running?")
+    auto_pick_threshold = models.PositiveIntegerField(
+        default=500,
+        help_text="Minimum impressions per variant before auto-picking winner"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['variant']
+        unique_together = ['article', 'variant']
+        verbose_name = 'Image A/B Variant'
+        verbose_name_plural = 'Image A/B Variants'
+    
+    @property
+    def ctr(self):
+        """Click-through rate as percentage"""
+        if self.impressions == 0:
+            return 0.0
+        return round((self.clicks / self.impressions) * 100, 2)
+    
+    def __str__(self):
+        return f"[{self.variant}] {self.image_source} (CTR: {self.ctr}%)"
+    
+    @classmethod
+    def check_and_pick_winners(cls):
+        """Auto-pick winners for tests that have enough data."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        winners = []
+        # Get articles with active tests
+        active_article_ids = cls.objects.filter(
+            is_active=True, is_winner=False
+        ).values_list('article_id', flat=True).distinct()
+        
+        for article_id in active_article_ids:
             variants = list(cls.objects.filter(article_id=article_id, is_active=True))
             if len(variants) < 2:
                 continue
@@ -999,4 +1090,180 @@ class AdminActionLog(models.Model):
             success=success,
             details=details,
         )
+
+
+class FrontendEventLog(models.Model):
+    """
+    Telemetry log for Next.js frontend errors and anomalies.
+    Captures unhandled exceptions, 404s, and failed rendering states.
+    """
+    ERROR_TYPES = [
+        ('js_error', 'JavaScript Reference Error'),
+        ('network', 'Network / API Failure'),
+        ('hydration', 'React Hydration Mismatch'),
+        ('resource_404', 'Missing Resource (404)'),
+        ('performance', 'Performance Violation'),
+        ('other', 'Other'),
+    ]
+
+    error_type = models.CharField(max_length=50, choices=ERROR_TYPES, default='other')
+    message = models.TextField(help_text="Primary error message")
+    stack_trace = models.TextField(blank=True, help_text="Component stack or JS stack trace")
+    url = models.URLField(max_length=1000, help_text="Page URL where the error occurred")
+    user_agent = models.TextField(blank=True)
+    
+    # Tracking volume
+    occurrence_count = models.IntegerField(default=1, help_text="Number of times this similar error was caught")
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
+    
+    # Resolution state
+    resolved = models.BooleanField(default=False, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution_notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-last_seen']
+        verbose_name = "Frontend Event Log"
+        verbose_name_plural = "Frontend Event Logs"
+        indexes = [
+            models.Index(fields=['-last_seen']),
+            models.Index(fields=['resolved']),
+            models.Index(fields=['error_type']),
+        ]
+
+    def __str__(self):
+        status = "✅" if self.resolved else "🚨"
+        return f"{status} [{self.get_error_type_display()}] {self.message[:60]}"
+
+
+class PageAnalyticsEvent(models.Model):
+    """
+    Universal analytics event store for page-level engagement tracking.
+    Captures scroll depth, CTR, filter usage, recommended effectiveness, etc.
+    """
+    EVENT_TYPES = [
+        ('page_view', 'Page View'),
+        ('page_leave', 'Page Leave (dwell + scroll)'),
+        ('card_click', 'Article Card Click'),
+        ('search', 'Search Query'),
+        ('filter_use', 'Filter Applied'),
+        ('recommended_impression', 'Recommended Section Shown'),
+        ('recommended_click', 'Recommended Article Clicked'),
+        ('compare_use', 'Compare Tool Used'),
+        ('infinite_scroll', 'Infinite Scroll Load'),
+        ('ad_impression', 'Ad Banner Shown'),
+        ('ad_click', 'Ad Banner Clicked'),
+    ]
+    
+    PAGE_TYPES = [
+        ('home', 'Home Page'),
+        ('articles', 'Articles Listing'),
+        ('article_detail', 'Article Detail'),
+        ('trending', 'Trending Page'),
+        ('cars', 'Cars Listing'),
+        ('car_detail', 'Car Detail'),
+        ('compare', 'Compare Page'),
+        ('categories', 'Categories Page'),
+        ('category_detail', 'Category Detail'),
+        ('other', 'Other'),
+    ]
+    
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPES, db_index=True)
+    page_type = models.CharField(max_length=30, choices=PAGE_TYPES, default='other')
+    page_url = models.CharField(max_length=500, blank=True, default='')
+    
+    # Flexible metrics payload (varies by event_type)
+    # Examples:
+    #   page_leave: {"dwell_seconds": 45, "scroll_depth_pct": 78, "infinite_loads": 3}
+    #   card_click: {"article_id": 123, "card_position": 5, "card_type": "grid"}
+    #   search: {"query": "tesla", "results_count": 12}
+    #   filter_use: {"filter_type": "category", "filter_value": "ev-news"}
+    #   recommended_click: {"article_id": 45, "position": 2, "source_tags": ["SUV"]}
+    metrics = models.JSONField(default=dict, blank=True)
+    
+    # Discovery path — how user found this page
+    referrer_page = models.CharField(max_length=200, blank=True, default='',
+        help_text="Internal referrer: home, articles, recommended, search, direct")
+    
+    # Device info
+    device_type = models.CharField(max_length=10, blank=True, default='',
+        help_text="desktop, tablet, mobile")
+    viewport_width = models.PositiveIntegerField(null=True, blank=True)
+    
+    # Anonymous identification
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    session_hash = models.CharField(max_length=64, blank=True, default='',
+        help_text="Anonymized session fingerprint")
+    
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Page Analytics Event'
+        verbose_name_plural = 'Page Analytics Events'
+        indexes = [
+            models.Index(fields=['event_type', '-created_at']),
+            models.Index(fields=['page_type', '-created_at']),
+            models.Index(fields=['session_hash', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"[{self.event_type}] {self.page_type} — {self.created_at:%H:%M:%S}"
+
+
+class BackendErrorLog(models.Model):
+    """
+    Captures backend API 500 errors and scheduler task failures.
+    Deduplicates by error_class + message + request_path within 1 hour.
+    """
+    ERROR_SOURCES = [
+        ('api', 'API Request (500)'),
+        ('scheduler', 'Scheduler Task'),
+        ('middleware', 'Middleware'),
+    ]
+    SEVERITY_LEVELS = [
+        ('warning', 'Warning'),
+        ('error', 'Error'),
+        ('critical', 'Critical'),
+    ]
+
+    source = models.CharField(max_length=20, choices=ERROR_SOURCES, db_index=True)
+    severity = models.CharField(max_length=10, choices=SEVERITY_LEVELS, default='error')
+    error_class = models.CharField(max_length=255, help_text="Exception class name, e.g. ValueError")
+    message = models.TextField(help_text="Error message")
+    traceback = models.TextField(blank=True, help_text="Full traceback")
+
+    # Request context (for API errors)
+    request_method = models.CharField(max_length=10, blank=True, default='')
+    request_path = models.CharField(max_length=500, blank=True, default='')
+    request_user = models.CharField(max_length=150, blank=True, default='')
+    request_ip = models.GenericIPAddressField(null=True, blank=True)
+
+    # Scheduler context
+    task_name = models.CharField(max_length=100, blank=True, default='',
+        help_text="Scheduler task name, e.g. rss_scan, youtube_scan")
+
+    # Tracking
+    occurrence_count = models.IntegerField(default=1)
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
+    resolved = models.BooleanField(default=False, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution_notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-last_seen']
+        verbose_name = 'Backend Error Log'
+        verbose_name_plural = 'Backend Error Logs'
+        indexes = [
+            models.Index(fields=['-last_seen']),
+            models.Index(fields=['resolved']),
+            models.Index(fields=['source', '-last_seen']),
+            models.Index(fields=['severity', '-last_seen']),
+        ]
+
+    def __str__(self):
+        status = "✅" if self.resolved else "🚨"
+        return f"{status} [{self.get_source_display()}] {self.error_class}: {self.message[:60]}"
 

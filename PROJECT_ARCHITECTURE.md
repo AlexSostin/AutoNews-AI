@@ -2,13 +2,14 @@
 
 This document provides a comprehensive overview of the FreshMotors platform architecture, technology stack, and core workflows.
 
-**Last Updated**: 22 February 2026
+**Last Updated**: 27 February 2026
 
 ---
 
 ## 🚀 Technology Stack
 
 ### Backend
+
 - **Framework**: Django 6.0.1 / Django REST Framework 3.15
 - **Language**: Python 3.13
 - **Database**: PostgreSQL (Production via Railway), SQLite (Local dev)
@@ -18,9 +19,10 @@ This document provides a comprehensive overview of the FreshMotors platform arch
 - **Media**: Cloudinary (production CDN), local storage (dev)
 - **APIs**: YouTube Data API v3, Google Search Console API, Google OAuth 2.0, Pexels API
 - **Monitoring**: Sentry (error tracking)
-- **Testing**: pytest (391 tests, 28 files), Playwright E2E (14 tests), GitHub Actions CI
+- **Testing**: pytest (391+ tests, 28+ files), Playwright E2E (14 tests), GitHub Actions CI
 
 ### Frontend
+
 - **Framework**: Next.js 16.1 (App Router, Server Components, SSR/SSG)
 - **Language**: TypeScript 5.0
 - **Styling**: Tailwind CSS
@@ -29,6 +31,7 @@ This document provides a comprehensive overview of the FreshMotors platform arch
 - **State**: React hooks, Local Storage, Context API
 
 ### Infrastructure
+
 - **Containerization**: Docker Compose (backend + Redis)
 - **Backend Hosting**: Railway (PostgreSQL + Redis + Django)
 - **Frontend Hosting**: Vercel (Next.js auto-deploy from GitHub)
@@ -40,6 +43,7 @@ This document provides a comprehensive overview of the FreshMotors platform arch
 ## 📂 Project Structure
 
 ### Root Directory
+
 ```text
 AutoNews-AI/
 ├── .github/workflows/    # CI/CD pipeline
@@ -60,19 +64,21 @@ AutoNews-AI/
 | Directory / File | Purpose |
 |-----------------|---------|
 | `auto_news_site/` | Django settings, URL routing, WSGI/ASGI config |
-| `news/models.py` | DB schema: Article, Category, Tag, Brand, CarSpecification, VehicleSpecs, ArticleTitleVariant, AdPlacement, RSSFeed, PendingArticle, AutomationSettings, AutoPublishLog, TagLearningLog, Feedback, etc. |
-| `news/api_views.py` | 30+ DRF ViewSets for all API endpoints |
-| `news/api_urls.py` | Router registrations and URL patterns |
+| `news/models/` | DB schema package: `__init__.py` re-exports all models. Split into: `articles.py`, `categories_tags.py`, `vehicles.py`, `pending_articles.py`, `user_accounts.py`, `system.py` (BackendErrorLog, FrontendEventLog, AdminActionLog, Notification) |
+| `news/api_views/` | 20+ DRF ViewSets split by domain: `articles.py`, `auth.py`, `system.py`, `rss_feeds.py`, `youtube.py`, `vehicles.py`, `images.py`, etc. |
+| `news/api_views/mixins/` | Mixin classes for ArticleViewSet: `ArticleGenerationMixin` (YouTube, RSS, reformat, regenerate), `ArticleEnrichmentMixin` (re-enrich specs), `ArticleEngagementMixin` (comments, ratings, favorites) |
+| `news/api_urls.py` | Router registrations and URL patterns (60+ endpoints) |
 | `news/serializers.py` | Data serialization layer (with A/B variant injection for public users) |
 | `news/signals.py` | Auto-notifications, car spec extraction triggers, tag learning signal, human review ML logging |
+| `news/error_capture.py` | ErrorCaptureMiddleware — auto-logs 500 errors to BackendErrorLog |
+| `news/management/commands/` | Custom commands: `verify_migrations` (startup DB schema check), `reformat_rss_articles`, `sync_views` |
 | `news/admin.py` | Django Admin registrations |
-| `news/ab_testing_views.py` | A/B test tracking (impressions, clicks) & admin management |
-| `news/cars_views.py` | Brand catalog API (brands, models, specs) |
-| `news/search_analytics_views.py` | Search + Analytics endpoints (overview, top articles, timeline, categories, GSC, AI stats) |
-| `news/health.py` | Health check endpoints for load balancers |
 | `ai_engine/main.py` | AI pipeline orchestrator (transcript → analysis → generation → screenshots → AI editor) |
 | `ai_engine/modules/transcriber.py` | YouTube transcript retrieval (yt-dlp + oEmbed fallback) |
 | `ai_engine/modules/analyzer.py` | LLM content analysis and car specs extraction |
+| `ai_engine/modules/article_generator.py` | RSS press release expansion into full articles |
+| `ai_engine/modules/entity_validator.py` | Anti-hallucination: entity extraction, validation, auto-fix, entity anchoring for prompts |
+| `ai_engine/modules/deep_specs.py` | Deep vehicle specs enrichment via AI + web search |
 | `ai_engine/modules/publisher.py` | Article persistence to database |
 | `ai_engine/modules/article_reviewer.py` | AI Editor — reviews and improves generated articles |
 | `ai_engine/modules/auto_publisher.py` | Automated publishing engine with quality scoring, safety gating, circuit breaker (MAX_RETRIES, backoff), draft/publish toggle |
@@ -88,19 +94,20 @@ AutoNews-AI/
 | `ai_engine/modules/seo_helpers.py` | SEO keyword extraction and meta generation |
 | `ai_engine/modules/youtube_client.py` | YouTube channel monitoring and batch scanning |
 | `news/cache_signals.py` | Auto-invalidation of Redis + @cache_page on model changes |
-| `tests/` | pytest test suite (391 tests across 28 test files) |
+| `tests/` | pytest test suite (391+ tests across 28+ test files) |
 
 ### Frontend Structure (`/frontend-next`)
 
 | Directory / File | Purpose |
 |-----------------|---------|
 | `app/(public)/` | Public pages: articles, categories, brands, profile, login |
-| `app/admin/` | Admin pages: 25+ management screens |
+| `app/admin/` | Admin pages: 25+ management screens (incl. health dashboard) |
 | `app/admin/automation/` | Automation control panel |
 | `app/admin/ab-testing/` | A/B testing management |
 | `app/admin/ads/` | Ad placement management |
 | `app/admin/users/` | User management |
-| `components/admin/` | Sidebar, AdminHeader, modals |
+| `app/admin/health/` | Health dashboard — backend/frontend error monitoring |
+| `components/admin/` | Sidebar, AdminHeader, modals, ArticleContentEditor (TinyMCE) |
 | `components/public/` | ViewTracker, FeedbackButton, ShareButtons, RatingStars, ReadingProgressBar |
 | `lib/api.ts` | Axios client with auth interceptors |
 | `lib/auth.ts` | JWT auth helpers, Google OAuth |
@@ -113,6 +120,7 @@ AutoNews-AI/
 ## 🔧 Core Workflows
 
 ### 1. AI Article Generation Pipeline
+
 1. **Trigger**: Manual YouTube URL in admin, or batch scan of monitored channels
 2. **Transcription**: `transcriber.py` fetches subtitles via yt-dlp (with cookies bypass)
 3. **Analysis**: Gemini/Groq analyzes transcript → extracts car specs, pros/cons, key points
@@ -123,6 +131,7 @@ AutoNews-AI/
 8. **Publishing**: Article saved to DB (directly or as PendingArticle for review)
 
 ### 2. Auto-Publisher System
+
 1. **RSS Scan**: Scheduler periodically scans monitored RSS feeds
 2. **Deduplication**: Title similarity + content hash prevents duplicates
 3. **Safety Gating**: Each RSS source has a safety score (`human_reviewed`, `has_copyright_notice`, etc.)
@@ -135,6 +144,7 @@ AutoNews-AI/
 10. **Tag Suggestion**: `tag_suggester.py` suggests tags via keyword matching + historical patterns
 
 ### 3. A/B Testing System
+
 1. **Variant Creation**: AI generates 2-3 title variants per article
 2. **Variant Serving**: `ArticleListSerializer`/`ArticleDetailSerializer` inject `display_title` + `ab_variant_id` based on cookie seed
 3. **Tracking**: Frontend sends `sendBeacon` for impressions and clicks
@@ -142,18 +152,21 @@ AutoNews-AI/
 5. **Manual Override**: Admin can manually pick winner at any time
 
 ### 4. Auto-Enrichment
+
 - **Car Specs**: Auto-extracted from article content on save (signal-triggered)
 - **Brand Catalog**: Brands auto-created from car specs with logo, country, aliases
 - **Drivetrain Tags**: Auto-tagged (EV, PHEV, Hybrid, ICE) based on spec analysis
 - **Price Segments**: Auto-tagged (Budget, Mid-Range, Premium, Luxury, Supercar)
 
 ### 8. Caching & Performance
+
 - **Redis Cache**: `@cache_page` on article list (300s), article detail (60s), trending (15min), popular (1h), settings (300s), robots.txt (24h)
 - **Cache Invalidation**: `cache_signals.py` auto-clears Redis + `@cache_page` keys on Article/Category/Tag/Rating changes
 - **Next.js ISR**: Homepage revalidates every 120s, categories/brands every 3600s
 - **Image Optimization**: Next.js auto-converts to WebP, responsive resizing
 
 ### 5. Analytics & Tracking
+
 - **GA4 Events**: `article_view`, `article_read` (scroll milestones), `read_time` (on unload)
 - **Redis View Counter**: Incremented per page view, batch-synced to PostgreSQL via management command
 - **GSC Integration**: Pulls clicks, impressions, CTR, position for all pages
@@ -161,11 +174,13 @@ AutoNews-AI/
 - **Generation Metadata**: Per-article timing breakdown and AI Editor diff stats
 
 ### 6. User Feedback Loop
+
 - **Feedback Button**: Public users can report errors (factual, hallucination, typo, outdated)
 - **Rate Limited**: 1 report per IP per article per day
 - **Admin Panel**: Feedback management with resolve/reopen/delete actions
 
 ### 7. RSS Aggregation
+
 - **Feed Monitoring**: Periodic scan of brand RSS feeds
 - **Safety Scoring**: Each feed rated for trustworthiness (human reviewed, copyright, contact info)
 - **Deduplication**: Title similarity + content hash to prevent duplicates
@@ -175,7 +190,8 @@ AutoNews-AI/
 
 ## 🧪 Testing & CI
 
-### Test Suite (391 tests, 28 files)
+### Test Suite (391+ tests, 28+ files)
+
 | File | Tests | What it covers |
 |------|-------|----------------|
 | `test_analytics_api.py` | 8 | Analytics overview, top articles, timeline, growth |
@@ -206,7 +222,8 @@ AutoNews-AI/
 | + 3 more files | — | Provider tracker, AI main, user management |
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
-- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (391 tests)
+
+- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (391+ tests)
 - **Frontend**: `npm run lint` + `npx tsc --noEmit` + `npm run build`
 - **E2E**: Playwright → 14 tests against live site (continue-on-error)
 - **Security**: `safety check` for Python dependency vulnerabilities

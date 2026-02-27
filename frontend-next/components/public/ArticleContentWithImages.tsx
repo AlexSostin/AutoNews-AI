@@ -2,12 +2,15 @@
 
 import Image from 'next/image';
 import { useEffect, useState, useRef, useCallback, type ReactElement } from 'react';
+import { fixImageUrl } from '@/lib/config';
 
 interface ArticleContentWithImagesProps {
   content: string;
   images: string[];
   imageSource?: string;
   authorName?: string;
+  articleId?: number;
+  apiUrl?: string;
 }
 
 /**
@@ -17,11 +20,43 @@ function stripAltTextsDiv(html: string): string {
   return html.replace(/<div[^>]*class=["']alt-texts["'][^>]*>[\s\S]*?<\/div>/gi, '').trim();
 }
 
-export default function ArticleContentWithImages({ content, images, imageSource, authorName }: ArticleContentWithImagesProps) {
+export default function ArticleContentWithImages({ content, images, imageSource, authorName, articleId, apiUrl }: ArticleContentWithImagesProps) {
   const [contentParts, setContentParts] = useState<ReactElement[] | null>(null);
 
   // Prepare clean HTML for SSR fallback (strip alt-texts div)
   const cleanHtmlForSSR = stripAltTextsDiv(content);
+
+  const handleContentClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const anchor = (e.target as HTMLElement).closest('a');
+    if (!anchor) return;
+
+    // Check if it's an internal article link
+    const href = anchor.getAttribute('href');
+    if (!href || (!href.startsWith('/articles/') && !href.startsWith('https://www.freshmotors.net/articles/'))) return;
+
+    // Determine the link type
+    let linkType = 'other';
+    if (anchor.getAttribute('data-seo-linker') === 'true') {
+      linkType = 'ai_inline';
+    } else if (anchor.closest('.seo-related-links')) {
+      linkType = 'ai_read_also';
+    }
+
+    // Send beacon tracked metric
+    if (articleId && apiUrl) {
+      try {
+        const payload = {
+          source_article_id: articleId,
+          destination_url: href,
+          link_type: linkType
+        };
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        navigator.sendBeacon(`${apiUrl}/analytics/link-click/`, blob);
+      } catch (err) {
+        console.error('Failed to track link click', err);
+      }
+    }
+  }, [articleId, apiUrl]);
 
   useEffect(() => {
     // Extract AI-generated alt texts from hidden div
@@ -93,7 +128,7 @@ export default function ArticleContentWithImages({ content, images, imageSource,
           parts.push(
             <InlineImage
               key={`img-${imageIndex}`}
-              src={currentImage}
+              src={fixImageUrl(currentImage)}
               alt={altText}
               imageSource={imageSource || (currentImage.includes('pexels.com') ? 'pexels' : 'unknown')}
               authorName={authorName}
@@ -109,7 +144,7 @@ export default function ArticleContentWithImages({ content, images, imageSource,
   }, [content, images]);
 
   return (
-    <div className="article-content-wrapper">
+    <div className="article-content-wrapper" onClick={handleContentClick}>
       {contentParts !== null ? (
         /* Enhanced client version with inline images and lightbox */
         contentParts
