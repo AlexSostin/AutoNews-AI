@@ -67,9 +67,17 @@ class YouTubeClient:
                     channel_id = data['items'][0]['id']
                     print(f"✅ Resolved handle '{handle}' → {channel_id}")
                     return channel_id
+            elif response.status_code == 403:
+                data = response.json()
+                errors = data.get('error', {}).get('errors', [])
+                if any(e.get('reason') == 'quotaExceeded' for e in errors):
+                    raise Exception("YouTube API quota exceeded. Try again tomorrow.")
+                print(f"⚠️ forHandle API returned 403 for '{handle}'")
             else:
                 print(f"⚠️ forHandle API returned {response.status_code} for '{handle}'")
         except Exception as e:
+            if 'quota' in str(e).lower():
+                raise
             print(f"Error resolving handle '{handle}': {e}")
 
         return None
@@ -94,7 +102,14 @@ class YouTubeClient:
                 data = response.json()
                 if 'items' in data and len(data['items']) > 0:
                     return data['items'][0]['id']['channelId']
+            elif response.status_code == 403:
+                data = response.json()
+                errors = data.get('error', {}).get('errors', [])
+                if any(e.get('reason') == 'quotaExceeded' for e in errors):
+                    raise Exception("YouTube API quota exceeded. Try again tomorrow.")
         except Exception as e:
+            if 'quota' in str(e).lower():
+                raise
             print(f"Error searching channel: {e}")
             
         return None
@@ -102,7 +117,7 @@ class YouTubeClient:
     def get_latest_videos(self, channel_identifier, max_results=5):
         """
         Get latest videos from a channel.
-        channel_identifier can be a URL or ID.
+        channel_identifier can be a URL, channel ID (UC...), or handle.
         """
         if not self.api_key:
             raise Exception("YOUTUBE_API_KEY is required")
@@ -112,10 +127,15 @@ class YouTubeClient:
         
         if 'youtube.com' in channel_identifier or 'youtu.be' in channel_identifier:
             channel_id = self._get_channel_id(channel_identifier)
-        elif not channel_identifier.startswith('UC'):
-            # If it's not a URL and not a standard UC-ID, try searching as handle/name
-            print(f"Input '{channel_identifier}' is not a URL or Channel ID. Searching...")
-            channel_id = self._search_channel_id(channel_identifier)
+        elif channel_identifier.startswith('UC') and len(channel_identifier) == 24:
+            # Valid YouTube channel ID format (UC + 22 chars)
+            channel_id = channel_identifier
+        else:
+            # Bare handle or name — resolve it
+            print(f"Input '{channel_identifier}' is not a URL or Channel ID. Resolving as handle...")
+            channel_id = self._resolve_handle(channel_identifier)
+            if not channel_id:
+                channel_id = self._search_channel_id(channel_identifier)
             
         if not channel_id:
             print(f"Could not resolve channel ID for {channel_identifier}")

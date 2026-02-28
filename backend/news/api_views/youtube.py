@@ -88,22 +88,11 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
         channel = self.get_object()
         
         try:
-            # Add both backend and ai_engine paths for proper imports
-            import os
-            import sys
-            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
-            
-            if backend_dir not in sys.path:
-                sys.path.insert(0, backend_dir)
-            if ai_engine_dir not in sys.path:
-                sys.path.insert(0, ai_engine_dir)
-                
             from ai_engine.modules.youtube_client import YouTubeClient
             client = YouTubeClient()
             
-            # Use channel_id if available, otherwise url
-            identifier = channel.channel_id if channel.channel_id else channel.channel_url
+            # Always use channel_url for resolution (channel_id may be stale/invalid)
+            identifier = channel.channel_url
             
             # Fetch latest 10 videos
             videos = client.get_latest_videos(identifier, max_results=10)
@@ -113,8 +102,17 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
                 'videos': videos
             })
         except Exception as e:
-            logger.error(f"Error fetching videos: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            error_msg = str(e)
+            logger.error(f"Error fetching videos for '{channel.name}': {error_msg}")
+            
+            # Detect quota exceeded
+            if 'quota' in error_msg.lower():
+                return Response(
+                    {'error': 'YouTube API quota exceeded. Please try again tomorrow.'},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            
+            return Response({'error': error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'])
     def generate_pending(self, request, pk=None):
