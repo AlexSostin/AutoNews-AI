@@ -124,6 +124,20 @@ _BANNED_INLINE_REPLACEMENTS = [
     (re.compile(r'doing its thing,?\s*', re.I), 'working, '),
     (re.compile(r'a testament to its appeal', re.I), 'a sign of strong demand'),
     (re.compile(r'(?:Its|The) rapid ascent to a top.selling position[^.]*\.\s*', re.I), ''),
+    # Clickbait / hype tone
+    (re.compile(r'Hold on to your hats,?\s*(?:folks,?\s*)?(?:because\s*)?', re.I), ''),
+    (re.compile(r'Buckle up,?\s*(?:folks,?\s*)?(?:because\s*)?', re.I), ''),
+    (re.compile(r'Fasten your seatbelts,?\s*(?:because\s*)?', re.I), ''),
+    (re.compile(r'(?:is|are)\s+(?:at it|back at it)\s+again,?\s*', re.I), ''),
+    (re.compile(r'dropping\s+(?:another\s+)?bombshell(?:s)?', re.I), 'releasing'),
+    (re.compile(r'eye[\s-]?watering', re.I), 'competitive'),
+    (re.compile(r'jaw[\s-]?dropping', re.I), 'impressive'),
+    (re.compile(r'mind[\s-]?blowing', re.I), 'notable'),
+    (re.compile(r'game[\s-]?chang(?:ing|er)', re.I), 'significant'),
+    (re.compile(r'this thing is set to make a serious splash', re.I), 'this model enters a competitive segment'),
+    (re.compile(r'is here to shake up', re.I), 'targets'),
+    (re.compile(r'forget (?:everything you knew about |about )?(?:range )?anxiety,?\s*', re.I), ''),
+    (re.compile(r',?\s*folks\b', re.I), ''),
 ]
 
 
@@ -206,10 +220,11 @@ CRITICAL REQUIREMENTS:
    NO static prefixes like "First Drive:". NO HTML entities.
    Example: "2025 BYD Seal 06 GT: A Powerful Electric Hatchback for $25,000"
 
-2. **Engaging Opening** — start with an INTRIGUING hook, not a dry summary:
-   ✅ "MG just pulled the covers off spy shots of what could be one of the most affordable electric sedans in 2026"
-   ✅ "Forget everything you knew about Chinese EVs — the Zeekr 7X rewrites the rulebook"
+2. **Engaging Opening** — start with a CONFIDENT factual hook, not hype:
+   ✅ "BYD's latest plug-in hybrid SUV undercuts most competitors by $10,000 — and matches their range"
+   ✅ "The Zeekr 7X brings 421 hp and 600 km of range to a segment dominated by Tesla"
    ❌ "The 2026 MG7 Electric Sedan is a new vehicle that promises to deliver..." (boring, generic)
+   ❌ "Hold on to your hats, folks" / "Buckle up" / "Forget everything you knew" (clickbait)
 
 3. **Write for car enthusiasts** — make readers feel the car:
    - Use SENSORY language: "The dashboard wraps around you like a cockpit" not "The interior is spacious"
@@ -284,6 +299,16 @@ BANNED PHRASES — article will be REJECTED if these appear:
 - "As a journalist" / "While I haven't personally"
 - Any sentence that says you DON'T HAVE information → DELETE that sentence
 - If you don't know a spec → SKIP the claim. Don't pad with filler.
+
+BANNED TONE — DO NOT write like a clickbait blog:
+- "Hold on to your hats" / "Buckle up" / "Fasten your seatbelts"
+- "eye-watering" / "jaw-dropping" / "mind-blowing" / "game-changing"
+- "this thing is set to make a serious splash" / "dropping a bombshell"
+- "Forget [X]" / "Forget everything you knew"
+- "is here to shake up" / "disrupting the market"
+- "folks" / "guys" / "people" (casual address)
+- Excessive exclamation marks
+- Write with CONFIDENCE and AUTHORITY, not hype. Let the specs speak for themselves.
 
 PROS & CONS RULES:
 - ONLY list things that are KNOWN and REAL.
@@ -374,7 +399,7 @@ Analysis Data:
 Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, accurate, and entertaining. Quality over quantity — every sentence should earn its place.
 """
     
-    system_prompt = """You are a senior automotive journalist at FreshMotors. You write like CarWow's Mat Watson — technically precise, with genuine personality and humor. You prioritize ACCURACY over completeness: if you don't know a spec, you skip it rather than guess. You write for car enthusiasts who want honest, engaging analysis. You compare to competitors ONLY when you have real data. Your articles feel like a conversation with a knowledgeable friend, not a corporate press release. You know major car brands well (including Chinese EVs), but you never fabricate specs you're unsure about. Be entertaining, be accurate, be opinionated where you have real basis for opinions."""
+    system_prompt = """You are a senior automotive journalist at FreshMotors. You write with technical precision and confident authority — think Autocar or Car and Driver, not a YouTube vlog. You prioritize ACCURACY over completeness: if you don't know a spec, you skip it rather than guess. You write for car enthusiasts who want honest, data-driven analysis. You compare to competitors ONLY when you have real data. Your tone is professional but accessible — authoritative without being dry, engaging without being clickbait. You know major car brands well (including Chinese EVs), but you never fabricate specs you're unsure about. Let the facts and specs make the impression — no hype words needed."""
     
     try:
         # Use AI provider factory

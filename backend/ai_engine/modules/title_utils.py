@@ -75,16 +75,92 @@ def _contains_non_latin(text: str) -> bool:
     return len(non_latin) > 2
 
 
+# YouTube video title noise patterns to strip
+_VIDEO_TITLE_NOISE = re.compile(
+    r'\s*\b('
+    r'walk\s*around'
+    r'|first\s+look'
+    r'|first\s+drive'
+    r'|test\s+drive'
+    r'|full\s+tour'
+    r'|full\s+review'
+    r'|hands[\s\-]?on'
+    r'|in[\s\-]?depth\s+(?:look|review|tour)'
+    r'|pov\s+(?:drive|test\s+drive|test|review)'
+    r'|exterior\s*(?:and|&|\+)\s*interior'
+    r'|interior\s*(?:and|&|\+)\s*exterior'
+    r'|detailed\s+look'
+    r'|quick\s+look'
+    r'|buyer\'?s?\s+guide'
+    r'|everything\s+you\s+need\s+to\s+know'
+    r'|what\s+you\s+need\s+to\s+know'
+    r'|is\s+it\s+worth\s+it\??'
+    r'|worth\s+the\s+hype\??'
+    r'|should\s+you\s+buy\s+(?:it|one)\??'
+    r')\b[!]?\s*',
+    re.IGNORECASE
+)
+
+# Noise suffixes at end of title (after dash/pipe/colon)
+_VIDEO_TITLE_SUFFIX_NOISE = re.compile(
+    r'\s*[|–—\-:]\s*('
+    r'4[kK]\s*$'
+    r'|(?:UHD|HD)\s*$'
+    r'|(?:\d{4}p)\s*$'
+    r'|POV\s*$'
+    r'|Review\s*$'
+    r')',
+    re.IGNORECASE
+)
+
+
+def _clean_video_title_noise(title: str) -> str:
+    """Remove YouTube-specific noise from a video title to make it article-ready."""
+    if not title:
+        return title
+    
+    # Strip channel name suffixes (after | or — or –)
+    cleaned = re.sub(r'\s*[|–—]\s*[^|–—]+$', '', title).strip()
+    
+    # Strip video format noise
+    cleaned = _VIDEO_TITLE_NOISE.sub(' ', cleaned).strip()
+    cleaned = _VIDEO_TITLE_SUFFIX_NOISE.sub('', cleaned).strip()
+    
+    # Remove orphaned connectors ("and Review", "or Test", etc.)
+    cleaned = re.sub(r'\s+(?:and|or|&|\+)\s+(?:Review|Test|Drive|Tour)\b', '', cleaned, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r'\s+(?:and|&|\+)\s*$', '', cleaned).strip()
+    cleaned = re.sub(r'^\s*(?:NEW|All New|All-New)\s+', '', cleaned, flags=re.IGNORECASE).strip()
+    
+    # Clean up trailing/leading punctuation left behind (dashes, colons, question marks, exclamation)
+    cleaned = re.sub(r'[\s:,\-–—!?]+$', '', cleaned).strip()
+    cleaned = re.sub(r'^[\s:,\-–—!?]+', '', cleaned).strip()
+    
+    # Clean stray colon-space in middle ("BYD Song DM i : The Range" → "BYD Song DM i: The Range")
+    cleaned = re.sub(r'\s+:\s+', ': ', cleaned)
+    
+    # Clean double spaces
+    cleaned = re.sub(r'\s{2,}', ' ', cleaned)
+    
+    if cleaned != title.strip():
+        logger.info(f"[TITLE] Cleaned video noise: '{title}' → '{cleaned}'")
+    
+    return cleaned if len(cleaned) > 10 else title.strip()
+
+
 def validate_title(title: str, video_title: str = None, specs: dict = None) -> str:
     """
     Validates and fixes article title. Returns a good title or constructs one from available data.
     
     Priority:
     1. Use provided title if it's valid (not generic, long enough, in English)
-    2. Use video_title if available
+    2. Use video_title if available (cleaned of YouTube noise)
     3. Construct from specs (Year Make Model Review)
     4. Last resort: generic but unique-ish fallback
     """
+    # Clean video noise from AI-generated title too (AI sometimes copies video title verbatim)
+    if title:
+        title = _clean_video_title_noise(title)
+    
     # Check if title is valid
     if title and len(title) > 15 and not _is_generic_header(title):
         # Reject non-English titles (Cyrillic, Chinese, etc.)
@@ -96,8 +172,7 @@ def validate_title(title: str, video_title: str = None, specs: dict = None) -> s
     
     # Fallback 1: Use video title (cleaned up)
     if video_title and len(video_title) > 10:
-        # Clean video title (remove channel name suffixes, etc.)
-        clean_vt = re.sub(r'\s*[|\-–]\s*[^|\-–]+$', '', video_title).strip()
+        clean_vt = _clean_video_title_noise(video_title)
         if clean_vt and len(clean_vt) > 10 and not _contains_non_latin(clean_vt):
             return clean_vt
         if not _contains_non_latin(video_title):
