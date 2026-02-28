@@ -204,7 +204,7 @@ def inject_internal_links(article_html: str, tag_names: list, make: str = None) 
         # 3. Append 'Read Also' block at the bottom
         if linked_articles:
             read_also_html = '<div class="seo-related-links" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">'
-            read_also_html += '<h3 style="margin-top: 0; font-size: 1.25rem;">Читайте также:</h3><ul style="margin-bottom: 0;">'
+            read_also_html += '<h3 style="margin-top: 0; font-size: 1.25rem;">Read Also:</h3><ul style="margin-bottom: 0;">'
             for article in linked_articles:
                 # Clean YouTube noise from linked titles (Walk-around, First Look, etc.)
                 try:

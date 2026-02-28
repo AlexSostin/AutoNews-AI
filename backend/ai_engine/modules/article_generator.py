@@ -74,22 +74,20 @@ _BANNED_SENTENCE_PATTERNS = re.compile(
     r'|for the discerning'
     r'|effectively eliminat(?:ing|es?) range anxiety'
     r'|in the evolving landscape'
-    r'|commanding .{3,20} presence'
     r'|prioritizing .{3,30} and .{3,30} comfort'
-    r'|translates directly into'
-    r'|central to .{3,40} appeal'
+    r'|central to .{3,40} identity'
     # Lazy Cons
     r'|While specific cons .{3,60} aren\'t detailed'
     r'|While specific cons .{3,60} not .{3,30} detailed'
     # Cons about missing specs (NOT real cons)
-    r'|Specific .{3,40} metrics .{3,60} not .{3,20} public'
-    r'|Detailed .{3,40} specifications .{3,40} not .{3,20} released'
-    r'|.{3,40} have not .{3,20} been .{3,20} announced'
-    r'|.{3,40} are not yet .{3,20} public'
-    r'|.{3,40} figures have not been .{3,20}released'
-    r'|.{3,40} not yet been officially'
-    r'|.{3,40} remain .{3,20} to be .{3,20} confirmed'
-    r'|.{3,40} have yet to be .{3,20} disclosed'
+    r'|Specific performance metrics .{3,60} not .{3,20} public'
+    r'|Detailed battery specifications .{3,40} not .{3,20} released'
+    r'|specific pricing .{3,20} have not .{3,20} been .{3,20} announced'
+    r'|exact figures .{3,20} are not yet .{3,20} public'
+    r'|official .{3,20} figures have not been .{3,20}released'
+    r'|has not yet been officially announced'
+    r'|details remain .{3,20} to be .{3,20} confirmed'
+    r'|specifics have yet to be .{3,20} disclosed'
     r'|the complexity inherent in'
     r'|might be a consideration for some buyers'
     # Empty "still emerging" paragraphs
@@ -318,7 +316,7 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     
     web_data_section = ""
     if web_context:
-        web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to fill missing specs/facts):\n{web_context}\n"
+        web_data_section = f"\nCRITICAL WEB DATA — USE THIS IN YOUR ARTICLE (sales figures, real specs, market reception, test results):\n{web_context}\n"
     
     # Build entity anchor from source title (Layer 1: anti-hallucination)
     entity_anchor = ""
@@ -370,17 +368,24 @@ CRITICAL REQUIREMENTS:
    NO static prefixes like "First Drive:". NO HTML entities.
    Example: "2025 BYD Seal 06 GT: A Powerful Electric Hatchback for $25,000"
 
-2. **Engaging Opening** — start with a CONFIDENT factual hook, not hype:
+2. **Engaging Opening** — write like a journalist, not a spec sheet:
    ✅ "BYD's latest plug-in hybrid SUV undercuts most competitors by $10,000 — and matches their range"
    ✅ "The Zeekr 7X brings 421 hp and 600 km of range to a segment dominated by Tesla"
+   ✅ "AITO's M8 REV has already racked up over 80,000 orders — and it's been on sale for just a month"
    ❌ "The 2026 MG7 Electric Sedan is a new vehicle that promises to deliver..." (boring, generic)
-   ❌ "Hold on to your hats, folks" / "Buckle up" / "Forget everything you knew" (clickbait)
+   ❌ "Hold on to your hats, folks" / "Buckle up" (clickbait)
+   The opening should hook readers with the MOST INTERESTING FACT from the source data.
 
-3. **Write for car enthusiasts** — make readers feel the car:
-   - Use SENSORY language: "The dashboard wraps around you like a cockpit" not "The interior is spacious"
+3. **Write with PERSONALITY** — your tone should feel like an expert journalist, not a database:
+   - Use CONFIDENT, opinionated language: "This is a serious contender" not "This vehicle is positioned in the market"
    - Give the car a PERSONALITY: "This is the daily driver for someone who's outgrown their Model 3"
    - Add real-world context: "600 km WLTP range means weekend trips without touching a charger"
    - Explain what specs MEAN for the buyer, not just list numbers
+   - USE WEB CONTEXT DATA: If web search found sales figures, orders, market reception, awards,
+     or real-world test data — INCLUDE IT in the article. This is the most valuable data you have.
+     ✅ "Over 80,000 firm orders within a month of launch" — this is GOLD, always include real numbers
+     ✅ "Edmunds testing showed 0-60 in 4.8 seconds" — real test data beats factory claims
+     ❌ Ignoring web search data and only writing about dimensions and price — NEVER do this
 
 3b. **Car Name Usage** — DO NOT repeat the full name ("The 2026 BYD TANG 1240") every sentence.
    - First mention: full name with year → "The 2026 BYD TANG 1240"
