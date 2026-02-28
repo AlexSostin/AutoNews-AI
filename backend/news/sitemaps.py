@@ -11,6 +11,9 @@ class ArticleSitemap(Sitemap):
     def lastmod(self, obj):
         return obj.updated_at
 
+    def location(self, obj):
+        return f'/articles/{obj.slug}'
+
 class CategorySitemap(Sitemap):
     changefreq = "monthly"
     priority = 0.6

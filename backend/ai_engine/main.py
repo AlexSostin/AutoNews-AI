@@ -210,11 +210,21 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
 
     try:
         # Re-check right before create to minimize race window
-        if video_id and PendingArticle.objects.filter(
-            video_id=video_id
-        ).exclude(status__in=['rejected', 'published', 'auto_failed']).exists():
-            print(f"Skipping {youtube_url} - duplicate detected after content generation")
-            return {'success': False, 'reason': 'pending', 'error': 'Duplicate detected'}
+        if video_id:
+            existing = PendingArticle.objects.filter(
+                video_id=video_id
+            ).exclude(status__in=['rejected', 'published', 'auto_failed', 'deleted'])
+            
+            if existing.exists():
+                # Check if the related article was deleted — if so, allow regeneration
+                # by removing the old pending article
+                old_pending = existing.first()
+                if old_pending.status in ('pending', 'approved'):
+                    print(f"♻️ Removing old pending article for video_id={video_id} to allow regeneration")
+                    existing.delete()
+                else:
+                    print(f"Skipping {youtube_url} - duplicate detected after content generation")
+                    return {'success': False, 'reason': 'pending', 'error': 'Duplicate detected'}
 
         pending = PendingArticle.objects.create(
             youtube_channel=channel,
@@ -239,9 +249,33 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         )
     except Exception as e:
         if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
-            print(f"Skipping {youtube_url} - DB unique constraint caught duplicate")
-            return {'success': False, 'reason': 'pending', 'error': 'Duplicate video_id'}
-        raise
+            # DB constraint hit — force-delete old pending and retry once
+            print(f"♻️ DB constraint hit for video_id={video_id}, clearing old pending and retrying")
+            PendingArticle.objects.filter(video_id=video_id).delete()
+            try:
+                pending = PendingArticle.objects.create(
+                    youtube_channel=channel,
+                    video_url=youtube_url,
+                    video_id=video_id,
+                    video_title=final_video_title[:500],
+                    title=result['title'],
+                    content=result['content'],
+                    excerpt=result['summary'],
+                    suggested_category=default_category,
+                    images=result['image_paths'],
+                    featured_image=result['image_paths'][0] if result['image_paths'] else '',
+                    image_source='youtube',
+                    author_name=result.get('author_name', ''),
+                    author_channel_url=result.get('author_channel_url', ''),
+                    specs=result['specs'],
+                    tags=result['tag_names'],
+                    status='pending'
+                )
+            except Exception as retry_err:
+                print(f"❌ Retry also failed: {retry_err}")
+                return {'success': False, 'reason': 'pending', 'error': 'Duplicate video_id'}
+        else:
+            raise
     
     print(f"✅ Created PendingArticle: {pending.title}")
     return {'success': True, 'pending_id': pending.id}
