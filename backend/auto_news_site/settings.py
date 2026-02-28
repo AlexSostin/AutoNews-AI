@@ -74,9 +74,8 @@ if DEBUG:
 # Application definition
 
 INSTALLED_APPS = [
-    # Daphne ASGI server — only in production (in dev, its sync_to_async thread pool
-    # gets starved by background scheduler threads, causing API requests to hang)
-    *(['daphne'] if not DEBUG else []),
+    # Daphne ASGI server — required for WebSocket support (Django Channels)
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

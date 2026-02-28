@@ -656,99 +656,103 @@ export default function NewArticlePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <ArticleBasicInfo
-              title={formData.title}
-              slug={formData.slug}
-              summary={formData.summary}
-              onTitleChange={handleTitleChange}
-              onSlugChange={(v) => setFormData({ ...formData, slug: v })}
-              onSummaryChange={(v) => setFormData({ ...formData, summary: v })}
-            />
-            <ArticleContentEditor
-              content={formData.content}
-              onContentChange={(newContent) => setFormData({ ...formData, content: newContent })}
-              onReformat={() => alert('Save the article first to use AI Reformat')}
-              onEnrich={() => alert('Save the article first to use AI Enrich')}
-              onRegenerate={() => alert('Save the article first to use AI Regenerate')}
-              isReformatting={false}
-              isEnriching={false}
-              isRegenerating={false}
-              hasYoutubeUrl={!!formData.youtube_url}
-            />
-            <ArticleImageManager
+        {/* 1. Basic Info: Title, Slug, Summary */}
+        <ArticleBasicInfo
+          title={formData.title}
+          slug={formData.slug}
+          summary={formData.summary}
+          onTitleChange={handleTitleChange}
+          onSlugChange={(v) => setFormData({ ...formData, slug: v })}
+          onSummaryChange={(v) => setFormData({ ...formData, summary: v })}
+        />
+
+        {/* 2. Article Content (WYSIWYG Editor) */}
+        <ArticleContentEditor
+          content={formData.content}
+          onContentChange={(newContent) => setFormData({ ...formData, content: newContent })}
+          onReformat={() => alert('Save the article first to use AI Reformat')}
+          onEnrich={() => alert('Save the article first to use AI Enrich')}
+          onRegenerate={() => alert('Save the article first to use AI Regenerate')}
+          isReformatting={false}
+          isEnriching={false}
+          isRegenerating={false}
+          hasYoutubeUrl={!!formData.youtube_url}
+        />
+
+        {/* 3. Categories, Tags & YouTube */}
+        <ArticleSeoMeta
+          youtubeUrl={formData.youtube_url}
+          onYoutubeUrlChange={(v: string) => setFormData({ ...formData, youtube_url: v })}
+          showYoutube={formData.show_youtube}
+          onShowYoutubeChange={(v: boolean) => setFormData({ ...formData, show_youtube: v })}
+          categorySelector={
+            <TagSelector
+              categories={categories}
+              tags={[]}
+              setTags={() => { }}
               formData={formData}
               setFormData={setFormData}
-              imageSource={imageSource}
-              setImageSource={setImageSource}
-              setPreviewImage={setPreviewImage}
-              openPhotoSearch={(slot: number) => {
-                setPhotoSearchSlot(slot);
-                setPhotoSearchQuery(formData.title || formData.slug || '');
-                setPhotoSearchOpen(true);
-                setPhotoSearchResults([]);
-              }}
-              photoSearchLoading={photoSearchLoading}
-              generateAIImage={async () => {
-                alert('Please save the article first before generating AI images.');
-              }}
-              generatingAI={generatingAI}
+              handleTagToggle={() => { }}
             />
-          </div>
+          }
+          tagSelector={
+            <TagSelector
+              categories={[]}
+              tags={tags}
+              setTags={setTags}
+              formData={formData}
+              setFormData={setFormData}
+              handleTagToggle={handleTagToggle}
+            />
+          }
+        />
 
-          <div className="space-y-6">
-            <ArticlePublishSettings
-              isPublished={formData.published}
-              isHero={formData.is_hero}
-              onPublishedChange={(v: boolean) => setFormData({ ...formData, published: v })}
-              onHeroChange={(v: boolean) => setFormData({ ...formData, is_hero: v })}
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2 mb-4"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Save size={20} />
-                  Create Article
-                </>
-              )}
-            </button>
-            <ArticleSeoMeta
-              youtubeUrl={formData.youtube_url}
-              onYoutubeUrlChange={(v: string) => setFormData({ ...formData, youtube_url: v })}
-              showYoutube={formData.show_youtube}
-              onShowYoutubeChange={(v: boolean) => setFormData({ ...formData, show_youtube: v })}
-              categorySelector={
-                <TagSelector
-                  categories={categories}
-                  tags={[]}
-                  setTags={() => { }}
-                  formData={formData}
-                  setFormData={setFormData}
-                  handleTagToggle={() => { }}
-                />
-              }
-              tagSelector={
-                <TagSelector
-                  categories={[]}
-                  tags={tags}
-                  setTags={setTags}
-                  formData={formData}
-                  setFormData={setFormData}
-                  handleTagToggle={handleTagToggle}
-                />
-              }
-            />
-          </div>
-        </div>
+        {/* 4. Images */}
+        <ArticleImageManager
+          formData={formData}
+          setFormData={setFormData}
+          imageSource={imageSource}
+          setImageSource={setImageSource}
+          setPreviewImage={setPreviewImage}
+          openPhotoSearch={(slot: number) => {
+            setPhotoSearchSlot(slot);
+            setPhotoSearchQuery(formData.title || formData.slug || '');
+            setPhotoSearchOpen(true);
+            setPhotoSearchResults([]);
+          }}
+          photoSearchLoading={photoSearchLoading}
+          generateAIImage={async () => {
+            alert('Please save the article first before generating AI images.');
+          }}
+          generatingAI={generatingAI}
+        />
+
+        {/* 5. Publish Settings */}
+        <ArticlePublishSettings
+          isPublished={formData.published}
+          isHero={formData.is_hero}
+          onPublishedChange={(v: boolean) => setFormData({ ...formData, published: v })}
+          onHeroChange={(v: boolean) => setFormData({ ...formData, is_hero: v })}
+        />
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-xl font-bold text-lg hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+        >
+          {loading ? (
+            <>
+              <Loader2 size={22} className="animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Save size={22} />
+              Create Article
+            </>
+          )}
+        </button>
       </form>
 
       {/* Preview Modal */}

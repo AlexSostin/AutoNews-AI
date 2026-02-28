@@ -194,6 +194,17 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     
     current_date = datetime.now().strftime("%B %Y")
     
+    # Load few-shot examples
+    few_shot_block = ""
+    try:
+        try:
+            from ai_engine.modules.few_shot_examples import get_few_shot_examples
+        except ImportError:
+            from modules.few_shot_examples import get_few_shot_examples
+        few_shot_block = get_few_shot_examples(provider)
+    except Exception as e:
+        print(f"⚠️ Could not load few-shot examples: {e}")
+    
     prompt = f"""
 {entity_anchor}
 {web_data_section}
@@ -238,11 +249,13 @@ CRITICAL REQUIREMENTS:
    ✅ "At $28,100, it costs nearly half what a Model Y does in Europe"
    ❌ "It competes with the Tesla Model 3 (250 hp), BMW i4 (335 hp), Hyundai Ioniq 5 (320 hp), Audi e-tron (355 hp)..." (list spam)
 
-5. **Word count**: HARD LIMIT 400-750 words. NEVER exceed 750 words.
-   If source data is thin (spy shots, teaser), a 400-500 word article is PERFECTLY FINE.
+5. **Word count**: TARGET 700-1200 words. Aim for 800-1000 words as the sweet spot.
+   If source data is thin (spy shots, teaser), a 500-600 word article is acceptable.
+   If source data is rich (full specs, features, pricing), write a COMPREHENSIVE 1000-1200 word article.
    QUALITY always beats QUANTITY. Every sentence should earn its place.
    Do NOT pad with long feature lists or exhaustive option packages.
-   Count your words. If you're over 750, CUT the weakest paragraphs.
+   DO include deep technical explanations — what does the powertrain architecture mean for the driver?
+   DO explain real-world implications of specs — what does 1508 km range mean for road trips?
 
 7. **ANTI-REPETITION**: Do NOT repeat the same fact, number, or claim more than ONCE.
    If you've stated "92% efficiency" in the introduction → do NOT restate it in later sections.
@@ -372,8 +385,18 @@ Required Structure (OMIT any section where you have NO data):
 - <h2>Design & Interior</h2> — Styling, materials, space.
   Compare design language to ONE well-known car if the comparison is genuine and insightful.
   Focus on what IS visible/confirmed, not what might be.
+  Describe cabin layout, screen sizes, materials quality, seating capacity, cargo space.
 - <h2>Technology & Features</h2> — List SPECIFIC items from the source data.
+  Include ADAS/autonomous driving hardware (radars, cameras, LiDAR), infotainment chip,
+  audio system, connectivity (4G/5G), V2L capability, smart keys, OTA updates.
   Only mention features that are confirmed. If NO features are confirmed → OMIT this section.
+- <h2>Driving Experience</h2> — How does this car FEEL to drive?
+  On-road refinement, off-road capability (if SUV), ride comfort, noise levels, steering feel,
+  suspension type (air, adaptive, etc.), ground clearance, approach/departure angles (if SUV/off-road).
+  If the source has driving impressions — include them. If not, describe what the specs SUGGEST:
+  e.g. "With 2,185 kg curb weight and AWD, expect planted highway stability but reduced agility in tight corners"
+  This section brings the car to life — make the reader FEEL what it's like behind the wheel.
+  If NO driving data exists → OMIT this section.
 - <h2>Pricing & Availability</h2> — CONCISE, 3-5 bullet points:
   <ul><li>Only confirmed prices and markets</li></ul>
   Do NOT fabricate MSRP prices. If pricing is unknown, say "pricing has not been announced yet."
@@ -382,7 +405,9 @@ Required Structure (OMIT any section where you have NO data):
   ✅ "No Apple CarPlay — a dealbreaker for many"
   ❌ "Range is impressive" (too vague)
   ❌ "Specs are unknown" (NOT a con — it's missing info)
-- Conclusion: who should buy this car and why. Be specific.
+- <h2>FreshMotors Verdict</h2> — who should buy this car and why. Be specific and opinionated.
+  Give it a character: "The daily driver for someone who's outgrown their Model 3" or
+  "A rugged weekend warrior that doubles as a comfortable commuter".
 
 AT THE VERY END, add:
 <div class="alt-texts" style="display:none">
@@ -390,6 +415,8 @@ ALT_TEXT_1: [descriptive alt text for hero/exterior image]
 ALT_TEXT_2: [descriptive alt text for interior image]
 ALT_TEXT_3: [descriptive alt text for detail/tech image]
 </div>
+
+{few_shot_block}
 
 Analysis Data:
 {analysis_data}
@@ -512,68 +539,65 @@ def ensure_html_only(content):
     """
     Ensures the content is properly formatted HTML.
     Always cleans up markdown bold/italic remnants (**, ***, *).
-    If no HTML lists exist, also converts markdown lists to HTML.
+    Converts markdown lists to HTML lists.
+    Wraps bare text blocks in <p> tags.
     """
-    has_html_lists = "<li>" in content and "<ul>" in content
-    has_html_structure = "<p>" in content or "<h2>" in content
+    if not content or not content.strip():
+        return content
 
     # Step 1: Always clean markdown bold/italic remnants, even in otherwise-HTML content
     # Order matters: handle *** before ** before *
-    # ***bold italic*** → <strong><em>...</em></strong>
     content = re.sub(r'\*\*\*(.*?)\*\*\*', r'<strong><em>\1</em></strong>', content)
-    # **bold** → <strong>...</strong>
     content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', content)
-    # *italic* (but NOT inside HTML tags or URLs) → <em>...</em>
-    # Only match * that is NOT preceded/followed by space (to avoid messing with list markers)
-    content = re.sub(r'(?<![<\s/])\*([^*\n]+?)\*(?![>*/])', r'<em>\1</em>', content)
+    content = re.sub(r'(?<![\<\s/])\*([^*\n]+?)\*(?![\>/])', r'<em>\1</em>', content)
 
-    # Step 2: If content already has proper HTML lists, we're done
-    if has_html_lists and has_html_structure:
-        return content
+    # Step 2: Convert markdown headings (## / ###) if present
+    content = re.sub(r'^###\s+(.*)$', r'<h3>\1</h3>', content, flags=re.MULTILINE)
+    content = re.sub(r'^##\s+(.*)$', r'<h2>\1</h2>', content, flags=re.MULTILINE)
+    content = re.sub(r'^#\s+(.*)$', r'<h2>\1</h2>', content, flags=re.MULTILINE)
 
-    # Step 3: If there are remaining markdown patterns, convert lists too
-    needs_list_conversion = bool(re.search(r'^\s*[\*\-]\s+', content, re.MULTILINE))
-    
-    if needs_list_conversion and not has_html_lists:
-        print("🔧 Detected Markdown list patterns. Converting to HTML...")
-        if markdown:
-            html_content = markdown.markdown(content, extensions=['extra', 'sane_lists'])
-            return html_content
-        else:
-            print("⚠️ Warning: 'markdown' module not found. Using enhanced fallback conversion.")
-            
-            # Clean up backticks
-            content = re.sub(r'```[a-z]*\n?', '', content)
-            content = re.sub(r'```', '', content)
-            
-            # Convert headings
-            content = re.sub(r'^###\s+(.*)$', r'<h3>\1</h3>', content, flags=re.MULTILINE)
-            content = re.sub(r'^##\s+(.*)$', r'<h2>\1</h2>', content, flags=re.MULTILINE)
-            content = re.sub(r'^#\s+(.*)$', r'<h1>\1</h1>', content, flags=re.MULTILINE)
-            
-            # Convert simple lists
-            content = re.sub(r'^\*\s+(.*)$', r'<li>\1</li>', content, flags=re.MULTILINE)
-            content = re.sub(r'^\-\s+(.*)$', r'<li>\1</li>', content, flags=re.MULTILINE)
-            
-            # Wrap lists
-            if '<li>' in content:
-                 content = content.replace('<li>', '<ul><li>', 1)
-                 content = content.replace('</li>\n\n', '</li></ul>\n\n')
-            
-            # Paragraphs - wrap anything not in a tag
-            if "<p>" not in content:
-                blocks = content.split('\n\n')
-                new_blocks = []
-                for b in blocks:
-                    b = b.strip()
-                    if not b: continue
-                    if b.startswith('<'):
-                        new_blocks.append(b)
-                    else:
-                        new_blocks.append(f"<p>{b}</p>")
-                content = '\n\n'.join(new_blocks)
-                
-            return clean_html_markup(content)
+    # Step 3: Convert markdown lists (* item, - item) to HTML <ul><li>
+    # Process line by line to properly group consecutive list items
+    has_md_lists = bool(re.search(r'^\s*[\*\-]\s+', content, re.MULTILINE))
+    if has_md_lists and '<li>' not in content:
+        lines = content.split('\n')
+        result_lines = []
+        in_list = False
+        for line in lines:
+            stripped = line.strip()
+            is_list_item = bool(re.match(r'^[\*\-]\s+(.+)', stripped))
+            if is_list_item:
+                item_text = re.sub(r'^[\*\-]\s+', '', stripped)
+                if not in_list:
+                    result_lines.append('<ul>')
+                    in_list = True
+                result_lines.append(f'<li>{item_text}</li>')
+            else:
+                if in_list:
+                    result_lines.append('</ul>')
+                    in_list = False
+                result_lines.append(line)
+        if in_list:
+            result_lines.append('</ul>')
+        content = '\n'.join(result_lines)
+
+    # Step 4: Wrap bare text blocks in <p> tags (text not inside any HTML tag)
+    if '<p>' not in content:
+        blocks = content.split('\n\n')
+        new_blocks = []
+        for b in blocks:
+            b = b.strip()
+            if not b:
+                continue
+            if b.startswith('<'):
+                new_blocks.append(b)
+            else:
+                new_blocks.append(f'<p>{b}</p>')
+        content = '\n\n'.join(new_blocks)
+
+    # Step 5: Clean up backticks
+    content = re.sub(r'```[a-z]*\n?', '', content)
+    content = re.sub(r'```', '', content)
 
     return clean_html_markup(content)
 
@@ -611,6 +635,17 @@ def expand_press_release(press_release_text, source_url, provider='gemini', web_
             pass
     
     current_date = datetime.now().strftime("%B %Y")
+    
+    # Load few-shot examples
+    few_shot_block = ""
+    try:
+        try:
+            from ai_engine.modules.few_shot_examples import get_few_shot_examples
+        except ImportError:
+            from modules.few_shot_examples import get_few_shot_examples
+        few_shot_block = get_few_shot_examples(provider)
+    except Exception as e:
+        print(f"⚠️ Could not load few-shot examples: {e}")
     
     prompt = f"""
 {entity_anchor}
@@ -740,7 +775,7 @@ ALT_TEXT_3: [descriptive alt text for detail/tech image]
 </p>
 
 Content Guidelines:
-- HARD WORD LIMIT: 400-750 words. NEVER exceed 750. Count your words. Cut weakest paragraphs if over.
+- WORD COUNT TARGET: 700-1200 words. Aim for 800-1000 words. Write comprehensively when data is rich.
 - ANTI-REPETITION: Do NOT repeat the same fact/number more than ONCE. Each paragraph must add NEW info.
   The "Why This Matters" section must provide NEW market insights, not repeat the introduction.
 - Write for car enthusiasts — sensory language, personality, real-world context
@@ -758,6 +793,8 @@ Content Guidelines:
 ⚠️ MODEL ACCURACY: Use the EXACT car model name from the press release.
 
 {f'FINAL CHECK: The vehicle name MUST be exactly as specified in the MANDATORY VEHICLE IDENTITY section above. If you wrote a different model name or number, your article is WRONG.' if entity_anchor else ''}
+
+{few_shot_block}
 
 Remember: Every sentence should earn its place. Be accurate, engaging, and helpful.
 """

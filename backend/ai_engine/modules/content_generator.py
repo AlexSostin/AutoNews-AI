@@ -57,6 +57,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         from ai_engine.modules.downloader import extract_video_screenshots
         from ai_engine.modules.title_utils import extract_title, validate_title, _is_generic_header
         from ai_engine.modules.duplicate_checker import check_car_duplicate
+        from ai_engine.modules.utils import clean_video_title
     except ImportError:
         from modules.transcriber import transcribe_from_youtube
         from modules.analyzer import analyze_transcript
@@ -64,6 +65,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         from modules.downloader import extract_video_screenshots
         from modules.title_utils import extract_title, validate_title, _is_generic_header
         from modules.duplicate_checker import check_car_duplicate
+        from modules.utils import clean_video_title
 
     def send_progress(step, progress, message):
         _send_progress(task_id, step, progress, message)
@@ -93,6 +95,10 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 print(f"👤 Channel: {author_name} ({author_channel_url})")
         except Exception as e:
             print(f"⚠️ Could not fetch video metadata: {e}")
+
+        # 0.5. Clean video title — strip YouTube noise ("walk around", "first look", etc.)
+        if video_title:
+            video_title = clean_video_title(video_title)
 
         # 1. Fetch transcript
         _t_step = _time.time()
@@ -294,9 +300,10 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         # 4. Determine title — multi-layer validation
         title = None
         
-        # Priority 1: SEO Title from Analysis
+        # Priority 1: SEO Title from Analysis (clean YouTube noise from it)
         if specs.get('seo_title') and len(specs['seo_title']) > 5:
             candidate = specs['seo_title'].replace('"', '').replace("'", "")
+            candidate = clean_video_title(candidate)  # strip "walk around" etc.
             if not _is_generic_header(candidate):
                 title = candidate
                 print(f"📌 Using SEO Title from Analysis: {title}")
@@ -319,7 +326,17 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             
         # Final validation — catches anything that slipped through
         title = validate_title(title, video_title=video_title, specs=specs)
+        title = clean_video_title(title)  # final safety net for YouTube noise
         print(f"✅ Final validated title: {title}")
+        
+        # 4.5. Clean YouTube noise from article body too
+        # AI may echo "walk around" in every car name mention
+        import re as _re
+        noise_body_re = _re.compile(
+            r'\s+(walk[\s-]*around|walkaround|first\s+look|first\s+drive|test\s+drive)',
+            _re.IGNORECASE
+        )
+        article_html = noise_body_re.sub('', article_html)
         
         # 5. Extract screenshots from video
         _t_step = _time.time()

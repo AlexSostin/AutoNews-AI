@@ -449,6 +449,114 @@
       "total_time": 98.1,
       "spec_fields_filled": 5,
       "timestamp": "2026-02-27T15:53:10.600359"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 97.7,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-02-27T16:22:32.344097"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 102.4,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-27T16:22:37.179891"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 97.6,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-27T16:23:04.963539"
+    },
+    {
+      "provider": "gemini",
+      "make": "Xiaomi",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 108.1,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-02-27T19:30:31.576802"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 48.8,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T08:02:01.286237"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 56.2,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T09:15:06.163462"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 45.7,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T09:43:50.495308"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 54.8,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T10:01:42.404102"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 56.3,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T10:10:12.700019"
+    },
+    {
+      "provider": "groq",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 35.3,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T10:25:13.216946"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 51.8,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T10:32:11.138734"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 56.1,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T10:53:52.979826"
     }
   ]
 }

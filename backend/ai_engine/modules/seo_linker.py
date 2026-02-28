@@ -30,7 +30,7 @@ def inject_internal_links(article_html: str, tag_names: list, make: str = None) 
             search_terms.extend(tag_names)
             
         # Get latest 10 related articles to pick 2 randomly
-        related_articles = list(query.order_by('-published_at')[:10])
+        related_articles = list(query.order_by('-created_at')[:10])
         
         if not related_articles:
             return article_html
@@ -76,16 +76,16 @@ def inject_internal_links(article_html: str, tag_names: list, make: str = None) 
                     # Exact word match (case insensitive)
                     pattern = re.compile(r'\b' + re.escape(keyword) + r'\b', re.IGNORECASE)
                     if pattern.search(text_content):
-                        # Extract the exact matched casing
+                        # Build link HTML using the matched text
                         match_str = pattern.search(text_content).group(0)
+                        link_html = f'<a href="{target_url}" title="{article.title}" data-seo-linker="true">{match_str}</a>'
                         
-                        p_html = str(p)
-                        # Avoid matching inside existing HTML attributes by simple replace on text
-                        # Since we checked p.find('a') is None, it should be safe.
-                        new_p_html = pattern.sub(f'<a href="{target_url}" title="{article.title}" data-seo-linker="true">\g<0></a>', p_html, count=1)
+                        # Replace first occurrence in the paragraph's inner HTML
+                        inner_html = p.decode_contents()
+                        new_inner = pattern.sub(link_html, inner_html, count=1)
+                        p.clear()
+                        p.append(BeautifulSoup(new_inner, 'html.parser'))
                         
-                        new_p_soup = BeautifulSoup(new_p_html, 'html.parser')
-                        p.replace_with(new_p_soup)
                         link_injected = True
                         linked_articles.append(article)
                         break

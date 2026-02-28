@@ -114,6 +114,62 @@ def clean_title(title):
     return title
 
 
+# YouTube noise phrases to strip from video titles before AI sees them
+_YOUTUBE_NOISE_PATTERNS = [
+    # Common YouTube video type suffixes (case-insensitive)
+    r'\bwalk[\s-]*around\b',
+    r'\bwalkaround\b',
+    r'\bfirst\s+look\b',
+    r'\bfirst\s+drive\b',
+    r'\btest\s+drive\b',
+    r'\bhands[\s-]?on\b',
+    r'\bfull\s+review\b',
+    r'\breview\b',
+    r'\bpov\s+drive\b',
+    r'\bpov\b',
+    r'\bexterior\s+(?:and|&)\s+interior\b',
+    r'\bexterior\s+interior\b',
+    r'\b(?:4k|uhd|hdr|60fps)\b',
+    r'\bin\s+\d+\s*k\b',      # "in 4k"
+    r'\bunboxing\b',
+    r'\bfull\s+tour\b',
+    r'\bdetailed\s+tour\b',
+    r'\bcomplete\s+guide\b',
+]
+
+_YOUTUBE_NOISE_RE = re.compile(
+    '|'.join(_YOUTUBE_NOISE_PATTERNS),
+    re.IGNORECASE
+)
+
+
+def clean_video_title(title):
+    """
+    Strip YouTube-specific noise from video titles before passing to AI.
+    
+    Example:
+        "2026 BYD SONG DM i walk around" -> "2026 BYD SONG DM i"
+        "Tesla Model 3 First Look POV 4K" -> "Tesla Model 3"
+    """
+    if not title:
+        return title
+    
+    cleaned = _YOUTUBE_NOISE_RE.sub('', title)
+    
+    # Clean up leftover separators, dangling '&'/'and', and whitespace
+    cleaned = re.sub(r'\s*[&]\s*$', '', cleaned)  # trailing &
+    cleaned = re.sub(r'\s+and\s*$', '', cleaned, flags=re.IGNORECASE)  # trailing "and"
+    cleaned = re.sub(r'\s*[:\-|–—]\s*$', '', cleaned)  # trailing separators
+    cleaned = re.sub(r'^\s*[:\-|–—]\s*', '', cleaned)  # leading separators
+    cleaned = re.sub(r'\s*[:\-|–—]\s*[:\-|–—]\s*', ' — ', cleaned)  # double separators
+    cleaned = re.sub(r'\s{2,}', ' ', cleaned).strip()
+    
+    if cleaned != title.strip():
+        print(f"🧹 Title cleaned: \"{title.strip()}\" → \"{cleaned}\"")
+    
+    return cleaned or title  # fallback to original if everything was stripped
+
+
 def validate_article_quality(content):
     """
     Validate quality of AI-generated article content.

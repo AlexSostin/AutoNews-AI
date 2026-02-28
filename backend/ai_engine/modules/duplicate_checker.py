@@ -33,7 +33,7 @@ def check_duplicate(youtube_url):
     
     from news.models import Article
     
-    existing = Article.objects.filter(youtube_url=youtube_url).first()
+    existing = Article.objects.filter(youtube_url=youtube_url, is_deleted=False).first()
     if existing:
         print(f"⚠️  Статья уже существует: {existing.slug} (ID: {existing.id})")
         return existing

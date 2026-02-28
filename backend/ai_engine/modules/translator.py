@@ -58,6 +58,17 @@ def translate_and_enhance(
     length_config = LENGTH_PRESETS.get(target_length, LENGTH_PRESETS['medium'])
     tone_desc = TONE_DESCRIPTIONS.get(tone, TONE_DESCRIPTIONS['professional'])
 
+    # Load few-shot examples
+    few_shot_block = ""
+    try:
+        try:
+            from ai_engine.modules.few_shot_examples import get_few_shot_examples
+        except ImportError:
+            from modules.few_shot_examples import get_few_shot_examples
+        few_shot_block = get_few_shot_examples(provider)
+    except Exception as e:
+        print(f"⚠️ Could not load few-shot examples: {e}")
+
     # Build SEO keywords instruction
     seo_section = ''
     if seo_keywords.strip():
@@ -91,7 +102,7 @@ CATEGORY: {category}
 OUTPUT FORMAT - Return a JSON object (and NOTHING else) with these fields:
 {{
   "title": "Engaging, SEO-optimized title with year/brand/model if applicable (plain text, no HTML)",
-  "content": "Full HTML article content (use <h2>, <p>, <ul>, <li>, <strong> etc.)",
+  "content": "<h2>Section Title</h2><p>Full HTML article content...</p>",
   "summary": "2-3 sentence article summary for preview cards (plain text)",
   "meta_description": "SEO meta description, 150-160 characters (plain text)",
   "suggested_slug": "url-friendly-slug-like-this",
@@ -99,8 +110,22 @@ OUTPUT FORMAT - Return a JSON object (and NOTHING else) with these fields:
   "seo_keywords": ["keyword1", "keyword2", "keyword3"]
 }}
 
+⚠️ CRITICAL — The "content" field MUST contain properly formatted HTML:
+- Every section heading MUST be wrapped in <h2>...</h2>
+- Every paragraph MUST be wrapped in <p>...</p>
+- Every list MUST use <ul><li>...</li></ul>
+- Use <strong> for emphasis on brand names, model names, and key specs
+- Do NOT output plain text — it will break the editor
+
+EXAMPLE of correct content format:
+<h2>Performance & Specs</h2>
+<p>The 2026 BYD Song features a <strong>120 kW</strong> electric motor...</p>
+<h2>Pros & Cons</h2>
+<h3>Pros</h3>
+<ul><li>Exceptional range of 1,508 km combined</li></ul>
+
 HTML CONTENT STRUCTURE (for the "content" field):
-- Start with an engaging introduction paragraph (2-3 sentences)
+- Start with an engaging introduction paragraph (2-3 sentences) wrapped in <p>
 - Use <h2> for section headings
 - Use <p> for paragraphs
 - Use <ul>/<li> for lists
@@ -123,6 +148,9 @@ CRITICAL RULES:
 7. Make the title engaging and click-worthy
 8. The meta_description must be 150-160 characters
 9. Output ONLY the JSON object, nothing else
+10. The "content" MUST be HTML with <h2>, <p>, <ul> tags — NOT plain text
+
+{few_shot_block}
 """
 
     system_prompt = (
@@ -146,9 +174,29 @@ CRITICAL RULES:
         # Parse JSON from the response
         result = _parse_ai_response(raw_response)
 
-        # Post-processing
-        result['content'] = _clean_html(result.get('content', ''))
-        result['reading_time'] = calculate_reading_time(result.get('content', ''))
+        # Post-processing — ensure HTML and clean
+        content = result.get('content', '')
+        content = _ensure_html(content)
+        content = _clean_html(content)
+
+        # Strip YouTube noise from title and body ("walk around", "first look", etc.)
+        try:
+            from ai_engine.modules.utils import clean_video_title
+        except ImportError:
+            from modules.utils import clean_video_title
+
+        if result.get('title'):
+            result['title'] = clean_video_title(result['title'])
+
+        # Remove noise from body text too (AI may echo it in every car name mention)
+        noise_body_re = re.compile(
+            r'\s+(walk[\s-]?around|walkaround|first\s+look|first\s+drive|test\s+drive)',
+            re.IGNORECASE
+        )
+        content = noise_body_re.sub('', content)
+
+        result['content'] = content
+        result['reading_time'] = calculate_reading_time(content)
 
         # Validate
         quality = validate_article_quality(result.get('content', ''))
@@ -205,6 +253,71 @@ def _parse_ai_response(raw: str) -> dict:
         'suggested_categories': [],
         'seo_keywords': [],
     }
+
+
+def _ensure_html(text: str) -> str:
+    """If the AI returned plain text without HTML tags, wrap it in proper HTML."""
+    if not text or not text.strip():
+        return ''
+
+    # Check if content already has HTML tags
+    has_html = bool(re.search(r'<(h[1-6]|p|ul|ol|div|table|blockquote)[\s>]', text, re.IGNORECASE))
+    if has_html:
+        return text  # Already HTML, leave as-is
+
+    print('⚠️  AI returned plain text, auto-wrapping in HTML tags...')
+    lines = text.strip().split('\n')
+    html_parts = []
+    in_list = False
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            continue
+
+        # Detect bullet points
+        is_bullet = stripped.startswith(('* ', '- ', '• ', '– '))
+        if is_bullet:
+            bullet_text = stripped.lstrip('*-•– ').strip()
+            if not in_list:
+                html_parts.append('<ul>')
+                in_list = True
+            html_parts.append(f'<li>{bullet_text}</li>')
+            continue
+
+        # Close list if we were in one
+        if in_list:
+            html_parts.append('</ul>')
+            in_list = False
+
+        # Detect headings: short lines that look like section titles
+        # (no period at end, relatively short, often Title Case)
+        is_heading = (
+            len(stripped) < 80
+            and not stripped.endswith('.')
+            and not stripped.endswith(':')
+            and stripped[0].isupper()
+            and any(kw in stripped.lower() for kw in [
+                'specs', 'performance', 'design', 'interior', 'technology',
+                'pricing', 'availability', 'pros', 'cons', 'why this matters',
+                'features', 'safety', 'conclusion', 'verdict', 'overview',
+                'range', 'battery', 'powertrain', 'engine', 'dimensions',
+                'market', 'competition', 'charging',
+            ])
+        )
+
+        if is_heading:
+            html_parts.append(f'<h2>{stripped}</h2>')
+        else:
+            html_parts.append(f'<p>{stripped}</p>')
+
+    if in_list:
+        html_parts.append('</ul>')
+
+    return '\n'.join(html_parts)
 
 
 def _clean_html(html: str) -> str:
