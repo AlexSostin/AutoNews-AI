@@ -80,11 +80,9 @@ _BANNED_SENTENCE_PATTERNS = re.compile(
     r'|While specific cons .{3,60} aren\'t detailed'
     r'|While specific cons .{3,60} not .{3,30} detailed'
     # Cons about missing specs (NOT real cons)
-    r'|Specific performance metrics .{3,60} not .{3,20} public'
-    r'|Detailed battery specifications .{3,40} not .{3,20} released'
-    r'|specific pricing .{3,20} have not .{3,20} been .{3,20} announced'
-    r'|exact figures .{3,20} are not yet .{3,20} public'
-    r'|official .{3,20} figures have not been .{3,20}released'
+    r'|[Ss]pecific .{3,60} (?:is |are )not (?:yet )?(?:detailed|public|available|confirmed|released)'
+    r'|[Dd]etailed .{3,60} (?:is |are |have )not (?:been )?(?:publicly )?(?:available|released|detailed|confirmed)'
+    r'|[Ee]xact .{3,40} (?:is |are )not (?:yet )?confirmed'
     r'|has not yet been officially announced'
     r'|details remain .{3,20} to be .{3,20} confirmed'
     r'|specifics have yet to be .{3,20} disclosed'
@@ -366,6 +364,10 @@ CRITICAL REQUIREMENTS:
 1. **Title** — descriptive, engaging, unique
    Include: YEAR, BRAND, MODEL, and if available PRICE or VERSION
    NO static prefixes like "First Drive:". NO HTML entities.
+   If the model name contains a NUMBER that represents a spec (e.g. "TANG 1240" where 1240 = range,
+   "EX90" where 90 = battery kWh), EXPLAIN IT in the title or subtitle:
+   ✅ "2026 BYD TANG 1240: 7-Seater PHEV with 1,240 km Range for $26,000"
+   ❌ "2026 BYD TANG 1240: A PHEV SUV Starting at $26,000" (what is 1240?)
    Example: "2025 BYD Seal 06 GT: A Powerful Electric Hatchback for $25,000"
 
 2. **Engaging Opening** — write like a journalist, not a spec sheet:
@@ -624,7 +626,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
                 prompt=current_prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
-                max_tokens=6000
+                max_tokens=8192
             )
             
             if not article_content:
@@ -696,7 +698,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
                 prompt=prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
-                max_tokens=4096
+                max_tokens=8192
             )
             if article_content:
                 print(f"✓ Fallback successful with {fallback_display}!")
