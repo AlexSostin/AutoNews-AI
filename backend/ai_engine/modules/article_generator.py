@@ -68,6 +68,16 @@ _BANNED_SENTENCE_PATTERNS = re.compile(
     r'|isn\'t merely another'
     r'|this isn\'t your typical'
     r'|this isn\'t your average'
+    # AI filler
+    r'|a compelling proposition'
+    r'|a compelling package'
+    r'|for the discerning'
+    r'|effectively eliminat(?:ing|es?) range anxiety'
+    r'|in the evolving landscape'
+    r'|commanding .{3,20} presence'
+    r'|prioritizing .{3,30} and .{3,30} comfort'
+    r'|translates directly into'
+    r'|central to .{3,40} appeal'
     # Lazy Cons
     r'|While specific cons .{3,60} aren\'t detailed'
     r'|While specific cons .{3,60} not .{3,30} detailed'
@@ -110,6 +120,10 @@ _BANNED_INLINE_REPLACEMENTS = [
     (re.compile(r'has been nothing short of', re.I), 'has been'),
     (re.compile(r'a prime example of .{3,40} strategy', re.I), 'a clear strategic move'),
     (re.compile(r'Not content to rest on (?:its|their) laurels,?\s*', re.I), ''),
+    # AI-typical filler
+    (re.compile(r'commanding (?:road |on-road )?presence', re.I), 'strong visual impact'),
+    (re.compile(r'prioritiz(?:ing|es?) (?:both )?comfort and', re.I), 'balancing comfort and'),
+    (re.compile(r'generous dimensions', re.I), 'large dimensions'),
     (re.compile(r'the market response has been .{3,30}phenomenal:?\s*', re.I), 'Market response: '),
     (re.compile(r'it\'s clear (?:that )?', re.I), ''),
     # Round 3: AITO M9 article filler
@@ -159,6 +173,56 @@ def _clean_banned_phrases(html: str) -> str:
     if cleaned > 0:
         print(f"  🧹 Post-processing: removed {cleaned} chars of filler")
     
+    return html
+
+
+def _reduce_repetition(html: str) -> str:
+    """Detect and remove paragraphs that repeat the same spec/phrase excessively."""
+    import collections
+
+    # Extract all spec mentions: "1505 km", "530 hp", "82.5 kWh", etc.
+    spec_re = re.compile(r'(\d[\d,.]*\s*(?:km|hp|kW|Nm|mm|kWh|mph|kg|seconds?|s)\b)', re.IGNORECASE)
+
+    # Split into <p> blocks
+    p_blocks = re.findall(r'<p>.*?</p>', html, re.DOTALL)
+    if not p_blocks:
+        return html
+
+    # Count spec occurrences across all paragraphs
+    spec_counts = collections.Counter()
+    for block in p_blocks:
+        specs_in_block = set(spec_re.findall(block))  # unique per block
+        for spec in specs_in_block:
+            spec_counts[spec.strip().lower()] += 1
+
+    # Find specs that appear in 4+ different paragraphs
+    overused = {spec for spec, count in spec_counts.items() if count >= 4}
+    if not overused:
+        return html
+
+    print(f"  🔁 Repetition detector: overused specs: {overused}")
+
+    # Track how many times we've seen each overused spec; keep first 2 occurrences
+    spec_seen = collections.Counter()
+    removed = 0
+    for block in p_blocks:
+        block_specs = {s.strip().lower() for s in spec_re.findall(block)}
+        dominated = block_specs & overused
+        if dominated:
+            # Check if ALL overused specs in this block have been seen 2+ times already
+            all_seen_enough = all(spec_seen[s] >= 2 for s in dominated)
+            for s in dominated:
+                spec_seen[s] += 1
+            if all_seen_enough:
+                # Remove this paragraph — it's redundant
+                html = html.replace(block, '', 1)
+                removed += 1
+
+    if removed:
+        # Clean up empty space
+        html = re.sub(r'\n\s*\n\s*\n', '\n\n', html)
+        print(f"  🔁 Repetition detector: removed {removed} redundant paragraphs")
+
     return html
 
 def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None):
@@ -250,19 +314,37 @@ CRITICAL REQUIREMENTS:
    ❌ "It competes with the Tesla Model 3 (250 hp), BMW i4 (335 hp), Hyundai Ioniq 5 (320 hp), Audi e-tron (355 hp)..." (list spam)
 
 5. **Word count**: TARGET 700-1200 words. Aim for 800-1000 words as the sweet spot.
-   If source data is thin (spy shots, teaser), a 500-600 word article is acceptable.
-   If source data is rich (full specs, features, pricing), write a COMPREHENSIVE 1000-1200 word article.
-   QUALITY always beats QUANTITY. Every sentence should earn its place.
-   Do NOT pad with long feature lists or exhaustive option packages.
-   DO include deep technical explanations — what does the powertrain architecture mean for the driver?
-   DO explain real-world implications of specs — what does 1508 km range mean for road trips?
+    If source data is thin (spy shots, teaser), a 500-600 word article is acceptable.
+    If source data is rich (full specs, features, pricing), write a COMPREHENSIVE 1000-1200 word article.
+    QUALITY always beats QUANTITY. Every sentence should earn its place.
+    Do NOT pad with long feature lists or exhaustive option packages.
+    DO include deep technical explanations — what does the powertrain architecture mean for the driver?
+    DO explain real-world implications of specs — what does 1508 km range mean for road trips?
 
-7. **ANTI-REPETITION**: Do NOT repeat the same fact, number, or claim more than ONCE.
+6. **THIN DATA MODE** — If the source only has 3-5 confirmed specs:
+   - Write 400-600 words MAX. Do NOT pad to reach 800.
+   - Use structure: Introduction → What We Know → Pricing → Verdict.
+   - SKIP Performance, Technology, Driving Experience sections entirely.
+   - Do NOT write paragraphs explaining what you DON'T know.
+   - A tight 450-word article with 4 solid paragraphs > a bloated 1000-word article full of repetition.
+
+7. ═══ ANTI-REPETITION (CRITICAL — your article will be POST-PROCESSED to catch violations) ═══
+   Do NOT repeat the same fact, number, or claim more than ONCE in the entire article.
    If you've stated "92% efficiency" in the introduction → do NOT restate it in later sections.
    Each paragraph must add NEW information, not rephrase previous paragraphs.
-   The "Why This Matters" section must provide NEW market insights, not repeat the introduction.
-   ❌ BAD: Mentioning the same spec in Introduction, Technology, Why This Matters, AND Conclusion.
-   ✅ GOOD: State the spec once, then build on it with context, comparisons, or implications.
+
+   ❌ BAD (will be auto-detected and trimmed):
+   "The M8 REV has 1505 km range. [para 1]
+    With its impressive 1505 km range, the M8 REV... [para 3]
+    The 1505 km combined range means... [para 5]
+    ...offering 1505 km of travel... [para 8]"
+
+   ✅ GOOD (state once, build on it):
+   "The M8 REV's 1505 km combined range — enough for Shanghai to Beijing without stopping. [para 1]
+    That figure translates to roughly two weeks of average commuting on a single tank+charge. [para 5]"
+
+   RULE: Any spec/number appearing in 3+ separate paragraphs = REPETITION = article will be trimmed.
+   RULE: Any descriptive phrase ("6-seater", "commanding presence") appearing 3+ times = REPETITION.
 
 26. **REGION-NEUTRAL writing**:
    - Do NOT focus on a single country's market (no "in Australia", "in the US", etc.)
@@ -475,6 +557,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
         # Post-processing: ensure it's HTML, not Markdown
         article_content = ensure_html_only(article_content)
         article_content = _clean_banned_phrases(article_content)
+        article_content = _reduce_repetition(article_content)
         
         # Проверка качества статьи
         quality = validate_article_quality(article_content)

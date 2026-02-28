@@ -206,7 +206,13 @@ def inject_internal_links(article_html: str, tag_names: list, make: str = None) 
             read_also_html = '<div class="seo-related-links" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">'
             read_also_html += '<h3 style="margin-top: 0; font-size: 1.25rem;">Читайте также:</h3><ul style="margin-bottom: 0;">'
             for article in linked_articles:
-                read_also_html += f'<li><a href="/articles/{article.slug}">{article.title}</a></li>'
+                # Clean YouTube noise from linked titles (Walk-around, First Look, etc.)
+                try:
+                    from ai_engine.modules.utils import clean_video_title
+                    clean_title = clean_video_title(article.title)
+                except ImportError:
+                    clean_title = article.title
+                read_also_html += f'<li><a href="/articles/{article.slug}">{clean_title}</a></li>'
             read_also_html += '</ul></div>\n'
             
             read_also_soup = BeautifulSoup(read_also_html, 'html.parser')
