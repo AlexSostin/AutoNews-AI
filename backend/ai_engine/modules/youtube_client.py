@@ -1,7 +1,18 @@
 import os
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
+
+
+def _quota_reset_message():
+    """Calculate hours until YouTube API quota resets (midnight Pacific Time)."""
+    pacific = timezone(timedelta(hours=-8))
+    now_pacific = datetime.now(pacific)
+    midnight = (now_pacific + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    hours_left = int((midnight - now_pacific).total_seconds() / 3600)
+    if hours_left <= 1:
+        return "YouTube API quota exceeded. Resets in less than 1 hour."
+    return f"YouTube API quota exceeded. Resets in ~{hours_left}h."
 
 class YouTubeClient:
     def __init__(self, api_key=None):
@@ -71,7 +82,7 @@ class YouTubeClient:
                 data = response.json()
                 errors = data.get('error', {}).get('errors', [])
                 if any(e.get('reason') == 'quotaExceeded' for e in errors):
-                    raise Exception("YouTube API quota exceeded. Try again tomorrow.")
+                    raise Exception(_quota_reset_message())
                 print(f"⚠️ forHandle API returned 403 for '{handle}'")
             else:
                 print(f"⚠️ forHandle API returned {response.status_code} for '{handle}'")
@@ -106,7 +117,7 @@ class YouTubeClient:
                 data = response.json()
                 errors = data.get('error', {}).get('errors', [])
                 if any(e.get('reason') == 'quotaExceeded' for e in errors):
-                    raise Exception("YouTube API quota exceeded. Try again tomorrow.")
+                    raise Exception(_quota_reset_message())
         except Exception as e:
             if 'quota' in str(e).lower():
                 raise
