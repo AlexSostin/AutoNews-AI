@@ -44,8 +44,8 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     if created:
         print(f"  ✓ Created new category: {category_name}")
     
-    # Generate summary if not provided
-    if not summary:
+    # Generate summary if not provided or if it's junk
+    if not summary or len(summary.strip()) < 20 or summary.strip().rstrip(':') in ('Pros', 'Cons', 'Summary', 'Review', 'Verdict'):
         # Extract first paragraph from content
         summary = extract_summary(content)
     
@@ -307,17 +307,23 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
 
 
 def extract_summary(content):
-    """Извлекает первый параграф из HTML контента для summary."""
-    # Удаляем заголовок
-    content = re.sub(r'<h2>.*?</h2>', '', content, count=1, flags=re.DOTALL)
+    """Extract first meaningful paragraph from HTML content for summary."""
+    # Remove all headings
+    cleaned = re.sub(r'<h[1-6][^>]*>.*?</h[1-6]>', '', content, flags=re.DOTALL)
     
-    # Ищем первый <p> тег
-    match = re.search(r'<p>(.*?)</p>', content, re.DOTALL)
-    if match:
-        summary = match.group(1)
-        # Очищаем от HTML тегов
-        summary = re.sub(r'<[^>]+>', '', summary)
-        return summary.strip()
+    # Find all <p> tags
+    paragraphs = re.findall(r'<p>(.*?)</p>', cleaned, re.DOTALL)
+    
+    for p_content in paragraphs:
+        # Strip HTML tags
+        text = re.sub(r'<[^>]+>', '', p_content).strip()
+        # Skip short/junk paragraphs
+        if len(text) < 15:
+            continue
+        # Skip paragraphs that are just labels
+        if text.rstrip(':') in ('Pros', 'Cons', 'Summary', 'Verdict', 'Pricing'):
+            continue
+        return text
     
     return "AI-generated automotive article with detailed analysis and specifications."
 

@@ -81,6 +81,15 @@ _BANNED_SENTENCE_PATTERNS = re.compile(
     # Lazy Cons
     r'|While specific cons .{3,60} aren\'t detailed'
     r'|While specific cons .{3,60} not .{3,30} detailed'
+    # Cons about missing specs (NOT real cons)
+    r'|Specific .{3,40} metrics .{3,60} not .{3,20} public'
+    r'|Detailed .{3,40} specifications .{3,40} not .{3,20} released'
+    r'|.{3,40} have not .{3,20} been .{3,20} announced'
+    r'|.{3,40} are not yet .{3,20} public'
+    r'|.{3,40} figures have not been .{3,20}released'
+    r'|.{3,40} not yet been officially'
+    r'|.{3,40} remain .{3,20} to be .{3,20} confirmed'
+    r'|.{3,40} have yet to be .{3,20} disclosed'
     r'|the complexity inherent in'
     r'|might be a consideration for some buyers'
     # Empty "still emerging" paragraphs
@@ -225,6 +234,72 @@ def _reduce_repetition(html: str) -> str:
 
     return html
 
+
+def _shorten_car_names(html: str) -> str:
+    """Replace repeated full car names ('The 2026 BYD TANG 1240') with shorter forms after first 2 mentions."""
+    # Match patterns like 'The 2026 BYD TANG 1240' or '2026 HUAWEI M8 REV'
+    full_name_re = re.compile(
+        r'(?:The\s+)?(20\d{2})\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\s+([A-Z0-9][A-Za-z0-9]+(?:\s+[A-Z0-9]+)?)',
+    )
+    
+    # Find the most common full car name pattern
+    matches = full_name_re.findall(html)
+    if len(matches) < 4:
+        return html  # Not enough repetition to matter
+    
+    # Count (year, brand, model) tuples
+    from collections import Counter
+    name_counts = Counter(matches)
+    if not name_counts:
+        return html
+    
+    most_common = name_counts.most_common(1)[0]
+    (year, brand, model), count = most_common
+    
+    if count < 4:
+        return html  # Not enough repetition
+    
+    full_name = f"{year} {brand} {model}"
+    the_full_name = f"The {full_name}"
+    
+    # Keep first 2 occurrences, replace the rest with short form
+    short_name = model  # e.g. "TANG 1240" or "M8 REV"
+    
+    seen = 0
+    result = []
+    pos = 0
+    for m in re.finditer(re.escape(the_full_name), html, re.IGNORECASE):
+        result.append(html[pos:m.start()])
+        seen += 1
+        if seen <= 2:
+            result.append(m.group())
+        else:
+            result.append(f"The {short_name}")
+        pos = m.end()
+    result.append(html[pos:])
+    html = ''.join(result)
+    
+    # Also handle without 'The' prefix
+    seen = 0
+    result = []
+    pos = 0
+    for m in re.finditer(r'(?<!The )' + re.escape(full_name), html):
+        result.append(html[pos:m.start()])
+        seen += 1
+        if seen <= 2:
+            result.append(m.group())
+        else:
+            result.append(short_name)
+        pos = m.end()
+    result.append(html[pos:])
+    html = ''.join(result)
+    
+    replaced = count - 4  # Roughly how many we replaced
+    if replaced > 0:
+        print(f"  ✂️ Car name shortener: shortened '{full_name}' → '{short_name}' ({replaced}+ times)")
+    
+    return html
+
 def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
@@ -306,6 +381,11 @@ CRITICAL REQUIREMENTS:
    - Give the car a PERSONALITY: "This is the daily driver for someone who's outgrown their Model 3"
    - Add real-world context: "600 km WLTP range means weekend trips without touching a charger"
    - Explain what specs MEAN for the buyer, not just list numbers
+
+3b. **Car Name Usage** — DO NOT repeat the full name ("The 2026 BYD TANG 1240") every sentence.
+   - First mention: full name with year → "The 2026 BYD TANG 1240"
+   - After that: use SHORT forms → "the TANG 1240", "the TANG", "this SUV", "it", "the car"
+   - NEVER start 3 consecutive paragraphs with "The [Year] [Brand] [Model]"
 
 4. **Competitor comparisons** — use them ONLY when you have REAL data:
    - 1-2 well-chosen comparisons are better than 4 forced ones
@@ -417,6 +497,10 @@ PROS & CONS RULES:
   ❌ "Limited charging infrastructure" — NOT a con of the CAR itself
   ❌ "Specs are unknown" or "pricing unavailable" — NOT a con, it's missing data
   ❌ "No international availability confirmed" — NOT a con unless competitors ARE available globally
+  ❌ "Specific performance metrics... are not yet public" — NOT a con
+  ❌ "Detailed battery specifications... have not been released" — NOT a con
+  ❌ "Not yet been officially announced" — NOT a con
+  ❌ ANY con that mentions specs/details being "not available", "not released", "not detailed", or "not public" — DELETE IT
 - If you cannot find 3 real Cons → list only what you have.
   2 genuine Cons > 4 filler Cons. NEVER pad the list.
 - Cons should be about the CAR's actual weaknesses, not about missing press info.
@@ -558,6 +642,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
         article_content = ensure_html_only(article_content)
         article_content = _clean_banned_phrases(article_content)
         article_content = _reduce_repetition(article_content)
+        article_content = _shorten_car_names(article_content)
         
         # Проверка качества статьи
         quality = validate_article_quality(article_content)
