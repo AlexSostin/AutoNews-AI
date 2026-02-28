@@ -162,14 +162,13 @@ class TestGenerateArticleContent:
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
     @patch('ai_engine.modules.article_generator.generate_article')
     @patch('ai_engine.modules.downloader.extract_video_screenshots')
-    @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.searcher.get_web_context')
     @patch('ai_engine.modules.specs_enricher.enrich_specs_from_web')
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.provider_tracker.record_generation')
     def test_full_pipeline_success(
         self, mock_record, mock_coverage, mock_enrich_web,
-        mock_web_ctx, mock_reviewer, mock_screenshots,
+        mock_web_ctx, mock_screenshots,
         mock_gen_article, mock_specs, mock_categorize,
         mock_analyze, mock_transcribe, mock_oembed
     ):
@@ -186,7 +185,6 @@ class TestGenerateArticleContent:
         mock_specs.return_value = MOCK_SPECS.copy()
         mock_gen_article.return_value = MOCK_ARTICLE_HTML
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = MOCK_ARTICLE_HTML
         mock_web_ctx.return_value = 'Web context data about BYD Seal specs'
         mock_enrich_web.return_value = MOCK_SPECS.copy()
         mock_coverage.return_value = (8, 12, 67, ['range', 'price', 'torque', 'acceleration'])
@@ -248,12 +246,11 @@ class TestGenerateArticleContent:
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
     @patch('ai_engine.modules.article_generator.generate_article')
     @patch('ai_engine.modules.downloader.extract_video_screenshots')
-    @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.provider_tracker.record_generation')
     def test_duplicate_detection(
         self, mock_record, mock_coverage,
-        mock_reviewer, mock_screenshots,
+        mock_screenshots,
         mock_gen_article, mock_specs, mock_categorize,
         mock_analyze, mock_transcribe, mock_oembed, article
     ):
@@ -283,12 +280,11 @@ class TestGenerateArticleContent:
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
     @patch('ai_engine.modules.article_generator.generate_article')
     @patch('ai_engine.modules.downloader.extract_video_screenshots')
-    @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.provider_tracker.record_generation')
     def test_with_groq_provider(
         self, mock_record, mock_coverage,
-        mock_reviewer, mock_screenshots,
+        mock_screenshots,
         mock_gen_article, mock_specs, mock_categorize,
         mock_analyze, mock_transcribe, mock_oembed
     ):
@@ -301,7 +297,6 @@ class TestGenerateArticleContent:
         mock_specs.return_value = {'make': 'NIO', 'model': 'ET9', 'year': 2026}
         mock_gen_article.return_value = '<h2>2026 NIO ET9</h2><p>Review content</p>' * 3
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = '<h2>2026 NIO ET9</h2><p>Reviewed content</p>' * 3
         mock_coverage.return_value = (3, 12, 25, [])
         mock_record.return_value = None
 
@@ -343,12 +338,11 @@ class TestGenerateArticleContent:
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
     @patch('ai_engine.modules.article_generator.generate_article')
     @patch('ai_engine.modules.downloader.extract_video_screenshots')
-    @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.provider_tracker.record_generation')
     def test_with_task_id_websocket(
         self, mock_record, mock_coverage,
-        mock_reviewer, mock_screenshots,
+        mock_screenshots,
         mock_gen_article, mock_specs, mock_categorize,
         mock_analyze, mock_transcribe, mock_oembed
     ):
@@ -362,7 +356,6 @@ class TestGenerateArticleContent:
         mock_specs.return_value = {'make': 'ZEEKR', 'model': '007 GT', 'year': 2026}
         mock_gen_article.return_value = MOCK_ARTICLE_HTML * 2
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = MOCK_ARTICLE_HTML * 2
         mock_coverage.return_value = (3, 12, 25, [])
         mock_record.return_value = None
 

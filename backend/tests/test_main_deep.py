@@ -88,7 +88,6 @@ def full_pipeline_patches(func):
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.specs_enricher.enrich_specs_from_web')
     @patch('ai_engine.modules.searcher.get_web_context')
-    @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.downloader.extract_video_screenshots')
     @patch('ai_engine.modules.article_generator.generate_article')
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
@@ -111,7 +110,7 @@ class TestWebSocketProgress:
     def test_websocket_exception_caught(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """With task_id, WebSocket channel_layer raises → caught silently."""
         from ai_engine.main import _generate_article_content
@@ -123,7 +122,6 @@ class TestWebSocketProgress:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = m['enrich']
         mock_coverage.return_value = m['coverage']
@@ -153,7 +151,7 @@ class TestOEmbedException:
     def test_oembed_network_error(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """oEmbed GET raises exception → caught, continues with defaults."""
         from ai_engine.main import _generate_article_content
@@ -165,7 +163,6 @@ class TestOEmbedException:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = m['enrich']
         mock_coverage.return_value = m['coverage']
@@ -189,7 +186,7 @@ class TestDuplicateDetection:
     def test_trim_match_duplicate(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Existing article with same make+model+trim → duplicate detected."""
         from ai_engine.main import _generate_article_content
@@ -224,7 +221,7 @@ class TestDuplicateDetection:
     def test_no_trim_duplicate(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Existing article, no trim in specs → checks make+model only."""
         from ai_engine.main import _generate_article_content
@@ -259,7 +256,7 @@ class TestDuplicateDetection:
     def test_pending_duplicate(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Same car already in PendingArticle → duplicate_pending."""
         from ai_engine.main import _generate_article_content
@@ -302,7 +299,7 @@ class TestChinQinAndEnrichment:
     def test_chin_to_qin_fix(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Model 'Chin L' should be auto-corrected to 'Qin L'."""
         from ai_engine.main import _generate_article_content
@@ -318,7 +315,6 @@ class TestChinQinAndEnrichment:
         mock_specs.return_value = specs_chin
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = 'BYD Qin L specifications'
         mock_enrich.return_value = specs_chin
         mock_coverage.return_value = (5, 12, 42, [])
@@ -334,7 +330,7 @@ class TestChinQinAndEnrichment:
     def test_web_search_failure(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Web search raises exception → caught, continues without context."""
         from ai_engine.main import _generate_article_content
@@ -346,7 +342,6 @@ class TestChinQinAndEnrichment:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.side_effect = Exception('DDGS timeout')
         mock_coverage.return_value = m['coverage']
         mock_record.return_value = None
@@ -361,7 +356,7 @@ class TestChinQinAndEnrichment:
     def test_specs_enrichment_failure(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Specs enrichment raises → caught, continues with original specs."""
         from ai_engine.main import _generate_article_content
@@ -373,7 +368,6 @@ class TestChinQinAndEnrichment:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = 'Some web context'
         mock_enrich.side_effect = Exception('Enrichment crash')
         mock_coverage.return_value = m['coverage']
@@ -396,7 +390,7 @@ class TestSpecRefillAndSegmentTags:
     def test_spec_refill_triggered(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Coverage < 70% → spec refill runs."""
         from ai_engine.main import _generate_article_content
@@ -411,7 +405,6 @@ class TestSpecRefillAndSegmentTags:
         mock_specs.return_value = low_cov_specs
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = 'Web data'
         mock_enrich.return_value = low_cov_specs
         # Set low pre-coverage → triggers refill
@@ -435,7 +428,7 @@ class TestSpecRefillAndSegmentTags:
     def test_spec_refill_failure(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Spec refill crashes → caught, continues."""
         from ai_engine.main import _generate_article_content
@@ -447,7 +440,6 @@ class TestSpecRefillAndSegmentTags:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = ''
         mock_coverage.side_effect = Exception('compute_coverage crash')
         mock_record.return_value = None
@@ -469,7 +461,7 @@ class TestTitleAndSummaryExtraction:
     def test_title_from_seo_specs(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """specs['seo_title'] provided → used as article title."""
         from ai_engine.main import _generate_article_content
@@ -484,7 +476,6 @@ class TestTitleAndSummaryExtraction:
         mock_specs.return_value = specs_with_seo
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = specs_with_seo
         mock_coverage.return_value = m['coverage']
@@ -501,7 +492,7 @@ class TestTitleAndSummaryExtraction:
     def test_title_constructed_from_specs(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """No seo_title, no title in HTML → construct from Make/Model/Year."""
         from ai_engine.main import _generate_article_content
@@ -523,7 +514,6 @@ class TestTitleAndSummaryExtraction:
         mock_specs.return_value = specs_no_seo
         mock_gen.return_value = generic_article
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = generic_article
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = specs_no_seo
         mock_coverage.return_value = m['coverage']
@@ -541,7 +531,7 @@ class TestTitleAndSummaryExtraction:
     def test_summary_from_analysis_dict(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Analysis is dict with 'summary' key → used for description."""
         from ai_engine.main import _generate_article_content
@@ -554,7 +544,6 @@ class TestTitleAndSummaryExtraction:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = m['enrich']
         mock_coverage.return_value = m['coverage']
@@ -571,7 +560,7 @@ class TestTitleAndSummaryExtraction:
     def test_summary_fallback_from_html(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """No Summary: in analysis, no dict → extract from HTML paragraph."""
         from ai_engine.main import _generate_article_content
@@ -586,7 +575,6 @@ class TestTitleAndSummaryExtraction:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = m['enrich']
         mock_coverage.return_value = m['coverage']
@@ -610,7 +598,7 @@ class TestScreenshotFlow:
     def test_screenshots_uploaded_to_cloudinary(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Screenshots extracted → uploaded to Cloudinary."""
         from ai_engine.main import _generate_article_content
@@ -630,7 +618,6 @@ class TestScreenshotFlow:
             mock_specs.return_value = m['specs']
             mock_gen.return_value = m['article']
             mock_screenshots.return_value = [temp_path]
-            mock_reviewer.return_value = m['article']
             mock_web.return_value = m['web_context']
             mock_enrich.return_value = m['enrich']
             mock_coverage.return_value = m['coverage']
@@ -652,7 +639,7 @@ class TestScreenshotFlow:
     def test_screenshots_cloudinary_fails_local_fallback(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Cloudinary upload fails → fallback to local media copy."""
         from ai_engine.main import _generate_article_content
@@ -671,7 +658,6 @@ class TestScreenshotFlow:
             mock_specs.return_value = m['specs']
             mock_gen.return_value = m['article']
             mock_screenshots.return_value = [temp_path]
-            mock_reviewer.return_value = m['article']
             mock_web.return_value = m['web_context']
             mock_enrich.return_value = m['enrich']
             mock_coverage.return_value = m['coverage']
@@ -691,7 +677,7 @@ class TestScreenshotFlow:
     def test_screenshots_extraction_fails(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Screenshot extraction raises → caught, continues with empty list."""
         from ai_engine.main import _generate_article_content
@@ -703,7 +689,6 @@ class TestScreenshotFlow:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.side_effect = Exception('ffmpeg not found')
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = m['enrich']
         mock_coverage.return_value = m['coverage']
@@ -727,7 +712,7 @@ class TestEditorAndTracker:
     def test_ai_editor_failure(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """AI editor review raises exception → caught, uses original."""
         from ai_engine.main import _generate_article_content
@@ -739,7 +724,6 @@ class TestEditorAndTracker:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.side_effect = Exception('AI editor crashed')
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = m['enrich']
         mock_coverage.return_value = m['coverage']
@@ -757,7 +741,7 @@ class TestEditorAndTracker:
     def test_provider_tracker_failure(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Provider tracker raises → caught, article still succeeds."""
         from ai_engine.main import _generate_article_content
@@ -769,7 +753,6 @@ class TestEditorAndTracker:
         mock_specs.return_value = m['specs']
         mock_gen.return_value = m['article']
         mock_screenshots.return_value = []
-        mock_reviewer.return_value = m['article']
         mock_web.return_value = m['web_context']
         mock_enrich.return_value = m['enrich']
         mock_coverage.return_value = m['coverage']

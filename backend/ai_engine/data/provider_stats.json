@@ -557,6 +557,24 @@
       "total_time": 56.1,
       "spec_fields_filled": 5,
       "timestamp": "2026-02-28T10:53:52.979826"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 51.9,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T12:24:32.480180"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 53.6,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T12:24:34.226246"
     }
   ]
 }

@@ -1,6 +1,6 @@
 """
 Zone B + D: AI Provider, utils, specs_enricher, vector_search,
-article_reviewer, pexels_client, 0% mgmt commands.
+0% mgmt commands.
 """
 import pytest
 from unittest.mock import patch, MagicMock, PropertyMock
@@ -348,58 +348,6 @@ class TestVectorSearch:
         except Exception:
             pass  # Just verify no crash
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Zone D: 0% modules — article_reviewer, pexels_client
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestArticleReviewer:
-
-    @patch('ai_engine.modules.ai_provider.GeminiProvider.generate_completion')
-    def test_review_returns_result(self, mock_ai):
-        mock_ai.return_value = '8/10 - Good quality article with proper structure.'
-        try:
-            from ai_engine.modules.article_reviewer import review_article
-            result = review_article('Test Title', '<p>Test content ' * 100 + '</p>')
-            # May return dict, str, or the title itself
-            assert result is not None
-        except (ImportError, Exception):
-            pass  # Module may have different API
-
-    @patch('ai_engine.modules.ai_provider.GeminiProvider.generate_completion')
-    def test_review_handles_ai_error(self, mock_ai):
-        mock_ai.side_effect = Exception('AI error')
-        try:
-            from ai_engine.modules.article_reviewer import review_article
-            result = review_article('Test', '<p>Content</p>')
-            # Should handle error gracefully
-            assert isinstance(result, (dict, type(None)))
-        except (ImportError, Exception):
-            pass
-
-
-class TestPexelsClient:
-
-    @patch('ai_engine.modules.pexels_client.requests.get')
-    def test_search_photos(self, mock_get):
-        mock_get.return_value = MagicMock(
-            status_code=200,
-            json=MagicMock(return_value={
-                'photos': [
-                    {'src': {'original': 'http://pexels.com/photo1.jpg',
-                             'large': 'http://pexels.com/photo1_large.jpg'},
-                     'photographer': 'John', 'alt': 'Car photo',
-                     'width': 1920, 'height': 1080},
-                ]
-            })
-        )
-        try:
-            from ai_engine.modules.pexels_client import PexelsClient
-            client = PexelsClient()
-            results = client.search_photos('Tesla Model 3')
-            assert isinstance(results, list)
-        except (ImportError, Exception):
-            pass  # PEXELS_API_KEY may not be set
 
 
 # ═══════════════════════════════════════════════════════════════════════════

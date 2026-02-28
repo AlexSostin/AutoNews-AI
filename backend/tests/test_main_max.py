@@ -171,7 +171,6 @@ def _pipeline_patches(func):
     @patch('ai_engine.modules.spec_refill.compute_coverage')
     @patch('ai_engine.modules.specs_enricher.enrich_specs_from_web')
     @patch('ai_engine.modules.searcher.get_web_context')
-    @patch('ai_engine.modules.article_reviewer.review_article')
     @patch('ai_engine.modules.downloader.extract_video_screenshots')
     @patch('ai_engine.modules.article_generator.generate_article')
     @patch('ai_engine.modules.analyzer.extract_specs_dict')
@@ -186,7 +185,7 @@ def _pipeline_patches(func):
 
 def _setup_mocks(mock_oembed, mock_transcribe, mock_analyze,
                  mock_categorize, mock_specs, mock_gen, mock_screenshots,
-                 mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+                 mock_web, mock_enrich, mock_coverage, mock_record,
                  **overrides):
     """Configure all mocks with defaults, apply overrides."""
     mock_oembed.return_value = overrides.get('oembed', MagicMock(
@@ -200,7 +199,6 @@ def _setup_mocks(mock_oembed, mock_transcribe, mock_analyze,
     mock_specs.return_value = specs
     mock_gen.return_value = overrides.get('article', BIG_ARTICLE)
     mock_screenshots.return_value = overrides.get('screenshots', [])
-    mock_reviewer.return_value = overrides.get('reviewer', overrides.get('article', BIG_ARTICLE))
     mock_web.return_value = overrides.get('web_context', 'Web context data')
     mock_enrich.return_value = overrides.get('enrich', specs.copy())
     mock_coverage.return_value = overrides.get('coverage', (8, 12, 80, []))
@@ -212,7 +210,7 @@ def _setup_mocks(mock_oembed, mock_transcribe, mock_analyze,
             mock_map = {
                 'web': mock_web, 'enrich': mock_enrich,
                 'coverage': mock_coverage, 'screenshots': mock_screenshots,
-                'reviewer': mock_reviewer, 'record': mock_record,
+                'record': mock_record,
             }
             if mock_name in mock_map:
                 mock_map[mock_name].side_effect = val
@@ -227,7 +225,7 @@ class TestModelTagAutoAdd:
     def test_model_tag_added_from_db(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Model tag exists in DB under 'Models' group → auto-added."""
         from ai_engine.main import _generate_article_content
@@ -241,7 +239,7 @@ class TestModelTagAutoAdd:
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
             tags=['BYD', 'Electric'],  # No 'Seal' tag
             specs=specs,
         )
@@ -257,7 +255,7 @@ class TestModelTagAutoAdd:
     def test_model_tag_already_present(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Model tag already in tag_names → L351-353 sets has_model_tag=True, skips add."""
         from ai_engine.main import _generate_article_content
@@ -268,7 +266,7 @@ class TestModelTagAutoAdd:
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
             tags=['BYD', 'Electric', 'Seal'],  # Already has 'Seal'
         )
 
@@ -288,14 +286,14 @@ class TestDuplicateCheckException:
     def test_duplicate_check_db_exception(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         from ai_engine.main import _generate_article_content
 
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
         )
 
         # Patch CarSpecification.objects.filter to raise inside _generate_article_content
@@ -316,7 +314,7 @@ class TestPostEnrichmentDrivetrain:
     def test_drivetrain_added_post_enrichment(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         from ai_engine.main import _generate_article_content
 
@@ -330,7 +328,7 @@ class TestPostEnrichmentDrivetrain:
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
             specs=specs_no_dt,
             enrich=enriched,
             tags=['BYD', 'Electric'],  # No drivetrain tag yet
@@ -351,14 +349,14 @@ class TestPriceSegmentTags:
     def test_premium_segment_tag(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         from ai_engine.main import _generate_article_content
 
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
             tags=['BYD', 'Electric'],
         )
 
@@ -374,14 +372,14 @@ class TestPriceSegmentTags:
     def test_luxury_segment_tag(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         from ai_engine.main import _generate_article_content
 
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
             tags=['Mercedes', 'Electric'],
         )
 
@@ -401,14 +399,14 @@ class TestScreenshotNonExistentPath:
     def test_nonexistent_screenshot_path(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         from ai_engine.main import _generate_article_content
 
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
             screenshots=['/nonexistent/path/screenshot1.jpg'],
         )
 
@@ -427,7 +425,7 @@ class TestSummaryFallbacks:
     def test_summary_no_p_tag_fallback(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Article has no <p> tags → uses full cleaned content (L643-644)."""
         from ai_engine.main import _generate_article_content
@@ -442,7 +440,7 @@ class TestSummaryFallbacks:
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
             analysis="Make: BYD\nModel: Seal\nYear: 2026",  # No 'Summary:' line
             article=no_p_article,
             reviewer=no_p_article,
@@ -459,7 +457,7 @@ class TestSummaryFallbacks:
     def test_summary_empty_specs_fallback(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Article is effectively empty after cleaning → specs fallback (L647)."""
         from ai_engine.main import _generate_article_content
@@ -470,7 +468,7 @@ class TestSummaryFallbacks:
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
             analysis="Make: BYD\nModel: Seal",  # No Summary
             article=empty_article,
             reviewer=empty_article,
@@ -492,21 +490,20 @@ class TestAIEditorUnchanged:
     def test_editor_no_changes(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         from ai_engine.main import _generate_article_content
 
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
         )
 
         # Get the exact article that generate_article returns (with gen_stamp appended)
         # The reviewer must return the EXACT same string including the stamp
         # We need to match what _generate_article_content produces after stamping
         # Trick: make reviewer a side_effect that returns its input
-        mock_reviewer.side_effect = lambda html, specs, provider: html
 
         result = _generate_article_content(
             'https://www.youtube.com/watch?v=editor_same',
@@ -524,16 +521,15 @@ class TestWebSocketProgressCover:
     def test_websocket_inner_exception(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         from ai_engine.main import _generate_article_content
 
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
         )
-        mock_reviewer.side_effect = lambda html, specs, provider: html
 
         # Patch the channels imports inside the send_progress function
         with patch.dict('sys.modules', {
@@ -555,14 +551,14 @@ class TestModelTagException:
     def test_model_tag_query_fails(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         from ai_engine.main import _generate_article_content
 
         _setup_mocks(
             mock_oembed, mock_transcribe, mock_analyze,
             mock_categorize, mock_specs, mock_gen, mock_screenshots,
-            mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+            mock_web, mock_enrich, mock_coverage, mock_record,
         )
 
         # Patch Tag.objects.filter to raise when querying Models group
@@ -587,7 +583,7 @@ class TestCopyToMediaException:
     def test_copy_to_media_fails(
         self, mock_oembed, mock_transcribe, mock_analyze,
         mock_categorize, mock_specs, mock_gen, mock_screenshots,
-        mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record
+        mock_web, mock_enrich, mock_coverage, mock_record
     ):
         """Cloudinary fails AND local copy fails → raw path appended as last resort."""
         from ai_engine.main import _generate_article_content
@@ -602,7 +598,7 @@ class TestCopyToMediaException:
             _setup_mocks(
                 mock_oembed, mock_transcribe, mock_analyze,
                 mock_categorize, mock_specs, mock_gen, mock_screenshots,
-                mock_reviewer, mock_web, mock_enrich, mock_coverage, mock_record,
+                mock_web, mock_enrich, mock_coverage, mock_record,
                 screenshots=[temp_path],
             )
 
