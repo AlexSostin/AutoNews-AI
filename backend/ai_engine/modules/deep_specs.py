@@ -12,6 +12,7 @@ This is the "3rd pass" — YouTube transcript → web enrichment → AI deep spe
 import json
 import re
 import logging
+from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -517,3 +518,402 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         import traceback
         traceback.print_exc()
         return None
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Specs Extractor (AI-powered extraction from article content)
+# ══════════════════════════════════════════════════════════════════
+
+def extract_vehicle_specs(article, provider: str = 'gemini') -> Dict:
+    """
+    Extract vehicle specifications from article using AI
+    
+    Args:
+        article: Article model instance
+        provider: AI provider ('gemini' or 'groq')
+        
+    Returns:
+        Dict with extracted specs and confidence score
+    """
+    
+    # Prepare content for analysis
+    content = f"""
+Title: {article.title}
+
+Summary: {article.summary}
+
+Content: {article.content[:4000]}
+"""
+    
+    # Detailed extraction prompt
+    prompt = f"""
+You are an automotive data extraction expert. Analyze this article and extract vehicle specifications.
+
+Return ONLY valid JSON with these exact fields. Use null for any field not mentioned in the article.
+Do NOT make up or guess values - only extract what is explicitly stated.
+
+{{
+  "drivetrain": "FWD|RWD|AWD|4WD|null",
+  "motor_count": <number or null>,
+  "motor_placement": "front|rear|front+rear|all wheels|null",
+  
+  "power_hp": <number or null>,
+  "power_kw": <number or null>,
+  "torque_nm": <number or null>,
+  "acceleration_0_100": <float or null>,
+  "top_speed_kmh": <number or null>,
+  
+  "battery_kwh": <float or null>,
+  "range_km": <number or null>,
+  "range_wltp": <number or null>,
+  "range_epa": <number or null>,
+  
+  "charging_time_fast": <string or null>,
+  "charging_time_slow": <string or null>,
+  "charging_power_max_kw": <number or null>,
+  
+  "transmission": "automatic|manual|CVT|single-speed|dual-clutch|null",
+  "transmission_gears": <number or null>,
+  
+  "body_type": "sedan|SUV|hatchback|coupe|truck|crossover|wagon|van|null",
+  "fuel_type": "EV|Hybrid|PHEV|Gas|Diesel|Hydrogen|null",
+  "seats": <number or null>,
+  
+  "length_mm": <number or null>,
+  "width_mm": <number or null>,
+  "height_mm": <number or null>,
+  "wheelbase_mm": <number or null>,
+  "weight_kg": <number or null>,
+  "cargo_liters": <number or null>,
+  
+  "price_from": <number or null>,
+  "price_to": <number or null>,
+  "currency": "USD|EUR|CNY|RUB|GBP|JPY|null",
+  
+  "year": <number or null>,
+  "model_year": <number or null>,
+  "country_of_origin": "<country name or null>",
+  
+  "confidence": <float 0.0-1.0>
+}}
+
+Article to analyze:
+{content}
+
+Return ONLY the JSON object, no additional text.
+"""
+    
+    try:
+        # Get AI provider
+        from ai_engine.modules.ai_provider import get_ai_provider
+        ai = get_ai_provider(provider)
+        
+        # Generate response
+        response = ai.generate(
+            prompt=prompt,
+            max_tokens=1500,
+            temperature=0.1  # Low temperature for factual extraction
+        )
+        
+        # Parse JSON response
+        # Clean response (remove markdown code blocks if present)
+        response_text = response.strip()
+        if response_text.startswith('```'):
+            # Remove ```json and ``` markers
+            response_text = response_text.split('```')[1]
+            if response_text.startswith('json'):
+                response_text = response_text[4:]
+        
+        specs_data = json.loads(response_text.strip())
+        
+        # Validate and clean data
+        cleaned_specs = _clean_specs_data(specs_data)
+        
+        print(f"✅ Extracted specs for article #{article.id}: {article.title[:50]}...")
+        print(f"   Confidence: {cleaned_specs.get('confidence', 0):.2f}")
+        
+        return cleaned_specs
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON parsing error for article #{article.id}: {str(e)}")
+        print(f"   Response was: {response[:200]}...")
+        return _empty_specs()
+        
+    except Exception as e:
+        print(f"❌ Error extracting specs for article #{article.id}: {str(e)}")
+        return _empty_specs()
+
+
+def _clean_specs_data(data: Dict) -> Dict:
+    """
+    Clean and validate extracted specs data
+    
+    Args:
+        data: Raw extracted data
+        
+    Returns:
+        Cleaned data dict
+    """
+    cleaned = {}
+    
+    # String fields
+    string_fields = [
+        'drivetrain', 'motor_placement', 'transmission', 
+        'body_type', 'fuel_type', 'currency', 'country_of_origin',
+        'charging_time_fast', 'charging_time_slow'
+    ]
+    for field in string_fields:
+        value = data.get(field)
+        cleaned[field] = value if value and value != 'null' else None
+    
+    # Integer fields
+    int_fields = [
+        'motor_count', 'power_hp', 'power_kw', 'torque_nm',
+        'top_speed_kmh', 'range_km', 'range_wltp', 'range_epa',
+        'charging_power_max_kw', 'transmission_gears', 'seats',
+        'length_mm', 'width_mm', 'height_mm', 'wheelbase_mm',
+        'weight_kg', 'cargo_liters', 'price_from', 'price_to',
+        'year', 'model_year'
+    ]
+    for field in int_fields:
+        value = data.get(field)
+        if value is not None and value != 'null':
+            try:
+                cleaned[field] = int(value)
+            except (ValueError, TypeError):
+                cleaned[field] = None
+        else:
+            cleaned[field] = None
+    
+    # Float fields
+    float_fields = ['battery_kwh', 'acceleration_0_100', 'confidence']
+    for field in float_fields:
+        value = data.get(field)
+        if value is not None and value != 'null':
+            try:
+                cleaned[field] = float(value)
+            except (ValueError, TypeError):
+                cleaned[field] = None if field != 'confidence' else 0.0
+        else:
+            cleaned[field] = None if field != 'confidence' else 0.0
+    
+    # Ensure confidence is between 0 and 1
+    if cleaned.get('confidence', 0) > 1.0:
+        cleaned['confidence'] = 1.0
+    elif cleaned.get('confidence', 0) < 0.0:
+        cleaned['confidence'] = 0.0
+    
+    return cleaned
+
+
+def _empty_specs() -> Dict:
+    """Return empty specs dict with zero confidence"""
+    return {
+        'drivetrain': None,
+        'motor_count': None,
+        'motor_placement': None,
+        'power_hp': None,
+        'power_kw': None,
+        'torque_nm': None,
+        'acceleration_0_100': None,
+        'top_speed_kmh': None,
+        'battery_kwh': None,
+        'range_km': None,
+        'range_wltp': None,
+        'range_epa': None,
+        'charging_time_fast': None,
+        'charging_time_slow': None,
+        'charging_power_max_kw': None,
+        'transmission': None,
+        'transmission_gears': None,
+        'body_type': None,
+        'fuel_type': None,
+        'seats': None,
+        'length_mm': None,
+        'width_mm': None,
+        'height_mm': None,
+        'wheelbase_mm': None,
+        'weight_kg': None,
+        'cargo_liters': None,
+        'price_from': None,
+        'price_to': None,
+        'currency': None,
+        'year': None,
+        'model_year': None,
+        'country_of_origin': None,
+        'confidence': 0.0
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Spec Refill (AI-powered gap filler for low-coverage specs)
+# ══════════════════════════════════════════════════════════════════
+
+# The 10 key fields we consider for coverage
+KEY_SPEC_FIELDS = [
+    'make', 'model', 'engine', 'horsepower', 'torque',
+    'zero_to_sixty', 'top_speed', 'drivetrain', 'price', 'year',
+]
+
+
+def _is_filled(value) -> bool:
+    """Check if a spec value is meaningfully filled."""
+    if value is None:
+        return False
+    s = str(value).strip()
+    return s not in ('', 'Not specified', 'None', '0', 'null')
+
+
+def compute_coverage(specs: dict) -> tuple:
+    """
+    Compute spec coverage.
+    
+    Returns:
+        (filled_count, total_count, coverage_pct, missing_fields)
+    """
+    if not specs:
+        return 0, len(KEY_SPEC_FIELDS), 0.0, list(KEY_SPEC_FIELDS)
+    
+    missing = []
+    filled = 0
+    for field in KEY_SPEC_FIELDS:
+        if _is_filled(specs.get(field)):
+            filled += 1
+        else:
+            missing.append(field)
+    
+    total = len(KEY_SPEC_FIELDS)
+    pct = (filled / total) * 100 if total > 0 else 0.0
+    return filled, total, pct, missing
+
+
+def refill_missing_specs(specs: dict, article_content: str,
+                         web_context: str = '', provider: str = 'gemini',
+                         threshold: float = 70.0) -> dict:
+    """
+    Check spec coverage and AI-fill missing fields if below threshold.
+    
+    Args:
+        specs: dict from extract_specs_dict (may have 'Not specified' gaps)
+        article_content: the generated HTML article
+        web_context: raw text from web search
+        provider: AI provider name
+        threshold: coverage % below which refill triggers (default 70%)
+    
+    Returns:
+        Updated specs dict with `_refill_meta` key showing what was done
+    """
+    filled, total, coverage, missing = compute_coverage(specs)
+    
+    meta = {
+        'triggered': False,
+        'coverage_before': round(coverage, 1),
+        'filled_before': filled,
+        'missing_before': missing[:],
+    }
+    
+    if coverage >= threshold:
+        logger.info(f"[SPEC-REFILL] Coverage {coverage:.0f}% ≥ {threshold}% — skip")
+        meta['reason'] = 'coverage_sufficient'
+        specs['_refill_meta'] = meta
+        return specs
+    
+    logger.info(f"[SPEC-REFILL] Coverage {coverage:.0f}% < {threshold}% — refilling {len(missing)} fields")
+    meta['triggered'] = True
+    
+    # Build focused prompt
+    make = specs.get('make', 'unknown')
+    model = specs.get('model', 'unknown')
+    
+    # Context: article + web search results
+    context_parts = []
+    if article_content:
+        # Use first 3000 chars of article to stay within token budget
+        clean_article = article_content[:3000]
+        context_parts.append(f"Article content:\n{clean_article}")
+    if web_context:
+        context_parts.append(f"Web search results:\n{web_context[:2000]}")
+    
+    context = '\n\n'.join(context_parts)
+    
+    field_descriptions = {
+        'make': 'car manufacturer brand name (e.g. Toyota, BMW, BYD)',
+        'model': 'specific model name (e.g. Camry, X5, Seal)',
+        'engine': 'engine type/description (e.g. "2.5L 4-cylinder turbo", "dual electric motors")',
+        'horsepower': 'peak power in HP (number only)',
+        'torque': 'peak torque (e.g. "350 lb-ft" or "475 Nm")',
+        'zero_to_sixty': '0-60 mph time in seconds (e.g. "5.2")',
+        'top_speed': 'top speed (e.g. "155 mph" or "250 km/h")',
+        'drivetrain': 'AWD, FWD, RWD, or 4WD',
+        'price': 'starting price with currency (e.g. "$35,000", "€42,900")',
+        'year': 'model year (e.g. 2025, 2026)',
+    }
+    
+    missing_desc = '\n'.join(
+        f'- {f}: {field_descriptions.get(f, f)}'
+        for f in missing
+    )
+    
+    prompt = f"""You are an automotive specifications expert. I have an article about the {make} {model}.
+
+The following specification fields are MISSING. Extract them from the context below.
+If a value is truly not mentioned anywhere, use "Not specified".
+
+Missing fields:
+{missing_desc}
+
+{context}
+
+Reply with ONLY valid JSON containing the missing field names as keys and their values as strings.
+Example: {{"horsepower": "320", "drivetrain": "AWD"}}
+No extra text, no markdown, just the JSON object."""
+
+    try:
+        from ai_engine.modules.ai_provider import get_ai_provider
+        ai = get_ai_provider(provider)
+        
+        response = ai.generate_completion(
+            prompt=prompt,
+            temperature=0.2,
+            max_tokens=500,
+        )
+        
+        # Parse response
+        response_text = response.strip()
+        if response_text.startswith('```'):
+            response_text = response_text.split('```')[1]
+            if response_text.startswith('json'):
+                response_text = response_text[4:]
+            response_text = response_text.strip()
+        
+        refill_data = json.loads(response_text)
+        
+        # Merge into specs
+        filled_by_refill = []
+        for field in missing:
+            value = refill_data.get(field)
+            if value and str(value).strip() not in ('', 'Not specified', 'None', 'null'):
+                specs[field] = str(value).strip()
+                filled_by_refill.append(field)
+                logger.info(f"[SPEC-REFILL] ✓ {field} = {value}")
+        
+        # Compute new coverage
+        _, _, coverage_after, missing_after = compute_coverage(specs)
+        
+        meta['filled_by_refill'] = filled_by_refill
+        meta['coverage_after'] = round(coverage_after, 1)
+        meta['missing_after'] = missing_after
+        meta['provider'] = provider
+        
+        logger.info(f"[SPEC-REFILL] Coverage: {coverage:.0f}% → {coverage_after:.0f}% "
+                     f"(+{len(filled_by_refill)} fields)")
+        
+    except json.JSONDecodeError as e:
+        logger.warning(f"[SPEC-REFILL] JSON parse error: {e}")
+        meta['error'] = f'json_parse: {e}'
+    except Exception as e:
+        logger.warning(f"[SPEC-REFILL] Failed: {e}")
+        meta['error'] = str(e)
+    
+    specs['_refill_meta'] = meta
+    return specs

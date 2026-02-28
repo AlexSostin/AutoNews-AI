@@ -575,6 +575,24 @@
       "total_time": 53.6,
       "spec_fields_filled": 5,
       "timestamp": "2026-02-28T12:24:34.226246"
+    },
+    {
+      "provider": "gemini",
+      "make": "Aito",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 48.8,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T12:25:21.269419"
+    },
+    {
+      "provider": "gemini",
+      "make": "Aito",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 53.8,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-02-28T12:25:28.075625"
     }
   ]
 }
