@@ -37,7 +37,7 @@ client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 # Gemini sometimes ignores prompt bans.  This is the safety net.
 
 _BANNED_SENTENCE_PATTERNS = re.compile(
-    r'<p>[^<]*?('
+    r'<(?:p|li)>[^<]*?('
     r'While a comprehensive driving review is pending'
     r'|While I haven\'t personally driven'
     r'|some assumptions can be made'
@@ -97,7 +97,7 @@ _BANNED_SENTENCE_PATTERNS = re.compile(
     r'|this is where .{3,40} truly shines'
     r'|this is where .{3,40} really shines'
     r'|this is where things get .{3,20} interesting'
-    ')[^<]*?</p>',
+    ')[^<]*?</(?:p|li)>',
     re.IGNORECASE
 )
 
@@ -182,35 +182,35 @@ def _clean_banned_phrases(html: str) -> str:
 
 
 def _reduce_repetition(html: str) -> str:
-    """Detect and remove paragraphs that repeat the same spec/phrase excessively."""
+    """Detect and remove paragraphs/list items that repeat the same spec/phrase excessively."""
     import collections
 
     # Extract all spec mentions: "1505 km", "530 hp", "82.5 kWh", etc.
     spec_re = re.compile(r'(\d[\d,.]*\s*(?:km|hp|kW|Nm|mm|kWh|mph|kg|seconds?|s)\b)', re.IGNORECASE)
 
-    # Split into <p> blocks
-    p_blocks = re.findall(r'<p>.*?</p>', html, re.DOTALL)
-    if not p_blocks:
+    # Count spec occurrences across ALL content blocks (p, li, h2, h3)
+    all_blocks = re.findall(r'<(?:p|li|h2|h3)>.*?</(?:p|li|h2|h3)>', html, re.DOTALL)
+    if not all_blocks:
         return html
 
-    # Count spec occurrences across all paragraphs
     spec_counts = collections.Counter()
-    for block in p_blocks:
+    for block in all_blocks:
         specs_in_block = set(spec_re.findall(block))  # unique per block
         for spec in specs_in_block:
             spec_counts[spec.strip().lower()] += 1
 
-    # Find specs that appear in 4+ different paragraphs
+    # Find specs that appear in 4+ different blocks
     overused = {spec for spec, count in spec_counts.items() if count >= 4}
     if not overused:
         return html
 
     print(f"  🔁 Repetition detector: overused specs: {overused}")
 
-    # Track how many times we've seen each overused spec; keep first 2 occurrences
+    # Only remove from <p> and <li> blocks (not headings)
+    removable_blocks = re.findall(r'<(?:p|li)>.*?</(?:p|li)>', html, re.DOTALL)
     spec_seen = collections.Counter()
     removed = 0
-    for block in p_blocks:
+    for block in removable_blocks:
         block_specs = {s.strip().lower() for s in spec_re.findall(block)}
         dominated = block_specs & overused
         if dominated:
@@ -219,14 +219,15 @@ def _reduce_repetition(html: str) -> str:
             for s in dominated:
                 spec_seen[s] += 1
             if all_seen_enough:
-                # Remove this paragraph — it's redundant
+                # Remove this block — it's redundant
                 html = html.replace(block, '', 1)
                 removed += 1
 
     if removed:
-        # Clean up empty space
+        # Clean up empty space and empty <ul> tags
         html = re.sub(r'\n\s*\n\s*\n', '\n\n', html)
-        print(f"  🔁 Repetition detector: removed {removed} redundant paragraphs")
+        html = re.sub(r'<ul>\s*</ul>', '', html)
+        print(f"  🔁 Repetition detector: removed {removed} redundant blocks")
 
     return html
 
