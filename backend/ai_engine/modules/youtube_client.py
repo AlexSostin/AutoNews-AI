@@ -18,7 +18,7 @@ class YouTubeClient:
         if match:
             return match.group(1)
             
-        # 2. If it's a handle (@Username) or custom URL, we need to search
+        # 2. If it's a handle (@Username) or custom URL (/c/), use forHandle API
         handle = None
         if '@' in channel_url:
             handle = channel_url.split('@')[1].split('/')[0]
@@ -26,17 +26,56 @@ class YouTubeClient:
             handle = channel_url.split('/c/')[1].split('/')[0]
         elif 'youtube.com/user/' in channel_url:
             username = channel_url.split('/user/')[1].split('/')[0]
-            # Ideally we'd search for channel by username, but search is expensive.
-            # Let's use search list for handle/username
+            # /user/ URLs — try forHandle first, then fallback to search
+            channel_id = self._resolve_handle(username)
+            if channel_id:
+                return channel_id
             return self._search_channel_id(username)
 
         if handle:
+            channel_id = self._resolve_handle(handle)
+            if channel_id:
+                return channel_id
+            # Fallback to search if forHandle fails
+            print(f"⚠️ forHandle failed for '{handle}', falling back to search")
             return self._search_channel_id(handle)
             
         return None
 
+    def _resolve_handle(self, handle):
+        """Resolve a YouTube handle to channel ID using Channels API forHandle param.
+        Costs only 1 quota unit vs 100 for search."""
+        if not self.api_key:
+            return None
+
+        # Ensure handle has @ prefix
+        if not handle.startswith('@'):
+            handle = f'@{handle}'
+
+        url = f"{self.base_url}/channels"
+        params = {
+            'part': 'id',
+            'forHandle': handle,
+            'key': self.api_key,
+        }
+
+        try:
+            response = requests.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('items'):
+                    channel_id = data['items'][0]['id']
+                    print(f"✅ Resolved handle '{handle}' → {channel_id}")
+                    return channel_id
+            else:
+                print(f"⚠️ forHandle API returned {response.status_code} for '{handle}'")
+        except Exception as e:
+            print(f"Error resolving handle '{handle}': {e}")
+
+        return None
+
     def _search_channel_id(self, query):
-        """Search for channel ID by query (handle or name)"""
+        """Search for channel ID by query — fallback only (costs 100 quota units)"""
         if not self.api_key:
             return None
             

@@ -216,11 +216,18 @@ def _run_youtube_scan():
         total_created = 0
         
         for channel in channels:
-            videos = client.get_latest_videos(
-                channel.channel_url, 
-                max_results=settings.youtube_max_videos_per_scan
-            )
-            if not videos:
+            try:
+                videos = client.get_latest_videos(
+                    channel.channel_url, 
+                    max_results=settings.youtube_max_videos_per_scan
+                )
+                if not videos:
+                    channel.last_checked = timezone.now()
+                    channel.save(update_fields=['last_checked'])
+                    continue
+            except Exception as e:
+                logger.error(f"[SCHEDULER/YOUTUBE] ❌ Channel error '{channel.name}': {e}")
+                _log_scheduler_error('youtube_scan', e, severity='warning')
                 continue
             
             for video in videos:
