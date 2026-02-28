@@ -197,38 +197,14 @@ def inject_internal_links(article_html: str, tag_names: list, make: str = None) 
                         linked_articles.append(article)
                         break
             
-            # If we couldn't find a suitable inline anchor, we still want it in the "Read Also" block
-            if not link_injected and article not in linked_articles:
-                linked_articles.append(article)
+            # If we couldn't find a suitable inline anchor, just skip — we still get value from inline links
+            if not link_injected:
+                pass  # No inline slot found for this article, that's okay
 
-        # 3. Append 'Read Also' block at the bottom
-        if linked_articles:
-            read_also_html = '<div class="seo-related-links" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">'
-            read_also_html += '<h3 style="margin-top: 0; font-size: 1.25rem;">Read Also:</h3><ul style="margin-bottom: 0;">'
-            for article in linked_articles:
-                # Clean YouTube noise from linked titles (Walk-around, First Look, etc.)
-                try:
-                    from ai_engine.modules.utils import clean_video_title
-                    clean_title = clean_video_title(article.title)
-                except ImportError:
-                    clean_title = article.title
-                read_also_html += f'<li><a href="/articles/{article.slug}">{clean_title}</a></li>'
-            read_also_html += '</ul></div>\n'
-            
-            read_also_soup = BeautifulSoup(read_also_html, 'html.parser')
-            
-            # Append right before the alt-texts div or source-attribution if they exist
-            alt_texts_div = soup.find('div', class_='alt-texts')
-            source_attr = soup.find('p', class_='source-attribution')
-            
-            if alt_texts_div:
-                alt_texts_div.insert_before(read_also_soup)
-            elif source_attr:
-                source_attr.insert_before(read_also_soup)
-            else:
-                soup.append(read_also_soup)
-                
-        return str(soup)
+        # Read Also block removed — frontend already shows related articles with images
+        
+        result_html = str(soup)
+        return result_html
         
     except Exception as e:
         logger.error(f"SEO Linker failed: {e}")
