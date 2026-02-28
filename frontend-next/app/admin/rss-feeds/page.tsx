@@ -86,6 +86,15 @@ export default function RSSFeedsPage() {
     const [filterImagePolicy, setFilterImagePolicy] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
 
+    // Feed URL finder
+    const [findUrl, setFindUrl] = useState('');
+    const [finding, setFinding] = useState(false);
+    const [foundFeed, setFoundFeed] = useState<DiscoveredFeed | null>(null);
+    const [findError, setFindError] = useState('');
+
+    // Feed stats
+    const [feedStats, setFeedStats] = useState<Record<number, { total_items: number; generated_count: number; dismissed_count: number; pending_count_items: number }>>({});
+
     const showToast = (message: string, type: 'success' | 'info' = 'success') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 5000);
@@ -136,6 +145,7 @@ export default function RSSFeedsPage() {
 
     useEffect(() => {
         fetchFeeds();
+        fetchStats();
     }, []);
 
     const fetchFeeds = async () => {
@@ -148,6 +158,37 @@ export default function RSSFeedsPage() {
             console.error('Error fetching RSS feeds:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchStats = async () => {
+        try {
+            const response = await api.get('/rss-feeds/stats/');
+            const statsMap: Record<number, any> = {};
+            for (const s of response.data) {
+                statsMap[s.id] = s;
+            }
+            setFeedStats(statsMap);
+        } catch (error) {
+            console.error('Error fetching feed stats:', error);
+        }
+    };
+
+    const handleFindFeed = async () => {
+        if (!findUrl.trim()) return;
+        setFinding(true);
+        setFoundFeed(null);
+        setFindError('');
+        try {
+            const response = await api.post('/rss-feeds/find_feed/', { url: findUrl.trim() });
+            setFoundFeed(response.data);
+            if (!response.data.feed_valid) {
+                setFindError('No RSS feed found at this URL');
+            }
+        } catch (error: any) {
+            setFindError(error.response?.data?.error || 'Failed to find feed');
+        } finally {
+            setFinding(false);
         }
     };
 
@@ -356,6 +397,62 @@ export default function RSSFeedsPage() {
                         Add RSS Feed
                     </Link>
                 </div>
+            </div>
+
+            {/* Find RSS by URL */}
+            <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                <div className="flex items-center gap-3">
+                    <div className="flex-1 relative">
+                        <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Paste any website URL to find its RSS feed..."
+                            value={findUrl}
+                            onChange={(e) => setFindUrl(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleFindFeed()}
+                            className="w-full pl-9 pr-3 py-2 text-sm text-gray-800 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                    </div>
+                    <button
+                        onClick={handleFindFeed}
+                        disabled={finding || !findUrl.trim()}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+                    >
+                        {finding ? (
+                            <><RefreshCw className="animate-spin" size={16} /> Finding...</>
+                        ) : (
+                            <><Search size={16} /> Find RSS</>
+                        )}
+                    </button>
+                </div>
+                {findError && !foundFeed?.feed_valid && (
+                    <p className="mt-2 text-sm text-red-600">{findError}</p>
+                )}
+                {foundFeed && foundFeed.feed_valid && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+                        <div>
+                            <span className="font-medium text-green-800">{foundFeed.feed_title || foundFeed.name}</span>
+                            <span className="text-xs text-green-600 ml-2">✅ RSS found ({foundFeed.entry_count} entries)</span>
+                            <div className="text-xs text-gray-500 mt-0.5">{foundFeed.feed_url}</div>
+                        </div>
+                        {foundFeed.already_added ? (
+                            <span className="text-sm text-gray-500 flex items-center gap-1"><Check size={14} /> Already Added</span>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    if (foundFeed.feed_url) {
+                                        handleAddDiscovered(foundFeed);
+                                        setFoundFeed(null);
+                                        setFindUrl('');
+                                    }
+                                }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                            >
+                                <Plus size={14} /> Add Feed
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Sort & Filter Toolbar */}
@@ -688,7 +785,15 @@ export default function RSSFeedsPage() {
 
                                             <div className="flex items-center gap-2">
                                                 <FileText size={16} />
-                                                <span>Entries processed: {feed.entries_processed} | Pending: {feed.pending_count}</span>
+                                                <span>
+                                                    {feedStats[feed.id] ? (
+                                                        <>
+                                                            {feedStats[feed.id].total_items} items • {feedStats[feed.id].generated_count} articles • {feedStats[feed.id].pending_count_items} pending
+                                                        </>
+                                                    ) : (
+                                                        <>Entries processed: {feed.entries_processed} | Pending: {feed.pending_count}</>
+                                                    )}
+                                                </span>
                                             </div>
 
                                             {feed.category_name && (

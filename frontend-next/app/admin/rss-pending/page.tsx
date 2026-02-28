@@ -60,6 +60,8 @@ export default function RSSNewsPage() {
     const [generatingId, setGeneratingId] = useState<number | null>(null);
     const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
     const [bulkDismissing, setBulkDismissing] = useState(false);
+    const [bulkGenerating, setBulkGenerating] = useState(false);
+    const [bulkProgress, setBulkProgress] = useState('');
     const [expandedItem, setExpandedItem] = useState<number | null>(null);
     const [nextPage, setNextPage] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState<number>(0);
@@ -182,6 +184,37 @@ export default function RSSNewsPage() {
             console.error('Error bulk dismissing:', error);
         } finally {
             setBulkDismissing(false);
+        }
+    };
+
+    const handleBulkGenerate = async () => {
+        if (selectedItems.size === 0) return;
+        if (selectedItems.size > 10) {
+            toast.error('Maximum 10 items per bulk generate');
+            return;
+        }
+        if (!confirm(`Generate articles for ${selectedItems.size} selected item(s)?`)) return;
+
+        setBulkGenerating(true);
+        setBulkProgress(`Generating 0/${selectedItems.size}...`);
+        try {
+            const response = await api.post('/rss-news-items/bulk_generate/', {
+                ids: Array.from(selectedItems),
+                provider: 'gemini',
+            });
+            const data = response.data;
+            setSelectedItems(new Set());
+            fetchNewsItems();
+            toast.success(
+                `✅ Bulk generate: ${data.generated} succeeded, ${data.failed} failed`,
+                { duration: 8000 }
+            );
+        } catch (error: any) {
+            console.error('Error bulk generating:', error);
+            toast.error(error.response?.data?.error || 'Bulk generation failed');
+        } finally {
+            setBulkGenerating(false);
+            setBulkProgress('');
         }
     };
 
@@ -346,17 +379,30 @@ export default function RSSNewsPage() {
                                     </span>
                                 </div>
                                 {selectedItems.size > 0 && (
-                                    <button
-                                        onClick={handleBulkDismiss}
-                                        disabled={bulkDismissing}
-                                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all font-medium shadow-sm"
-                                    >
-                                        {bulkDismissing ? (
-                                            <><Loader2 className="animate-spin" size={18} /> Dismissing...</>
-                                        ) : (
-                                            <><XCircle size={18} /> Dismiss Selected</>
-                                        )}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleBulkGenerate}
+                                            disabled={bulkGenerating || selectedItems.size > 10}
+                                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all font-medium shadow-sm"
+                                        >
+                                            {bulkGenerating ? (
+                                                <><Loader2 className="animate-spin" size={18} /> {bulkProgress || 'Generating...'}</>
+                                            ) : (
+                                                <><Wand2 size={18} /> Generate Selected ({selectedItems.size})</>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={handleBulkDismiss}
+                                            disabled={bulkDismissing}
+                                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all font-medium shadow-sm"
+                                        >
+                                            {bulkDismissing ? (
+                                                <><Loader2 className="animate-spin" size={18} /> Dismissing...</>
+                                            ) : (
+                                                <><XCircle size={18} /> Dismiss Selected</>
+                                            )}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
 

@@ -48,6 +48,23 @@ CURATED_SOURCES = [
     ("Lamborghini Media Center", "https://www.lamborghini.com/en-en/news", None, "brand"),
     ("Ferrari Media", "https://media.ferrari.com", None, "brand"),
     
+    # ─── Chinese EV Brands ───────────────────────────────────────────
+    ("XPeng Motors", "https://www.xpeng.com", None, "brand"),
+    ("Li Auto", "https://www.lixiang.com", None, "brand"),
+    ("Zeekr", "https://www.zeekr.com", None, "brand"),
+    ("Geely Auto", "https://global.geely.com", None, "brand"),
+    ("Chery International", "https://www.cheryinternational.com", None, "brand"),
+    ("Leapmotor", "https://www.leapmotor.com", None, "brand"),
+    ("GAC Aion", "https://www.gac-aion.com", None, "brand"),
+    ("Dongfeng Motor", "https://www.dongfeng-global.com", None, "brand"),
+    ("Great Wall Motors", "https://www.gwm-global.com", None, "brand"),
+    ("AITO (Seres/Huawei)", "https://www.aito.com", None, "brand"),
+    ("Changan Auto", "https://www.globalchangan.com", None, "brand"),
+    ("Hongqi (FAW)", "https://www.hongqi-auto.com", None, "brand"),
+    ("Lynk & Co", "https://www.lynkco.com", None, "brand"),
+    ("MG Motor (SAIC)", "https://www.mgmotor.com", None, "brand"),
+    ("JAC Motors", "https://www.jac.com.cn", None, "brand"),
+    
     # ─── Automotive Media (news sites with RSS) ──────────────────────
     ("Motor1.com", "https://www.motor1.com", "https://www.motor1.com/rss/news/all/", "media"),
     ("Autoblog", "https://www.autoblog.com", "https://www.autoblog.com/rss.xml", "media"),
@@ -64,6 +81,14 @@ CURATED_SOURCES = [
     ("Automotive News", "https://www.autonews.com", None, "media"),
     ("CarNewsChina", "https://carnewschina.com", "https://carnewschina.com/feed/", "media"),
     ("CarsGuide", "https://www.carsguide.com.au", "https://www.carsguide.com.au/rss.xml", "media"),
+    
+    # ─── EV-Focused Media ────────────────────────────────────────────
+    ("CNEVPost", "https://cnevpost.com", "https://cnevpost.com/feed/", "media"),
+    ("CleanTechnica", "https://cleantechnica.com", "https://cleantechnica.com/feed/", "media"),
+    ("GreenCarReports", "https://www.greencarreports.com", "https://www.greencarreports.com/rss", "media"),
+    ("Fully Charged", "https://fullycharged.show", "https://fullycharged.show/feed/", "media"),
+    ("China Auto Review", "https://chinaautoreview.com", "https://chinaautoreview.com/feed/", "media"),
+    ("EV Obsession", "https://evobsession.com", "https://evobsession.com/feed/", "media"),
 ]
 
 
@@ -226,3 +251,79 @@ def _validate_feed(feed_url: str) -> dict:
     except Exception as e:
         logger.warning(f"Feed validation failed for {feed_url}: {e}")
         return {'valid': False}
+
+
+def find_feed_by_url(url: str) -> dict:
+    """
+    Find RSS feed for any website URL.
+    Returns a dict ready for the frontend to display and add.
+    """
+    from news.models import RSSFeed
+    
+    # Normalize URL
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    url = url.rstrip('/')
+    
+    parsed = urlparse(url)
+    domain = parsed.netloc.replace('www.', '')
+    name = domain.split('.')[0].title()
+    
+    # Check if already added
+    existing_urls = set(
+        RSSFeed.objects.values_list('feed_url', flat=True)
+    )
+    existing_websites = set(
+        u.rstrip('/').lower() for u in
+        RSSFeed.objects.values_list('website_url', flat=True) if u
+    )
+    already_added = url.lower() in existing_websites
+    
+    result = {
+        'name': name,
+        'website_url': url,
+        'feed_url': None,
+        'source_type': 'media',
+        'feed_valid': False,
+        'feed_title': '',
+        'entry_count': 0,
+        'license_status': 'unchecked',
+        'license_details': '',
+        'image_policy': 'pexels_fallback',
+        'already_added': already_added,
+    }
+    
+    # First check if the URL itself is an RSS feed
+    try:
+        resp = requests.get(url, timeout=10, headers={
+            'User-Agent': HEADERS['User-Agent'],
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        })
+        if resp.status_code == 200:
+            content_lower = resp.text[:500].lower()
+            if '<rss' in content_lower or '<feed' in content_lower or '<?xml' in content_lower:
+                validation = _validate_feed(url)
+                if validation['valid']:
+                    result['feed_url'] = url
+                    result['feed_valid'] = True
+                    result['feed_title'] = validation.get('title', '')
+                    result['entry_count'] = validation.get('entry_count', 0)
+                    if url in existing_urls:
+                        result['already_added'] = True
+                    return result
+    except requests.RequestException:
+        pass
+    
+    # Try auto-detecting RSS from the HTML page
+    feed_url = _auto_detect_rss(url)
+    if feed_url:
+        result['feed_url'] = feed_url
+        if feed_url in existing_urls:
+            result['already_added'] = True
+        
+        validation = _validate_feed(feed_url)
+        result['feed_valid'] = validation['valid']
+        result['feed_title'] = validation.get('title', '')
+        result['entry_count'] = validation.get('entry_count', 0)
+    
+    return result

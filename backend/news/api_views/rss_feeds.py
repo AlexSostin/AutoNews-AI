@@ -201,6 +201,37 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'])
+    def find_feed(self, request):
+        """Find RSS feed for any URL — paste a website URL, get its RSS feed info"""
+        from ai_engine.modules.feed_discovery import find_feed_by_url
+        
+        url = request.data.get('url', '').strip()
+        if not url:
+            return Response({'error': 'url is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            result = find_feed_by_url(url)
+            return Response(result)
+        except Exception as e:
+            return Response({
+                'error': f'Feed discovery failed: {str(e)}',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Get per-feed statistics: total items, generated, dismissed, pending"""
+        from django.db.models import Count, Q
+        
+        feeds = RSSFeed.objects.annotate(
+            total_items=Count('news_items'),
+            generated_count=Count('news_items', filter=Q(news_items__status='generated')),
+            dismissed_count=Count('news_items', filter=Q(news_items__status='dismissed')),
+            pending_count_items=Count('news_items', filter=Q(news_items__status='new')),
+        ).values('id', 'name', 'total_items', 'generated_count', 'dismissed_count', 'pending_count_items')
+        
+        return Response(list(feeds))
+
+    @action(detail=False, methods=['post'])
     def add_discovered(self, request):
         """Add a discovered feed to the database"""
         name = request.data.get('name')
