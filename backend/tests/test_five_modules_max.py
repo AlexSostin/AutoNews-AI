@@ -499,7 +499,7 @@ class TestEmptySpecs:
 
 class TestExtractVehicleSpecs:
 
-    @patch('ai_engine.modules.specs_extractor.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_successful_extraction(self, mock_ai):
         """L90-118: Full successful path."""
         from ai_engine.modules.specs_extractor import extract_vehicle_specs
@@ -523,7 +523,7 @@ class TestExtractVehicleSpecs:
         assert result['power_hp'] == 530
         assert result['confidence'] == 0.9
 
-    @patch('ai_engine.modules.specs_extractor.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_markdown_wrapped_response(self, mock_ai):
         """L104-108: Response wrapped in markdown code block."""
         from ai_engine.modules.specs_extractor import extract_vehicle_specs
@@ -541,7 +541,7 @@ class TestExtractVehicleSpecs:
         result = extract_vehicle_specs(article)
         assert result['power_hp'] == 300
 
-    @patch('ai_engine.modules.specs_extractor.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_json_parse_error(self, mock_ai):
         """L120-123: Invalid JSON → empty specs."""
         from ai_engine.modules.specs_extractor import extract_vehicle_specs
@@ -559,7 +559,7 @@ class TestExtractVehicleSpecs:
         result = extract_vehicle_specs(article)
         assert result['confidence'] == 0.0
 
-    @patch('ai_engine.modules.specs_extractor.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_general_exception(self, mock_ai):
         """L125-127: Provider raises → empty specs."""
         from ai_engine.modules.specs_extractor import extract_vehicle_specs
