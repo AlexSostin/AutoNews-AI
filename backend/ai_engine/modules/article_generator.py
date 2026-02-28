@@ -297,6 +297,123 @@ def _shorten_car_names(html: str) -> str:
     
     return html
 
+def enhance_existing_article(existing_html: str, specs: dict = None, provider='gemini'):
+    """
+    Enhance an existing article by enriching it with web search data.
+    Instead of regenerating from scratch, takes the existing HTML as a template
+    and asks AI to improve it with additional facts.
+    
+    Args:
+        existing_html: The current article HTML content
+        specs: Dict with make, model, year etc.
+        provider: 'gemini' or 'groq'
+    
+    Returns:
+        dict with 'title', 'content', 'summary' or None if enhancement fails
+    """
+    import re as _re
+    from datetime import datetime
+    
+    if not existing_html or len(existing_html) < 200:
+        return None
+    
+    # 1. Web search for additional facts
+    web_context = ""
+    if specs and specs.get('make') and specs.get('model'):
+        try:
+            from ai_engine.modules.searcher import get_web_context
+            web_context = get_web_context(specs)
+            if web_context:
+                print(f"✓ Enhancement web search successful")
+        except Exception as e:
+            print(f"⚠️ Enhancement web search failed: {e}")
+    
+    if not web_context:
+        print("⚠️ No web context found for enhancement, skipping")
+        return None
+    
+    # 2. Build enhancement prompt
+    current_date = datetime.now().strftime("%B %d, %Y")
+    
+    try:
+        ai = get_ai_provider(provider)
+    except Exception:
+        try:
+            from modules.ai_provider import get_ai_provider as _get
+            ai = _get(provider)
+        except Exception:
+            return None
+    
+    prompt = f"""TODAY'S DATE: {current_date}
+
+You are an expert automotive journalist. You have an EXISTING article that is already well-written.
+Your job is to ENHANCE it — not rewrite it. Keep the same tone, structure, and personality.
+
+EXISTING ARTICLE:
+{existing_html}
+
+CRITICAL WEB DATA — ADD THESE FACTS TO THE ARTICLE:
+{web_context}
+
+INSTRUCTIONS:
+1. Keep the SAME structure, headings, and overall tone of the existing article
+2. ADD any new facts from the web data: sales figures, real test results, market reception, detailed specs
+3. FILL IN any sections that are thin or vague with concrete data from the web search
+4. FIX any factual errors if the web data contradicts the existing article
+5. If the article has a Pros & Cons section, make sure cons are REAL downsides (not "specs unknown")
+6. If FreshMotors Verdict is empty or cut off, write a compelling 2-3 sentence verdict
+7. Do NOT add filler or padding — only add REAL information
+8. Do NOT change the car name, year, or model designation
+9. Output ONLY clean HTML (h2, p, ul, li tags) — NO html/head/body tags
+
+OUTPUT the complete enhanced article as HTML."""
+
+    system_prompt = "You are an expert automotive journalist enhancing an existing article with new facts. Keep the original tone and add only real, verified information."
+    
+    try:
+        enhanced = ai.generate_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            temperature=0.5,  # Lower temperature for factual enhancement
+            max_tokens=8192
+        )
+        
+        if not enhanced or len(enhanced) < 200:
+            return None
+        
+        # Clean up
+        enhanced = ensure_html_only(enhanced)
+        enhanced = _clean_banned_phrases(enhanced)
+        enhanced = _reduce_repetition(enhanced)
+        enhanced = _shorten_car_names(enhanced)
+        
+        # Extract title
+        title_match = _re.search(r'<h2[^>]*>(.*?)</h2>', enhanced)
+        title = title_match.group(1) if title_match else None
+        if title:
+            title = _re.sub(r'<[^>]+>', '', title).strip()
+        
+        # Extract summary
+        summary_match = _re.search(r'<p>(.*?)</p>', enhanced)
+        summary = ''
+        if summary_match:
+            summary = _re.sub(r'<[^>]+>', '', summary_match.group(1))[:300]
+        
+        word_count = len(_re.sub(r'<[^>]+>', ' ', enhanced).split())
+        print(f"✓ Enhancement complete: {word_count} words")
+        
+        return {
+            'title': title,
+            'content': enhanced,
+            'summary': summary,
+            'word_count': word_count,
+        }
+        
+    except Exception as e:
+        print(f"❌ Enhancement failed: {e}")
+        return None
+
+
 def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.

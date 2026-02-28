@@ -516,10 +516,72 @@ Return ONLY the HTML-formatted version with every word preserved."""
             
             # ── AUTO-DETECT SOURCE TYPE ──
             if youtube_url:
-                # YouTube article → re-download transcript and regenerate
+                # YouTube article → try enhancement first, then full regeneration
                 source_type = 'youtube'
                 from ai_engine.main import _generate_article_content, generate_title_variants
-                result = _generate_article_content(youtube_url, provider=provider, exclude_article_id=article.id)
+                
+                # Try enhancing existing content with web data first
+                if article.content and len(article.content) > 500:
+                    from ai_engine.modules.article_generator import enhance_existing_article
+                    
+                    # Build specs dict from existing CarSpecification
+                    enhance_specs = {}
+                    try:
+                        car_spec = CarSpecification.objects.filter(article=article).first()
+                        if car_spec:
+                            enhance_specs = {
+                                'make': car_spec.make or '',
+                                'model': car_spec.model or '',
+                                'year': car_spec.release_date or '',
+                            }
+                    except Exception:
+                        pass
+                    
+                    # Fallback: extract from title
+                    if not enhance_specs.get('make'):
+                        import re as _title_re
+                        title_parts = article.title.split()
+                        if len(title_parts) >= 3:
+                            # Try "2026 BYD TANG" pattern
+                            if title_parts[0].isdigit() and len(title_parts[0]) == 4:
+                                enhance_specs['year'] = title_parts[0]
+                                enhance_specs['make'] = title_parts[1]
+                                enhance_specs['model'] = ' '.join(title_parts[2:4])
+                            else:
+                                enhance_specs['make'] = title_parts[0]
+                                enhance_specs['model'] = ' '.join(title_parts[1:3])
+                    
+                    print(f"🔄 Trying enhancement mode for: {enhance_specs.get('make')} {enhance_specs.get('model')}")
+                    enhanced = enhance_existing_article(
+                        existing_html=article.content,
+                        specs=enhance_specs,
+                        provider=provider,
+                    )
+                    
+                    if enhanced and enhanced.get('content'):
+                        result = {
+                            'success': True,
+                            'title': enhanced['title'] or article.title,
+                            'content': enhanced['content'],
+                            'summary': enhanced['summary'] or article.summary,
+                            'generation_metadata': {
+                                'provider': provider,
+                                'source_type': 'youtube_enhanced',
+                                'word_count': enhanced.get('word_count', 0),
+                                'mode': 'enhancement',
+                            },
+                            'specs': {},
+                            'tag_names': [],
+                        }
+                        source_type = 'youtube_enhanced'
+                        print(f"✅ Enhancement succeeded ({enhanced.get('word_count', 0)} words)")
+                    else:
+                        print(f"⚠️ Enhancement failed, falling back to full regeneration")
+                        enhanced = None
+                
+                # Full regeneration if enhancement didn't work
+                if not result:
+                    result = _generate_article_content(youtube_url, provider=provider, exclude_article_id=article.id)
                 
                 if not result.get('success'):
                     return Response({
