@@ -255,7 +255,7 @@ class TestTranslateAndEnhance:
     def test_successful_translation(self, mock_ai):
         mock_provider = MagicMock()
         mock_provider.generate_completion.return_value = json.dumps({
-            'title': '2026 BYD Seal Review',
+            'title': '2026 BYD Seal Performance Analysis',
             'content': '<h2>Intro</h2><p>P1</p><h2>Specs</h2><p>P2</p><h2>Verdict</h2><p>P3</p><p>P4</p>',
             'summary': 'Summary text here',
             'meta_description': 'Meta desc',
@@ -267,7 +267,7 @@ class TestTranslateAndEnhance:
 
         from ai_engine.modules.translator import translate_and_enhance
         result = translate_and_enhance('Текст на русском', seo_keywords='BYD, Seal')
-        assert result['title'] == '2026 BYD Seal Review'
+        assert result['title'] == '2026 BYD Seal Performance Analysis'
         assert 'reading_time' in result
 
     @patch('ai_engine.modules.translator.get_ai_provider')

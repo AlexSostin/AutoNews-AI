@@ -77,8 +77,8 @@ class TestValidateTitle:
     """Tests for validate_title() — title validation with fallback chain."""
 
     def test_valid_title_returned_as_is(self):
-        result = validate_title("2025 BMW X5 M60i Full Review and Test Drive")
-        assert result == "2025 BMW X5 M60i Full Review and Test Drive"
+        result = validate_title("2025 BMW X5 M60i Performance Analysis")
+        assert result == "2025 BMW X5 M60i Performance Analysis"
 
     def test_strips_whitespace(self):
         result = validate_title("  2025 BMW X5 Review  ")

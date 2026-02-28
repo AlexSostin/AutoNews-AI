@@ -354,7 +354,7 @@ class TestYouTubeClient:
         }
         mock_get.side_effect = [channel_resp, playlist_resp]
         client = YouTubeClient(api_key='test-key')
-        videos = client.get_latest_videos('UCtest')
+        videos = client.get_latest_videos('UCxxxxxxxxxxxxxxxxxxxxxx')
         assert len(videos) == 1
         assert videos[0]['id'] == 'vid123'
         assert videos[0]['title'] == 'Test Video'

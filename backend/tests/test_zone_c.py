@@ -186,10 +186,10 @@ class TestTranslatorAI:
     def test_translate_and_enhance(self, mock_provider):
         from ai_engine.modules.translator import translate_and_enhance
         mock_ai = MagicMock()
-        mock_ai.generate_completion.return_value = '{"title": "BYD Seal Review", "content": "<p>The BYD Seal is great.</p>", "summary": "Review", "meta_description": "BYD Seal review 2026", "suggested_slug": "byd-seal-review", "suggested_categories": ["Reviews"], "seo_keywords": ["BYD", "Seal"]}'
+        mock_ai.generate_completion.return_value = '{"title": "BYD Seal Performance Analysis", "content": "<p>The BYD Seal is great.</p>", "summary": "Analysis", "meta_description": "BYD Seal analysis 2026", "suggested_slug": "byd-seal-analysis", "suggested_categories": ["Reviews"], "seo_keywords": ["BYD", "Seal"]}'
         mock_provider.return_value = mock_ai
         result = translate_and_enhance('BYD Seal — отличный электромобиль')
-        assert result['title'] == 'BYD Seal Review'
+        assert result['title'] == 'BYD Seal Performance Analysis'
 
 
 # ═══════════════════════════════════════════════════════════════════════════
