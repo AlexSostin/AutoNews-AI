@@ -119,7 +119,18 @@ export default function BrandsPage() {
             }
             setShowEditModal(false);
         } catch (err: any) {
-            const detail = err.response?.data?.name?.[0] || err.response?.data?.detail || err.message;
+            const data = err.response?.data;
+            let detail = '';
+            if (data) {
+                // DRF returns field-level errors as { field: ["error"] }
+                const fieldErrors = Object.entries(data)
+                    .filter(([, v]) => Array.isArray(v))
+                    .map(([k, v]) => `${k}: ${(v as string[]).join(', ')}`)
+                    .join('; ');
+                detail = fieldErrors || data.detail || data.error || JSON.stringify(data);
+            } else {
+                detail = err.message;
+            }
             setError(`Failed to save: ${detail}`);
         }
     };

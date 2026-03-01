@@ -811,7 +811,7 @@ class BrandSerializer(serializers.ModelSerializer):
             'sub_brands', 'article_count', 'model_count', 'image',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['slug', 'created_at', 'updated_at']
 
     def get_article_count(self, obj):
         if hasattr(obj, '_article_count'):
