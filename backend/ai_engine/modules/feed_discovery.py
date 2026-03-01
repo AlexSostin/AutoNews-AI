@@ -95,6 +95,7 @@ CURATED_SOURCES = [
 def discover_feeds(check_license: bool = True) -> list:
     """
     Discover automotive RSS feeds from curated sources.
+    Uses ThreadPoolExecutor for parallel checking (~10 workers).
     
     Returns a list of dicts:
     {
@@ -103,6 +104,7 @@ def discover_feeds(check_license: bool = True) -> list:
         already_added
     }
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     from news.models import RSSFeed
     
     # Get existing feed URLs for dedup
@@ -114,9 +116,9 @@ def discover_feeds(check_license: bool = True) -> list:
         RSSFeed.objects.values_list('website_url', flat=True) if url
     )
     
-    results = []
-    
-    for name, website_url, known_rss, source_type in CURATED_SOURCES:
+    def _process_source(source_tuple):
+        """Process a single curated source (runs in thread)."""
+        name, website_url, known_rss, source_type = source_tuple
         logger.info(f"Discovering: {name} ({website_url})")
         
         result = {
@@ -133,40 +135,75 @@ def discover_feeds(check_license: bool = True) -> list:
             'already_added': False,
         }
         
-        # Check if already added
-        website_clean = website_url.rstrip('/').lower()
-        if website_clean in existing_websites:
-            result['already_added'] = True
-        
-        # Find RSS feed
-        feed_url = known_rss
-        if not feed_url:
-            feed_url = _auto_detect_rss(website_url)
-        
-        if feed_url:
-            result['feed_url'] = feed_url
-            if feed_url in existing_urls:
+        try:
+            # Check if already added
+            website_clean = website_url.rstrip('/').lower()
+            if website_clean in existing_websites:
                 result['already_added'] = True
             
-            # Validate feed
-            validation = _validate_feed(feed_url)
-            result['feed_valid'] = validation['valid']
-            result['feed_title'] = validation.get('title', '')
-            result['entry_count'] = validation.get('entry_count', 0)
+            # Find RSS feed
+            feed_url = known_rss
+            if not feed_url:
+                feed_url = _auto_detect_rss(website_url)
+            
+            if feed_url:
+                result['feed_url'] = feed_url
+                if feed_url in existing_urls:
+                    result['already_added'] = True
+                
+                # Validate feed
+                validation = _validate_feed(feed_url)
+                result['feed_valid'] = validation['valid']
+                result['feed_title'] = validation.get('title', '')
+                result['entry_count'] = validation.get('entry_count', 0)
+            
+            # Check license (if requested and feed is valid)
+            if check_license and (result['feed_valid'] or source_type == 'brand'):
+                try:
+                    from ai_engine.modules.license_checker import check_content_license
+                    license_result = check_content_license(website_url, source_type=source_type)
+                    result['license_status'] = license_result['status']
+                    result['license_details'] = license_result['details']
+                except Exception as e:
+                    logger.error(f"License check failed for {name}: {e}")
+                    result['license_status'] = 'yellow'
+                    result['license_details'] = f'Check failed: {str(e)[:200]}'
+        except Exception as e:
+            logger.error(f"Discovery failed for {name}: {e}")
+            result['license_details'] = f'Discovery error: {str(e)[:200]}'
         
-        # Check license (if requested and feed is valid)
-        if check_license and (result['feed_valid'] or source_type == 'brand'):
+        return result
+    
+    results = []
+    
+    # Process all sources in parallel (10 workers)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_source = {
+            executor.submit(_process_source, source): source
+            for source in CURATED_SOURCES
+        }
+        
+        for future in as_completed(future_to_source):
+            source = future_to_source[future]
             try:
-                from ai_engine.modules.license_checker import check_content_license
-                license_result = check_content_license(website_url, source_type=source_type)
-                result['license_status'] = license_result['status']
-                result['license_details'] = license_result['details']
+                result = future.result(timeout=30)  # 30s per source max
+                results.append(result)
             except Exception as e:
-                logger.error(f"License check failed for {name}: {e}")
-                result['license_status'] = 'yellow'
-                result['license_details'] = f'Check failed: {str(e)[:200]}'
-        
-        results.append(result)
+                name = source[0]
+                logger.error(f"Source {name} timed out or failed: {e}")
+                results.append({
+                    'name': name,
+                    'website_url': source[1],
+                    'feed_url': None,
+                    'source_type': source[3],
+                    'feed_valid': False,
+                    'feed_title': '',
+                    'entry_count': 0,
+                    'license_status': 'unchecked',
+                    'license_details': f'Timed out: {str(e)[:200]}',
+                    'image_policy': 'original' if source[3] == 'brand' else 'pexels_only',
+                    'already_added': False,
+                })
     
     # Sort: green first, then yellow, then red; valid feeds first
     status_order = {'green': 0, 'yellow': 1, 'red': 2, 'unchecked': 3}
@@ -327,3 +364,160 @@ def find_feed_by_url(url: str) -> dict:
         result['entry_count'] = validation.get('entry_count', 0)
     
     return result
+
+
+def search_feeds_by_keyword(query: str, max_results: int = 10) -> list:
+    """
+    Search the web for RSS feeds matching a keyword query.
+    User types "BYD" → we search for automotive RSS feeds related to BYD.
+    
+    Uses DuckDuckGo search + parallel RSS detection.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from news.models import RSSFeed
+    
+    query_lower = query.lower().strip()
+    
+    # Multiple search queries for better coverage
+    search_queries = [
+        f'"{query}" automotive news rss feed',
+        f'"{query}" car news rss xml',
+        f'{query} electric vehicle news feed rss',
+    ]
+    
+    logger.info(f"Searching web for RSS feeds: {query}")
+    
+    # Collect results from multiple searches
+    all_search_results = []
+    seen_urls = set()
+    
+    try:
+        from duckduckgo_search import DDGS
+        with DDGS() as ddgs:
+            for sq in search_queries:
+                try:
+                    results = list(ddgs.text(sq, max_results=10))
+                    for r in results:
+                        url = r.get('href', '')
+                        if url and url not in seen_urls:
+                            seen_urls.add(url)
+                            all_search_results.append(r)
+                except Exception as e:
+                    logger.warning(f"Search query failed '{sq}': {e}")
+    except Exception as e:
+        logger.error(f"DuckDuckGo search failed: {e}")
+        return []
+    
+    if not all_search_results:
+        return []
+    
+    # Filter: keep only results that mention the query in title, URL, or snippet
+    def _is_relevant(sr):
+        text = f"{sr.get('title', '')} {sr.get('href', '')} {sr.get('body', '')}".lower()
+        # Query keyword must appear somewhere
+        if query_lower not in text:
+            return False
+        # Must look automotive/news-related (not random forums)
+        auto_keywords = ['car', 'auto', 'motor', 'vehicle', 'ev', 'electric', 
+                         'news', 'feed', 'rss', 'press', 'review', query_lower]
+        return any(kw in text for kw in auto_keywords)
+    
+    filtered_results = [sr for sr in all_search_results if _is_relevant(sr)]
+    
+    # If filtering removed everything, fallback to results containing query
+    if not filtered_results:
+        filtered_results = [sr for sr in all_search_results 
+                          if query_lower in f"{sr.get('title', '')} {sr.get('href', '')} {sr.get('body', '')}".lower()]
+    
+    if not filtered_results:
+        return []
+    
+    # Get existing feeds for dedup
+    existing_urls = set(
+        RSSFeed.objects.values_list('feed_url', flat=True)
+    )
+    existing_websites = set(
+        url.rstrip('/').lower() for url in
+        RSSFeed.objects.values_list('website_url', flat=True) if url
+    )
+    
+    def _check_result(sr):
+        """Check a single search result for RSS feed."""
+        url = sr.get('href', '')
+        title = sr.get('title', '')
+        if not url:
+            return None
+        
+        parsed = urlparse(url)
+        domain = parsed.netloc.replace('www.', '')
+        name = title or domain.split('.')[0].title()
+        
+        result = {
+            'name': name,
+            'website_url': url,
+            'feed_url': None,
+            'source_type': 'media',
+            'feed_valid': False,
+            'feed_title': '',
+            'entry_count': 0,
+            'license_status': 'unchecked',
+            'license_details': '',
+            'image_policy': 'pexels_fallback',
+            'already_added': url.rstrip('/').lower() in existing_websites,
+            'search_snippet': sr.get('body', ''),
+        }
+        
+        # Check if URL itself is an RSS feed
+        try:
+            resp = requests.get(url, timeout=8, headers={
+                'User-Agent': HEADERS['User-Agent'],
+                'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            })
+            if resp.status_code == 200:
+                content_lower = resp.text[:500].lower()
+                if '<rss' in content_lower or '<feed' in content_lower or '<?xml' in content_lower:
+                    validation = _validate_feed(url)
+                    if validation['valid']:
+                        result['feed_url'] = url
+                        result['feed_valid'] = True
+                        result['feed_title'] = validation.get('title', '')
+                        result['entry_count'] = validation.get('entry_count', 0)
+                        if url in existing_urls:
+                            result['already_added'] = True
+                        return result
+        except requests.RequestException:
+            pass
+        
+        # Try auto-detecting RSS from the page
+        feed_url = _auto_detect_rss(url)
+        if feed_url:
+            result['feed_url'] = feed_url
+            if feed_url in existing_urls:
+                result['already_added'] = True
+            validation = _validate_feed(feed_url)
+            result['feed_valid'] = validation['valid']
+            result['feed_title'] = validation.get('title', '')
+            result['entry_count'] = validation.get('entry_count', 0)
+        
+        return result
+    
+    # Check all search results in parallel
+    results = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        future_to_sr = {
+            executor.submit(_check_result, sr): sr
+            for sr in filtered_results
+        }
+        for future in as_completed(future_to_sr):
+            try:
+                result = future.result(timeout=20)
+                if result:
+                    results.append(result)
+            except Exception as e:
+                logger.warning(f"Search result check failed: {e}")
+    
+    # Sort: valid feeds first, then by entry count
+    results.sort(key=lambda r: (not r['feed_valid'], -r['entry_count']))
+    
+    return results[:max_results]
+

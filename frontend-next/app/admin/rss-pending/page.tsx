@@ -12,8 +12,11 @@ import {
     CheckCircle2,
     Clock,
     Filter,
+    ArrowUpDown,
+    Sparkles,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { logCaughtError } from '@/lib/error-logger';
 import toast from 'react-hot-toast';
 
 interface RSSFeed {
@@ -40,14 +43,22 @@ interface RSSNewsItem {
     status: 'new' | 'read' | 'generating' | 'generated' | 'dismissed';
     pending_article: number | null;
     created_at: string;
+    relevance_score: number;
+    relevance_label: 'high' | 'medium' | 'low';
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
     new: { label: 'New', color: 'from-blue-500 to-blue-600', icon: '🆕' },
     read: { label: 'Read', color: 'from-gray-400 to-gray-500', icon: '👁️' },
-    generating: { label: 'Generating...', color: 'from-purple-500 to-purple-600', icon: '🤖' },
+    generating: { label: 'Generating...', color: 'from-yellow-500 to-yellow-600', icon: '⚡' },
     generated: { label: 'Article Created', color: 'from-green-500 to-green-600', icon: '✅' },
     dismissed: { label: 'Dismissed', color: 'from-red-400 to-red-500', icon: '❌' },
+};
+
+const RELEVANCE_COLORS = {
+    high: { stripe: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', text: 'High', dot: 'bg-emerald-500' },
+    medium: { stripe: 'bg-orange-500', badge: 'bg-orange-100 text-orange-700 border-orange-300', text: 'Medium', dot: 'bg-orange-500' },
+    low: { stripe: 'bg-rose-400', badge: 'bg-rose-100 text-rose-600 border-rose-300', text: 'Low', dot: 'bg-rose-400' },
 };
 
 export default function RSSNewsPage() {
@@ -55,6 +66,7 @@ export default function RSSNewsPage() {
     const [newsItems, setNewsItems] = useState<RSSNewsItem[]>([]);
     const [selectedFeed, setSelectedFeed] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('new');
+    const [sortBy, setSortBy] = useState<'relevance' | 'date'>('relevance');
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [generatingId, setGeneratingId] = useState<number | null>(null);
@@ -80,7 +92,7 @@ export default function RSSNewsPage() {
             const feedsData = Array.isArray(response.data) ? response.data : (response.data.results || []);
             setFeeds(feedsData);
         } catch (error) {
-            console.error('Error fetching RSS feeds:', error);
+            logCaughtError('rss_pending_fetch_feeds', error);
         }
     };
 
@@ -93,7 +105,6 @@ export default function RSSNewsPage() {
         try {
             let response;
             if (loadMore && nextPage) {
-                // Load next page using the full URL from DRF
                 response = await api.get(nextPage.replace(/^.*\/api\/v1/, ''));
             } else {
                 const params: any = {};
@@ -115,7 +126,7 @@ export default function RSSNewsPage() {
             setNextPage(data.next || null);
             setTotalCount(data.count || items.length);
         } catch (error) {
-            console.error('Error fetching news items:', error);
+            logCaughtError('rss_pending_fetch_items', error);
         } finally {
             setLoading(false);
             setLoadingMore(false);
@@ -125,36 +136,19 @@ export default function RSSNewsPage() {
     const handleGenerate = async (itemId: number) => {
         setGeneratingId(itemId);
         try {
-            const response = await api.post(`/rss-news-items/${itemId}/generate/`, {
-                provider: 'gemini',
-            });
-            if (response.data.success) {
-                const title = response.data.message || 'Article generated';
-                const pendingId = response.data.pending_article_id;
-                toast.success(
-                    (t) => (
-                        <div>
-                            <p className="font-semibold">✅ {title}</p>
-                            {pendingId && (
-                                <a
-                                    href="/admin/pending-articles"
-                                    className="inline-block mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium underline"
-                                    onClick={() => toast.dismiss(t.id)}
-                                >
-                                    View in Pending Articles →
-                                </a>
-                            )}
-                        </div>
-                    ),
-                    { duration: 8000 }
-                );
-                fetchNewsItems();
+            const response = await api.post(`/rss-news-items/${itemId}/generate/`);
+            if (response.data.pending_article) {
+                setNewsItems(prev => prev.map(item =>
+                    item.id === itemId
+                        ? { ...item, status: 'generated', pending_article: response.data.pending_article.id }
+                        : item
+                ));
+                toast.success('Article generated successfully!');
             }
         } catch (error: any) {
-            console.error('Error generating article:', error);
-            const errorMsg = error.response?.data?.error || error.message;
-            toast.error(`Generation failed: ${errorMsg}`, { duration: 6000 });
-            fetchNewsItems();
+            logCaughtError('rss_pending_generate', error, { itemId });
+            const detail = error.response?.data?.error || error.message;
+            toast.error(`Generation failed: ${detail}`);
         } finally {
             setGeneratingId(null);
         }
@@ -165,23 +159,23 @@ export default function RSSNewsPage() {
             await api.post(`/rss-news-items/${itemId}/dismiss/`);
             setNewsItems(prev => prev.filter(item => item.id !== itemId));
         } catch (error) {
-            console.error('Error dismissing item:', error);
+            logCaughtError('rss_pending_dismiss', error, { itemId });
         }
     };
 
     const handleBulkDismiss = async () => {
         if (selectedItems.size === 0) return;
-        if (!confirm(`Dismiss ${selectedItems.size} selected item(s)?`)) return;
-
         setBulkDismissing(true);
         try {
             await api.post('/rss-news-items/bulk_dismiss/', {
-                ids: Array.from(selectedItems),
+                item_ids: Array.from(selectedItems)
             });
+            setNewsItems(prev => prev.filter(item => !selectedItems.has(item.id)));
             setSelectedItems(new Set());
-            fetchNewsItems();
+            toast.success(`Dismissed ${selectedItems.size} items`);
         } catch (error) {
-            console.error('Error bulk dismissing:', error);
+            logCaughtError('rss_pending_bulk_dismiss', error);
+            toast.error('Bulk dismiss failed');
         } finally {
             setBulkDismissing(false);
         }
@@ -189,29 +183,39 @@ export default function RSSNewsPage() {
 
     const handleBulkGenerate = async () => {
         if (selectedItems.size === 0) return;
-        if (selectedItems.size > 10) {
-            toast.error('Maximum 10 items per bulk generate');
-            return;
-        }
-        if (!confirm(`Generate articles for ${selectedItems.size} selected item(s)?`)) return;
-
         setBulkGenerating(true);
-        setBulkProgress(`Generating 0/${selectedItems.size}...`);
+        setBulkProgress('Starting...');
         try {
             const response = await api.post('/rss-news-items/bulk_generate/', {
-                ids: Array.from(selectedItems),
-                provider: 'gemini',
+                item_ids: Array.from(selectedItems)
             });
-            const data = response.data;
+
+            const results = response.data.results || [];
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const r of results) {
+                if (r.status === 'success' || r.status === 'generated') {
+                    successCount++;
+                    setNewsItems(prev => prev.map(item =>
+                        item.id === r.item_id
+                            ? { ...item, status: 'generated', pending_article: r.pending_article_id }
+                            : item
+                    ));
+                } else {
+                    failCount++;
+                }
+            }
+
             setSelectedItems(new Set());
-            fetchNewsItems();
-            toast.success(
-                `✅ Bulk generate: ${data.generated} succeeded, ${data.failed} failed`,
-                { duration: 8000 }
-            );
-        } catch (error: any) {
-            console.error('Error bulk generating:', error);
-            toast.error(error.response?.data?.error || 'Bulk generation failed');
+            setBulkProgress('');
+            const msg = failCount > 0
+                ? `${successCount} generated, ${failCount} failed`
+                : `${successCount} articles generated!`;
+            toast.success(msg);
+        } catch (error) {
+            logCaughtError('rss_pending_bulk_generate', error);
+            toast.error('Bulk generation failed');
         } finally {
             setBulkGenerating(false);
             setBulkProgress('');
@@ -219,34 +223,56 @@ export default function RSSNewsPage() {
     };
 
     const toggleItemSelection = (itemId: number) => {
-        const newSelected = new Set(selectedItems);
-        if (newSelected.has(itemId)) {
-            newSelected.delete(itemId);
-        } else {
-            newSelected.add(itemId);
-        }
-        setSelectedItems(newSelected);
+        setSelectedItems(prev => {
+            const next = new Set(prev);
+            if (next.has(itemId)) {
+                next.delete(itemId);
+            } else {
+                next.add(itemId);
+            }
+            return next;
+        });
     };
 
     const toggleSelectAll = () => {
         if (selectedItems.size === newsItems.length) {
             setSelectedItems(new Set());
         } else {
-            setSelectedItems(new Set(newsItems.map(i => i.id)));
+            setSelectedItems(new Set(newsItems.map(item => item.id)));
         }
     };
 
     const formatDate = (dateStr: string | null) => {
-        if (!dateStr) return 'Unknown date';
-        return new Date(dateStr).toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
-        });
+        if (!dateStr) return 'Unknown';
+        const d = new Date(dateStr);
+        const now = new Date();
+        const diffHours = Math.floor((now.getTime() - d.getTime()) / 3600000);
+        if (diffHours < 1) return 'Just now';
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffHours < 48) return 'Yesterday';
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
+    // Sort items by relevance or date
+    const sortedItems = [...newsItems].sort((a, b) => {
+        if (sortBy === 'relevance') {
+            return (b.relevance_score || 0) - (a.relevance_score || 0);
+        }
+        const dateA = new Date(a.published_at || a.created_at).getTime();
+        const dateB = new Date(b.published_at || b.created_at).getTime();
+        return dateB - dateA;
+    });
+
+    // Stats
+    const highCount = newsItems.filter(i => i.relevance_label === 'high').length;
+    const medCount = newsItems.filter(i => i.relevance_label === 'medium').length;
+    const lowCount = newsItems.filter(i => i.relevance_label === 'low').length;
+
     return (
-        <div className="p-6">
+        <div className="p-4 sm:p-6 max-w-[1440px] mx-auto min-h-screen bg-gray-50">
+            {/* Header */}
             <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-black text-gray-950 flex items-center gap-3">
                     <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl shadow-lg">
                         <Newspaper className="text-white" size={28} />
                     </div>
@@ -282,7 +308,7 @@ export default function RSSNewsPage() {
                             </div>
                         </button>
 
-                        <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
+                        <div className="border-t border-gray-200 pt-3 mt-3 space-y-2 max-h-[300px] overflow-y-auto">
                             {feeds.map((feed) => (
                                 <button
                                     key={feed.id}
@@ -338,10 +364,34 @@ export default function RSSNewsPage() {
                                 ))}
                             </div>
                         </div>
+
+                        {/* Relevance Stats */}
+                        {newsItems.length > 0 && (
+                            <div className="border-t border-gray-200 pt-4 mt-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles size={16} className="text-yellow-500" />
+                                    <span className="text-sm font-semibold text-gray-700">Relevance</span>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="flex items-center gap-2 text-gray-800 font-medium"><span className="w-3 h-3 rounded-full bg-emerald-500"></span> High</span>
+                                        <span className="font-bold text-emerald-600">{highCount}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="flex items-center gap-2 text-gray-800 font-medium"><span className="w-3 h-3 rounded-full bg-orange-500"></span> Medium</span>
+                                        <span className="font-bold text-orange-600">{medCount}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="flex items-center gap-2 text-gray-800 font-medium"><span className="w-3 h-3 rounded-full bg-rose-400"></span> Low</span>
+                                        <span className="font-bold text-rose-500">{lowCount}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Main Content - News Items */}
+                {/* Main Content - News Cards */}
                 <div className="col-span-9">
                     {loading ? (
                         <div className="flex items-center justify-center py-12">
@@ -363,7 +413,7 @@ export default function RSSNewsPage() {
                         </div>
                     ) : (
                         <>
-                            {/* Bulk Actions Bar */}
+                            {/* Toolbar: Bulk Actions + Sort */}
                             <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex items-center justify-between border border-gray-200">
                                 <div className="flex items-center gap-3">
                                     <input
@@ -378,164 +428,199 @@ export default function RSSNewsPage() {
                                             : `${newsItems.length} items`}
                                     </span>
                                 </div>
-                                {selectedItems.size > 0 && (
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={handleBulkGenerate}
-                                            disabled={bulkGenerating || selectedItems.size > 10}
-                                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all font-medium shadow-sm"
-                                        >
-                                            {bulkGenerating ? (
-                                                <><Loader2 className="animate-spin" size={18} /> {bulkProgress || 'Generating...'}</>
-                                            ) : (
-                                                <><Wand2 size={18} /> Generate Selected ({selectedItems.size})</>
-                                            )}
-                                        </button>
-                                        <button
-                                            onClick={handleBulkDismiss}
-                                            disabled={bulkDismissing}
-                                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all font-medium shadow-sm"
-                                        >
-                                            {bulkDismissing ? (
-                                                <><Loader2 className="animate-spin" size={18} /> Dismissing...</>
-                                            ) : (
-                                                <><XCircle size={18} /> Dismiss Selected</>
-                                            )}
-                                        </button>
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-3">
+                                    {/* Sort toggle */}
+                                    <button
+                                        onClick={() => setSortBy(sortBy === 'relevance' ? 'date' : 'relevance')}
+                                        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
+                                    >
+                                        <ArrowUpDown size={14} />
+                                        {sortBy === 'relevance' ? '🎯 By Relevance' : '🕐 By Date'}
+                                    </button>
+
+                                    {selectedItems.size > 0 && (
+                                        <>
+                                            <button
+                                                onClick={handleBulkGenerate}
+                                                disabled={bulkGenerating || selectedItems.size > 10}
+                                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all font-medium shadow-sm text-sm"
+                                            >
+                                                {bulkGenerating ? (
+                                                    <><Loader2 className="animate-spin" size={16} /> {bulkProgress || 'Generating...'}</>
+                                                ) : (
+                                                    <><Wand2 size={16} /> Generate ({selectedItems.size})</>
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={handleBulkDismiss}
+                                                disabled={bulkDismissing}
+                                                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all font-medium shadow-sm text-sm"
+                                            >
+                                                {bulkDismissing ? (
+                                                    <><Loader2 className="animate-spin" size={16} /> Dismissing...</>
+                                                ) : (
+                                                    <><XCircle size={16} /> Dismiss</>
+                                                )}
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* News Items Grid */}
-                            <div className="space-y-4">
-                                {newsItems.map((item) => {
+                            {/* 3-Column Card Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                {sortedItems.map((item) => {
                                     const statusCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.new;
+                                    const relevance = RELEVANCE_COLORS[item.relevance_label] || RELEVANCE_COLORS.low;
                                     const isExpanded = expandedItem === item.id;
 
                                     return (
                                         <div
                                             key={item.id}
-                                            className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
+                                            className={`bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col ${selectedItems.has(item.id) ? 'ring-2 ring-indigo-400 border-indigo-200' : ''
+                                                }`}
                                         >
-                                            <div className="p-5">
-                                                <div className="flex gap-4">
-                                                    {/* Checkbox */}
-                                                    <div className="flex-shrink-0 flex items-start pt-1">
+                                            {/* Relevance Color Stripe */}
+                                            <div className={`h-1.5 ${relevance.stripe}`} />
+
+                                            {/* Image */}
+                                            {item.image_url && (
+                                                <div className="relative">
+                                                    <img
+                                                        src={item.image_url}
+                                                        alt={item.title}
+                                                        className="w-full h-36 object-cover"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
+                                                    />
+                                                    {/* Checkbox overlay */}
+                                                    <div className="absolute top-2 left-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedItems.has(item.id)}
+                                                            onChange={() => toggleItemSelection(item.id)}
+                                                            className="w-5 h-5 text-indigo-600 border-2 border-white rounded focus:ring-indigo-500 cursor-pointer shadow-md"
+                                                        />
+                                                    </div>
+                                                    {/* Score badge overlay */}
+                                                    <div className="absolute top-2 right-2">
+                                                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full border shadow-sm ${relevance.badge}`}>
+                                                            {item.relevance_score}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="p-4 flex-1 flex flex-col">
+                                                {/* No image — show checkbox + badges inline */}
+                                                {!item.image_url && (
+                                                    <div className="flex items-center justify-between mb-2">
                                                         <input
                                                             type="checkbox"
                                                             checked={selectedItems.has(item.id)}
                                                             onChange={() => toggleItemSelection(item.id)}
                                                             className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
                                                         />
-                                                    </div>
-
-                                                    {/* Thumbnail */}
-                                                    {item.image_url && (
-                                                        <div className="flex-shrink-0">
-                                                            <img
-                                                                src={item.image_url}
-                                                                alt={item.title}
-                                                                className="w-44 h-28 object-cover rounded-lg shadow-md border border-gray-200"
-                                                                onError={(e) => {
-                                                                    e.currentTarget.style.display = 'none';
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    )}
-
-                                                    {/* Content */}
-                                                    <div className="flex-1 min-w-0">
-                                                        {/* Status + Source badges */}
-                                                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                                            <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full bg-gradient-to-r ${statusCfg.color} text-white shadow-sm`}>
-                                                                {statusCfg.icon} {statusCfg.label}
-                                                            </span>
-                                                            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-700 border border-orange-200">
-                                                                <Rss size={12} className="inline mr-1" />
-                                                                {item.feed_name}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Title */}
-                                                        <h3
-                                                            className="text-lg font-bold text-gray-900 mb-2 cursor-pointer hover:text-indigo-600 transition-colors line-clamp-2"
-                                                            onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                                                        >
-                                                            {item.title}
-                                                        </h3>
-
-                                                        {/* Excerpt */}
-                                                        <p className="text-sm text-gray-600 leading-relaxed line-clamp-2 mb-3">
-                                                            {item.excerpt || 'No preview available'}
-                                                        </p>
-
-                                                        {/* Meta info */}
-                                                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                                                            <div className="flex items-center gap-1">
-                                                                <Clock size={14} />
-                                                                {formatDate(item.published_at || item.created_at)}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Action Buttons (right side) */}
-                                                    <div className="flex-shrink-0 flex flex-col gap-2">
-                                                        {item.status !== 'generated' && item.status !== 'generating' && (
-                                                            <button
-                                                                onClick={() => handleGenerate(item.id)}
-                                                                disabled={generatingId === item.id}
-                                                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all text-sm font-medium shadow-sm hover:shadow-md whitespace-nowrap"
-                                                            >
-                                                                {generatingId === item.id ? (
-                                                                    <><Loader2 className="animate-spin" size={16} /> Generating...</>
-                                                                ) : (
-                                                                    <><Wand2 size={16} /> Generate Article</>
-                                                                )}
-                                                            </button>
-                                                        )}
-
-                                                        {item.status === 'generated' && (
-                                                            <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium whitespace-nowrap">
-                                                                <CheckCircle2 size={16} /> Article Created
-                                                            </span>
-                                                        )}
-
-                                                        {item.source_url && (
-                                                            <a
-                                                                href={item.source_url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all text-sm font-medium whitespace-nowrap"
-                                                            >
-                                                                <ExternalLink size={16} /> Open Original
-                                                            </a>
-                                                        )}
-
-                                                        {item.status !== 'dismissed' && item.status !== 'generated' && (
-                                                            <button
-                                                                onClick={() => handleDismiss(item.id)}
-                                                                className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all text-sm font-medium whitespace-nowrap"
-                                                            >
-                                                                <XCircle size={16} /> Dismiss
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Expanded Content */}
-                                                {isExpanded && (
-                                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-500">
-                                                        <div className="flex items-center gap-2 mb-3">
-                                                            <Eye size={16} className="text-indigo-600" />
-                                                            <span className="text-sm font-semibold text-gray-700">Full Content Preview</span>
-                                                        </div>
-                                                        <div
-                                                            className="prose prose-sm max-w-none text-gray-700"
-                                                            dangerouslySetInnerHTML={{ __html: item.content || '<p>No content available</p>' }}
-                                                        />
+                                                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${relevance.badge}`}>
+                                                            Score: {item.relevance_score}
+                                                        </span>
                                                     </div>
                                                 )}
+
+                                                {/* Status + Source badges */}
+                                                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r ${statusCfg.color} text-white`}>
+                                                        {statusCfg.icon} {statusCfg.label}
+                                                    </span>
+                                                    <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-orange-50 text-orange-600 border border-orange-200 truncate max-w-[120px]">
+                                                        {item.feed_name}
+                                                    </span>
+                                                </div>
+
+                                                {/* Title */}
+                                                <h3
+                                                    className="text-sm font-bold text-gray-900 mb-1.5 cursor-pointer hover:text-indigo-600 transition-colors line-clamp-2 leading-tight"
+                                                    onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                                                >
+                                                    {item.title}
+                                                </h3>
+
+                                                {/* Excerpt */}
+                                                <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3 flex-1">
+                                                    {item.excerpt || 'No preview available'}
+                                                </p>
+
+                                                {/* Meta row */}
+                                                <div className="flex items-center justify-between text-[11px] text-gray-400 mb-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <Clock size={12} />
+                                                        {formatDate(item.published_at || item.created_at)}
+                                                    </div>
+                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${relevance.badge}`}>
+                                                        {relevance.text}
+                                                    </span>
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex gap-1.5 mt-auto">
+                                                    {item.status !== 'generated' && item.status !== 'generating' && (
+                                                        <button
+                                                            onClick={() => handleGenerate(item.id)}
+                                                            disabled={generatingId === item.id}
+                                                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all text-xs font-medium shadow-sm"
+                                                        >
+                                                            {generatingId === item.id ? (
+                                                                <Loader2 className="animate-spin" size={14} />
+                                                            ) : (
+                                                                <><Wand2 size={14} /> Generate</>
+                                                            )}
+                                                        </button>
+                                                    )}
+
+                                                    {item.status === 'generated' && (
+                                                        <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-green-100 text-green-700 rounded-lg text-xs font-medium">
+                                                            <CheckCircle2 size={14} /> Created
+                                                        </span>
+                                                    )}
+
+                                                    {item.source_url && (
+                                                        <a
+                                                            href={item.source_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all"
+                                                            title="Open Original"
+                                                        >
+                                                            <ExternalLink size={14} />
+                                                        </a>
+                                                    )}
+
+                                                    {item.status !== 'dismissed' && item.status !== 'generated' && (
+                                                        <button
+                                                            onClick={() => handleDismiss(item.id)}
+                                                            className="flex items-center justify-center p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                            title="Dismiss"
+                                                        >
+                                                            <XCircle size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
+
+                                            {/* Expanded Content */}
+                                            {isExpanded && (
+                                                <div className="border-t border-gray-100 p-4 bg-gray-50">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Eye size={14} className="text-indigo-600" />
+                                                        <span className="text-xs font-semibold text-gray-600">Full Content</span>
+                                                    </div>
+                                                    <div
+                                                        className="prose prose-sm max-w-none text-gray-700 text-xs max-h-[200px] overflow-y-auto"
+                                                        dangerouslySetInnerHTML={{ __html: item.content || '<p>No content available</p>' }}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -572,3 +657,4 @@ export default function RSSNewsPage() {
         </div>
     );
 }
+

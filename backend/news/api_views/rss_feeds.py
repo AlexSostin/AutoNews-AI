@@ -217,6 +217,23 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
                 'error': f'Feed discovery failed: {str(e)}',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+    @action(detail=False, methods=['post'])
+    def search_feeds(self, request):
+        """Search web for RSS feeds by keyword — type 'BYD' and find RSS feeds"""
+        from ai_engine.modules.feed_discovery import search_feeds_by_keyword
+        
+        query = request.data.get('query', '').strip()
+        if not query:
+            return Response({'error': 'query is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            results = search_feeds_by_keyword(query)
+            return Response({'results': results})
+        except Exception as e:
+            return Response({
+                'error': f'Feed search failed: {str(e)}',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """Get per-feed statistics: total items, generated, dismissed, pending"""

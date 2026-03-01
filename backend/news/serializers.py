@@ -691,6 +691,84 @@ class RSSNewsItemSerializer(serializers.ModelSerializer):
     feed_name = serializers.CharField(source='rss_feed.name', read_only=True)
     feed_logo = serializers.URLField(source='rss_feed.logo_url', read_only=True)
     feed_source_type = serializers.CharField(source='rss_feed.source_type', read_only=True)
+    relevance_score = serializers.SerializerMethodField()
+    relevance_label = serializers.SerializerMethodField()
+    
+    # Cached brand names for scoring (class-level, loaded once per request)
+    _brand_names_cache = None
+    
+    @classmethod
+    def _get_brand_names(cls):
+        if cls._brand_names_cache is None:
+            from .models import Brand
+            cls._brand_names_cache = set(
+                n.lower() for n in Brand.objects.values_list('name', flat=True)
+            )
+        return cls._brand_names_cache
+    
+    def _compute_score(self, obj):
+        """Compute relevance 0-100 based on keywords, freshness, source, content."""
+        score = 0
+        title_lower = (obj.title or '').lower()
+        excerpt_lower = (obj.excerpt or '').lower()
+        text = f'{title_lower} {excerpt_lower}'
+        
+        # 1. Brand keyword match (up to 40 pts)
+        brand_names = self._get_brand_names()
+        matches = sum(1 for bn in brand_names if bn in text)
+        if matches >= 2:
+            score += 40
+        elif matches == 1:
+            score += 30
+        
+        # 2. Source type (15 pts for brand press)
+        if hasattr(obj, 'rss_feed') and obj.rss_feed:
+            if obj.rss_feed.source_type == 'brand':
+                score += 15
+            elif obj.rss_feed.source_type == 'media':
+                score += 8
+        
+        # 3. Image presence (10 pts)
+        if obj.image_url:
+            score += 10
+        
+        # 4. Content length (up to 15 pts)
+        content_len = len(obj.excerpt or obj.content or '')
+        if content_len > 500:
+            score += 15
+        elif content_len > 200:
+            score += 10
+        elif content_len > 50:
+            score += 5
+        
+        # 5. Freshness (up to 20 pts)
+        if obj.published_at:
+            from django.utils import timezone
+            age = timezone.now() - obj.published_at
+            hours = age.total_seconds() / 3600
+            if hours <= 6:
+                score += 20
+            elif hours <= 24:
+                score += 15
+            elif hours <= 72:
+                score += 10
+            elif hours <= 168:  # 7 days
+                score += 5
+        
+        return min(score, 100)
+    
+    def get_relevance_score(self, obj):
+        if not hasattr(obj, '_relevance_score'):
+            obj._relevance_score = self._compute_score(obj)
+        return obj._relevance_score
+    
+    def get_relevance_label(self, obj):
+        score = self.get_relevance_score(obj)
+        if score >= 60:
+            return 'high'
+        elif score >= 30:
+            return 'medium'
+        return 'low'
     
     class Meta:
         model = RSSNewsItem
@@ -698,7 +776,7 @@ class RSSNewsItemSerializer(serializers.ModelSerializer):
             'id', 'rss_feed', 'feed_name', 'feed_logo', 'feed_source_type',
             'title', 'content', 'excerpt', 'source_url', 'image_url',
             'published_at', 'status', 'pending_article',
-            'created_at',
+            'created_at', 'relevance_score', 'relevance_label',
         ]
         read_only_fields = ['created_at']
 
