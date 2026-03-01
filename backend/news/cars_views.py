@@ -760,7 +760,23 @@ class BrandViewSet(viewsets.ModelViewSet):
         # Allow filtering
         search = self.request.query_params.get('search')
         if search:
-            qs = qs.filter(name__icontains=search)
+            from django.db.models import Q
+            # Find brand IDs that have matching specs/articles
+            matching_brand_names = (
+                CarSpecification.objects
+                .filter(
+                    Q(model__icontains=search) |
+                    Q(article__title__icontains=search)
+                )
+                .exclude(make='')
+                .values_list('make', flat=True)
+                .distinct()
+            )
+            # Match by brand name OR by having matching articles
+            brand_q = Q(name__icontains=search)
+            for make in matching_brand_names:
+                brand_q |= Q(name__iexact=make)
+            qs = qs.filter(brand_q)
         visible = self.request.query_params.get('visible')
         if visible is not None:
             qs = qs.filter(is_visible=visible.lower() == 'true')
@@ -952,10 +968,15 @@ class BrandViewSet(viewsets.ModelViewSet):
         names = [brand.name]
         for sub in brand.sub_brands.all():
             names.append(sub.name)
+        # Build case-insensitive query for brand + sub-brands
+        from django.db.models import Q
+        q = Q()
+        for n in names:
+            q |= Q(make__iexact=n)
         
         specs = (
             CarSpecification.objects
-            .filter(make__in=names)
+            .filter(q)
             .select_related('article')
             .order_by('-article__created_at')
         )

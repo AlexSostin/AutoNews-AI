@@ -828,7 +828,7 @@ class BrandSerializer(serializers.ModelSerializer):
         return [{'id': s.id, 'name': s.name, 'slug': s.slug} for s in subs]
 
     def get_image(self, obj):
-        """Get image from the first article of this brand."""
+        """Get image from the first PUBLISHED article of this brand."""
         spec = (
             CarSpecification.objects
             .filter(make__iexact=obj.name, article__is_published=True)

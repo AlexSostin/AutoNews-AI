@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.utils.text import slugify
 from ..image_utils import optimize_image
 
@@ -36,22 +37,27 @@ class Brand(models.Model):
         return self.name
 
     def get_article_count(self):
-        """Count articles for this brand (and sub-brands)."""
-        from django.db.models import Q
+        """Count articles for this brand (and sub-brands), case-insensitive."""
         names = [self.name]
         for sub in self.sub_brands.all():
             names.append(sub.name)
+        q = Q()
+        for n in names:
+            q |= Q(make__iexact=n)
         return CarSpecification.objects.filter(
-            make__in=names, article__is_published=True
+            q, article__is_published=True
         ).values('article').distinct().count()
 
     def get_model_count(self):
-        """Count unique models for this brand (and sub-brands)."""
+        """Count unique models for this brand (and sub-brands), case-insensitive."""
         names = [self.name]
         for sub in self.sub_brands.all():
             names.append(sub.name)
+        q = Q()
+        for n in names:
+            q |= Q(make__iexact=n)
         return CarSpecification.objects.filter(
-            make__in=names
+            q
         ).exclude(model='').exclude(model='Not specified').values('model').distinct().count()
 
 class BrandAlias(models.Model):

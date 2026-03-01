@@ -63,10 +63,20 @@ export default function BrandsPage() {
         fetchBrands();
     }, []);
 
-    const fetchBrands = async () => {
+    // Debounced backend search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchBrands(search);
+        }, search ? 400 : 0);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    const fetchBrands = async (searchQuery?: string) => {
         try {
             setLoading(true);
-            const res = await api.get('/admin/brands/', { params: { _t: Date.now() } });
+            const params: any = { _t: Date.now() };
+            if (searchQuery) params.search = searchQuery;
+            const res = await api.get('/admin/brands/', { params });
             const data = Array.isArray(res.data) ? res.data : res.data.results || [];
             setBrands(data);
         } catch (err) {
@@ -224,11 +234,8 @@ export default function BrandsPage() {
         }
     };
 
-    // Filter brands by search
-    const filteredBrands = brands.filter(b =>
-        b.name.toLowerCase().includes(search.toLowerCase()) ||
-        b.country.toLowerCase().includes(search.toLowerCase())
-    );
+    // No local filtering — search is handled by backend
+    const filteredBrands = brands;
 
     // Group: parents first, then sub-brands underneath
     const topBrands = filteredBrands.filter(b => b.parent === null);
@@ -290,7 +297,7 @@ export default function BrandsPage() {
                     type="text"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Search brands..."
+                    placeholder="Search brands, models, articles..."
                     className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900"
                 />
             </div>
