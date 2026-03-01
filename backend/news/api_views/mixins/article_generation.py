@@ -445,6 +445,13 @@ Return ONLY the HTML-formatted version with every word preserved."""
             cleaned = re.sub(r'<h([23])>[^<]*</h\1>\s*(?=<h[23]>|$)', '', cleaned)
             cleaned = re.sub(r'<p>\s*</p>', '', cleaned)
             cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+            
+            # Remove ALT_TEXT / SEO metadata that shouldn't be in visible content
+            cleaned = re.sub(r'<div\s+class="alt-texts"[^>]*>.*?</div>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
+            cleaned = re.sub(r'(?:^|\n)\s*ALT_TEXT_\d+:.*?(?:\n|$)', '\n', cleaned)
+            cleaned = re.sub(r'<p>\s*(?:<strong>)?SEO Visual Assets:?(?:</strong>)?\s*</p>', '', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'(?:^|\n)\s*SEO Visual Assets:?\s*(?:\n|$)', '\n', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'<p>\s*</p>', '', cleaned)
             cleaned = cleaned.strip()
 
             if not cleaned or len(cleaned) < 50:

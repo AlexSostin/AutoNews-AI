@@ -171,7 +171,16 @@ def _clean_banned_phrases(html: str) -> str:
     for pattern, replacement in _BANNED_INLINE_REPLACEMENTS:
         html = pattern.sub(replacement, html)
     
-    # 3. Clean up empty paragraphs left behind
+    # 3. Remove ALT_TEXT / SEO metadata that AI sometimes leaks into visible content
+    # Remove entire hidden div block (when AI wraps it correctly)
+    html = re.sub(r'<div\s+class="alt-texts"[^>]*>.*?</div>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    # Remove raw ALT_TEXT lines (when AI doesn't wrap them in a div)
+    html = re.sub(r'(?:^|\n)\s*ALT_TEXT_\d+:.*?(?:\n|$)', '\n', html)
+    # Remove "SEO Visual Assets:" header
+    html = re.sub(r'<p>\s*(?:<strong>)?SEO Visual Assets:?(?:</strong>)?\s*</p>', '', html, flags=re.IGNORECASE)
+    html = re.sub(r'(?:^|\n)\s*SEO Visual Assets:?\s*(?:\n|$)', '\n', html, flags=re.IGNORECASE)
+    
+    # 4. Clean up empty paragraphs left behind
     html = re.sub(r'<p>\s*</p>', '', html)
     
     cleaned = original_len - len(html)
