@@ -873,11 +873,175 @@ class BrandViewSet(viewsets.ModelViewSet):
             'specs_updated': updated_count,
         })
 
+    @action(detail=False, methods=['post'], url_path='bulk-merge')
+    def bulk_merge(self, request):
+        """
+        Merge multiple brands at once.
+        
+        POST /api/v1/admin/brands/bulk-merge/
+        Body: { "merges": [{"source": "HUAWEI AITO", "target": "AITO"}, ...] }
+        """
+        merges = request.data.get('merges', [])
+        if not merges:
+            return Response({'error': 'merges list is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        results = []
+        total_specs = 0
+        for m in merges:
+            source_name = m.get('source', '').strip()
+            target_name = m.get('target', '').strip()
+            if not source_name or not target_name:
+                results.append({'error': f'Invalid merge: {m}'})
+                continue
+            
+            try:
+                source_brand = Brand.objects.get(name__iexact=source_name)
+            except Brand.DoesNotExist:
+                results.append({'skipped': f'"{source_name}" not found'})
+                continue
+            
+            try:
+                target_brand = Brand.objects.get(name__iexact=target_name)
+            except Brand.DoesNotExist:
+                results.append({'skipped': f'Target "{target_name}" not found'})
+                continue
+            
+            if source_brand.pk == target_brand.pk:
+                results.append({'skipped': f'"{source_name}" is the same as target'})
+                continue
+            
+            # Rename specs
+            updated = CarSpecification.objects.filter(
+                make__iexact=source_brand.name
+            ).update(make=target_brand.name)
+            total_specs += updated
+            
+            # Create alias
+            BrandAlias.objects.get_or_create(
+                alias=source_brand.name,
+                defaults={'canonical_name': target_brand.name},
+            )
+            
+            # Re-parent sub-brands
+            source_brand.sub_brands.update(parent=target_brand)
+            
+            # Delete source
+            src_name = source_brand.name
+            source_brand.delete()
+            results.append({'merged': f'"{src_name}" → "{target_brand.name}"', 'specs_updated': updated})
+        
+        from news.api_views import invalidate_article_cache
+        invalidate_article_cache()
+        
+        return Response({
+            'success': True,
+            'results': results,
+            'total_specs_updated': total_specs,
+        })
+
+    @action(detail=True, methods=['get'], url_path='articles')
+    def articles(self, request, pk=None):
+        """
+        List articles belonging to this brand.
+        
+        GET /api/v1/admin/brands/{id}/articles/
+        """
+        brand = self.get_object()
+        
+        # Get all names (brand + sub-brands)
+        names = [brand.name]
+        for sub in brand.sub_brands.all():
+            names.append(sub.name)
+        
+        specs = (
+            CarSpecification.objects
+            .filter(make__in=names)
+            .select_related('article')
+            .order_by('-article__created_at')
+        )
+        
+        articles = []
+        for spec in specs:
+            art = spec.article
+            if not art:
+                continue
+            image = None
+            if art.image:
+                raw = str(art.image)
+                if raw.count('https://') > 1:
+                    raw = raw[raw.rfind('https://'):]
+                if raw.startswith('http'):
+                    image = raw
+                elif hasattr(art.image, 'url'):
+                    image = art.image.url
+            
+            articles.append({
+                'id': art.id,
+                'spec_id': spec.id,
+                'title': art.title,
+                'slug': art.slug,
+                'make': spec.make,
+                'model': spec.model,
+                'image': image,
+                'is_published': art.is_published,
+                'created_at': art.created_at.isoformat() if art.created_at else None,
+            })
+        
+        return Response({
+            'brand': brand.name,
+            'articles': articles,
+            'count': len(articles),
+        })
+
+    @action(detail=True, methods=['post'], url_path='move-article')
+    def move_article(self, request, pk=None):
+        """
+        Move a single article (CarSpecification) to this brand.
+        
+        POST /api/v1/admin/brands/{id}/move-article/
+        Body: { "spec_id": 123 }
+        """
+        target_brand = self.get_object()
+        spec_id = request.data.get('spec_id')
+        
+        if not spec_id:
+            return Response({'error': 'spec_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            spec = CarSpecification.objects.get(pk=spec_id)
+        except CarSpecification.DoesNotExist:
+            return Response({'error': 'CarSpecification not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        old_make = spec.make
+        spec.make = target_brand.name
+        spec.save(update_fields=['make'])
+        
+        from news.api_views import invalidate_article_cache
+        invalidate_article_cache()
+        
+        return Response({
+            'success': True,
+            'message': f'Moved article from "{old_make}" to "{target_brand.name}"',
+            'spec_id': spec.id,
+            'article_id': spec.article_id,
+        })
+
+    # Known brand name variations → canonical mapping
+    KNOWN_ALIASES = {
+        'HUAWEI AITO': 'AITO',
+        'HUAWEI AVATR': 'Avatr',
+        'HUAWEI Avatr': 'Avatr',
+        'SAIC IM': 'IM',
+        'GWM WEY': 'GWM',
+        'DongFeng VOYAH': 'VOYAH',
+        'Dongfeng VOYAH': 'VOYAH',
+    }
+
     @action(detail=False, methods=['post'], url_path='sync')
     def sync_from_specs(self, request):
         """
         Sync brands from CarSpecification — create missing Brand records.
-        Useful after importing new articles.
+        Uses BrandAlias table + built-in KNOWN_ALIASES to prevent duplicates.
         
         POST /api/v1/admin/brands/sync/
         """
@@ -891,8 +1055,11 @@ class BrandViewSet(viewsets.ModelViewSet):
         
         created = []
         for make in makes:
-            # Resolve through aliases
-            canonical = BrandAlias.resolve(make)
+            # 1. Check built-in aliases first
+            canonical = self.KNOWN_ALIASES.get(make, make)
+            # 2. Then check BrandAlias table
+            canonical = BrandAlias.resolve(canonical)
+            
             if not Brand.objects.filter(name__iexact=canonical).exists():
                 slug = slugify(canonical)
                 base_slug = slug

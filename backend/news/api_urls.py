@@ -135,8 +135,11 @@ urlpatterns = [
     # Admin brand management
     path('admin/brands/', BrandViewSet.as_view({'get': 'list', 'post': 'create'}), name='admin_brands_list'),
     path('admin/brands/sync/', BrandViewSet.as_view({'post': 'sync_from_specs'}), name='admin_brands_sync'),
+    path('admin/brands/bulk-merge/', BrandViewSet.as_view({'post': 'bulk_merge'}), name='admin_brands_bulk_merge'),
     path('admin/brands/<int:pk>/', BrandViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'put': 'update', 'delete': 'destroy'}), name='admin_brands_detail'),
     path('admin/brands/<int:pk>/merge/', BrandViewSet.as_view({'post': 'merge'}), name='admin_brands_merge'),
+    path('admin/brands/<int:pk>/articles/', BrandViewSet.as_view({'get': 'articles'}), name='admin_brands_articles'),
+    path('admin/brands/<int:pk>/move-article/', BrandViewSet.as_view({'post': 'move_article'}), name='admin_brands_move_article'),
     
     # Admin user management
     path('admin/users/', AdminUserManagementViewSet.as_view({'get': 'list'}), name='admin_users_list'),

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, X, Merge, Eye, EyeOff, Search, RefreshCw, ChevronDown, Globe } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Merge, Eye, EyeOff, Search, RefreshCw, Globe, ChevronDown, ChevronRight, ArrowRightLeft } from 'lucide-react';
 import api from '@/lib/api';
 
 interface Brand {
@@ -23,6 +23,18 @@ interface Brand {
     updated_at: string;
 }
 
+interface BrandArticle {
+    id: number;
+    spec_id: number;
+    title: string;
+    slug: string;
+    make: string;
+    model: string;
+    image: string | null;
+    is_published: boolean;
+    created_at: string | null;
+}
+
 export default function BrandsPage() {
     const [brands, setBrands] = useState<Brand[]>([]);
     const [loading, setLoading] = useState(true);
@@ -34,6 +46,10 @@ export default function BrandsPage() {
     const [search, setSearch] = useState('');
     const [error, setError] = useState('');
     const [syncing, setSyncing] = useState(false);
+    const [expandedBrandId, setExpandedBrandId] = useState<number | null>(null);
+    const [brandArticles, setBrandArticles] = useState<BrandArticle[]>([]);
+    const [loadingArticles, setLoadingArticles] = useState(false);
+    const [moveTarget, setMoveTarget] = useState<{ specId: number; brandId: number | null }>({ specId: 0, brandId: null });
     const [formData, setFormData] = useState({
         name: '',
         country: '',
@@ -57,6 +73,39 @@ export default function BrandsPage() {
             console.error('Failed to fetch brands:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchBrandArticles = async (brandId: number) => {
+        if (expandedBrandId === brandId) {
+            setExpandedBrandId(null);
+            setBrandArticles([]);
+            return;
+        }
+        setExpandedBrandId(brandId);
+        setLoadingArticles(true);
+        try {
+            const res = await api.get(`/admin/brands/${brandId}/articles/`);
+            setBrandArticles(res.data.articles || []);
+        } catch {
+            setBrandArticles([]);
+        } finally {
+            setLoadingArticles(false);
+        }
+    };
+
+    const handleMoveArticle = async (specId: number, targetBrandId: number) => {
+        try {
+            await api.post(`/admin/brands/${targetBrandId}/move-article/`, { spec_id: specId });
+            // Refresh both the articles list and brands
+            if (expandedBrandId) {
+                const res = await api.get(`/admin/brands/${expandedBrandId}/articles/`);
+                setBrandArticles(res.data.articles || []);
+            }
+            fetchBrands();
+            setMoveTarget({ specId: 0, brandId: null });
+        } catch {
+            alert('Failed to move article');
         }
     };
 
@@ -122,7 +171,6 @@ export default function BrandsPage() {
             const data = err.response?.data;
             let detail = '';
             if (data) {
-                // DRF returns field-level errors as { field: ["error"] }
                 const fieldErrors = Object.entries(data)
                     .filter(([, v]) => Array.isArray(v))
                     .map(([k, v]) => `${k}: ${(v as string[]).join(', ')}`)
@@ -152,7 +200,7 @@ export default function BrandsPage() {
         try {
             await api.post(`/admin/brands/${mergeTarget.id}/merge/`, { source_brand_id: mergeSourceId });
             setShowMergeModal(false);
-            fetchBrands(); // Reload to get updated counts
+            fetchBrands();
         } catch (err: any) {
             const detail = err.response?.data?.error || err.message;
             setError(`Merge failed: ${detail}`);
@@ -193,7 +241,7 @@ export default function BrandsPage() {
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Brand Management</h1>
                     <p className="text-gray-500 text-sm mt-1">
-                        Manage car brands in the catalog. Edit, merge, and control visibility.
+                        Manage car brands in the catalog. Click a brand to see its articles.
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -265,6 +313,7 @@ export default function BrandsPage() {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-gray-50 border-b border-gray-200">
+                                    <th className="w-8 px-2"></th>
                                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Brand</th>
                                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Country</th>
                                     <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Models</th>
@@ -276,27 +325,45 @@ export default function BrandsPage() {
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {topBrands.map(brand => (
-                                    <BrandRow
+                                    <BrandRowWithArticles
                                         key={brand.id}
                                         brand={brand}
                                         allBrands={brands}
+                                        isSubBrand={false}
+                                        isExpanded={expandedBrandId === brand.id}
+                                        articles={expandedBrandId === brand.id ? brandArticles : []}
+                                        loadingArticles={loadingArticles && expandedBrandId === brand.id}
+                                        moveTarget={moveTarget}
+                                        onToggleExpand={() => fetchBrandArticles(brand.id)}
                                         onEdit={handleEdit}
                                         onDelete={handleDelete}
                                         onToggleVisibility={handleToggleVisibility}
                                         onMerge={handleMergeStart}
-                                        isSubBrand={false}
+                                        onMoveStart={(specId) => setMoveTarget({ specId, brandId: null })}
+                                        onMoveSelect={(specId, brandId) => setMoveTarget({ specId, brandId })}
+                                        onMoveConfirm={(specId, brandId) => handleMoveArticle(specId, brandId)}
+                                        onMoveCancel={() => setMoveTarget({ specId: 0, brandId: null })}
                                     />
                                 ))}
                                 {subBrands.map(brand => (
-                                    <BrandRow
+                                    <BrandRowWithArticles
                                         key={brand.id}
                                         brand={brand}
                                         allBrands={brands}
+                                        isSubBrand={true}
+                                        isExpanded={expandedBrandId === brand.id}
+                                        articles={expandedBrandId === brand.id ? brandArticles : []}
+                                        loadingArticles={loadingArticles && expandedBrandId === brand.id}
+                                        moveTarget={moveTarget}
+                                        onToggleExpand={() => fetchBrandArticles(brand.id)}
                                         onEdit={handleEdit}
                                         onDelete={handleDelete}
                                         onToggleVisibility={handleToggleVisibility}
                                         onMerge={handleMergeStart}
-                                        isSubBrand={true}
+                                        onMoveStart={(specId) => setMoveTarget({ specId, brandId: null })}
+                                        onMoveSelect={(specId, brandId) => setMoveTarget({ specId, brandId })}
+                                        onMoveConfirm={(specId, brandId) => handleMoveArticle(specId, brandId)}
+                                        onMoveCancel={() => setMoveTarget({ specId: 0, brandId: null })}
                                     />
                                 ))}
                             </tbody>
@@ -480,113 +547,227 @@ export default function BrandsPage() {
     );
 }
 
-// Separate BrandRow component for clean table rows
-function BrandRow({
+// Combined brand row + expandable articles panel
+function BrandRowWithArticles({
     brand,
     allBrands,
+    isSubBrand,
+    isExpanded,
+    articles,
+    loadingArticles,
+    moveTarget,
+    onToggleExpand,
     onEdit,
     onDelete,
     onToggleVisibility,
     onMerge,
-    isSubBrand,
+    onMoveStart,
+    onMoveSelect,
+    onMoveConfirm,
+    onMoveCancel,
 }: {
     brand: Brand;
     allBrands: Brand[];
+    isSubBrand: boolean;
+    isExpanded: boolean;
+    articles: BrandArticle[];
+    loadingArticles: boolean;
+    moveTarget: { specId: number; brandId: number | null };
+    onToggleExpand: () => void;
     onEdit: (b: Brand) => void;
     onDelete: (b: Brand) => void;
     onToggleVisibility: (b: Brand) => void;
     onMerge: (b: Brand) => void;
-    isSubBrand: boolean;
+    onMoveStart: (specId: number) => void;
+    onMoveSelect: (specId: number, brandId: number) => void;
+    onMoveConfirm: (specId: number, brandId: number) => void;
+    onMoveCancel: () => void;
 }) {
     return (
-        <tr className={`hover:bg-gray-50 transition-colors ${!brand.is_visible ? 'opacity-50' : ''}`}>
-            {/* Brand name + image */}
-            <td className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                    {isSubBrand && (
-                        <span className="text-gray-300 text-lg pl-2">↳</span>
+        <>
+            <tr
+                className={`hover:bg-gray-50 transition-colors cursor-pointer ${!brand.is_visible ? 'opacity-50' : ''} ${isExpanded ? 'bg-indigo-50/50' : ''}`}
+                onClick={onToggleExpand}
+            >
+                {/* Expand chevron */}
+                <td className="px-2 py-3 text-center">
+                    {isExpanded ? (
+                        <ChevronDown size={16} className="text-indigo-500 mx-auto" />
+                    ) : (
+                        <ChevronRight size={16} className="text-gray-400 mx-auto" />
                     )}
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        {brand.image ? (
-                            <img src={brand.image} alt={brand.name} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg">🚗</div>
+                </td>
+
+                {/* Brand name + image */}
+                <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                        {isSubBrand && (
+                            <span className="text-gray-300 text-lg pl-2">↳</span>
                         )}
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                            {brand.image ? (
+                                <img src={brand.image} alt={brand.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg">🚗</div>
+                            )}
+                        </div>
+                        <div>
+                            <div className="font-bold text-gray-900">{brand.name}</div>
+                            <div className="text-xs text-gray-400">/{brand.slug}</div>
+                        </div>
                     </div>
-                    <div>
-                        <div className="font-bold text-gray-900">{brand.name}</div>
-                        <div className="text-xs text-gray-400">/{brand.slug}</div>
-                    </div>
-                </div>
-            </td>
+                </td>
 
-            {/* Country */}
-            <td className="px-4 py-3 hidden sm:table-cell">
-                <span className="text-sm text-gray-600">{brand.country || '—'}</span>
-            </td>
+                {/* Country */}
+                <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className="text-sm text-gray-600">{brand.country || '—'}</span>
+                </td>
 
-            {/* Models */}
-            <td className="px-4 py-3 text-center">
-                <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-indigo-50 text-indigo-700 text-sm font-bold rounded-full">
-                    {brand.model_count}
-                </span>
-            </td>
-
-            {/* Articles */}
-            <td className="px-4 py-3 text-center">
-                <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-purple-50 text-purple-700 text-sm font-bold rounded-full">
-                    {brand.article_count}
-                </span>
-            </td>
-
-            {/* Visibility toggle */}
-            <td className="px-4 py-3 text-center">
-                <button
-                    onClick={() => onToggleVisibility(brand)}
-                    className={`p-1.5 rounded-lg transition-colors ${brand.is_visible ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
-                    title={brand.is_visible ? 'Visible — click to hide' : 'Hidden — click to show'}
-                >
-                    {brand.is_visible ? <Eye size={18} /> : <EyeOff size={18} />}
-                </button>
-            </td>
-
-            {/* Parent */}
-            <td className="px-4 py-3 text-center hidden md:table-cell">
-                {brand.parent_name ? (
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
-                        {brand.parent_name}
+                {/* Models */}
+                <td className="px-4 py-3 text-center">
+                    <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-indigo-50 text-indigo-700 text-sm font-bold rounded-full">
+                        {brand.model_count}
                     </span>
-                ) : (
-                    <span className="text-gray-300">—</span>
-                )}
-            </td>
+                </td>
 
-            {/* Actions */}
-            <td className="px-4 py-3 text-right">
-                <div className="flex items-center justify-end gap-1">
+                {/* Articles */}
+                <td className="px-4 py-3 text-center">
+                    <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-purple-50 text-purple-700 text-sm font-bold rounded-full">
+                        {brand.article_count}
+                    </span>
+                </td>
+
+                {/* Visibility toggle */}
+                <td className="px-4 py-3 text-center">
                     <button
-                        onClick={() => onEdit(brand)}
-                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit"
+                        onClick={(e) => { e.stopPropagation(); onToggleVisibility(brand); }}
+                        className={`p-1.5 rounded-lg transition-colors ${brand.is_visible ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                        title={brand.is_visible ? 'Visible — click to hide' : 'Hidden — click to show'}
                     >
-                        <Edit size={16} />
+                        {brand.is_visible ? <Eye size={18} /> : <EyeOff size={18} />}
                     </button>
-                    <button
-                        onClick={() => onMerge(brand)}
-                        className="p-1.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                        title="Merge another brand into this one"
-                    >
-                        <Merge size={16} />
-                    </button>
-                    <button
-                        onClick={() => onDelete(brand)}
-                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                    >
-                        <Trash2 size={16} />
-                    </button>
-                </div>
-            </td>
-        </tr>
+                </td>
+
+                {/* Parent */}
+                <td className="px-4 py-3 text-center hidden md:table-cell">
+                    {brand.parent_name ? (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
+                            {brand.parent_name}
+                        </span>
+                    ) : (
+                        <span className="text-gray-300">—</span>
+                    )}
+                </td>
+
+                {/* Actions */}
+                <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                        <button
+                            onClick={() => onEdit(brand)}
+                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit"
+                        >
+                            <Edit size={16} />
+                        </button>
+                        <button
+                            onClick={() => onMerge(brand)}
+                            className="p-1.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                            title="Merge another brand into this one"
+                        >
+                            <Merge size={16} />
+                        </button>
+                        <button
+                            onClick={() => onDelete(brand)}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                </td>
+            </tr>
+
+            {/* Expanded articles panel */}
+            {isExpanded && (
+                <tr>
+                    <td colSpan={8} className="p-0">
+                        <div className="bg-gray-50 border-t border-b border-gray-200 px-6 py-4">
+                            {loadingArticles ? (
+                                <div className="flex items-center gap-2 text-gray-500 text-sm py-2">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                                    Loading articles...
+                                </div>
+                            ) : articles.length === 0 ? (
+                                <div className="text-gray-400 text-sm py-2">No articles linked to this brand.</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="text-xs font-bold text-gray-500 uppercase mb-3">
+                                        {articles.length} article{articles.length !== 1 ? 's' : ''} in {brand.name}
+                                    </div>
+                                    {articles.map(art => (
+                                        <div key={art.spec_id} className="flex items-center gap-3 bg-white rounded-lg border border-gray-200 p-3 hover:border-indigo-300 transition-colors">
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                                {art.image ? (
+                                                    <img src={art.image} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">📄</div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium text-gray-900 text-sm truncate">{art.title}</div>
+                                                <div className="text-xs text-gray-400">
+                                                    {art.make} {art.model && `· ${art.model}`}
+                                                    {!art.is_published && <span className="ml-2 text-amber-600">(draft)</span>}
+                                                </div>
+                                            </div>
+
+                                            {/* Move button / selector */}
+                                            {moveTarget.specId === art.spec_id ? (
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    <select
+                                                        value={moveTarget.brandId ?? ''}
+                                                        onChange={e => onMoveSelect(art.spec_id, parseInt(e.target.value))}
+                                                        className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-gray-900 max-w-[140px]"
+                                                        onClick={e => e.stopPropagation()}
+                                                    >
+                                                        <option value="">Move to...</option>
+                                                        {allBrands.filter(b => b.id !== brand.id).map(b => (
+                                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    {moveTarget.brandId && (
+                                                        <button
+                                                            onClick={() => onMoveConfirm(art.spec_id, moveTarget.brandId!)}
+                                                            className="text-xs bg-indigo-600 text-white px-2 py-1.5 rounded-lg font-bold hover:bg-indigo-700"
+                                                        >
+                                                            Move
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => onMoveCancel()}
+                                                        className="text-xs text-gray-400 hover:text-gray-600 p-1"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onMoveStart(art.spec_id); }}
+                                                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                                                    title="Move to another brand"
+                                                >
+                                                    <ArrowRightLeft size={14} />
+                                                    <span className="hidden sm:inline">Move</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </td>
+                </tr>
+            )}
+        </>
     );
 }
