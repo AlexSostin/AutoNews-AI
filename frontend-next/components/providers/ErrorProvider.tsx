@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
-import { logFrontendEvent, logApiError } from '@/lib/error-logger';
+import { logFrontendEvent, logApiError, flushErrorQueue } from '@/lib/error-logger';
 
 export default function ErrorProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
+        // Flush any queued events from previous offline sessions
+        flushErrorQueue();
+
         // 1. Catch unhandled JS Exceptions (Syntax, runtime, third-party)
         const handleWindowError = (event: ErrorEvent) => {
             // Ignore cross-origin scripting errors (too noisy, no stack trace)
@@ -45,7 +48,6 @@ export default function ErrorProvider({ children }: { children: ReactNode }) {
         };
 
         // 3. Catch Next.js Hydration Mismatches
-        // Hydration errors are tricky. They often fire as console.error before boundaries catch them.
         const originalConsoleError = console.error;
         console.error = (...args: any[]) => {
             originalConsoleError.apply(console, args);
@@ -79,12 +81,19 @@ export default function ErrorProvider({ children }: { children: ReactNode }) {
             return response;
         };
 
+        // 5. Flush error queue when coming back online
+        const handleOnline = () => {
+            flushErrorQueue();
+        };
+
         window.addEventListener('error', handleWindowError);
         window.addEventListener('unhandledrejection', handleUnhandledRejection);
+        window.addEventListener('online', handleOnline);
 
         return () => {
             window.removeEventListener('error', handleWindowError);
             window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+            window.removeEventListener('online', handleOnline);
             console.error = originalConsoleError;
             window.fetch = originalFetch;
         };

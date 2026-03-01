@@ -15,7 +15,7 @@
 import { getApiUrl } from './config';
 
 interface ErrorPayload {
-    error_type: 'js_error' | 'network' | 'hydration' | 'resource_404' | 'performance' | 'react_crash' | 'api_4xx' | 'api_5xx' | 'unhandled_rejection' | 'other';
+    error_type: 'js_error' | 'network' | 'hydration' | 'resource_404' | 'performance' | 'react_crash' | 'api_4xx' | 'api_5xx' | 'unhandled_rejection' | 'caught_error' | 'other';
     message: string;
     stack_trace?: string;
     url: string;
@@ -42,7 +42,7 @@ function startMinuteReset() {
 
 /**
  * Core: send an error event to the backend.
- * Handles deduplication, rate-limiting, and graceful failure.
+ * Handles deduplication, rate-limiting, offline queue, and graceful failure.
  */
 export const logFrontendEvent = async (payload: Omit<ErrorPayload, 'url' | 'user_agent'>) => {
     if (typeof window === 'undefined') return;
@@ -62,36 +62,93 @@ export const logFrontendEvent = async (payload: Omit<ErrorPayload, 'url' | 'user
     }
     errorCache.add(errorHash);
 
+    const fullPayload: ErrorPayload = {
+        ...payload,
+        url: window.location.href,
+        user_agent: window.navigator.userAgent,
+    };
+
+    // Truncate stack trace to avoid huge payloads
+    if (fullPayload.stack_trace && fullPayload.stack_trace.length > 4000) {
+        fullPayload.stack_trace = fullPayload.stack_trace.slice(0, 4000) + '\n... (truncated)';
+    }
+
+    await sendOrQueue(fullPayload);
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Offline Queue — store unsent events in localStorage
+// ═══════════════════════════════════════════════════════════════
+const QUEUE_KEY = 'fm_error_queue';
+const MAX_QUEUE_SIZE = 50;
+
+async function sendOrQueue(payload: ErrorPayload) {
     try {
-        const fullPayload: ErrorPayload = {
-            ...payload,
-            url: window.location.href,
-            user_agent: window.navigator.userAgent,
-        };
-
-        // Truncate stack trace to avoid huge payloads
-        if (fullPayload.stack_trace && fullPayload.stack_trace.length > 4000) {
-            fullPayload.stack_trace = fullPayload.stack_trace.slice(0, 4000) + '\n... (truncated)';
-        }
-
         const apiUrl = getApiUrl() + '/frontend-events/';
 
         // Use sendBeacon for reliability (fires even on page unload)
         if (navigator.sendBeacon) {
-            const blob = new Blob([JSON.stringify(fullPayload)], { type: 'application/json' });
-            navigator.sendBeacon(apiUrl, blob);
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            const sent = navigator.sendBeacon(apiUrl, blob);
+            if (!sent) throw new Error('sendBeacon returned false');
         } else {
-            await fetch(apiUrl, {
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(fullPayload),
+                body: JSON.stringify(payload),
                 keepalive: true,
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
         }
     } catch {
-        // Silently fail — never let the error logger cause errors
+        // Network failed — queue for later
+        queueEvent(payload);
     }
-};
+}
+
+function queueEvent(payload: ErrorPayload) {
+    try {
+        const raw = localStorage.getItem(QUEUE_KEY);
+        const queue: ErrorPayload[] = raw ? JSON.parse(raw) : [];
+        if (queue.length >= MAX_QUEUE_SIZE) queue.shift(); // drop oldest
+        queue.push(payload);
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    } catch { /* localStorage full or unavailable */ }
+}
+
+/** Flush any queued events (called on page load and on reconnect) */
+export async function flushErrorQueue() {
+    if (typeof window === 'undefined') return;
+    try {
+        const raw = localStorage.getItem(QUEUE_KEY);
+        if (!raw) return;
+        const queue: ErrorPayload[] = JSON.parse(raw);
+        if (queue.length === 0) return;
+
+        const apiUrl = getApiUrl() + '/frontend-events/';
+        const remaining: ErrorPayload[] = [];
+
+        for (const evt of queue) {
+            try {
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(evt),
+                });
+                if (!res.ok) remaining.push(evt);
+            } catch {
+                remaining.push(evt);
+                break; // still offline, stop trying
+            }
+        }
+
+        if (remaining.length > 0) {
+            localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+        } else {
+            localStorage.removeItem(QUEUE_KEY);
+        }
+    } catch { /* ignore */ }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Specific loggers
@@ -111,5 +168,49 @@ export const logReactCrash = (error: Error, componentStack?: string) => {
         error_type: 'react_crash',
         message: `React crash: ${error.message}`,
         stack_trace: (error.stack || '') + (componentStack ? `\n\nComponent Stack:\n${componentStack}` : ''),
+    });
+};
+
+/**
+ * Log a caught error from a try/catch block.
+ * Use this in every catch block across the site to capture "silent" failures.
+ *
+ * @param source - Where the error happened (e.g. 'brand_move_article', 'article_generate')
+ * @param error  - The caught error object
+ * @param extra  - Optional metadata (response data, IDs, etc.)
+ *
+ * @example
+ * } catch (err) {
+ *   logCaughtError('brand_move', err, { specId: 123 });
+ *   setError('Move failed');
+ * }
+ */
+export const logCaughtError = (source: string, error: unknown, extra?: Record<string, unknown>) => {
+    let message = 'Unknown error';
+    let stack_trace: string | undefined;
+
+    if (error instanceof Error) {
+        message = error.message;
+        stack_trace = error.stack;
+    } else if (typeof error === 'string') {
+        message = error;
+    } else {
+        try { message = JSON.stringify(error); } catch { message = String(error); }
+    }
+
+    // Extract response data from axios errors
+    const axiosData = (error as any)?.response?.data;
+    const status = (error as any)?.response?.status;
+
+    logFrontendEvent({
+        error_type: 'caught_error',
+        message: `[${source}] ${message}`,
+        stack_trace,
+        metadata: {
+            source,
+            status,
+            response_data: axiosData,
+            ...extra,
+        },
     });
 };

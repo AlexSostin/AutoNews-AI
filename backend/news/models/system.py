@@ -1107,6 +1107,7 @@ class FrontendEventLog(models.Model):
         ('api_4xx', 'API Client Error (4xx)'),
         ('api_5xx', 'API Server Error (5xx)'),
         ('unhandled_rejection', 'Unhandled Promise Rejection'),
+        ('caught_error', 'Caught Error (try/catch)'),
         ('other', 'Other'),
     ]
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Merge, Eye, EyeOff, Search, RefreshCw, Globe, ChevronDown, ChevronRight, ArrowRightLeft } from 'lucide-react';
 import api from '@/lib/api';
+import { logCaughtError } from '@/lib/error-logger';
 
 interface Brand {
     id: number;
@@ -121,6 +122,7 @@ export default function BrandsPage() {
             setMoveTarget({ specId: 0, brandId: null });
         } catch (err: any) {
             const detail = err.response?.data?.error || err.message || 'Network error';
+            logCaughtError('brand_move_article', err, { specId, targetBrandId });
             setError(`❌ Move failed: ${detail}`);
             setMoveTarget({ specId: 0, brandId: null });
         }
@@ -153,6 +155,7 @@ export default function BrandsPage() {
             await api.delete(`/admin/brands/${brand.id}/`);
             setBrands(brands.filter(b => b.id !== brand.id));
         } catch {
+            logCaughtError('brand_delete', 'Failed to delete', { brandId: brand.id, brandName: brand.name });
             alert('Failed to delete brand');
         }
     };
@@ -161,7 +164,8 @@ export default function BrandsPage() {
         try {
             const res = await api.patch(`/admin/brands/${brand.id}/`, { is_visible: !brand.is_visible });
             setBrands(brands.map(b => b.id === brand.id ? { ...b, ...res.data } : b));
-        } catch {
+        } catch (err) {
+            logCaughtError('brand_toggle_visibility', err, { brandId: brand.id });
             alert('Failed to toggle visibility');
         }
     };
@@ -220,6 +224,7 @@ export default function BrandsPage() {
             fetchBrands(search);
         } catch (err: any) {
             const detail = err.response?.data?.error || err.message;
+            logCaughtError('brand_merge', err, { targetId: mergeTarget?.id, sourceId: mergeSourceId });
             setError(`Merge failed: ${detail}`);
         }
     };
@@ -235,6 +240,7 @@ export default function BrandsPage() {
                 alert('All brands are already synced!');
             }
         } catch (err) {
+            logCaughtError('brand_sync', err);
             alert('Sync failed');
         } finally {
             setSyncing(false);
@@ -280,8 +286,8 @@ export default function BrandsPage() {
             {/* Notification Banner */}
             {error && (
                 <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${error.startsWith('✅')
-                        ? 'bg-green-50 text-green-800 border-green-200'
-                        : 'bg-red-50 text-red-700 border-red-200'
+                    ? 'bg-green-50 text-green-800 border-green-200'
+                    : 'bg-red-50 text-red-700 border-red-200'
                     }`}>
                     {error}
                 </div>
