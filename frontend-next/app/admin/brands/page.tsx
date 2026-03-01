@@ -59,11 +59,7 @@ export default function BrandsPage() {
         parent: null as number | null,
     });
 
-    useEffect(() => {
-        fetchBrands();
-    }, []);
-
-    // Debounced backend search
+    // Debounced backend search (also handles initial load when search is '')
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchBrands(search);
@@ -105,17 +101,28 @@ export default function BrandsPage() {
     };
 
     const handleMoveArticle = async (specId: number, targetBrandId: number) => {
+        const targetBrand = brands.find(b => b.id === targetBrandId);
         try {
-            await api.post(`/admin/brands/${targetBrandId}/move-article/`, { spec_id: specId });
-            // Refresh both the articles list and brands
-            if (expandedBrandId) {
-                const res = await api.get(`/admin/brands/${expandedBrandId}/articles/`);
-                setBrandArticles(res.data.articles || []);
+            const res = await api.post(`/admin/brands/${targetBrandId}/move-article/`, { spec_id: specId });
+            if (res.data.success) {
+                // Show success feedback  
+                setError(`✅ ${res.data.message}`);
+                setTimeout(() => setError(''), 3000);
+
+                // Refresh expanded brand's articles
+                if (expandedBrandId) {
+                    const artRes = await api.get(`/admin/brands/${expandedBrandId}/articles/`);
+                    setBrandArticles(artRes.data.articles || []);
+                }
+                fetchBrands(search);
+            } else {
+                setError(`❌ Move failed: ${res.data.error || 'Unknown error'}`);
             }
-            fetchBrands();
             setMoveTarget({ specId: 0, brandId: null });
-        } catch {
-            alert('Failed to move article');
+        } catch (err: any) {
+            const detail = err.response?.data?.error || err.message || 'Network error';
+            setError(`❌ Move failed: ${detail}`);
+            setMoveTarget({ specId: 0, brandId: null });
         }
     };
 
@@ -210,7 +217,7 @@ export default function BrandsPage() {
         try {
             await api.post(`/admin/brands/${mergeTarget.id}/merge/`, { source_brand_id: mergeSourceId });
             setShowMergeModal(false);
-            fetchBrands();
+            fetchBrands(search);
         } catch (err: any) {
             const detail = err.response?.data?.error || err.message;
             setError(`Merge failed: ${detail}`);
@@ -223,7 +230,7 @@ export default function BrandsPage() {
             const res = await api.post('/admin/brands/sync/');
             if (res.data.total_created > 0) {
                 alert(`Created ${res.data.total_created} new brand(s): ${res.data.created_brands.join(', ')}`);
-                fetchBrands();
+                fetchBrands(search);
             } else {
                 alert('All brands are already synced!');
             }
@@ -269,6 +276,16 @@ export default function BrandsPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Notification Banner */}
+            {error && (
+                <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${error.startsWith('✅')
+                        ? 'bg-green-50 text-green-800 border-green-200'
+                        : 'bg-red-50 text-red-700 border-red-200'
+                    }`}>
+                    {error}
+                </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
