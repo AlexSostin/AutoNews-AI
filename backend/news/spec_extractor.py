@@ -265,6 +265,8 @@ def _parse_specs(text: str) -> dict:
 def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
     """Create or update CarSpecification for an article from extracted specs dict.
     Applies normalization (canonical make names, clean HP).
+    MERGE logic: only overwrites a field if the new value is non-empty.
+    Preserves existing data when AI returns empty/missing values.
     Returns the CarSpecification instance, or None if specs are insufficient.
     """
     make = specs.get('make', '')
@@ -285,7 +287,8 @@ def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
             return default
         return str(v)[:MAX_FIELD_LENGTH] if v else default
 
-    spec_data = {
+    # New extracted values (may contain empty strings)
+    new_data = {
         'model_name': f'{make} {model}'.strip()[:200],
         'make': make[:100],
         'model': model[:100],
@@ -297,17 +300,43 @@ def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
         'top_speed': _val('top_speed'),
         'drivetrain': _val('drivetrain'),
         'price': _val('price'),
-        'release_date': '',
     }
 
     try:
-        car_spec, created = CarSpecification.objects.update_or_create(
-            article=article,
-            defaults=spec_data,
-        )
-        action = 'Created' if created else 'Updated'
-        logger.info(f'{action} CarSpecification for [{article.id}] {make} {model}')
-        return car_spec
+        existing = CarSpecification.objects.filter(article=article).first()
+        
+        if existing:
+            # MERGE: only overwrite fields where new value is non-empty
+            updated_fields = []
+            for field, new_value in new_data.items():
+                old_value = getattr(existing, field, '')
+                # Always update identity fields (make, model, model_name)
+                if field in ('make', 'model', 'model_name'):
+                    if new_value and new_value != old_value:
+                        setattr(existing, field, new_value)
+                        updated_fields.append(field)
+                else:
+                    # For spec fields: only overwrite if new value is non-empty
+                    if new_value:
+                        if new_value != old_value:
+                            setattr(existing, field, new_value)
+                            updated_fields.append(field)
+                    # If new value is empty but old has data — keep old (don't overwrite)
+            
+            if updated_fields:
+                existing.save(update_fields=updated_fields)
+                logger.info(f'Merged CarSpecification for [{article.id}] {make} {model} — updated: {", ".join(updated_fields)}')
+            else:
+                logger.info(f'No changes for CarSpecification [{article.id}] {make} {model}')
+            return existing
+        else:
+            # CREATE: use all new data (no existing data to preserve)
+            car_spec = CarSpecification.objects.create(
+                article=article,
+                **new_data,
+            )
+            logger.info(f'Created CarSpecification for [{article.id}] {make} {model}')
+            return car_spec
     except Exception as e:
         logger.error(f'Failed to save CarSpecification for [{article.id}]: {e}')
         return None
