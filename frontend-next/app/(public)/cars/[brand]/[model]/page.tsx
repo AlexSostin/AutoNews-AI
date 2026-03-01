@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { ClientModelFallback } from '@/components/public/ClientPageFallbacks';
 import type { Metadata } from 'next';
 import { fixImageUrl } from '@/lib/config';
 import VehicleSpecsTable from '@/components/public/VehicleSpecsTable';
@@ -163,7 +163,8 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
     const { brand: brandSlug, model: modelSlug } = await params;
     const data = await getModel(brandSlug, modelSlug);
 
-    if (!data) notFound();
+    // SSR fetch failed (Docker dev mode) → client-side fallback
+    if (!data) return <ClientModelFallback brandSlug={brandSlug} modelSlug={modelSlug} />;
 
     const hasSpecs = Object.values(data.specs).some(v => v && v !== 'Not specified');
     const primaryArticle = data.trims[0];

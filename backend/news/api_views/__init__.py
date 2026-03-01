@@ -21,6 +21,6 @@ from .youtube import YouTubeChannelViewSet
 from .rss_feeds import RSSFeedViewSet
 from .rss_news_items import RSSNewsItemViewSet
 from .pending_articles import PendingArticleViewSet
-from .ai_actions import GenerateAIImageView, SearchPhotosView, SaveExternalImageView
+from .ai_actions import GenerateAIImageView, SearchPhotosView, SaveExternalImageView, ProxyImageView
 from .vehicles import CarSpecificationViewSet, BrandAliasViewSet, VehicleSpecsViewSet
 from .system import SiteSettingsViewSet, CurrencyRatesView, AdminNotificationViewSet, AdPlacementViewSet, SiteThemeView, ThemeAnalyticsView, AutomationSettingsView, AutomationStatsView, AutomationTriggerView, AdminActionStatsView, FrontendEventLogViewSet, BackendErrorLogViewSet, HealthSummaryView

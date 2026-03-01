@@ -30,7 +30,7 @@ import 'tinymce/models/dom';
 // @ts-ignore - TinyMCE types might be missing in package.json
 import { Editor } from '@tinymce/tinymce-react';
 import { FormCard } from '@/app/admin/components/forms/FormCard';
-import { FileText, Sparkles, Loader2, Zap, RefreshCw } from 'lucide-react';
+import { FileText, Sparkles, Loader2, Zap, RefreshCw, Wand2 } from 'lucide-react';
 
 interface ArticleContentEditorProps {
     content: string;
@@ -38,9 +38,11 @@ interface ArticleContentEditorProps {
     onReformat: () => void;
     onEnrich: () => void;
     onRegenerate: () => void;
+    onAutoFill?: () => void;
     isReformatting: boolean;
     isEnriching: boolean;
     isRegenerating: boolean;
+    isAutoFilling?: boolean;
     hasYoutubeUrl: boolean;
 }
 
@@ -50,9 +52,11 @@ export function ArticleContentEditor({
     onReformat,
     onEnrich,
     onRegenerate,
+    onAutoFill,
     isReformatting,
     isEnriching,
     isRegenerating,
+    isAutoFilling,
     hasYoutubeUrl
 }: ArticleContentEditorProps) {
     const editorRef = useRef<any>(null);
@@ -87,6 +91,18 @@ export function ArticleContentEditor({
                 {isRegenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                 {isRegenerating ? 'Regenerating...' : '🔄 Regenerate'}
             </button>
+            {onAutoFill && (
+                <button
+                    type="button"
+                    onClick={onAutoFill}
+                    disabled={isAutoFilling || isReformatting || !content.trim()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                    title="Extract title, summary, tags from content"
+                >
+                    {isAutoFilling ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                    {isAutoFilling ? 'Extracting...' : '🪄 Auto-fill'}
+                </button>
+            )}
         </div>
     );
 

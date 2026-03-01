@@ -138,6 +138,17 @@ class TagViewSet(viewsets.ModelViewSet):
         return queryset
 
     def list(self, request, *args, **kwargs):
+        # Staff gets fresh data, public gets cached
+        if request.user.is_authenticated and request.user.is_staff:
+            queryset = self.filter_queryset(self.get_queryset())
+            if not request.query_params.get('ordering'):
+                queryset = queryset.order_by('-_article_count', 'name')
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        return self._cached_list(request, *args, **kwargs)
+
+    @method_decorator(cache_page(300))  # Cache for 5 minutes
+    def _cached_list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         # Apply popularity ordering AFTER DRF's filter pipeline
         if not request.query_params.get('ordering'):

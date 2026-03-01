@@ -9,6 +9,7 @@ import InfiniteArticleList from '@/components/public/InfiniteArticleList';
 import JsonLd from '@/components/public/JsonLd';
 import PageAnalyticsTracker from '@/components/public/PageAnalyticsTracker';
 import Link from 'next/link';
+import ClientHomepage from '@/components/public/ClientHomepage';
 import { fixImageUrl } from '@/lib/config';
 import type { Metadata } from 'next';
 
@@ -18,92 +19,47 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 120; // Revalidate every 2 minutes (was 30s — too frequent, triggers 4 API calls each time)
+export const revalidate = 120; // Revalidate every 2 minutes
 
 // Production API URL - hardcoded for server-side rendering
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 const LOCAL_API_URL = 'http://localhost:8000/api/v1';
 
-// Get API URL - use production URL on Railway, localhost for local dev
 const getApiUrl = () => {
-  // 1. If running on server (Docker/Node), use internal Docker URL if available
   if (typeof window === 'undefined') {
-    if (process.env.API_INTERNAL_URL) {
-      return process.env.API_INTERNAL_URL;
-    }
+    if (process.env.API_INTERNAL_URL) return process.env.API_INTERNAL_URL;
+    if (process.env.RAILWAY_ENVIRONMENT === 'production') return PRODUCTION_API_URL;
+    return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
   }
-
-  // 2. Custom domain API
-  if (process.env.CUSTOM_DOMAIN_API) {
-    return process.env.CUSTOM_DOMAIN_API;
-  }
-
-  // 3. Check if running on Railway (production)
-  if (process.env.RAILWAY_ENVIRONMENT === 'production') {
-    return PRODUCTION_API_URL;
-  }
-
-  // 4. Default fallback for client-side local dev
   return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
 };
 
 async function getSettings() {
   try {
-    const res = await fetch(`${getApiUrl()}/settings/`, {
-      next: { revalidate: 300 },  // Settings rarely change — cache 5 min
-    });
+    const res = await fetch(`${getApiUrl()}/settings/`, { next: { revalidate: 300 } });
     if (!res.ok) return null;
     return await res.json();
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
-
-// checkIsAdmin removed — now handled client-side by MaintenanceGuard
 
 async function getArticles() {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
-      next: { revalidate: 120 }, // refresh every 2 minutes
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
+    const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, { next: { revalidate: 60 } });
     if (!res.ok) return { results: [] };
     return await res.json();
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('API request timed out - backend may not be running');
-    } else {
-      console.warn('Backend API not available yet:', error instanceof Error ? error.message : error);
-    }
-    return { results: [] };
-  }
+  } catch { return { results: [] }; }
 }
 
 async function getCategories() {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const res = await fetch(`${getApiUrl()}/categories/`, {
-      next: { revalidate: 3600 }, // refresh every hour
-      signal: controller.signal,
-    });
-
+    const res = await fetch(`${getApiUrl()}/categories/`, { next: { revalidate: 3600 }, signal: controller.signal });
     clearTimeout(timeoutId);
-
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : data.results || [];
-  } catch (error) {
-    console.warn('Backend API not available for categories');
-    return [];
-  }
+  } catch { return []; }
 }
 
 async function getBrands() {
@@ -112,21 +68,39 @@ async function getBrands() {
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data.slice(0, 8) : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 export default async function Home() {
-  // Fetch all data in parallel (no auth needed — maintenance guard is client-side)
+  // Try SSR fetch — works on Railway (production), may fail in Docker dev (Turbopack)
   const [settings, articlesData, categories, brands] = await Promise.all([
     getSettings(),
     getArticles(),
     getCategories(),
     getBrands(),
   ]);
-  const articles = articlesData.results || [];
 
+  const articles = articlesData?.results || [];
+
+  // === FALLBACK: If ALL SSR fetches failed (Docker dev mode) → render client-side ===
+  const ssrFailed = !settings && articles.length === 0 && categories.length === 0 && brands.length === 0;
+  if (ssrFailed) {
+    return (
+      <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
+        <PageAnalyticsTracker pageType="home" />
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Fresh Motors",
+          "url": "https://www.freshmotors.net",
+          "description": "AI-powered automotive news, reviews, and vehicle specifications",
+        }} />
+        <ClientHomepage />
+      </main>
+    );
+  }
+
+  // === SSR PATH: Full server-rendered homepage with SEO ===
   return (
     <MaintenanceGuard
       maintenanceMode={settings?.maintenance_mode || false}
@@ -135,7 +109,6 @@ export default async function Home() {
     >
       <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
         <PageAnalyticsTracker pageType="home" />
-        {/* Schema.org JSON-LD for Home Page */}
         <JsonLd data={{
           "@context": "https://schema.org",
           "@type": "WebSite",
@@ -144,10 +117,7 @@ export default async function Home() {
           "description": "AI-powered automotive news, reviews, and vehicle specifications",
           "potentialAction": {
             "@type": "SearchAction",
-            "target": {
-              "@type": "EntryPoint",
-              "urlTemplate": "https://www.freshmotors.net/articles?search={search_term_string}"
-            },
+            "target": { "@type": "EntryPoint", "urlTemplate": "https://www.freshmotors.net/articles?search={search_term_string}" },
             "query-input": "required name=search_term_string"
           }
         }} />
@@ -159,12 +129,9 @@ export default async function Home() {
           "logo": "https://www.freshmotors.net/logo.png",
           "description": "AI-powered automotive news and vehicle reviews",
           "sameAs": [],
-          "contactPoint": {
-            "@type": "ContactPoint",
-            "contactType": "customer service",
-            "url": "https://www.freshmotors.net/contact"
-          }
+          "contactPoint": { "@type": "ContactPoint", "contactType": "customer service", "url": "https://www.freshmotors.net/contact" }
         }} />
+
         {/* Hero Section */}
         <Hero articles={articles} settings={settings} />
 
@@ -173,10 +140,9 @@ export default async function Home() {
           <AdBanner position="header" />
         </div>
 
-        {/* Categories Section - Refined & Premium */}
+        {/* Categories Section */}
         {categories.length > 0 && (
           <section className="relative py-16 overflow-hidden">
-            {/* Background Decoration */}
             <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-indigo-100/50 rounded-full blur-3xl -z-10"></div>
             <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-purple-100/30 rounded-full blur-3xl -z-10"></div>
 
@@ -195,9 +161,7 @@ export default async function Home() {
                     href={`/categories/${category.slug}`}
                     className="group relative px-6 sm:px-8 py-3 sm:py-4 bg-white/70 backdrop-blur-md border border-gray-200 rounded-2xl transition-all duration-300 hover:border-indigo-500 hover:shadow-[0_20px_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden"
                   >
-                    {/* Hover Glow */}
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-
                     <div className="relative flex items-center gap-3">
                       <span className="text-gray-900 font-bold text-lg sm:text-xl group-hover:text-indigo-600 transition-colors">
                         {category.name}
@@ -251,10 +215,7 @@ export default async function Home() {
               </div>
 
               <div className="text-center mt-8">
-                <Link
-                  href="/cars"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors"
-                >
+                <Link href="/cars" className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors">
                   View All Brands →
                 </Link>
               </div>
@@ -265,7 +226,6 @@ export default async function Home() {
         {/* Latest Articles */}
         <section className="container mx-auto px-4 py-16">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Main Content - Articles */}
             <div className="lg:col-span-3">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-10 gap-4">
                 <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">Latest Articles</h2>
@@ -277,16 +237,10 @@ export default async function Home() {
               {articles.length === 0 ? (
                 <EmptyState />
               ) : (
-                <InfiniteArticleList
-                  initialArticles={articles.slice(0, 18)}
-                  initialPage={1}
-                  pageSize={18}
-                  mobileRecommendedSlot={<TrendingSection />}
-                />
+                <InfiniteArticleList initialArticles={articles} />
               )}
             </div>
 
-            {/* Sidebar - Trending (hidden on mobile, shown inline after 6th article instead) */}
             <div className="hidden lg:block lg:col-span-1 space-y-6">
               <TrendingSection />
               <AdBanner position="sidebar" />
@@ -294,7 +248,7 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Bottom Ad before Footer */}
+        {/* Bottom Ad */}
         <div className="container mx-auto px-4 pb-12 flex justify-center">
           <AdBanner position="footer" />
         </div>

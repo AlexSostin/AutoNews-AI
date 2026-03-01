@@ -491,6 +491,126 @@ Return ONLY the HTML-formatted version with every word preserved."""
                 'success': False,
                 'message': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated],
+            url_path='auto-fill-metadata')
+    def auto_fill_metadata(self, request):
+        """
+        Extract metadata from article HTML content using AI.
+        POST /api/v1/articles/auto_fill_metadata/
+        Body: { "content": "<p>article html...</p>" }
+        Returns: title, slug, summary, seo_description, suggested_categories, suggested_tags
+        """
+        import json
+        from django.utils.text import slugify
+        from news.models import Category, Tag
+        
+        content = request.data.get('content', '').strip()
+        
+        if not content or len(content) < 100:
+            return Response({
+                'success': False,
+                'message': 'Content too short. Paste or write at least a few paragraphs.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Strip HTML to get plain text for AI analysis
+        plain_text = re.sub(r'<[^>]+>', ' ', content)
+        plain_text = re.sub(r'\s+', ' ', plain_text).strip()
+        
+        # Get available categories and tags for matching
+        available_categories = list(Category.objects.values_list('name', flat=True))
+        available_tags = list(Tag.objects.values_list('name', flat=True)[:50])
+        
+        system_prompt = "You are a metadata extractor. Return ONLY valid JSON, nothing else."
+
+        extract_prompt = f"""Extract metadata from this automotive article.
+
+CATEGORIES (pick 1-2): {json.dumps(available_categories)}
+TAGS (pick up to 6): {json.dumps(available_tags)}
+
+ARTICLE (first 3000 chars):
+{plain_text[:3000]}
+
+Return JSON:
+{{"title":"SEO title with brand/model/year","summary":"2-3 sentences","seo_description":"max 155 chars","suggested_categories":["Cat"],"suggested_tags":["Tag1","Tag2"],"detected_brand":"Brand","detected_model":"Model"}}"""
+
+        try:
+            from ai_engine.modules.ai_provider import get_ai_provider
+            provider = get_ai_provider('gemini')
+            result_text = provider.generate_completion(
+                extract_prompt,
+                system_prompt=system_prompt,
+                temperature=0.1,
+                max_tokens=2000,
+            )
+            
+            # Clean up response
+            cleaned = result_text.strip()
+            cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+            cleaned = re.sub(r'\s*```$', '', cleaned)
+            cleaned = cleaned.strip()
+            
+            # Try to repair truncated JSON
+            try:
+                metadata = json.loads(cleaned)
+            except json.JSONDecodeError:
+                # Try to fix common issues: truncated strings, missing closing brackets
+                # Remove trailing incomplete key-value pair
+                cleaned = re.sub(r',\s*"[^"]*"?\s*:?\s*"?[^"]*$', '', cleaned)
+                # Close any unclosed brackets
+                open_braces = cleaned.count('{') - cleaned.count('}')
+                open_brackets = cleaned.count('[') - cleaned.count(']')
+                if not cleaned.endswith('"') and '"' in cleaned:
+                    # Count quotes - if odd, add closing quote
+                    if cleaned.count('"') % 2 != 0:
+                        cleaned += '"'
+                cleaned += ']' * max(0, open_brackets)
+                cleaned += '}' * max(0, open_braces)
+                
+                metadata = json.loads(cleaned)
+            
+            title = metadata.get('title', '')
+            slug = slugify(title)[:80] if title else ''
+            
+            # Match categories to actual DB objects
+            matched_category_ids = []
+            for cat_name in metadata.get('suggested_categories', []):
+                cat = Category.objects.filter(name__iexact=cat_name).first()
+                if cat:
+                    matched_category_ids.append(cat.id)
+            
+            # Match tags to actual DB objects
+            matched_tag_ids = []
+            for tag_name in metadata.get('suggested_tags', []):
+                tag = Tag.objects.filter(name__iexact=tag_name).first()
+                if tag:
+                    matched_tag_ids.append(tag.id)
+            
+            return Response({
+                'success': True,
+                'title': title,
+                'slug': slug,
+                'summary': metadata.get('summary', ''),
+                'seo_description': metadata.get('seo_description', '')[:160],
+                'category_ids': matched_category_ids,
+                'tag_ids': matched_tag_ids,
+                'detected_brand': metadata.get('detected_brand', ''),
+                'detected_model': metadata.get('detected_model', ''),
+            })
+
+        except json.JSONDecodeError as e:
+            logger.error(f'Auto-fill metadata JSON parse failed: {e}\nRaw: {result_text[:500]}')
+            return Response({
+                'success': False,
+                'message': 'AI returned invalid format. Please try again.',
+            }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except Exception as e:
+            logger.error(f'Auto-fill metadata failed: {e}')
+            return Response({
+                'success': False,
+                'message': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
             url_path='regenerate')

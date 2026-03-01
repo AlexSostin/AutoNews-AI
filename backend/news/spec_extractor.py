@@ -275,8 +275,10 @@ def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
     if not make or make == 'Not specified':
         return None
 
-    # Normalize
+    # Normalize make name, then resolve sub-brand rules
     make = normalize_make(make)
+    from news.models import BrandAlias
+    make, model = BrandAlias.resolve_with_model(make, model)
     hp_raw = specs.get('horsepower', '')
     hp_clean = normalize_hp(hp_raw)
 
@@ -308,7 +310,13 @@ def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
         if existing:
             # MERGE: only overwrite fields where new value is non-empty
             updated_fields = []
+            # If make is locked by admin, skip identity fields
+            locked_fields = {'make', 'model', 'model_name'} if existing.is_make_locked else set()
+            if locked_fields:
+                logger.info(f'🔒 Make locked for [{article.id}] — preserving admin brand assignment')
             for field, new_value in new_data.items():
+                if field in locked_fields:
+                    continue  # Don't overwrite locked fields
                 old_value = getattr(existing, field, '')
                 # Always update identity fields (make, model, model_name)
                 if field in ('make', 'model', 'model_name'):

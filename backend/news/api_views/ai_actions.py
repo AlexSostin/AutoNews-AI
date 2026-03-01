@@ -142,6 +142,22 @@ class SearchPhotosView(APIView):
         if not request.user.is_staff:
             return Response({'error': 'Staff access required'}, status=403)
         
+        custom_query = request.query_params.get('q', '').strip() or request.query_params.get('query', '').strip()
+        
+        # If no identifier, use query param directly
+        if not identifier:
+            if not custom_query:
+                return Response({'error': 'query parameter is required'}, status=400)
+            query = f"{custom_query} press photo official"
+            from ai_engine.modules.searcher import search_car_images
+            max_results = int(request.query_params.get('max_results', 20))
+            results = search_car_images(query, max_results=min(max_results, 30))
+            return Response({
+                'query': query,
+                'results': results,
+                'count': len(results),
+            })
+        
         # Look up article
         try:
             if identifier and identifier.isdigit():
@@ -272,3 +288,34 @@ class SaveExternalImageView(APIView):
             'image_slot': image_slot,
         })
 
+
+class ProxyImageView(APIView):
+    """Proxy external image downloads to avoid CSP restrictions on the frontend."""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Download an external image and return it as binary response."""
+        if not request.user.is_staff:
+            return Response({'error': 'Staff access required'}, status=403)
+        
+        image_url = request.data.get('url', '').strip()
+        if not image_url:
+            return Response({'error': 'url is required'}, status=400)
+        
+        import requests as http_requests
+        from django.http import HttpResponse
+        
+        try:
+            resp = http_requests.get(image_url, timeout=15, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'image/*,*/*;q=0.8',
+            })
+            resp.raise_for_status()
+            
+            content_type = resp.headers.get('Content-Type', 'image/jpeg')
+            return HttpResponse(
+                resp.content,
+                content_type=content_type,
+            )
+        except http_requests.RequestException as e:
+            return Response({'error': f'Failed to download image: {str(e)}'}, status=400)

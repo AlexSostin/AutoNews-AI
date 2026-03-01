@@ -325,14 +325,23 @@ def sync_vehicle_specs_to_car_spec(sender, instance, **kwargs):
     updates = {}
 
     if instance.make:
-        # Resolve brand aliases (e.g. 'DongFeng VOYAH' → 'VOYAH')
+        # Resolve brand aliases + sub-brand extraction
+        # e.g. 'DongFeng VOYAH' → 'VOYAH' (simple alias)
+        # e.g. make='BYD', model='Denza D9' → make='DENZA', model='D9' (sub-brand rule)
         from .models import BrandAlias
-        resolved = BrandAlias.resolve(instance.make)
-        updates['make'] = resolved
-        # Also normalize the VehicleSpecs make if alias was resolved
-        if resolved != instance.make:
-            VehicleSpecs.objects.filter(pk=instance.pk).update(make=resolved)
-            logger.info(f"🏷️ Resolved brand alias: '{instance.make}' → '{resolved}'")
+        model_name = instance.model_name or ''
+        resolved_make, resolved_model = BrandAlias.resolve_with_model(instance.make, model_name)
+        updates['make'] = resolved_make
+        # Also normalize the VehicleSpecs make/model if alias was resolved
+        vs_updates = {}
+        if resolved_make != instance.make:
+            vs_updates['make'] = resolved_make
+        if resolved_model != model_name:
+            vs_updates['model_name'] = resolved_model
+            updates['model'] = resolved_model
+        if vs_updates:
+            VehicleSpecs.objects.filter(pk=instance.pk).update(**vs_updates)
+            logger.info(f"🏷️ Resolved brand: '{instance.make} {model_name}' → '{resolved_make} {resolved_model}'")
     if instance.model_name:
         updates['model'] = instance.model_name
     if instance.trim_name:
@@ -379,15 +388,26 @@ def sync_vehicle_specs_to_car_spec(sender, instance, **kwargs):
         model_name += f" {instance.trim_name}"
 
     try:
+        # Check if CarSpec exists and has a locked make
+        existing = CarSpecification.objects.filter(article=instance.article).first()
+        if existing and existing.is_make_locked:
+            # Don't overwrite make/model/model_name — admin manually set these
+            updates.pop('make', None)
+            updates.pop('model', None)
+            model_name = None  # Don't overwrite
+            logger.info(f"🔒 Make locked for [{instance.article_id}] — skipping make/model overwrite")
+
+        if model_name:
+            defaults = {'model_name': model_name, **updates}
+        else:
+            defaults = {**updates}
+
         car_spec, created = CarSpecification.objects.update_or_create(
             article=instance.article,
-            defaults={
-                'model_name': model_name,
-                **updates,
-            }
+            defaults=defaults,
         )
         action = "Created" if created else "Updated"
-        logger.info(f"🔄 {action} CarSpecification for article [{instance.article_id}] from VehicleSpecs: {model_name}")
+        logger.info(f"🔄 {action} CarSpecification for article [{instance.article_id}] from VehicleSpecs")
     except Exception as e:
         logger.error(f"❌ Failed to sync VehicleSpecs → CarSpecification for article [{instance.article_id}]: {e}")
 

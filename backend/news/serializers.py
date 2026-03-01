@@ -870,7 +870,7 @@ class AdminNotificationSerializer(serializers.ModelSerializer):
 class BrandAliasSerializer(serializers.ModelSerializer):
     class Meta:
         model = BrandAlias
-        fields = ['id', 'alias', 'canonical_name', 'created_at']
+        fields = ['id', 'alias', 'canonical_name', 'model_prefix', 'created_at']
         read_only_fields = ['created_at']
 
 

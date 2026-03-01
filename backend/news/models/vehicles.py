@@ -63,36 +63,80 @@ class Brand(models.Model):
 class BrandAlias(models.Model):
     """Maps brand name variations to a canonical name.
     
-    When AI extracts 'DongFeng VOYAH', this table maps it → 'VOYAH'.
-    Used automatically during VehicleSpecs → CarSpecification sync.
+    Two modes:
+    1. Simple alias (model_prefix=''):
+       alias='DongFeng VOYAH' → canonical_name='VOYAH'
+       Matches when make == alias, regardless of model.
+    
+    2. Sub-brand extraction (model_prefix set):
+       alias='BYD', canonical_name='DENZA', model_prefix='Denza'
+       Matches when make=='BYD' AND model starts with 'Denza'.
+       Strips prefix from model: 'Denza D9' → 'D9'.
     """
     alias = models.CharField(
-        max_length=100, unique=True,
+        max_length=100,
         help_text="The name variation (what AI might produce, e.g. 'DongFeng VOYAH')"
     )
     canonical_name = models.CharField(
         max_length=100,
         help_text="The correct brand name (e.g. 'VOYAH')"
     )
+    model_prefix = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="Sub-brand prefix in model name. If set, only matches when model starts with this prefix. Prefix is stripped from model."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name_plural = "Brand Aliases"
         ordering = ['canonical_name', 'alias']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['alias', 'model_prefix'],
+                name='unique_alias_prefix',
+            ),
+        ]
 
     def __str__(self):
+        if self.model_prefix:
+            return f"{self.alias} + model:{self.model_prefix}* → {self.canonical_name}"
         return f"{self.alias} → {self.canonical_name}"
 
     @classmethod
     def resolve(cls, make):
-        """Resolve a make name through aliases. Returns canonical name or original."""
+        """Resolve a make name through simple aliases (no model_prefix).
+        Returns canonical name or original. Kept for backward compatibility."""
         if not make:
             return make
-        try:
-            alias = cls.objects.get(alias__iexact=make)
-            return alias.canonical_name
-        except cls.DoesNotExist:
-            return make
+        alias = cls.objects.filter(alias__iexact=make, model_prefix='').first()
+        return alias.canonical_name if alias else make
+
+    @classmethod
+    def resolve_with_model(cls, make, model=''):
+        """Resolve make+model through sub-brand rules then simple aliases.
+        
+        Returns (resolved_make, resolved_model).
+        
+        Example:
+            BrandAlias(alias='BYD', canonical_name='DENZA', model_prefix='Denza')
+            resolve_with_model('BYD', 'Denza D9') → ('DENZA', 'D9')
+            resolve_with_model('BYD', 'Seal') → ('BYD', 'Seal')  # no match
+        """
+        if not make:
+            return make, model
+        
+        # 1. Check sub-brand rules (model_prefix != '')
+        if model:
+            sub_brand_aliases = cls.objects.exclude(model_prefix='')
+            for alias in sub_brand_aliases:
+                if (make.lower().strip() == alias.alias.lower().strip() and
+                        model.lower().strip().startswith(alias.model_prefix.lower().strip())):
+                    new_model = model[len(alias.model_prefix):].strip()
+                    return alias.canonical_name, new_model if new_model else model
+        
+        # 2. Fallback: simple name alias (existing behavior)
+        resolved_make = cls.resolve(make)
+        return resolved_make, model
 
 class CarSpecification(models.Model):
     article = models.OneToOneField('news.Article', on_delete=models.CASCADE, related_name='specs')
@@ -110,6 +154,11 @@ class CarSpecification(models.Model):
     release_date = models.CharField(max_length=100, blank=True)
     is_verified = models.BooleanField(default=False, help_text="Manually verified by editor")
     verified_at = models.DateTimeField(null=True, blank=True, help_text="When specs were verified")
+    is_make_locked = models.BooleanField(
+        default=False,
+        help_text="When True, make/model won't be overwritten by AI re-extraction or VehicleSpecs sync. "
+                  "Set automatically by move-article."
+    )
     
     def __str__(self):
         return f"Specs for {self.article.title}"

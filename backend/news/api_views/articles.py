@@ -143,6 +143,16 @@ class ArticleViewSet(
         
         return queryset
     
+    def list(self, request, *args, **kwargs):
+        """Cache article list for anonymous users (60s), admins always get fresh data."""
+        if request.user.is_authenticated:
+            return super().list(request, *args, **kwargs)
+        return self._cached_list(request, *args, **kwargs)
+
+    @method_decorator(cache_page(60))  # Cache for 1 minute
+    def _cached_list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
     def perform_destroy(self, instance):
         """Soft delete: mark as deleted instead of removing from DB"""
         instance.is_deleted = True
@@ -151,6 +161,19 @@ class ArticleViewSet(
         # Invalidate cache
         try:
             invalidate_article_cache()
+        except Exception:
+            pass
+
+    def perform_create(self, serializer):
+        """After creating a new article, invalidate cache so it appears on the public site."""
+        instance = serializer.save()
+        try:
+            invalidate_article_cache(article_id=instance.id, slug=instance.slug)
+        except Exception as e:
+            logger.warning(f"Cache invalidation after create failed: {e}")
+        # Also trigger revalidation for specific article page
+        try:
+            trigger_nextjs_revalidation(paths=['/', '/articles', f'/articles/{instance.slug}'])
         except Exception:
             pass
 

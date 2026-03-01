@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { ClientCategoryFallback } from '@/components/public/ClientPageFallbacks';
 import Link from 'next/link';
 import ArticleCard from '@/components/public/ArticleCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -32,30 +32,30 @@ const getApiUrl = () => {
 };
 
 async function getCategory(slug: string) {
-  const res = await fetch(`${getApiUrl()}/categories/?search=${slug}`, {
-    next: { revalidate: 3600 } // categories change rarely
-  });
-
-  if (!res.ok) {
+  try {
+    const res = await fetch(`${getApiUrl()}/categories/?search=${slug}`, {
+      next: { revalidate: 3600 }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const categories = Array.isArray(data) ? data : data.results || [];
+    return categories.find((cat: any) => cat.slug === slug) || null;
+  } catch {
     return null;
   }
-
-  const data = await res.json();
-  const categories = Array.isArray(data) ? data : data.results || [];
-  return categories.find((cat: any) => cat.slug === slug) || null;
 }
 
 async function getArticlesByCategory(categorySlug: string, page = 1) {
-  const res = await fetch(
-    `${getApiUrl()}/articles/?category=${categorySlug}&page=${page}&page_size=12`,
-    { next: { revalidate: 120 } } // refresh every 2 minutes
-  );
-
-  if (!res.ok) {
+  try {
+    const res = await fetch(
+      `${getApiUrl()}/articles/?category=${categorySlug}&page=${page}&page_size=12`,
+      { next: { revalidate: 120 } }
+    );
+    if (!res.ok) return { results: [], count: 0, next: null, previous: null };
+    return res.json();
+  } catch {
     return { results: [], count: 0, next: null, previous: null };
   }
-
-  return res.json();
 }
 
 export default async function CategoryPage({
@@ -68,8 +68,9 @@ export default async function CategoryPage({
   const { slug } = await params;
   const category = await getCategory(slug);
 
+  // SSR fetch failed (Docker dev mode) → client-side fallback
   if (!category || category.is_visible === false) {
-    notFound();
+    return <ClientCategoryFallback slug={slug} />;
   }
 
   const queryParams = await searchParams;

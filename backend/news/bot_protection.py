@@ -103,9 +103,12 @@ class BotProtectionMiddleware:
         
         user_agent = request.META.get('HTTP_USER_AGENT', '')
         
-        # Block empty User-Agent (no real browser sends empty UA)
+        # Allow empty UA from internal/localhost (Next.js SSR, Docker containers)
         if not user_agent:
-            logger.warning(f"🤖 Blocked empty UA: {request.method} {path} from {self._get_ip(request)}")
+            client_ip = self._get_ip(request)
+            if client_ip in ('127.0.0.1', '::1', 'localhost') or client_ip.startswith('172.') or client_ip.startswith('10.'):
+                return self.get_response(request)
+            logger.warning(f"🤖 Blocked empty UA: {request.method} {path} from {client_ip}")
             return JsonResponse(
                 {'detail': 'Request blocked. Please use a web browser.'},
                 status=403

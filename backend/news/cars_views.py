@@ -1035,7 +1035,8 @@ class BrandViewSet(viewsets.ModelViewSet):
         
         old_make = spec.make
         spec.make = target_brand.name
-        spec.save(update_fields=['make'])
+        spec.is_make_locked = True
+        spec.save(update_fields=['make', 'is_make_locked'])
         
         from news.api_views import invalidate_article_cache
         invalidate_article_cache()

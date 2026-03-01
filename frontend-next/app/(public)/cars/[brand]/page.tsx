@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { ClientBrandFallback } from '@/components/public/ClientPageFallbacks';
 import type { Metadata } from 'next';
 import { fixImageUrl } from '@/lib/config';
 import BrandModelsGrid from './BrandModelsGrid';
@@ -63,7 +63,8 @@ export default async function BrandPage({ params }: { params: Promise<{ brand: s
     const { brand: brandSlug } = await params;
     const data = await getBrand(brandSlug);
 
-    if (!data) notFound();
+    // SSR fetch failed (Docker dev mode) → client-side fallback
+    if (!data) return <ClientBrandFallback brandSlug={brandSlug} />;
 
     return (
         <main className="flex-1 bg-gradient-to-b from-gray-50 to-white min-h-screen">

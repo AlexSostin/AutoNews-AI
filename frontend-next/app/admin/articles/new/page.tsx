@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Search, Image as ImageIcon, Loader2, RefreshCw, Zap } from 'lucide-react';
+import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Search, Image as ImageIcon, Loader2, RefreshCw, Zap, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import GenerationProgress from '@/components/admin/GenerationProgress';
@@ -50,6 +50,8 @@ export default function NewArticlePage() {
   const [showTranslatePreview, setShowTranslatePreview] = useState(false);
   const [savingTranslation, setSavingTranslation] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [autoFilling, setAutoFilling] = useState(false);
+  const [autoFillDone, setAutoFillDone] = useState(false);
 
   // Photo Search State
   const [photoSearchOpen, setPhotoSearchOpen] = useState(false);
@@ -249,6 +251,9 @@ export default function NewArticlePage() {
       // Use FormData to handle file uploads
       const formDataToSend = new FormData();
       formDataToSend.append('title', formData.title);
+      if (formData.slug) {
+        formDataToSend.append('slug', formData.slug);
+      }
       formDataToSend.append('summary', formData.summary);
       formDataToSend.append('content', formData.content);
       formData.category_ids.forEach(id => formDataToSend.append('category_ids', id.toString()));
@@ -288,10 +293,18 @@ export default function NewArticlePage() {
       });
 
       alert('Article created successfully!');
-      router.push('/admin/articles');
+      // Use the slug from the response (actual DB slug) to prevent mismatch
+      const createdSlug = response.data?.slug;
+      if (createdSlug) {
+        router.push(`/admin/articles/${createdSlug}/edit`);
+      } else {
+        router.push('/admin/articles');
+      }
     } catch (error: any) {
       console.error('Failed to create article:', error);
-      alert('Failed to create article: ' + (error.response?.data?.detail || error.message));
+      const errData = error.response?.data;
+      const errMsg = errData ? JSON.stringify(errData, null, 2) : error.message;
+      alert('Failed to create article:\n' + errMsg);
     } finally {
       setLoading(false);
     }
@@ -311,7 +324,7 @@ export default function NewArticlePage() {
     setPhotoSearchLoading(true);
     setPhotoSearchResults([]);
     try {
-      const { data } = await api.get('/articles/search_photos/', {
+      const { data } = await api.get('/articles/search-photos/', {
         params: { query: photoSearchQuery, max_results: 30 }
       });
       setPhotoSearchResults(data.results || []);
@@ -325,24 +338,62 @@ export default function NewArticlePage() {
   const handlePhotoSelect = async (url: string) => {
     setSavingPhoto(url);
     try {
-      // Create a Blob from the image URL to simulate a file upload in the formData
-      const response = await fetch(url);
-      const blob = await response.blob();
+      // Download image through backend proxy to avoid CSP restrictions
+      const proxyRes = await api.post('/articles/proxy-image/', { url }, { responseType: 'blob' });
+      const blob = proxyRes.data;
       const filename = `press_photo_${Date.now()}.jpg`;
-      const file = new File([blob], filename, { type: blob.type });
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
 
       if (photoSearchSlot === 1) {
         setFormData({ ...formData, image: file });
-        setImageSource('pexels');
+        setImageSource('web_search');
       }
       if (photoSearchSlot === 2) setFormData({ ...formData, image_2: file });
       if (photoSearchSlot === 3) setFormData({ ...formData, image_3: file });
 
       setPhotoSearchOpen(false);
     } catch (err: any) {
-      alert('Failed to process image: ' + err.message);
+      alert('Failed to process image: ' + (err.response?.data?.error || err.message));
     } finally {
       setSavingPhoto(null);
+    }
+  };
+
+  const handleAutoFill = async () => {
+    if (!formData.content || formData.content.length < 100) {
+      alert('Please paste or write article content first (at least a few paragraphs)');
+      return;
+    }
+
+    setAutoFilling(true);
+    setAutoFillDone(false);
+
+    try {
+      const res = await api.post('/articles/auto-fill-metadata/', {
+        content: formData.content,
+      });
+
+      if (res.data.success) {
+        setFormData(prev => ({
+          ...prev,
+          title: res.data.title || prev.title,
+          slug: res.data.slug || prev.slug,
+          summary: res.data.summary || prev.summary,
+          category_ids: res.data.category_ids?.length ? res.data.category_ids : prev.category_ids,
+          tags: res.data.tag_ids?.length ? res.data.tag_ids : prev.tags,
+        }));
+        setAutoFillDone(true);
+
+        // Scroll to top to show the filled fields
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        alert('Auto-fill failed: ' + (res.data.message || 'Unknown error'));
+      }
+    } catch (error: any) {
+      console.error('Auto-fill error:', error);
+      alert('Auto-fill failed: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setAutoFilling(false);
     }
   };
 
@@ -634,12 +685,12 @@ export default function NewArticlePage() {
       {/* Manual Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Autofill Success Banner */}
-        {translateResult?.success && formData.title && (
+        {(translateResult?.success || autoFillDone) && formData.title && (
           <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2 text-green-700 font-bold">
-                <Save size={18} />
-                Form Auto-Filled from Translation!
+                {autoFillDone ? <Wand2 size={18} /> : <Save size={18} />}
+                {autoFillDone ? 'Metadata Auto-Filled by AI!' : 'Form Auto-Filled from Translation!'}
               </div>
               <button
                 type="button"
@@ -673,9 +724,11 @@ export default function NewArticlePage() {
           onReformat={() => alert('Save the article first to use AI Reformat')}
           onEnrich={() => alert('Save the article first to use AI Enrich')}
           onRegenerate={() => alert('Save the article first to use AI Regenerate')}
+          onAutoFill={handleAutoFill}
           isReformatting={false}
           isEnriching={false}
           isRegenerating={false}
+          isAutoFilling={autoFilling}
           hasYoutubeUrl={!!formData.youtube_url}
         />
 

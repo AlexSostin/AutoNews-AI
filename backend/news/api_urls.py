@@ -11,7 +11,7 @@ from .api_views import (
     YouTubeChannelViewSet, RSSFeedViewSet, RSSNewsItemViewSet, PendingArticleViewSet,
     AdminNotificationViewSet, VehicleSpecsViewSet, BrandAliasViewSet,
     ArticleFeedbackViewSet, GenerateAIImageView,
-    SearchPhotosView, SaveExternalImageView,
+    SearchPhotosView, SaveExternalImageView, ProxyImageView,
     AdPlacementViewSet,
     AutomationSettingsView, AutomationStatsView, AutomationTriggerView,
     SiteThemeView, ThemeAnalyticsView,
@@ -152,8 +152,10 @@ urlpatterns = [
     # AI Image Generation
     path('articles/<str:identifier>/generate-ai-image/', GenerateAIImageView.as_view(), name='generate_ai_image'),
     path('articles/<str:identifier>/search-photos/', SearchPhotosView.as_view(), name='search_photos'),
+    path('articles/search-photos/', SearchPhotosView.as_view(), name='search_photos_generic'),
     path('articles/<str:identifier>/save-external-image/', SaveExternalImageView.as_view(), name='save_external_image'),
     path('ai-image-styles/', GenerateAIImageView.as_view(), name='ai_image_styles'),
+    path('articles/proxy-image/', ProxyImageView.as_view(), name='proxy_image'),
     
     
     # Automation Control Panel

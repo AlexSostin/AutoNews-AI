@@ -430,15 +430,39 @@ _EDITORIAL_DOMAINS = [
     # Official manufacturer media sites
     'newsroom', 'press.', 'media.', 'presseportal',
     'mediaservices', 'news.', 'corporate',
-    # Major auto review sites (editorial images, fair use for reviews)
+    # Major auto review sites & CDNs (editorial images, fair use for reviews)
     'cdn.motor1.com', 'hips.hearstapps.com', 'cdn.carbuzz.com',
     'media.autoexpress.co.uk', 'www.autocar.co.uk', 'cdn.mos.cms.futurecdn.net',
     'images.drive.com.au', 'www.topgear.com', 'www.carscoops.com',
     'images.caradisiac.com', 'www.caranddriver.com', 'www.motortrend.com',
     'electrek.co', 'cnevpost.com', 'carnewschina.com',
+    # More auto press/review sites
+    'insideevs.com', 'autoblog.com', 'autoevolution.com', 'paultan.org',
+    'motor1.com', 'carbuzz.com', 'carexpert.com.au', 'driving.co.uk',
+    'whatcar.com', 'parkers.co.uk', 'carwow.co.uk', 'thedrive.com',
+    'jalopnik.com', 'edmunds.com', 'kbb.com', 'automotive-news',
+    'automotiveworld.com', 'autonews.com', 'greencarreports.com',
+    'cleantechnica.com', 'pushevs.com',
+    # CDN patterns from automotive sites
+    'cdn.jdpower.com', 'images.hgmsites.net', 'di-uploads-pod', 
+    'imgd.aeplcdn.com', 'stimg.cardekho.com', 'img.indianautosblog.com',
     # Chinese brand official media
     'byd.com', 'zeekrlife.com', 'nio.com', 'xpeng.com', 'lixiang.com',
     'gac-motor.com', 'geely.com', 'cheryinternational.com',
+    'tesla.com', 'bmw.com', 'mercedes-benz.com', 'audi.com', 'volkswagen.com',
+    'toyota.com', 'honda.com', 'hyundai.com', 'kia.com', 'ford.com',
+    'lamborghini.com', 'porsche.com', 'ferrari.com', 'rivian.com', 'lucid',
+]
+
+# Known car brand keywords for fallback classification
+_CAR_BRAND_KEYWORDS = [
+    'toyota', 'honda', 'bmw', 'mercedes', 'audi', 'volkswagen', 'vw',
+    'ford', 'chevrolet', 'tesla', 'byd', 'nio', 'xpeng', 'zeekr', 'geely',
+    'hyundai', 'kia', 'porsche', 'lamborghini', 'ferrari', 'rivian', 'lucid',
+    'volvo', 'mazda', 'subaru', 'lexus', 'infiniti', 'acura', 'genesis',
+    'peugeot', 'renault', 'citroen', 'fiat', 'jaguar', 'land-rover',
+    'huawei', 'aito', 'changan', 'chery', 'gac', 'dongfeng', 'haval',
+    'polestar', 'smart', 'mini', 'alfa-romeo',
 ]
 
 # Creative Commons / freely usable domains
@@ -470,6 +494,11 @@ def _classify_license(image_url: str, source: str) -> str:
     
     # Check editorial/press sources
     if any(d in url_lower or d in source_lower for d in _EDITORIAL_DOMAINS):
+        return 'editorial'
+    
+    # Fallback: if image URL or source contains a car brand name, likely editorial
+    combined = f"{url_lower} {source_lower}"
+    if any(brand in combined for brand in _CAR_BRAND_KEYWORDS):
         return 'editorial'
     
     return 'unknown'
