@@ -204,6 +204,34 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Social Media Section */}
+        {activeSocials.length > 0 && (
+          <div className="mb-12">
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-bold text-white mb-1">Follow Us</h3>
+              <p className="text-gray-400 text-sm">Stay connected for the latest automotive updates</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              {activeSocials.map((social) => {
+                const Icon = social.icon;
+                return (
+                  <a
+                    key={social.name}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/50 hover:bg-purple-600/20 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/10"
+                    title={social.name}
+                  >
+                    <Icon size={20} />
+                    <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">{social.name}</span>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
@@ -218,25 +246,7 @@ export default function Footer() {
               <Mail size={16} />
               info@freshmotors.net
             </a>
-            {activeSocials.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {activeSocials.map((social) => {
-                  const Icon = social.icon;
-                  return (
-                    <a
-                      key={social.name}
-                      href={social.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-white/10 hover:bg-purple-600 p-2 rounded-lg transition-all hover:scale-110"
-                      title={social.name}
-                    >
-                      <Icon size={18} />
-                    </a>
-                  );
-                })}
-              </div>
-            )}
+
           </div>
 
           <div>
