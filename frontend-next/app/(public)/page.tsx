@@ -225,6 +225,11 @@ export default async function Home() {
 
         {/* Latest Articles */}
         <section className="container mx-auto px-4 py-16">
+          {/* Mobile: show Recommended above articles */}
+          <div className="lg:hidden mb-8">
+            <TrendingSection />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-3">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-10 gap-4">
