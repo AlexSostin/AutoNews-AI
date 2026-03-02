@@ -38,6 +38,8 @@ class SiteSettings(models.Model):
     tiktok_enabled = models.BooleanField(default=False, help_text="Show TikTok link")
     telegram_url = models.URLField(blank=True)
     telegram_enabled = models.BooleanField(default=False, help_text="Show Telegram link")
+    reddit_url = models.URLField(blank=True)
+    reddit_enabled = models.BooleanField(default=False, help_text="Show Reddit link")
     
     # SEO
     default_meta_description = models.CharField(max_length=160, blank=True)

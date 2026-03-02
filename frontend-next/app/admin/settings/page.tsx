@@ -23,6 +23,12 @@ const TelegramIcon = ({ size = 24 }: { size?: number }) => (
   </svg>
 );
 
+const RedditIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 13.28c.04.27.06.57.06.85 0 2.89-3.14 5.24-7.02 5.24-3.87 0-7.02-2.35-7.02-5.24 0-.29.02-.58.07-.86a1.78 1.78 0 0 1-.74-1.44c0-.97.79-1.75 1.76-1.75.45 0 .86.17 1.17.45 1.19-.86 2.82-1.39 4.55-1.45l.91-4.19a.32.32 0 0 1 .38-.24l2.97.63a1.23 1.23 0 0 1 2.35.46c0 .68-.55 1.23-1.23 1.23-.68 0-1.23-.55-1.23-1.23l-2.68-.56-.82 3.75c1.72.07 3.33.6 4.51 1.45.31-.28.72-.45 1.17-.45.97 0 1.76.78 1.76 1.75 0 .6-.3 1.12-.74 1.44zM8.28 12.41c-.68 0-1.23.55-1.23 1.23s.55 1.23 1.23 1.23 1.23-.55 1.23-1.23-.55-1.23-1.23-1.23zm7.44 0c-.68 0-1.23.55-1.23 1.23s.55 1.23 1.23 1.23 1.23-.55 1.23-1.23-.55-1.23-1.23-1.23zm-6.93 3.63a.28.28 0 0 0 .39.01c.53-.49 1.34-.76 2.82-.76 1.48 0 2.29.27 2.82.76a.28.28 0 0 0 .39-.01.28.28 0 0 0-.01-.39c-.63-.58-1.58-.92-3.2-.92s-2.57.34-3.2.92a.28.28 0 0 0-.01.39z" />
+  </svg>
+);
+
 interface SocialNetwork {
   name: string;
   icon: any;
@@ -39,6 +45,7 @@ const socialNetworks: SocialNetwork[] = [
   { name: 'LinkedIn', icon: Linkedin, urlField: 'linkedin_url', enabledField: 'linkedin_enabled', color: 'bg-blue-700' },
   { name: 'TikTok', icon: TikTokIcon, urlField: 'tiktok_url', enabledField: 'tiktok_enabled', color: 'bg-black' },
   { name: 'Telegram', icon: TelegramIcon, urlField: 'telegram_url', enabledField: 'telegram_enabled', color: 'bg-blue-500' },
+  { name: 'Reddit', icon: RedditIcon, urlField: 'reddit_url', enabledField: 'reddit_enabled', color: 'bg-orange-600' },
 ];
 
 export default function SettingsPage() {
@@ -65,6 +72,8 @@ export default function SettingsPage() {
     tiktok_enabled: false,
     telegram_url: '',
     telegram_enabled: false,
+    reddit_url: '',
+    reddit_enabled: false,
     use_classic_hero: false,
     hero_title: '',
     hero_subtitle: '',
