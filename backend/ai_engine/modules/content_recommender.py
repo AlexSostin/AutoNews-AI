@@ -1124,3 +1124,114 @@ def detect_price_anomalies():
     
     logger.info(f"ML Price Check: found {len(anomalies)} price anomalies")
     return anomalies
+
+
+def detect_brand(title: str, content: str = ''):
+    """
+    Detect car brand from article title and content.
+    
+    Uses a pipeline:
+      1. Exact regex match against known Brand names
+      2. BrandAlias resolution (Huawei → Avatr, DongFeng → VOYAH)
+      3. Sub-brand detection (Geely ZEEKR → ZEEKR, SAIC IM → IM)
+      4. TF-IDF fallback against brand article corpus
+    
+    Args:
+        title: Article title
+        content: Article content (optional, used for TF-IDF fallback)
+        
+    Returns:
+        dict: {brand: str, confidence: float, method: str} or None
+    """
+    import re
+    from news.models import Brand, BrandAlias
+    
+    text = f"{title} {title}".lower()  # Title weighted 2x
+    
+    # Known sub-brand mappings (parent → child brand that we track)
+    SUB_BRANDS = {
+        'geely': ['ZEEKR', 'Smart'],
+        'saic': ['IM', 'Smart'],
+        'huawei': ['Avatr'],
+        'dongfeng': ['VOYAH'],
+        'great wall': ['GWM'],
+        'changan': ['ArcFox'],
+        'baic': ['ArcFox'],
+    }
+    
+    # Step 1: Load all known brands
+    brands = list(Brand.objects.values_list('name', flat=True))
+    if not brands:
+        return None
+    
+    # Step 2: Check sub-brand patterns FIRST (e.g. "Geely ZEEKR 7X" → ZEEKR)
+    # This must run before exact match, because "Geely" is also a Brand
+    for parent, children in SUB_BRANDS.items():
+        if parent in text:
+            for child in children:
+                if child.lower() in text:
+                    return {'brand': child, 'confidence': 0.95, 'method': 'sub_brand'}
+    
+    # Step 3: Direct brand match in title (highest confidence)
+    for brand in sorted(brands, key=len, reverse=True):  # Longest first
+        pattern = r'\b' + re.escape(brand) + r'\b'
+        if re.search(pattern, title, re.IGNORECASE):
+            return {'brand': brand, 'confidence': 1.0, 'method': 'exact_match'}
+    
+    # Step 4: BrandAlias resolution
+    # Extract potential brand words from title (first 3 capitalized words)
+    title_words = title.split()
+    for i in range(min(4, len(title_words))):
+        word = title_words[i].strip('.,:-–')
+        if len(word) < 2:
+            continue
+        resolved = BrandAlias.resolve(word)
+        if resolved and resolved != word:
+            # Alias matched → find the brand
+            brand_match = Brand.objects.filter(name__iexact=resolved).first()
+            if brand_match:
+                return {'brand': brand_match.name, 'confidence': 0.9, 'method': 'alias'}
+        # Also try 2-word combos (e.g. "DongFeng VOYAH")
+        if i + 1 < len(title_words):
+            combo = f"{word} {title_words[i+1].strip('.,:-–')}"
+            resolved = BrandAlias.resolve(combo)
+            if resolved and resolved != combo:
+                brand_match = Brand.objects.filter(name__iexact=resolved).first()
+                if brand_match:
+                    return {'brand': brand_match.name, 'confidence': 0.9, 'method': 'alias_combo'}
+    
+    # Step 5: Case-insensitive partial match (lower confidence)
+    for brand in brands:
+        if brand.lower() in text:
+            return {'brand': brand, 'confidence': 0.7, 'method': 'partial_match'}
+    
+    # Step 6: TF-IDF fallback — compare article text to brand corpus
+    if content:
+        try:
+            model = _load_model()
+            if model:
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                from sklearn.metrics.pairwise import cosine_similarity as cs
+                query_text = _prepare_text(title, '', content)
+                query_vec = model['vectorizer'].transform([query_text])
+                sims = cs(query_vec, model['tfidf_matrix'])[0]
+                
+                # Get top similar article's brand
+                top_idx = sims.argsort()[-3:][::-1]  # Top 3
+                article_ids = [model['article_ids'][i] for i in top_idx]
+                
+                from news.models import CarSpecification
+                for aid in article_ids:
+                    cs_obj = CarSpecification.objects.filter(article_id=aid).first()
+                    if cs_obj and cs_obj.make:
+                        brand_match = Brand.objects.filter(name__iexact=cs_obj.make).first()
+                        if brand_match:
+                            return {
+                                'brand': brand_match.name,
+                                'confidence': round(float(sims[top_idx[0]]), 2),
+                                'method': 'tfidf_similar'
+                            }
+        except Exception as e:
+            logger.debug(f"TF-IDF brand detection failed: {e}")
+    
+    return None
