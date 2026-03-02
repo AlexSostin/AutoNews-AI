@@ -144,6 +144,27 @@ def auto_publish_pending():
                     f"No featured image and auto-image is off")
                 continue
         
+        # ML originality check: skip if too similar to existing published articles
+        try:
+            from ai_engine.modules.content_recommender import is_available, _load_model, _clean_text
+            if is_available() and pending.content and len(pending.content) > 100:
+                model = _load_model()
+                if model:
+                    query_text = _clean_text(f"{pending.title} {pending.content[:2000]}")
+                    query_vec = model['vectorizer'].transform([query_text])
+                    from sklearn.metrics.pairwise import cosine_similarity as cos_sim
+                    similarities = cos_sim(query_vec, model['tfidf_matrix']).flatten()
+                    max_sim = float(similarities.max()) if len(similarities) > 0 else 0
+                    if max_sim > 0.70:
+                        best_idx = int(similarities.argmax())
+                        similar_id = model['article_ids'][best_idx]
+                        _log_decision(pending, 'skipped_duplicate',
+                            f"Too similar to article #{similar_id} ({max_sim:.0%} match)")
+                        logger.info(f"[AUTO-PUBLISHER] 🔄 Skipped (too similar {max_sim:.0%}): {pending.title[:50]}")
+                        continue
+        except Exception as e:
+            logger.debug(f"[AUTO-PUBLISHER] ML originality check skipped: {e}")
+        
         eligible.append(pending)
         
         if len(eligible) >= publish_limit:

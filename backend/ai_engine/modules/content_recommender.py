@@ -454,3 +454,135 @@ def get_model_info() -> Dict:
 def is_available() -> bool:
     """Check if the model is trained and ready."""
     return os.path.exists(MODEL_PATH)
+
+
+def _clean_text(text: str) -> str:
+    """Clean text for TF-IDF comparison (used by RSS dedup and auto_publisher)."""
+    text = _strip_html(text)
+    text = re.sub(r'[^\w\s]', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip().lower()
+
+
+def semantic_search(query: str, top_n: int = 10) -> List[Dict]:
+    """
+    Search articles by meaning using TF-IDF similarity.
+    
+    Unlike keyword search, this finds articles about similar topics
+    even if exact words don't match (e.g., "expensive sedan" finds "luxury saloon").
+    
+    Args:
+        query: Search query text
+        top_n: Maximum results to return
+        
+    Returns:
+        List of dicts: [{'id': article_id, 'score': 0.0-1.0, 'title': '...'}]
+    """
+    model = _load_model()
+    if model is None:
+        return []
+    
+    try:
+        # Transform query into TF-IDF space
+        query_text = _clean_text(query)
+        query_vector = model['vectorizer'].transform([query_text])
+        
+        # Find similarity to all articles
+        similarities = cosine_similarity(query_vector, model['tfidf_matrix'])[0]
+        
+        # Get top-N results
+        top_indices = np.argsort(similarities)[::-1][:top_n]
+        
+        # Get titles for results
+        from news.models import Article
+        article_ids = [model['article_ids'][i] for i in top_indices if similarities[i] > 0.02]
+        titles = dict(Article.objects.filter(id__in=article_ids).values_list('id', 'title'))
+        
+        results = []
+        for i in top_indices:
+            score = float(similarities[i])
+            if score < 0.02:  # Skip very low similarity
+                break
+            aid = model['article_ids'][i]
+            results.append({
+                'id': aid,
+                'score': round(score, 4),
+                'title': titles.get(aid, ''),
+            })
+            if len(results) >= top_n:
+                break
+        
+        return results
+    
+    except Exception as e:
+        logger.error(f"ContentRecommender.semantic_search failed: {e}")
+        return []
+
+
+def select_newsletter_articles(days: int = 7, count: int = 6) -> List[Dict]:
+    """
+    Auto-select diverse, high-view articles for newsletter.
+    
+    Picks the best articles from recent days, ensuring topic diversity
+    by using TF-IDF to avoid selecting articles about the same thing.
+    
+    Args:
+        days: Look back N days for candidates
+        count: Number of articles to select
+        
+    Returns:
+        List of dicts: [{'id': article_id, 'title': '...', 'views': N}]
+    """
+    model = _load_model()
+    if model is None:
+        return []
+    
+    try:
+        from news.models import Article
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        cutoff = timezone.now() - timedelta(days=days)
+        candidates = Article.objects.filter(
+            is_published=True,
+            is_deleted=False,
+            created_at__gte=cutoff,
+        ).order_by('-views', '-created_at')[:30]
+        
+        if not candidates:
+            return []
+        
+        selected = []
+        selected_vectors = []
+        
+        for article in candidates:
+            if len(selected) >= count:
+                break
+            
+            # Get TF-IDF vector
+            text = _prepare_text(article.title, article.summary or '', article.content or '')
+            vec = model['vectorizer'].transform([text])
+            
+            # Check diversity: if too similar to already selected, skip
+            is_diverse = True
+            for sv in selected_vectors:
+                sim = cosine_similarity(vec, sv)[0][0]
+                if sim > 0.5:  # Too similar
+                    is_diverse = False
+                    break
+            
+            if is_diverse:
+                selected.append({
+                    'id': article.id,
+                    'title': article.title,
+                    'views': article.views,
+                    'slug': article.slug,
+                })
+                selected_vectors.append(vec)
+        
+        return selected
+    
+    except Exception as e:
+        logger.error(f"ContentRecommender.select_newsletter_articles failed: {e}")
+        return []
+

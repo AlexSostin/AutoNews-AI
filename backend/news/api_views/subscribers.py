@@ -231,6 +231,36 @@ class SubscriberViewSet(viewsets.ModelViewSet):
             'count': deleted_count
         })
     
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated],
+            url_path='newsletter-auto-select')
+    def newsletter_auto_select(self, request):
+        """Auto-select diverse articles for newsletter using ML."""
+        if not request.user.is_staff:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        days = int(request.query_params.get('days', 7))
+        count = int(request.query_params.get('count', 6))
+        
+        try:
+            from ai_engine.modules.content_recommender import select_newsletter_articles, is_available
+            if not is_available():
+                return Response({
+                    'articles': [],
+                    'ml_available': False,
+                    'message': 'ML model not available. Run: python manage.py train_content_model',
+                })
+            
+            articles = select_newsletter_articles(days=days, count=count)
+            return Response({
+                'articles': articles,
+                'ml_available': True,
+                'count': len(articles),
+                'days_back': days,
+            })
+        except Exception as e:
+            logger.error(f"Newsletter auto-select failed: {e}")
+            return Response({'articles': [], 'error': str(e)})
+
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def newsletter_history(self, request):
         """Get newsletter history"""

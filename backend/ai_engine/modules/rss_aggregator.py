@@ -171,6 +171,25 @@ class RSSAggregator:
             if similarity >= self.SIMILARITY_THRESHOLD:
                 logger.info(f"Duplicate found by title similarity (published, {similarity:.2%}): {title[:50]}")
                 return True
+    
+        # 6. ML content similarity — catches same-topic articles with different titles
+        try:
+            from ai_engine.modules.content_recommender import is_available, _load_model, _clean_text
+            if is_available() and content and len(content) > 100:
+                model = _load_model()
+                if model:
+                    query_text = _clean_text(f"{title} {content[:2000]}")
+                    query_vec = model['vectorizer'].transform([query_text])
+                    from sklearn.metrics.pairwise import cosine_similarity
+                    similarities = cosine_similarity(query_vec, model['tfidf_matrix']).flatten()
+                    max_sim = float(similarities.max()) if len(similarities) > 0 else 0
+                    if max_sim > 0.65:
+                        best_idx = int(similarities.argmax())
+                        similar_id = model['article_ids'][best_idx]
+                        logger.info(f"Duplicate found by ML content similarity ({max_sim:.2%}, article {similar_id}): {title[:50]}")
+                        return True
+        except Exception as e:
+            logger.debug(f"ML content similarity check skipped: {e}")
         
         return False
     

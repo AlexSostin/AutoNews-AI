@@ -116,6 +116,15 @@ class ArticleEngagementMixin:
                         redis_conn.expire(pref_key, 60 * 60 * 24 * 30)
                     except Exception:
                         pass
+                # Track reading history for ML recommendations
+                try:
+                    history_key = f"user_history:{user_identifier}"
+                    redis_conn.lrem(history_key, 0, str(article.id))  # Remove if exists
+                    redis_conn.lpush(history_key, str(article.id))     # Add to front
+                    redis_conn.ltrim(history_key, 0, 19)               # Keep last 20
+                    redis_conn.expire(history_key, 60 * 60 * 24 * 30)  # 30 days
+                except Exception:
+                    pass
             new_count = redis_conn.incr(cache_key)
             if new_count % 10 == 0:
                 Article.objects.filter(id=article.id).update(views=new_count)
@@ -132,7 +141,7 @@ class ArticleEngagementMixin:
 
     @action(detail=False, methods=['get'])
     def recommended(self, request):
-        """User Personalization Engine: Returns articles based on reading history."""
+        """User Personalization Engine: Returns articles based on ML reading history analysis."""
         from news.serializers import ArticleListSerializer
         user_identifier = None
         if request.user.is_authenticated:
@@ -146,27 +155,84 @@ class ArticleEngagementMixin:
                 x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
                 ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
                 user_identifier = f"ip_{ip}"
-        top_tags = []
+
+        ml_article_ids = []
+        # Try ML-based recommendations from reading history
         try:
             from django_redis import get_redis_connection
+            from ai_engine.modules.content_recommender import find_similar, is_available
             redis_conn = get_redis_connection("default")
-            pref_key = f"user_prefs:{user_identifier}"
-            top_tags_bytes = redis_conn.zrevrange(pref_key, 0, 2)
-            top_tags = [t.decode('utf-8') for t in top_tags_bytes]
-        except Exception:
-            pass
+            
+            # Get recently viewed article IDs from Redis
+            history_key = f"user_history:{user_identifier}"
+            recent_ids_bytes = redis_conn.lrange(history_key, 0, 4)  # Last 5 viewed
+            recent_ids = [int(aid.decode('utf-8')) for aid in recent_ids_bytes] if recent_ids_bytes else []
+            
+            if recent_ids and is_available():
+                # Find articles similar to what user has read
+                seen = set(recent_ids)
+                for article_id in recent_ids[:3]:  # Use top 3 most recent
+                    try:
+                        similar = find_similar(article_id, top_n=5)
+                        for s in similar:
+                            if s['id'] not in seen:
+                                ml_article_ids.append(s['id'])
+                                seen.add(s['id'])
+                    except Exception:
+                        continue
+                if ml_article_ids:
+                    logger.info(f"ML recommended {len(ml_article_ids)} articles for {user_identifier}")
+        except Exception as e:
+            logger.debug(f"ML recommendations failed: {e}")
+
         queryset = self.get_queryset().filter(is_published=True)
-        if top_tags:
+
+        if ml_article_ids:
+            # ML-based: order by similarity (preserve order from find_similar)
             from django.db.models import Case, When, Value, IntegerField
-            queryset = queryset.annotate(
-                has_matching_tag=Case(
-                    When(tags__name__in=top_tags, then=Value(1)),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                ),
-            ).distinct().order_by('-views', '-has_matching_tag', '-created_at')
+            preserved_order = Case(
+                *[When(id=pk, then=Value(i)) for i, pk in enumerate(ml_article_ids)],
+                default=Value(999),
+                output_field=IntegerField(),
+            )
+            ml_qs = queryset.filter(id__in=ml_article_ids).annotate(
+                ml_rank=preserved_order
+            ).order_by('ml_rank')
+            # Fill remaining slots with popular articles
+            remaining = queryset.exclude(id__in=ml_article_ids).order_by('-views', '-created_at')
+            from itertools import chain
+            combined_ids = list(ml_qs.values_list('id', flat=True)) + list(remaining.values_list('id', flat=True)[:20])
+            preserved_full = Case(
+                *[When(id=pk, then=Value(i)) for i, pk in enumerate(combined_ids)],
+                default=Value(999),
+                output_field=IntegerField(),
+            )
+            queryset = queryset.filter(id__in=combined_ids).annotate(
+                final_rank=preserved_full
+            ).order_by('final_rank')
         else:
-            queryset = queryset.order_by('-views', '-created_at')
+            # Fallback: tag-based preferences from Redis
+            top_tags = []
+            try:
+                from django_redis import get_redis_connection
+                redis_conn = get_redis_connection("default")
+                pref_key = f"user_prefs:{user_identifier}"
+                top_tags_bytes = redis_conn.zrevrange(pref_key, 0, 2)
+                top_tags = [t.decode('utf-8') for t in top_tags_bytes]
+            except Exception:
+                pass
+            if top_tags:
+                from django.db.models import Case, When, Value, IntegerField
+                queryset = queryset.annotate(
+                    has_matching_tag=Case(
+                        When(tags__name__in=top_tags, then=Value(1)),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    ),
+                ).distinct().order_by('-views', '-has_matching_tag', '-created_at')
+            else:
+                queryset = queryset.order_by('-views', '-created_at')
+
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = ArticleListSerializer(page, many=True, context={'request': request})
@@ -487,3 +553,56 @@ class ArticleEngagementMixin:
         sorted_articles = sorted(articles, key=lambda a: id_order.get(a.id, 999))
         serializer = ArticleListSerializer(sorted_articles, many=True, context={'request': request})
         return Response({'success': True, 'similar_articles': serializer.data})
+
+    @action(detail=False, methods=['get'], url_path='semantic-search')
+    def semantic_search(self, request):
+        """Search articles by meaning using TF-IDF ML model.
+        GET /api/v1/articles/semantic-search/?q=electric SUV review
+        """
+        from news.serializers import ArticleListSerializer
+        from news.models import Article
+        
+        query = request.query_params.get('q', '').strip()
+        if not query or len(query) < 2:
+            return Response({'results': [], 'query': query})
+        
+        try:
+            from ai_engine.modules.content_recommender import semantic_search as ml_search, is_available
+            if not is_available():
+                return Response({'results': [], 'query': query, 'ml_available': False})
+            
+            results = ml_search(query, top_n=12)
+            article_ids = [r['id'] for r in results]
+            
+            if article_ids:
+                from django.db.models import Case, When, Value, IntegerField
+                preserved = Case(
+                    *[When(id=pk, then=Value(i)) for i, pk in enumerate(article_ids)],
+                    default=Value(999),
+                    output_field=IntegerField(),
+                )
+                articles = Article.objects.filter(
+                    id__in=article_ids, is_published=True, is_deleted=False
+                ).annotate(ml_rank=preserved).order_by('ml_rank')
+                serializer = ArticleListSerializer(articles, many=True, context={'request': request})
+                return Response({
+                    'results': serializer.data,
+                    'query': query,
+                    'ml_available': True,
+                    'count': len(serializer.data),
+                })
+            
+            return Response({'results': [], 'query': query, 'ml_available': True})
+        except Exception as e:
+            logger.error(f"Semantic search failed: {e}")
+            return Response({'results': [], 'query': query, 'error': str(e)})
+
+    @action(detail=False, methods=['get'], url_path='ml-info')
+    def ml_info(self, request):
+        """Get ML Content Recommender model info."""
+        try:
+            from ai_engine.modules.content_recommender import get_model_info
+            return Response(get_model_info())
+        except Exception as e:
+            return Response({'error': str(e)})
+
