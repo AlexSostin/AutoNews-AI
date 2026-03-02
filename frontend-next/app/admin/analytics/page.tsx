@@ -10,6 +10,7 @@ import GSCDashboard from '@/components/admin/analytics/GSCDashboard';
 import EngagementDistribution from '@/components/admin/analytics/EngagementDistribution';
 import TopArticlesTable from '@/components/admin/analytics/TopArticlesTable';
 import ABTestsSection from '@/components/admin/analytics/ABTestsSection';
+import MLHealthWidget from '@/components/admin/analytics/MLHealthWidget';
 
 export default function AnalyticsPage() {
   return (
@@ -37,7 +38,18 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* ═══════ Section 3: AI Pipeline Health ═══════ */}
+      {/* ═══════ Section 3: ML Model Health ═══════ */}
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold text-gray-900 border-l-4 border-cyan-600 pl-4">
+          🧠 ML Model Health
+          <span className="text-sm font-normal text-gray-400 ml-2">
+            Maturity level and per-feature scores
+          </span>
+        </h2>
+        <MLHealthWidget />
+      </section>
+
+      {/* ═══════ Section 4: AI Pipeline Health ═══════ */}
       <section className="space-y-6">
         <h2 className="text-xl font-bold text-gray-900 border-l-4 border-violet-600 pl-4">
           🤖 AI Pipeline Health

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { FlaskConical, Eye, Trophy, MousePointerClick, ArrowDown } from 'lucide-react';
+import { FlaskConical, Eye, Trophy, MousePointerClick, ArrowDown, ChevronDown } from 'lucide-react';
 import api from '@/lib/api';
 import { ABTest } from '@/types/analytics';
 
@@ -17,6 +17,7 @@ const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 export default function ABTestsSection() {
     const [abTestPage, setAbTestPage] = useState(1);
+    const [isExpanded, setIsExpanded] = useState(false);
     const { data: abRes, isLoading } = useSWR<ABRes>('/ab/tests/?limit=1000', fetcher, { keepPreviousData: true });
 
     if (isLoading) {
@@ -28,7 +29,6 @@ export default function ABTestsSection() {
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 h-[90px]"></div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 h-[90px]"></div>
                 </div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 h-[400px]"></div>
             </div>
         );
     }
@@ -42,7 +42,18 @@ export default function ABTestsSection() {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900 border-l-4 border-emerald-500 pl-4 mt-12">🧪 A/B Title Tests <span className="text-sm font-normal text-gray-400">({abTests.length} tests loaded)</span></h2>
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-2 w-full text-left group"
+            >
+                <h2 className="text-xl font-bold text-gray-900 border-l-4 border-emerald-500 pl-4 mt-12 flex-1">
+                    🧪 A/B Title Tests <span className="text-sm font-normal text-gray-400">({abTests.length} tests loaded)</span>
+                </h2>
+                <ChevronDown
+                    size={20}
+                    className={`text-gray-400 mt-12 transition-transform duration-200 group-hover:text-gray-600 ${isExpanded ? 'rotate-180' : ''}`}
+                />
+            </button>
 
             {/* Summary cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -75,8 +86,8 @@ export default function ABTestsSection() {
                 </div>
             </div>
 
-            {/* Per-test variant tables */}
-            {paginatedAbTests.map(test => (
+            {/* Per-test variant tables (collapsible) */}
+            {isExpanded && paginatedAbTests.map(test => (
                 <div key={test.article_id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -134,7 +145,7 @@ export default function ABTestsSection() {
             ))}
 
             {/* Pagination Controls */}
-            {totalAbPages > 1 && (
+            {isExpanded && totalAbPages > 1 && (
                 <div className="flex items-center justify-between bg-white px-4 py-3 border-t border-gray-200 sm:px-6 rounded-xl shadow-sm">
                     <div className="flex flex-1 justify-between sm:hidden">
                         <button
