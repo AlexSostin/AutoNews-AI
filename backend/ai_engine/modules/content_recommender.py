@@ -586,3 +586,270 @@ def select_newsletter_articles(days: int = 7, count: int = 6) -> List[Dict]:
         logger.error(f"ContentRecommender.select_newsletter_articles failed: {e}")
         return []
 
+
+def extract_specs_from_text(title: str, content: str) -> Dict:
+    """
+    Extract vehicle specifications from article text using regex patterns.
+    
+    Zero API cost — pure Python parsing. Extracts numeric specs that are
+    reliably mentioned in automotive articles.
+    
+    Args:
+        title: Article title
+        content: Article content (HTML or plain text)
+        
+    Returns:
+        Dict with extracted VehicleSpecs fields (only fields that were found)
+    """
+    # Clean text
+    text = _strip_html(f"{title} {content}")
+    text_lower = text.lower()
+    specs = {}
+    
+    # === POWER ===
+    # "207 kW" / "282 hp" / "450 HP" / "335 horsepower"
+    kw_match = re.search(r'(\d{2,4})\s*kW\b', text, re.IGNORECASE)
+    hp_match = re.search(r'(\d{2,4})\s*(?:hp|HP|horsepower|bhp)\b', text)
+    if kw_match:
+        specs['power_kw'] = int(kw_match.group(1))
+        if not hp_match:
+            specs['power_hp'] = round(specs['power_kw'] * 1.341)
+    if hp_match:
+        specs['power_hp'] = int(hp_match.group(1))
+        if not kw_match:
+            specs['power_kw'] = round(specs['power_hp'] / 1.341)
+    
+    # === TORQUE ===
+    # "400 Nm" / "350 Newton-meters"
+    torque_match = re.search(r'(\d{2,5})\s*(?:Nm|N·m|Newton[- ]?meters?)\b', text, re.IGNORECASE)
+    if torque_match:
+        specs['torque_nm'] = int(torque_match.group(1))
+    
+    # === BATTERY ===
+    # "71.35 kWh" / "88.13 kWh" / "100-kWh"
+    battery_matches = re.findall(r'(\d{2,3}(?:\.\d{1,2})?)\s*[-]?\s*kWh\b', text, re.IGNORECASE)
+    if battery_matches:
+        # Take the largest battery option mentioned
+        battery_values = [float(b) for b in battery_matches]
+        specs['battery_kwh'] = max(battery_values)
+    
+    # === RANGE ===
+    # "600 km" / "620 km CLTC" / "WLTP range of 450 km" / "EPA range: 300 miles"
+    # CLTC
+    cltc_match = re.search(r'(\d{3,4})\s*km\s*(?:\(?CLTC\)?|CLTC)', text, re.IGNORECASE)
+    if not cltc_match:
+        cltc_match = re.search(r'CLTC[:\s]*(\d{3,4})\s*km', text, re.IGNORECASE)
+    if cltc_match:
+        specs['range_cltc'] = int(cltc_match.group(1))
+    
+    # WLTP
+    wltp_match = re.search(r'(\d{3,4})\s*km\s*(?:\(?WLTP\)?|WLTP)', text, re.IGNORECASE)
+    if not wltp_match:
+        wltp_match = re.search(r'WLTP[:\s]*(\d{3,4})\s*km', text, re.IGNORECASE)
+    if wltp_match:
+        specs['range_wltp'] = int(wltp_match.group(1))
+    
+    # EPA
+    epa_match = re.search(r'(\d{3,4})\s*(?:km|miles?)\s*(?:\(?EPA\)?|EPA)', text, re.IGNORECASE)
+    if not epa_match:
+        epa_match = re.search(r'EPA[:\s]*(\d{3,4})\s*(?:km|miles?)', text, re.IGNORECASE)
+    if epa_match:
+        val = int(epa_match.group(1))
+        # Convert miles to km if needed
+        if 'mile' in text[max(0, epa_match.start()-5):epa_match.end()+10].lower():
+            val = round(val * 1.609)
+        specs['range_epa'] = val
+    
+    # General range (if no standard specified)
+    if not any(k in specs for k in ['range_cltc', 'range_wltp', 'range_epa']):
+        range_match = re.search(r'(?:range|запас хода)[:\s]*(?:up to\s*)?(\d{3,4})\s*km', text, re.IGNORECASE)
+        if range_match:
+            specs['range_km'] = int(range_match.group(1))
+    
+    # === ACCELERATION ===
+    # "0-100 in 3.8s" / "0-100 km/h: 5.2 seconds" / "0-60 mph in 3.2 seconds"
+    acc_match = re.search(r'0[-–]100\s*(?:km/h)?[:\s]*(?:in\s*)?(\d{1,2}(?:\.\d{1,2})?)\s*(?:s|sec|seconds?)', text, re.IGNORECASE)
+    if acc_match:
+        specs['acceleration_0_100'] = float(acc_match.group(1))
+    else:
+        # 0-60 mph → convert to 0-100 (approximate: add 0.5s)
+        acc_60 = re.search(r'0[-–]60\s*(?:mph)?[:\s]*(?:in\s*)?(\d{1,2}(?:\.\d{1,2})?)\s*(?:s|sec|seconds?)', text, re.IGNORECASE)
+        if acc_60:
+            specs['acceleration_0_100'] = round(float(acc_60.group(1)) + 0.5, 1)
+    
+    # === TOP SPEED ===
+    # "200 km/h" / "155 mph" / "top speed of 250 km/h"
+    speed_match = re.search(r'(?:top speed|maximum speed)[:\s]*(?:of\s*)?(\d{3})\s*km/h', text, re.IGNORECASE)
+    if speed_match:
+        specs['top_speed_kmh'] = int(speed_match.group(1))
+    else:
+        speed_mph = re.search(r'(?:top speed|maximum speed)[:\s]*(?:of\s*)?(\d{3})\s*mph', text, re.IGNORECASE)
+        if speed_mph:
+            specs['top_speed_kmh'] = round(int(speed_mph.group(1)) * 1.609)
+    
+    # === DIMENSIONS ===
+    # "5,130 mm" / "Length: 5130 mm" / "4,900mm"
+    def _find_dim(pattern, text):
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            val = m.group(1).replace(',', '').replace('.', '')
+            return int(val)
+        return None
+    
+    length = _find_dim(r'(?:length|长)[:\s]*(\d[,.]?\d{3})\s*mm', text)
+    if length:
+        specs['length_mm'] = length
+    
+    width = _find_dim(r'(?:width|宽)[:\s]*(\d[,.]?\d{3})\s*mm', text)
+    if width:
+        specs['width_mm'] = width
+    
+    height = _find_dim(r'(?:height|高)[:\s]*(\d[,.]?\d{3})\s*mm', text)
+    if height:
+        specs['height_mm'] = height
+    
+    wheelbase = _find_dim(r'(?:wheelbase|轴距)[:\s]*(\d[,.]?\d{3})\s*mm', text)
+    if wheelbase:
+        specs['wheelbase_mm'] = wheelbase
+    
+    weight = _find_dim(r'(?:weight|curb weight|kerb weight)[:\s]*(\d[,.]?\d{3})\s*kg', text)
+    if weight:
+        specs['weight_kg'] = weight
+    
+    # === VOLTAGE ARCHITECTURE ===
+    # "800V" / "800-volt" / "400V platform"
+    volt_match = re.search(r'(\d{3,4})\s*[-]?\s*[Vv](?:olt)?\s*(?:platform|architecture|charging)?', text)
+    if volt_match:
+        v = int(volt_match.group(1))
+        if v in (400, 800, 900):
+            specs['voltage_architecture'] = v
+    
+    # === SEATS ===
+    # "5-seater" / "7 seats" / "seats 5"
+    seats_match = re.search(r'(\d)\s*[-]?\s*(?:seat(?:er|s)?|passenger)', text, re.IGNORECASE)
+    if seats_match:
+        s = int(seats_match.group(1))
+        if 2 <= s <= 9:
+            specs['seats'] = s
+    
+    # === DRIVETRAIN ===
+    drivetrain_map = {
+        r'\bAWD\b': 'AWD', r'\ball[-\s]?wheel\s*drive\b': 'AWD',
+        r'\bRWD\b': 'RWD', r'\brear[-\s]?wheel\s*drive\b': 'RWD',
+        r'\bFWD\b': 'FWD', r'\bfront[-\s]?wheel\s*drive\b': 'FWD',
+        r'\b4WD\b': '4WD', r'\bfour[-\s]?wheel\s*drive\b': '4WD',
+    }
+    for pattern, dt in drivetrain_map.items():
+        if re.search(pattern, text, re.IGNORECASE):
+            specs['drivetrain'] = dt
+            break
+    
+    # === MOTOR COUNT ===
+    if re.search(r'dual[\s-]?motor', text_lower) or 'two motor' in text_lower or 'twin motor' in text_lower:
+        specs['motor_count'] = 2
+    elif re.search(r'single[\s-]?motor', text_lower) or 'one motor' in text_lower:
+        specs['motor_count'] = 1
+    elif re.search(r'tri[\s-]?motor', text_lower) or 'three motor' in text_lower:
+        specs['motor_count'] = 3
+    elif re.search(r'quad[\s-]?motor', text_lower) or 'four motor' in text_lower:
+        specs['motor_count'] = 4
+    
+    # === BODY TYPE ===
+    body_map = {
+        'sedan': 'sedan', 'saloon': 'sedan',
+        'suv': 'SUV',
+        'crossover': 'crossover', 'CUV': 'crossover',
+        'hatchback': 'hatchback',
+        'coupe': 'coupe', 'coupé': 'coupe',
+        'wagon': 'wagon', 'estate': 'wagon', 'touring': 'wagon',
+        'pickup': 'pickup', 'truck': 'truck',
+        'mpv': 'MPV', 'minivan': 'MPV', 'van': 'van',
+        'convertible': 'convertible', 'cabriolet': 'cabriolet',
+        'roadster': 'roadster',
+        'shooting brake': 'shooting_brake',
+        'fastback': 'fastback', 'liftback': 'liftback',
+    }
+    for keyword, body in body_map.items():
+        if keyword in text_lower:
+            specs['body_type'] = body
+            break
+    
+    # === FUEL TYPE ===
+    if any(k in text_lower for k in ['plug-in hybrid', 'phev', 'plug in hybrid']):
+        specs['fuel_type'] = 'PHEV'
+    elif any(k in text_lower for k in ['electric vehicle', ' ev ', ' bev ', 'battery electric', 'all-electric', 'fully electric']):
+        specs['fuel_type'] = 'EV'
+    elif any(k in text_lower for k in ['hybrid']):
+        specs['fuel_type'] = 'Hybrid'
+    elif any(k in text_lower for k in ['hydrogen', 'fuel cell', 'fcev']):
+        specs['fuel_type'] = 'Hydrogen'
+    elif any(k in text_lower for k in ['diesel']):
+        specs['fuel_type'] = 'Diesel'
+    elif any(k in text_lower for k in ['gasoline', 'petrol', 'gas engine', 'ice ']):
+        specs['fuel_type'] = 'Gas'
+    # Default: if battery mentioned, likely EV
+    if 'fuel_type' not in specs and 'battery_kwh' in specs:
+        specs['fuel_type'] = 'EV'
+    
+    # === PRICE ===
+    # "$28,000" / "¥299,800" / "€42,990" / "200,000 RMB"
+    price_patterns = [
+        (r'\$\s*(\d{1,3}(?:,\d{3})*)', 'USD'),
+        (r'€\s*(\d{1,3}(?:,\d{3})*)', 'EUR'),
+        (r'£\s*(\d{1,3}(?:,\d{3})*)', 'GBP'),
+        (r'¥\s*(\d{1,3}(?:,\d{3})*)', 'CNY'),
+        (r'(\d{1,3}(?:,\d{3})*)\s*(?:RMB|Yuan|CNY)', 'CNY'),
+        (r'(\d{1,3}(?:,\d{3})*)\s*(?:USD|dollars?)', 'USD'),
+        (r'(\d{1,3}(?:,\d{3})*)\s*(?:EUR|euros?)', 'EUR'),
+    ]
+    prices_found = []
+    for pattern, currency in price_patterns:
+        for m in re.finditer(pattern, text, re.IGNORECASE):
+            val = int(m.group(1).replace(',', ''))
+            if val >= 5000:  # Ignore small numbers
+                prices_found.append((val, currency))
+    
+    if prices_found:
+        # Group by currency, use the most common one
+        from collections import Counter as PriceCounter
+        currency_counts = PriceCounter(p[1] for p in prices_found)
+        main_currency = currency_counts.most_common(1)[0][0]
+        currency_prices = sorted([p[0] for p in prices_found if p[1] == main_currency])
+        specs['currency'] = main_currency
+        specs['price_from'] = currency_prices[0]
+        if len(currency_prices) > 1:
+            specs['price_to'] = currency_prices[-1]
+    
+    # === YEAR ===
+    # "2026 Toyota" / "model year 2027"
+    year_match = re.search(r'\b(202[4-9]|203[0-5])\b', title)
+    if year_match:
+        specs['year'] = int(year_match.group(1))
+        specs['model_year'] = specs['year']
+    
+    # === CHARGING ===
+    # "10 minutes of charging" / "30 min to 80%"
+    fast_charge = re.search(r'(\d{1,3})\s*(?:min(?:utes?)?\s*(?:to|for)\s*\d{1,3}%|minutes?\s*(?:of\s*)?(?:fast\s*)?charg)', text, re.IGNORECASE)
+    if fast_charge:
+        specs['charging_time_fast'] = f"{fast_charge.group(0).strip()}"
+    
+    charge_kw = re.search(r'(\d{2,3})\s*kW\s*(?:DC|fast|charging|charger)', text, re.IGNORECASE)
+    if charge_kw:
+        specs['charging_power_max_kw'] = int(charge_kw.group(1))
+    
+    # === TRANSMISSION ===
+    if 'single-speed' in text_lower or 'single speed' in text_lower or ('ev' in text_lower and 'gear' not in text_lower):
+        specs['transmission'] = 'single-speed'
+    elif 'cvt' in text_lower:
+        specs['transmission'] = 'CVT'
+    elif 'dual-clutch' in text_lower or 'dct' in text_lower:
+        specs['transmission'] = 'dual-clutch'
+    elif 'manual' in text_lower and 'transmission' in text_lower:
+        specs['transmission'] = 'manual'
+    elif 'automatic' in text_lower:
+        specs['transmission'] = 'automatic'
+    
+    logger.info(f"ML Regex extracted {len(specs)} spec fields from article text")
+    return specs
+
+

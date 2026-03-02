@@ -310,7 +310,7 @@ def auto_create_car_specs(sender, instance, **kwargs):
                 # Re-check in case specs were created between signal fire and thread start
                 if CarSpecification.objects.filter(article_id=article_id).exists():
                     logger.info(f"ℹ️ Specs already exist for [{article_id}], skipping")
-                    return
+                    break
                 article = Article.objects.get(id=article_id)
                 specs = extract_specs_from_content(article)
                 if specs and specs.get('make') and specs['make'] != 'Not specified':
@@ -321,16 +321,66 @@ def auto_create_car_specs(sender, instance, **kwargs):
                         logger.warning(f"⚠️ Could not save specs for [{article_id}]")
                 else:
                     logger.info(f"ℹ️ No car specs extracted for [{article_id}] (not a car article?)")
-                return  # Success - exit retry loop
+                    return  # Not a car article — skip VehicleSpecs too
+                break  # Success - exit retry loop
             except Exception as e:
                 error_str = str(e)
                 if '429' in error_str and attempt < max_retries - 1:
-                    wait = 30 * (attempt + 1)  # 30s, 60s, 90s
+                    wait = 30 * (attempt + 1)
                     logger.warning(f"⏳ Gemini rate limit for [{article_id}], retry in {wait}s (attempt {attempt+1}/{max_retries})")
                     time.sleep(wait)
                 else:
                     logger.error(f"❌ Auto-spec extraction failed for [{article_id}]: {e}")
                     return
+
+        # ── Phase 2: Auto-create VehicleSpecs (car catalog card) ──
+        try:
+            if VehicleSpecs.objects.filter(article_id=article_id).exists():
+                logger.info(f"ℹ️ VehicleSpecs already exist for [{article_id}], skipping")
+                return
+
+            article = Article.objects.get(id=article_id)
+            car_spec = CarSpecification.objects.filter(article=article).first()
+            if not car_spec or not car_spec.make:
+                return
+
+            # Step 1: ML Regex extraction (free, instant, 15-20 fields)
+            from ai_engine.modules.content_recommender import extract_specs_from_text
+            ml_specs = extract_specs_from_text(article.title, article.content)
+
+            # Add make/model from CarSpecification
+            ml_specs['make'] = car_spec.make
+            ml_specs['model_name'] = car_spec.model or ''
+            ml_specs['trim_name'] = car_spec.trim or ''
+            ml_specs['article'] = article
+
+            # Step 2: Try Gemini deep_specs to fill gaps (if available)
+            try:
+                from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+                deep_result = generate_deep_vehicle_specs(
+                    article,
+                    specs={'make': car_spec.make, 'model': car_spec.model, 'trim': car_spec.trim},
+                    provider='gemini',
+                )
+                if deep_result:
+                    logger.info(f"🤖 Deep specs generated for [{article_id}] via Gemini")
+                    return  # deep_specs already creates VehicleSpecs
+            except Exception as e:
+                logger.warning(f"⚠️ Gemini deep specs failed for [{article_id}], using ML-only: {e}")
+
+            # Step 3: Fallback — create VehicleSpecs from ML-only data
+            vs, created = VehicleSpecs.objects.update_or_create(
+                make=ml_specs.get('make', ''),
+                model_name=ml_specs.get('model_name', ''),
+                trim_name=ml_specs.get('trim_name', ''),
+                defaults={k: v for k, v in ml_specs.items()
+                          if k not in ('make', 'model_name', 'trim_name')},
+            )
+            action = "Created" if created else "Updated"
+            logger.info(f"📋 {action} VehicleSpecs for [{article_id}] {car_spec.make} {car_spec.model} (ML: {len(ml_specs)} fields)")
+
+        except Exception as e:
+            logger.error(f"❌ Auto VehicleSpecs failed for [{article_id}]: {e}")
 
     thread = threading.Thread(target=_extract, daemon=True)
     transaction.on_commit(lambda: thread.start())
