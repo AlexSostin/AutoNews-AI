@@ -72,7 +72,8 @@ from .search_analytics_views import (
     AnalyticsViewsTimelineAPIView, AnalyticsCategoriesAPIView, GSCAnalyticsAPIView,
     AnalyticsAIStatsAPIView, AnalyticsAIGenerationAPIView, AnalyticsPopularModelsAPIView,
     AnalyticsProviderStatsAPIView, TrackReadMetricView, TrackLinkClickView,
-    TrackMicroFeedbackView, TrackPageAnalyticsView, ReadingNowView
+    TrackMicroFeedbackView, TrackPageAnalyticsView, ReadingNowView,
+    AnalyticsExtraStatsAPIView
 )
 from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet, CarCompareView, CarPickerListView
 
@@ -124,6 +125,7 @@ urlpatterns = [
     path('analytics/micro-feedback/', TrackMicroFeedbackView.as_view(), name='analytics_micro_feedback'),
     path('analytics/page-events/', TrackPageAnalyticsView.as_view(), name='analytics_page_events'),
     path('analytics/reading-now/<int:article_id>/', ReadingNowView.as_view(), name='analytics_reading_now'),
+    path('analytics/extra-stats/', AnalyticsExtraStatsAPIView.as_view(), name='analytics_extra_stats'),
     
     # Car Catalog endpoints
     path('cars/brands/', CarBrandsListView.as_view(), name='car_brands_list'),

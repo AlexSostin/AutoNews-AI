@@ -11,6 +11,7 @@ import EngagementDistribution from '@/components/admin/analytics/EngagementDistr
 import TopArticlesTable from '@/components/admin/analytics/TopArticlesTable';
 import ABTestsSection from '@/components/admin/analytics/ABTestsSection';
 import MLHealthWidget from '@/components/admin/analytics/MLHealthWidget';
+import ExtraStatsWidgets from '@/components/admin/analytics/ExtraStatsWidgets';
 
 export default function AnalyticsPage() {
   return (
@@ -24,6 +25,17 @@ export default function AnalyticsPage() {
       {/* ═══════ Section 1: Site Overview ═══════ */}
       <section>
         <OverallStats />
+      </section>
+
+      {/* ═══════ Section 1.5: Platform Overview ═══════ */}
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold text-gray-900 border-l-4 border-purple-600 pl-4">
+          🔍 Platform Overview
+          <span className="text-sm font-normal text-gray-400 ml-2">
+            Subscribers, RSS feeds & system health
+          </span>
+        </h2>
+        <ExtraStatsWidgets />
       </section>
 
       {/* ═══════ Section 2: Content & Engagement ═══════ */}

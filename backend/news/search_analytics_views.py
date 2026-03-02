@@ -879,3 +879,99 @@ class ReadingNowView(APIView):
             count = r.get(key) or 0
         
         return Response({'reading_now': max(int(count), 0)})
+
+
+class AnalyticsExtraStatsAPIView(APIView):
+    """
+    Extra analytics for dashboard widgets: subscribers, RSS feeds, error logs.
+    GET /api/v1/analytics/extra-stats/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from news.models import Subscriber, FrontendEventLog, BackendErrorLog
+        from news.models.sources import RSSFeed
+        from django.db.models.functions import TruncMonth
+
+        now = timezone.now()
+
+        # ── 1. Subscriber growth (monthly for last 12 months) ──
+        subscribers = Subscriber.objects.filter(is_active=True)
+        total_subscribers = subscribers.count()
+
+        monthly_growth = (
+            subscribers
+            .filter(created_at__gte=now - timedelta(days=365))
+            .annotate(month=TruncMonth('created_at'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+        sub_labels = [m['month'].strftime('%b %Y') for m in monthly_growth]
+        sub_data = [m['count'] for m in monthly_growth]
+        # Cumulative
+        cumulative = []
+        running = total_subscribers - sum(sub_data)
+        for d in sub_data:
+            running += d
+            cumulative.append(running)
+
+        # ── 2. RSS Feed stats ──
+        feeds = RSSFeed.objects.all()
+        total_feeds = feeds.count()
+        active_feeds = feeds.filter(is_enabled=True).count()
+        total_entries = sum(feeds.values_list('entries_processed', flat=True))
+
+        # By source type
+        by_type = dict(feeds.values('source_type').annotate(c=Count('id')).values_list('source_type', 'c'))
+
+        # Recently active (checked in last 24h)
+        recently_active = feeds.filter(last_checked__gte=now - timedelta(hours=24)).count()
+
+        # Top feeds by entries
+        top_feeds = list(
+            feeds.filter(is_enabled=True)
+            .order_by('-entries_processed')[:5]
+            .values('name', 'entries_processed', 'source_type')
+        )
+
+        # ── 3. Error log summary ──
+        frontend_total = FrontendEventLog.objects.count()
+        frontend_unresolved = FrontendEventLog.objects.filter(resolved=False).count()
+        frontend_last_24h = FrontendEventLog.objects.filter(last_seen__gte=now - timedelta(hours=24)).count()
+        
+        # Top error types
+        top_errors = list(
+            FrontendEventLog.objects.filter(resolved=False)
+            .order_by('-occurrence_count')[:5]
+            .values('error_type', 'message', 'occurrence_count', 'last_seen')
+        )
+
+        backend_total = BackendErrorLog.objects.count()
+        backend_last_24h = BackendErrorLog.objects.filter(timestamp__gte=now - timedelta(hours=24)).count()
+
+        return Response({
+            'subscribers': {
+                'total': total_subscribers,
+                'labels': sub_labels,
+                'data': sub_data,
+                'cumulative': cumulative,
+            },
+            'rss': {
+                'total_feeds': total_feeds,
+                'active_feeds': active_feeds,
+                'total_entries': total_entries,
+                'recently_active': recently_active,
+                'by_type': by_type,
+                'top_feeds': top_feeds,
+            },
+            'errors': {
+                'frontend_total': frontend_total,
+                'frontend_unresolved': frontend_unresolved,
+                'frontend_last_24h': frontend_last_24h,
+                'top_errors': top_errors,
+                'backend_total': backend_total,
+                'backend_last_24h': backend_last_24h,
+            },
+        })
+
