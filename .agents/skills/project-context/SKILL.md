@@ -14,14 +14,17 @@ description: Essential project setup, architecture, and conventions for AutoNews
 - **Task Queue**: Celery (background enrichment, auto-spec extraction, auto-publishing)
 - **AI Primary**: Google Gemini 2.0 Flash
 - **AI Fallback**: Groq Llama 3.3 70b (NOT OpenAI)
+- **ML Engine**: TF-IDF Content Recommender (sklearn, zero-cost, self-learning)
 - **Media CDN**: Cloudinary (Railway has ephemeral filesystem)
 - **Monitoring**: Sentry + custom FrontendEventLog + BackendErrorLog
 
 ## Hosting & Deployment
 
 - **Backend**: Railway (Django + PostgreSQL + Redis) → `api.freshmotors.net`
-- **Frontend**: Railway (Next.js) → `freshmotors.net` (⚠️ Vercel ещё не подключен)
-- **CI/CD**: GitHub Actions (pytest 391+ tests + lint + build) → auto-deploy on push to `main`
+- **Frontend**: Vercel (Next.js, global CDN, Edge Network) → `freshmotors.net`
+- **DNS**: Cloudflare (manages both domains)
+- **CI/CD**: `git push origin main` → Railway auto-deploys backend + Vercel auto-deploys frontend
+- **Deploy pipeline**: `start.sh` → migrations → verify → superuser → tags → collectstatic → train ML model → Daphne
 
 ## External Services
 
@@ -73,8 +76,14 @@ backend/
   news/models/         # Django models (articles.py, sources.py, system.py, etc.)
   news/api_views/      # DRF ViewSets
   news/serializers.py  # All serializers
-  ai_engine/modules/   # AI generation, RSS discovery, scoring, etc.
-  tests/               # pytest tests
+  ai_engine/modules/   # AI generation, RSS discovery, scoring, ML engine
+    content_recommender.py  # TF-IDF ML engine (recommendations, dedup, brand, health)
+  news/management/commands/
+    analyze_car_data.py     # ML car analytics (--health, --duplicates, --validate, --prices, --enrich)
+    backfill_vehicle_specs.py # Backfill VehicleSpecs from articles
+  scripts/
+    analyze_tests.py    # Test analytics (dupes, coverage, prioritization)
+  tests/               # pytest tests (1875+)
 
 frontend-next/
   app/admin/           # Admin panel pages
@@ -86,10 +95,10 @@ frontend-next/
 ## Git Workflow
 
 - Single branch: `main`
-- Push triggers Railway auto-deploy
+- `git push origin main` → Railway (backend) + Vercel (frontend) auto-deploy simultaneously
 - Always run tests + build before pushing
-- Push command: `git push origin main`
 - ⚠️ **GitKraken MCP push не работает** — всегда пушить через `run_command` с `git push origin main`
+- ⚠️ **turbo.json удалён** — Vercel не поддерживал Turborepo, билдим через обычный `next build`
 
 ## Error Reporting
 
@@ -130,12 +139,94 @@ frontend-next/
 - Shared interfaces → extract into `types.ts` files
 - Pattern: `ArticleViewSet` inherits from `ArticleGenerationMixin`, `ArticleEngagementMixin`, `ArticleEnrichmentMixin`
 
+## ML System (Content Recommender)
+
+All ML functions live in `ai_engine/modules/content_recommender.py`. Zero-cost (no API calls), uses sklearn TF-IDF.
+
+### Core Functions
+
+| Function | Purpose |
+|---|---|
+| `build()` | Train/rebuild TF-IDF model from published articles |
+| `predict_tags()` | Predict tags via k-nearest in TF-IDF space |
+| `predict_categories()` | Same approach for categories |
+| `find_similar()` | Pre-computed similarity matrix |
+| `semantic_search()` | Search by meaning, not keywords |
+| `select_newsletter_articles()` | Diverse high-view picks |
+| `extract_specs_from_text()` | Regex extraction of 15+ vehicle spec fields |
+
+### Car Data Analytics (added 2026-03-02)
+
+| Function | Purpose |
+|---|---|
+| `find_duplicate_specs()` | TF-IDF char n-gram similarity on make+model+trim |
+| `validate_specs_consistency()` | Cross-check CarSpec vs VehicleSpecs (±10% tolerance) |
+| `enrich_specs_from_similar()` | Fill empty fields from TF-IDF similar articles |
+| `detect_price_anomalies()` | IQR-based statistical outlier detection by brand |
+| `detect_brand()` | 6-step pipeline: sub-brand → exact → alias → partial → TF-IDF |
+| `get_ml_health_report()` | Maturity level (1-5), per-feature scores, recommendations |
+
+### ML Maturity Levels
+
+| Level | Name | Articles | |
+|---|---|---|---|
+| 🥉 1 | Rookie | <50 | Basic regex |
+| 🥈 2 | Learning | 50-200 | Recommendations + dedup |
+| 🥇 3 | Competent | 200-500 | Good predictions |
+| 💎 4 | Expert | 500-1000 | Precise search |
+| 🏆 5 | Master | 1000+ | Maximum accuracy |
+
+### Key Commands
+
+```bash
+# Health dashboard
+python manage.py analyze_car_data --health
+
+# Full analysis (dedup + validation + prices + enrichment)
+python manage.py analyze_car_data
+
+# Train/rebuild ML model
+python manage.py train_content_model
+
+# Backfill VehicleSpecs for articles without them
+python manage.py backfill_vehicle_specs
+
+# Test analytics (standalone, no Django needed)
+python scripts/analyze_tests.py
+```
+
+### API Endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/articles/ml-health/` | Full health report JSON |
+| `GET /api/v1/articles/ml-info/` | Basic model info |
+
+### Brand Detection Pipeline (detect_brand())
+
+1. Sub-brand check (Geely ZEEKR → ZEEKR) — runs FIRST before exact match
+2. Exact regex match against Brand table
+3. BrandAlias resolution (Huawei → Avatr)
+4. 2-word alias combo (DongFeng VOYAH → VOYAH)
+5. Case-insensitive partial match
+6. TF-IDF fallback (find similar article's brand)
+
+### Pricing Architecture
+
+- `VehicleSpecs.get_price_display()` returns **original currency only** (no stale USD estimate)
+- Frontend `PriceConverter` component handles **live** USD conversion via `/api/v1/currency-rates/`
+- This prevents conflicting USD amounts (DB rate vs live rate)
+
 ## Known Technical Debt
 
 - `CarSpecification` ↔ `VehicleSpecs` — duplicate models, need consolidation
 - `notifications` admin page — dead (0 triggers)
 - 5 dead AI modules identified in audit (1,078 lines to remove)
 - Feed keyword search filter too strict — needs word-by-word matching instead of full phrase
+
+## TODOs (Temporary Code to Remove)
+
+- **`start.sh` line 19-22**: `train_content_model` runs on every deploy. Remove once ML model is stable and retrained via scheduled Celery task instead. Added: 2026-03-02
 
 ## Brand Management
 
