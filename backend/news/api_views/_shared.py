@@ -14,64 +14,17 @@ logger = logging.getLogger(__name__)
 def invalidate_article_cache(article_id=None, slug=None):
     """
     Selectively invalidate cache keys related to articles.
-    Much faster than cache.clear() which deletes EVERYTHING.
+    Delegates to cache_signals for targeted prefix-based invalidation.
     
     Args:
         article_id: Article ID to invalidate specific article cache
         slug: Article slug to invalidate specific article cache
     """
-    keys_to_delete = []
+    from news.cache_signals import invalidate_article_caches, invalidate_category_caches
     
-    # Specific article keys
-    if article_id:
-        keys_to_delete.append(f'article_{article_id}')
-    if slug:
-        keys_to_delete.append(f'article_slug_{slug}')
+    invalidate_article_caches(article_id=article_id, slug=slug)
+    invalidate_category_caches()  # Article counts change
     
-    # Pattern-based keys (need to scan Redis)
-    patterns_to_delete = [
-        'article_list_*',     # Article list pages
-        'articles_page_*',    # Paginated lists
-        'category_*',         # Category views (article counts changed)
-        'homepage_*',         # Homepage caches
-        'trending_*',         # Trending articles
-        'latest_*',           # Latest articles
-        'featured_*',         # Featured articles
-        'views.decorators.cache.cache_*',  # Django @cache_page keys
-        ':1:views.decorators.cache.cache_page*',  # Django cache_page with prefix
-    ]
-    
-    # Delete simple keys first
-    if keys_to_delete:
-        cache.delete_many(keys_to_delete)
-    
-    # Delete pattern-matched keys
-    try:
-        from django.core.cache.backends.redis import RedisCache
-        if isinstance(cache, RedisCache) or hasattr(cache, '_cache'):
-            # Use Redis SCAN for pattern matching (safe for large datasets)
-            redis_client = cache._cache.get_client() if hasattr(cache._cache, 'get_client') else cache._cache
-            
-            for pattern in patterns_to_delete:
-                cursor = 0
-                while True:
-                    cursor, keys = redis_client.scan(cursor, match=pattern, count=100)
-                    if keys:
-                        # Decode bytes to strings if needed
-                        str_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in keys]
-                        cache.delete_many(str_keys)
-                    if cursor == 0:
-                        break
-            
-            logger.info(f"Selectively invalidated article cache (article_id={article_id}, slug={slug})")
-        else:
-            # Fallback for non-Redis backends - still better than clearing everything
-            logger.warning("Non-Redis cache backend - pattern matching not supported")
-            cache.delete_many(keys_to_delete)
-    except Exception as e:
-        logger.warning(f"Failed to invalidate pattern cache keys: {e}")
-        # Still better to continue than fail
-
     # Trigger Next.js on-demand revalidation (non-blocking)
     trigger_nextjs_revalidation()
 

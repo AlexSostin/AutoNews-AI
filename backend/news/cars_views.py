@@ -37,7 +37,6 @@ class CarBrandsListView(APIView):
     """GET /api/v1/cars/brands/ — List all brands with model counts."""
     permission_classes = [AllowAny]
 
-    @method_decorator(cache_page(300))  # Cache for 5 minutes
     def get(self, request):
         # Use Brand model if populated, otherwise fall back to old aggregation
         brand_count = Brand.objects.count()
@@ -46,9 +45,8 @@ class CarBrandsListView(APIView):
             # New path: read from managed Brand model
             brands = (
                 Brand.objects
-                .filter(is_visible=True, parent__isnull=True)  # Top-level visible only
+                .filter(is_visible=True)  # All visible brands as separate cards
                 .select_related('parent')
-                .prefetch_related('sub_brands')
             )
             
             # Prefetch all first specs for images in ONE query
@@ -618,7 +616,7 @@ class CarPickerListView(APIView):
     """
     permission_classes = [AllowAny]
     
-    @method_decorator(cache_page(600))  # Cache for 10 minutes
+    @method_decorator(cache_page(600, key_prefix='cars_picker'))  # Cache for 10 minutes
     def get(self, request):
         from .models import VehicleSpecs
         

@@ -90,7 +90,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
             return super().list(request, *args, **kwargs)
         return self._cached_list(request, *args, **kwargs)
 
-    @method_decorator(cache_page(300))  # Cache for 5 minutes
+    @method_decorator(cache_page(300, key_prefix='categories_list'))  # Cache for 5 minutes
     def _cached_list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -147,7 +147,7 @@ class TagViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         return self._cached_list(request, *args, **kwargs)
 
-    @method_decorator(cache_page(300))  # Cache for 5 minutes
+    @method_decorator(cache_page(300, key_prefix='tags_list'))  # Cache for 5 minutes
     def _cached_list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         # Apply popularity ordering AFTER DRF's filter pipeline

@@ -69,7 +69,7 @@ def serve_media_with_cors(request, path):
 
 from django.views.decorators.cache import cache_page
 
-@cache_page(86400)  # Cache for 24 hours — content is static
+@cache_page(86400, key_prefix='robots_txt')  # Cache for 24 hours — content is static
 def robots_txt(request):
     """Serve robots.txt for search engine crawlers"""
     from django.http import HttpResponse

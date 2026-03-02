@@ -54,7 +54,7 @@ async function getCategories() {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${getApiUrl()}/categories/`, { next: { revalidate: 3600 }, signal: controller.signal });
+    const res = await fetch(`${getApiUrl()}/categories/`, { next: { revalidate: 300 }, signal: controller.signal });
     clearTimeout(timeoutId);
     if (!res.ok) return [];
     const data = await res.json();
@@ -64,7 +64,7 @@ async function getCategories() {
 
 async function getBrands() {
   try {
-    const res = await fetch(`${getApiUrl()}/cars/brands/`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${getApiUrl()}/cars/brands/`, { next: { revalidate: 300 } });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data.slice(0, 8) : [];

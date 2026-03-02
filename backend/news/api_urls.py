@@ -75,7 +75,7 @@ from .search_analytics_views import (
     TrackMicroFeedbackView, TrackPageAnalyticsView, ReadingNowView,
     AnalyticsExtraStatsAPIView
 )
-from .cars_views import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet, CarCompareView, CarPickerListView
+from .cars import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet, CarCompareView, CarPickerListView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)

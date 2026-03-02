@@ -446,7 +446,7 @@ class ArticleEngagementMixin:
         return Response({'success': True, 'new_image_source': winner.image_source, 'variant': winner.variant, 'ctr': winner.ctr})
 
     @action(detail=False, methods=['get'])
-    @method_decorator(cache_page(60 * 15))
+    @method_decorator(cache_page(60 * 15, key_prefix='trending'))
     def trending(self, request):
         """Get trending articles (most viewed in last 7 days, fallback to all-time)"""
         from django.utils import timezone
@@ -465,7 +465,7 @@ class ArticleEngagementMixin:
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
-    @method_decorator(cache_page(60 * 60))
+    @method_decorator(cache_page(60 * 60, key_prefix='popular'))
     def popular(self, request):
         """Get most popular articles (all time)"""
         from news.models import Article

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     },
 };
 
-export const revalidate = 3600; // revalidate every hour
+export const revalidate = 30; // revalidate every 30 seconds
 
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
 const LOCAL_API_URL = 'http://localhost:8000/api/v1';
@@ -34,7 +34,7 @@ interface Brand {
 
 async function getBrands(): Promise<Brand[]> {
     try {
-        const res = await fetch(`${getApiUrl()}/cars/brands/`, { next: { revalidate: 3600 } });
+        const res = await fetch(`${getApiUrl()}/cars/brands/`, { next: { revalidate: 30 } });
         if (!res.ok) return [];
         return await res.json();
     } catch {

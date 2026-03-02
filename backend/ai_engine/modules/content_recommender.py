@@ -1148,16 +1148,28 @@ def detect_brand(title: str, content: str = ''):
     
     text = f"{title} {title}".lower()  # Title weighted 2x
     
-    # Known sub-brand mappings (parent → child brand that we track)
-    SUB_BRANDS = {
-        'geely': ['ZEEKR', 'Smart'],
-        'saic': ['IM', 'Smart'],
-        'huawei': ['Avatr'],
-        'dongfeng': ['VOYAH'],
-        'great wall': ['GWM'],
-        'changan': ['ArcFox'],
-        'baic': ['ArcFox'],
-    }
+    # Build sub-brand mappings from DB (parent → child brands)
+    # Falls back to hardcoded dict only if DB has no parent relationships
+    SUB_BRANDS = {}
+    parent_brands = Brand.objects.filter(
+        sub_brands__isnull=False
+    ).prefetch_related('sub_brands').distinct()
+    for parent in parent_brands:
+        SUB_BRANDS[parent.name.lower()] = [
+            sub.name for sub in parent.sub_brands.all()
+        ]
+    
+    # Hardcoded fallback if DB has no parent relationships yet
+    if not SUB_BRANDS:
+        SUB_BRANDS = {
+            'geely': ['ZEEKR', 'Smart'],
+            'saic': ['IM', 'Smart'],
+            'huawei': ['Avatr'],
+            'dongfeng': ['VOYAH'],
+            'great wall': ['GWM'],
+            'changan': ['ArcFox'],
+            'baic': ['ArcFox'],
+        }
     
     # Step 1: Load all known brands
     brands = list(Brand.objects.values_list('name', flat=True))

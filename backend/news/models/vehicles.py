@@ -17,6 +17,8 @@ class Brand(models.Model):
     name = models.CharField(max_length=100, unique=True, help_text="Display name")
     slug = models.SlugField(max_length=120, unique=True, help_text="URL slug")
     logo = models.ImageField(upload_to='brands/', blank=True, help_text="Brand logo")
+    logo_url = models.URLField(blank=True, default='', help_text="External logo URL (fallback if no uploaded logo)")
+    website = models.URLField(blank=True, default='', help_text="Official brand website")
     country = models.CharField(max_length=50, blank=True, help_text="Country of origin")
     description = models.TextField(blank=True, help_text="Short brand description")
     sort_order = models.IntegerField(default=0, help_text="Manual sort order (0=auto by article count)")
@@ -37,27 +39,15 @@ class Brand(models.Model):
         return self.name
 
     def get_article_count(self):
-        """Count articles for this brand (and sub-brands), case-insensitive."""
-        names = [self.name]
-        for sub in self.sub_brands.all():
-            names.append(sub.name)
-        q = Q()
-        for n in names:
-            q |= Q(make__iexact=n)
+        """Count articles for this brand only, case-insensitive."""
         return CarSpecification.objects.filter(
-            q, article__is_published=True
+            make__iexact=self.name, article__is_published=True
         ).values('article').distinct().count()
 
     def get_model_count(self):
-        """Count unique models for this brand (and sub-brands), case-insensitive."""
-        names = [self.name]
-        for sub in self.sub_brands.all():
-            names.append(sub.name)
-        q = Q()
-        for n in names:
-            q |= Q(make__iexact=n)
+        """Count unique models for this brand only, case-insensitive."""
         return CarSpecification.objects.filter(
-            q
+            make__iexact=self.name
         ).exclude(model='').exclude(model='Not specified').values('model').distinct().count()
 
 class BrandAlias(models.Model):

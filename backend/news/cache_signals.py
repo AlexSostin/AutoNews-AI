@@ -1,5 +1,10 @@
 """
-Cache invalidation signals for automatic cache clearing when data changes
+Cache invalidation signals for automatic cache clearing when data changes.
+
+Strategy:
+- Each @cache_page uses a key_prefix so we can invalidate it by name
+- On model save/delete, we clear specific cache groups instead of nuking everything
+- SiteSettings uses manual cache.set/delete (no cache_page decorator)
 """
 from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.dispatch import receiver
@@ -7,112 +12,137 @@ from django.core.cache import cache
 from .models import Article, Category, Tag, Rating, Comment
 
 
-@receiver([post_save, post_delete], sender=Article)
-def invalidate_article_cache(sender, instance, **kwargs):
-    """Clear article-related caches when article is saved or deleted"""
-    cache_keys = [
-        f'article_list',
-        f'article_{instance.id}',
-        f'article_{instance.slug}',
-        f'trending_articles',
-    ]
+# ──────────────────────────────────────────────────────────────
+# Cache key prefixes — must match the key_prefix in @cache_page()
+# ──────────────────────────────────────────────────────────────
+CACHE_PREFIXES = {
+    'articles':     'articles_list',       # ArticleViewSet._cached_list
+    'categories':   'categories_list',     # CategoryViewSet._cached_list
+    'tags':         'tags_list',           # TagViewSet._cached_list
+    'trending':     'trending',            # ArticleEngagementMixin.trending
+    'popular':      'popular',             # ArticleEngagementMixin.popular
+    'cars_picker':  'cars_picker',         # CarPickerListView
+    'currency':     'currency_rates',      # CurrencyRatesView
+    'robots':       'robots_txt',          # robots.txt view
+    'settings':     'site_settings_api_v1', # SiteSettingsViewSet (manual cache)
+}
+
+
+def _delete_cache_page_prefix(prefix):
+    """Delete all cache_page keys with the given prefix.
     
-    # Add cache keys for all categories (ManyToMany)
-    if kwargs.get('signal') == post_delete:
-        # For delete, we can't access categories anymore, so clear all category caches
-        if hasattr(cache, 'delete_pattern'):
-            cache.delete_pattern('category_*_articles')
-    else:
-        # For save, clear cache for each category
-        for category in instance.categories.all():
-            cache_keys.append(f'category_{category.slug}_articles')
-    
-    cache.delete_many(cache_keys)
-    
-    # Clear article list cache patterns (only if cache supports pattern deletion)
+    Django's cache_page with key_prefix stores keys like:
+    views.decorators.cache.cache_page.<prefix>.<method>.<url_hash>.<content_hash>
+    With Redis key version prefix: :1:views.decorators.cache.cache_page.<prefix>.*
+    """
     if hasattr(cache, 'delete_pattern'):
-        cache.delete_pattern('article_list*')
-        cache.delete_pattern('articles*')
-        # CRITICAL: Also clear @cache_page responses from API views
-        # Django's cache_page uses this key format internally
-        cache.delete_pattern('views.decorators.cache.cache_page*')
-        cache.delete_pattern(':1:views.decorators.cache.cache_page*')
+        cache.delete_pattern(f'views.decorators.cache.cache_page.{prefix}*')
+        cache.delete_pattern(f':1:views.decorators.cache.cache_page.{prefix}*')
+    else:
+        # Fallback: try Redis SCAN
+        try:
+            redis_client = cache._cache.get_client() if hasattr(cache._cache, 'get_client') else cache._cache
+            pattern = f'*cache_page.{prefix}*'
+            cursor = 0
+            while True:
+                cursor, keys = redis_client.scan(cursor, match=pattern, count=100)
+                if keys:
+                    str_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in keys]
+                    cache.delete_many(str_keys)
+                if cursor == 0:
+                    break
+        except Exception:
+            pass
+
+
+def invalidate_article_caches(article_id=None, slug=None):
+    """Clear article-related caches. Called on Article save/delete."""
+    # Specific article keys
+    keys = ['trending_articles']
+    if article_id:
+        keys.append(f'article_{article_id}')
+    if slug:
+        keys.append(f'article_{slug}')
+    cache.delete_many(keys)
+    
+    # Clear cache_page responses for article lists, trending, popular
+    for prefix in ['articles_list', 'trending', 'popular']:
+        _delete_cache_page_prefix(prefix)
+
+
+def invalidate_category_caches():
+    """Clear category-related caches."""
+    _delete_cache_page_prefix('categories_list')
+
+
+def invalidate_tag_caches():
+    """Clear tag-related caches."""
+    _delete_cache_page_prefix('tags_list')
+
+
+def invalidate_cars_caches():
+    """Clear car picker/compare caches."""
+    _delete_cache_page_prefix('cars_picker')
+
+
+def invalidate_settings_cache():
+    """Clear the manual settings cache."""
+    cache.delete(CACHE_PREFIXES['settings'])
+
+
+# ──────────────────────────────────────────────────────────────
+# Django signals → targeted invalidation
+# ──────────────────────────────────────────────────────────────
+
+@receiver([post_save, post_delete], sender=Article)
+def on_article_change(sender, instance, **kwargs):
+    """Article saved/deleted → clear article + category caches."""
+    invalidate_article_caches(article_id=instance.id, slug=instance.slug)
+    # Categories are affected because article counts change
+    invalidate_category_caches()
 
 
 @receiver([post_save, post_delete], sender=Category)
-def invalidate_category_cache(sender, instance, **kwargs):
-    """Clear category-related caches when category is saved or deleted"""
-    cache.delete_many([
-        f'category_list',
-        f'category_{instance.id}',
-        f'category_{instance.slug}',
-    ])
-    if hasattr(cache, 'delete_pattern'):
-        cache.delete_pattern('category*')
+def on_category_change(sender, instance, **kwargs):
+    """Category saved/deleted → clear category caches."""
+    invalidate_category_caches()
 
 
 @receiver([post_save, post_delete], sender=Tag)
-def invalidate_tag_cache(sender, instance, **kwargs):
-    """Clear tag-related caches when tag is saved or deleted"""
-    cache.delete_many([
-        f'tag_list',
-        f'tag_{instance.id}',
-        f'tag_{instance.slug}',
-    ])
-    if hasattr(cache, 'delete_pattern'):
-        cache.delete_pattern('tag*')
+def on_tag_change(sender, instance, **kwargs):
+    """Tag saved/deleted → clear tag caches."""
+    invalidate_tag_caches()
 
 
 @receiver(m2m_changed, sender=Article.tags.through)
-def invalidate_article_tags_cache(sender, instance, **kwargs):
-    """Clear caches when article tags are changed"""
+def on_article_tags_change(sender, instance, **kwargs):
+    """Article tags changed → clear article + tag caches."""
     if isinstance(instance, Article):
-        cache.delete_many([
-            f'article_{instance.id}',
-            f'article_{instance.slug}',
-        ])
-        if hasattr(cache, 'delete_pattern'):
-            cache.delete_pattern('article_list*')
+        invalidate_article_caches(article_id=instance.id, slug=instance.slug)
+        invalidate_tag_caches()
 
 
 @receiver(m2m_changed, sender=Article.categories.through)
-def invalidate_article_categories_cache(sender, instance, **kwargs):
-    """Clear caches when article categories are changed"""
+def on_article_categories_change(sender, instance, **kwargs):
+    """Article categories changed → clear article + category caches."""
     if isinstance(instance, Article):
-        cache_keys = [
-            f'article_{instance.id}',
-            f'article_{instance.slug}',
-        ]
-        
-        # Clear cache for affected categories
-        for category in instance.categories.all():
-            cache_keys.append(f'category_{category.slug}_articles')
-        
-        cache.delete_many(cache_keys)
-        
-        if hasattr(cache, 'delete_pattern'):
-            cache.delete_pattern('article_list*')
-
+        invalidate_article_caches(article_id=instance.id, slug=instance.slug)
+        invalidate_category_caches()
 
 
 @receiver([post_save, post_delete], sender=Rating)
-def invalidate_article_on_rating(sender, instance, **kwargs):
-    """Clear article-related caches when a rating is added or changed"""
-    cache.delete_many([
-        f'article_{instance.article.id}',
-        f'article_{instance.article.slug}',
-        'trending_articles',
-    ])
-    if hasattr(cache, 'delete_pattern'):
-        cache.delete_pattern('article_list*')
+def on_rating_change(sender, instance, **kwargs):
+    """Rating changed → clear that article's cache."""
+    invalidate_article_caches(
+        article_id=instance.article_id,
+        slug=instance.article.slug
+    )
 
 
 @receiver([post_save, post_delete], sender=Comment)
-def invalidate_article_on_comment(sender, instance, **kwargs):
-    """Clear article-related caches when a comment is added or changed"""
-    cache.delete_many([
-        f'article_{instance.article.id}',
-        f'article_{instance.article.slug}',
-    ])
-    if hasattr(cache, 'delete_pattern'):
-        cache.delete_pattern('article_list*')
+def on_comment_change(sender, instance, **kwargs):
+    """Comment changed → clear that article's cache."""
+    invalidate_article_caches(
+        article_id=instance.article_id,
+        slug=instance.article.slug
+    )

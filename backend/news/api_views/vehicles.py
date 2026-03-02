@@ -128,6 +128,158 @@ class BrandAliasViewSet(viewsets.ModelViewSet):
     pagination_class = None
     ordering = ['canonical_name', 'alias']
 
+    @action(detail=False, methods=['get'], url_path='brand-tree')
+    def brand_tree(self, request):
+        """
+        GET /api/v1/brand-aliases/brand-tree/
+        Returns full brand ownership tree for the intelligence dashboard.
+        """
+        from ..models import Brand
+        from ..serializers import BrandSerializer
+
+        # Get all top-level brands (no parent)
+        top_brands = Brand.objects.filter(
+            parent__isnull=True
+        ).prefetch_related('sub_brands').order_by('name')
+
+        tree = []
+        for brand in top_brands:
+            children = brand.sub_brands.all().order_by('name')
+            brand_data = {
+                'id': brand.id,
+                'name': brand.name,
+                'slug': brand.slug,
+                'country': brand.country,
+                'website': brand.website,
+                'logo_url': brand.logo_url,
+                'description': brand.description,
+                'is_parent': children.exists(),
+                'children': [
+                    {
+                        'id': c.id,
+                        'name': c.name,
+                        'slug': c.slug,
+                        'country': c.country,
+                        'website': c.website,
+                        'logo_url': c.logo_url,
+                        'description': c.description,
+                    }
+                    for c in children
+                ],
+            }
+            tree.append(brand_data)
+
+        return Response({
+            'total_brands': Brand.objects.count(),
+            'total_groups': Brand.objects.filter(
+                sub_brands__isnull=False
+            ).distinct().count(),
+            'tree': tree,
+        })
+
+    @action(detail=False, methods=['get'], url_path='brand-audit')
+    def brand_audit(self, request):
+        """
+        GET /api/v1/brand-aliases/brand-audit/
+        Scan articles for brand data issues.
+        """
+        from ..models import Brand
+
+        brand_names = set(
+            Brand.objects.values_list('name', flat=True)
+        )
+        brand_names_lower = {n.lower() for n in brand_names}
+
+        issues = []
+
+        # Find articles with CarSpec make not matching any Brand
+        specs = CarSpecification.objects.filter(
+            article__is_published=True
+        ).exclude(
+            make=''
+        ).exclude(
+            make='Not specified'
+        ).select_related('article')[:500]
+
+        for spec in specs:
+            if spec.make.lower() not in brand_names_lower:
+                issues.append({
+                    'type': 'unknown_brand',
+                    'article_id': spec.article_id,
+                    'article_title': spec.article.title[:80] if spec.article else '',
+                    'current_make': spec.make,
+                    'suggestion': BrandAlias.resolve(spec.make) if spec.make else None,
+                })
+
+        # Find articles with no CarSpec at all
+        from django.db.models import Exists as Ex
+        articles_without_spec = Article.objects.filter(
+            is_published=True
+        ).exclude(
+            Exists(CarSpecification.objects.filter(article=OuterRef('pk')))
+        ).values('id', 'title')[:20]
+
+        for a in articles_without_spec:
+            issues.append({
+                'type': 'no_spec',
+                'article_id': a['id'],
+                'article_title': a['title'][:80],
+                'current_make': None,
+                'suggestion': None,
+            })
+
+        return Response({
+            'total_issues': len(issues),
+            'issues': issues[:50],  # Cap at 50
+        })
+
+    @action(detail=False, methods=['post'], url_path='fix-brand')
+    def fix_brand(self, request):
+        """
+        POST /api/v1/brand-aliases/fix-brand/
+        Quick-fix a CarSpec's make by resolving through aliases or updating directly.
+        Body: { "article_id": 123, "new_make": "Avatr" }  (new_make optional — uses alias resolution if omitted)
+        """
+        from ..models import Brand
+
+        article_id = request.data.get('article_id')
+        new_make = request.data.get('new_make', '').strip()
+
+        if not article_id:
+            return Response({'success': False, 'message': 'article_id is required'},
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            spec = CarSpecification.objects.get(article_id=article_id)
+        except CarSpecification.DoesNotExist:
+            return Response({'success': False, 'message': 'CarSpec not found'},
+                          status=status.HTTP_404_NOT_FOUND)
+
+        old_make = spec.make
+
+        if new_make:
+            # Direct assignment
+            spec.make = new_make
+        else:
+            # Try alias resolution
+            resolved = BrandAlias.resolve(spec.make)
+            if resolved and resolved != spec.make:
+                spec.make = resolved
+            else:
+                return Response({
+                    'success': False,
+                    'message': f'No alias found for "{spec.make}". Provide new_make explicitly.',
+                })
+
+        spec.save(update_fields=['make'])
+
+        return Response({
+            'success': True,
+            'message': f'Fixed: {old_make} → {spec.make}',
+            'old_make': old_make,
+            'new_make': spec.make,
+        })
+
 class VehicleSpecsViewSet(viewsets.ModelViewSet):
     """Admin ViewSet for managing detailed vehicle specifications (multi-trim)."""
     queryset = VehicleSpecs.objects.select_related('article').all()

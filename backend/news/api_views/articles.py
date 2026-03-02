@@ -149,7 +149,7 @@ class ArticleViewSet(
             return super().list(request, *args, **kwargs)
         return self._cached_list(request, *args, **kwargs)
 
-    @method_decorator(cache_page(60))  # Cache for 1 minute
+    @method_decorator(cache_page(60, key_prefix='articles_list'))  # Cache for 1 minute
     def _cached_list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 

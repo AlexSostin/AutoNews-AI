@@ -47,11 +47,24 @@ class SiteSettingsViewSet(viewsets.ModelViewSet):
     serializer_class = SiteSettingsSerializer
     permission_classes = [IsStaffOrReadOnly]
     
-    @method_decorator(cache_page(300))  # Cache settings for 5 minutes — rarely changes
+    SETTINGS_CACHE_KEY = 'site_settings_api_v1'
+    
     def list(self, request):
-        """Return the single settings instance"""
+        """Return the single settings instance (cached for public, fresh for admin)"""
+        # Admin always gets fresh data
+        if request.user.is_staff:
+            settings = SiteSettings.load()
+            serializer = self.get_serializer(settings)
+            return Response(serializer.data)
+        
+        # Public gets cached version
+        cached = cache.get(self.SETTINGS_CACHE_KEY)
+        if cached is not None:
+            return Response(cached)
+        
         settings = SiteSettings.load()
         serializer = self.get_serializer(settings)
+        cache.set(self.SETTINGS_CACHE_KEY, serializer.data, 300)
         return Response(serializer.data)
     
     def retrieve(self, request, pk=None):
@@ -61,11 +74,13 @@ class SiteSettingsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def update(self, request, *args, **kwargs):
-        """Always update the single settings instance"""
+        """Always update the single settings instance and invalidate cache"""
         settings = SiteSettings.load()
         serializer = self.get_serializer(settings, data=request.data, partial=kwargs.get('partial', False))
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # Invalidate cached settings so next GET returns fresh data
+        cache.delete(self.SETTINGS_CACHE_KEY)
         return Response(serializer.data)
 
 class CurrencyRatesView(APIView):
@@ -75,7 +90,7 @@ class CurrencyRatesView(APIView):
     """
     permission_classes = [AllowAny]
     
-    @method_decorator(cache_page(60 * 60))  # Cache for 1 hour
+    @method_decorator(cache_page(60 * 60, key_prefix='currency_rates'))  # Cache for 1 hour
     def get(self, request):
         cache_key = 'currency_rates_usd'
         rates = cache.get(cache_key)

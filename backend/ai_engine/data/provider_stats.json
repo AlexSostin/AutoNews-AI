@@ -647,6 +647,60 @@
       "total_time": 72.2,
       "spec_fields_filled": 7,
       "timestamp": "2026-03-01T15:53:56.053581"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 72.0,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-03-02T08:59:44.965118"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 73.3,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-03-02T08:59:46.311061"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 83.1,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-03-02T09:01:09.431081"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 91.8,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-02T09:01:16.823333"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 51.6,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-02T19:24:58.931399"
+    },
+    {
+      "provider": "gemini",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 72.3,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-03-02T19:25:19.752376"
     }
   ]
 }
