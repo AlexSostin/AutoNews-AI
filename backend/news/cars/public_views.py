@@ -36,7 +36,7 @@ class CarBrandsListView(APIView):
                 .exclude(model='Not specified')
                 .values('make')  # GROUP BY
                 .annotate(cnt=Count('model', distinct=True))
-                .values('cnt')
+                .values('cnt')[:1]
             )
             article_count_subquery = (
                 CarSpecification.objects
@@ -46,7 +46,7 @@ class CarBrandsListView(APIView):
                 )
                 .values('make')  # GROUP BY
                 .annotate(cnt=Count('article', distinct=True))
-                .values('cnt')
+                .values('cnt')[:1]
             )
 
             brands = (
