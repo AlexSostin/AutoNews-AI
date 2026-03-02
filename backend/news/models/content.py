@@ -70,6 +70,8 @@ IMAGE_SOURCE_CHOICES = [
     ('youtube', 'YouTube Thumbnail'),
     ('rss_original', 'RSS / Press Release Original'),
     ('pexels', 'Pexels Stock Photo'),
+    ('web_search', 'Web Search Photo'),
+    ('ai_generated', 'AI Generated'),
     ('uploaded', 'Manual Upload'),
     ('unknown', 'Unknown'),
 ]
