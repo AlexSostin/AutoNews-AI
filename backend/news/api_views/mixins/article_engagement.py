@@ -421,18 +421,32 @@ class ArticleEngagementMixin:
 
     @action(detail=True, methods=['get'])
     def similar_articles(self, request, slug=None):
-        """Find similar articles using vector search + make/model fallback."""
+        """Find similar articles using TF-IDF ML model + make/model fallback."""
         from news.models import Article, CarSpecification
         from news.serializers import ArticleListSerializer
         article = self.get_object()
         result_ids = []
+        # Try local ML model first (free, instant, no API calls)
         try:
-            from ai_engine.modules.vector_search import get_vector_engine
-            engine = get_vector_engine()
-            similar = engine.find_similar_articles(article.id, k=15)
-            result_ids = [s['article_id'] for s in similar]
+            from ai_engine.modules.content_recommender import find_similar, is_available
+            if is_available():
+                similar = find_similar(article.id, top_n=15)
+                result_ids = [s['id'] for s in similar]
+                logger.info(f"ML found {len(result_ids)} similar articles for {article.id}")
         except Exception as e:
-            logger.warning(f"Vector search failed for {article.id}: {e}")
+            logger.warning(f"ML similar search failed for {article.id}: {e}")
+        # Fallback to vector search engine if ML didn't find enough
+        if len(result_ids) < 6:
+            try:
+                from ai_engine.modules.vector_search import get_vector_engine
+                engine = get_vector_engine()
+                similar = engine.find_similar_articles(article.id, k=15)
+                for s in similar:
+                    aid = s['article_id']
+                    if aid not in result_ids and aid != article.id:
+                        result_ids.append(aid)
+            except Exception as e:
+                logger.warning(f"Vector search fallback failed for {article.id}: {e}")
         if len(result_ids) < 6:
             try:
                 car_spec = CarSpecification.objects.filter(article=article).first()

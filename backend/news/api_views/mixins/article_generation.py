@@ -496,10 +496,11 @@ Return ONLY the HTML-formatted version with every word preserved."""
             url_path='auto-fill-metadata')
     def auto_fill_metadata(self, request):
         """
-        Extract metadata from article HTML content using AI.
-        POST /api/v1/articles/auto_fill_metadata/
-        Body: { "content": "<p>article html...</p>" }
-        Returns: title, slug, summary, seo_description, suggested_categories, suggested_tags
+        Extract metadata from article HTML content.
+        
+        Hybrid approach:
+        - Tags & Categories: ML model (local TF-IDF, free, instant)
+        - Title, Summary, SEO: Gemini AI (needs LLM for creative generation)
         """
         import json
         from django.utils.text import slugify
@@ -513,17 +514,46 @@ Return ONLY the HTML-formatted version with every word preserved."""
                 'message': 'Content too short. Paste or write at least a few paragraphs.',
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Strip HTML to get plain text for AI analysis
+        # Strip HTML to get plain text
         plain_text = re.sub(r'<[^>]+>', ' ', content)
         plain_text = re.sub(r'\s+', ' ', plain_text).strip()
         
-        # Get available categories and tags for matching
-        available_categories = list(Category.objects.values_list('name', flat=True))
-        available_tags = list(Tag.objects.values_list('name', flat=True)[:50])
+        # ── ML predictions for tags & categories (free, instant) ──
+        ml_tag_ids = []
+        ml_cat_ids = []
+        prediction_source = 'gemini'
         
+        try:
+            from ai_engine.modules.content_recommender import predict_tags, predict_categories, is_available
+            if is_available():
+                ml_tags = predict_tags('', content, plain_text[:500], top_n=8)
+                ml_cats = predict_categories('', content, plain_text[:500], top_n=2)
+                if ml_tags:
+                    ml_tag_ids = [t['id'] for t in ml_tags]
+                    prediction_source = 'ml'
+                    logger.info(f"ML predicted {len(ml_tag_ids)} tags: {[t['name'] for t in ml_tags]}")
+                if ml_cats:
+                    ml_cat_ids = [c['id'] for c in ml_cats]
+                    logger.info(f"ML predicted {len(ml_cat_ids)} categories: {[c['name'] for c in ml_cats]}")
+        except Exception as ml_err:
+            logger.warning(f'ML prediction failed, falling back to Gemini: {ml_err}')
+        
+        # ── Gemini for title/summary/SEO (needs LLM) ──
         system_prompt = "You are a metadata extractor. Return ONLY valid JSON, nothing else."
+        
+        if ml_tag_ids:
+            # ML handled tags/cats — simpler prompt (fewer tokens)
+            extract_prompt = f"""Extract metadata from this automotive article.
 
-        extract_prompt = f"""Extract metadata from this automotive article.
+ARTICLE (first 3000 chars):
+{plain_text[:3000]}
+
+Return JSON:
+{{"title":"SEO title with brand/model/year","summary":"2-3 sentences","seo_description":"max 155 chars","detected_brand":"Brand","detected_model":"Model"}}"""
+        else:
+            available_categories = list(Category.objects.values_list('name', flat=True))
+            available_tags = list(Tag.objects.values_list('name', flat=True)[:50])
+            extract_prompt = f"""Extract metadata from this automotive article.
 
 CATEGORIES (pick 1-2): {json.dumps(available_categories)}
 TAGS (pick up to 6): {json.dumps(available_tags)}
@@ -533,7 +563,7 @@ ARTICLE (first 3000 chars):
 
 Return JSON:
 {{"title":"SEO title with brand/model/year","summary":"2-3 sentences","seo_description":"max 155 chars","suggested_categories":["Cat"],"suggested_tags":["Tag1","Tag2"],"detected_brand":"Brand","detected_model":"Model"}}"""
-
+        
         try:
             from ai_engine.modules.ai_provider import get_ai_provider
             provider = get_ai_provider('gemini')
@@ -544,47 +574,45 @@ Return JSON:
                 max_tokens=2000,
             )
             
-            # Clean up response
             cleaned = result_text.strip()
             cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
             cleaned = re.sub(r'\s*```$', '', cleaned)
             cleaned = cleaned.strip()
             
-            # Try to repair truncated JSON
             try:
                 metadata = json.loads(cleaned)
             except json.JSONDecodeError:
-                # Try to fix common issues: truncated strings, missing closing brackets
-                # Remove trailing incomplete key-value pair
                 cleaned = re.sub(r',\s*"[^"]*"?\s*:?\s*"?[^"]*$', '', cleaned)
-                # Close any unclosed brackets
                 open_braces = cleaned.count('{') - cleaned.count('}')
                 open_brackets = cleaned.count('[') - cleaned.count(']')
                 if not cleaned.endswith('"') and '"' in cleaned:
-                    # Count quotes - if odd, add closing quote
                     if cleaned.count('"') % 2 != 0:
                         cleaned += '"'
                 cleaned += ']' * max(0, open_brackets)
                 cleaned += '}' * max(0, open_braces)
-                
                 metadata = json.loads(cleaned)
             
             title = metadata.get('title', '')
             slug = slugify(title)[:80] if title else ''
             
-            # Match categories to actual DB objects
-            matched_category_ids = []
-            for cat_name in metadata.get('suggested_categories', []):
-                cat = Category.objects.filter(name__iexact=cat_name).first()
-                if cat:
-                    matched_category_ids.append(cat.id)
+            # Use ML predictions if available, otherwise Gemini's
+            if ml_tag_ids:
+                matched_tag_ids = ml_tag_ids
+            else:
+                matched_tag_ids = []
+                for tag_name in metadata.get('suggested_tags', []):
+                    tag = Tag.objects.filter(name__iexact=tag_name).first()
+                    if tag:
+                        matched_tag_ids.append(tag.id)
             
-            # Match tags to actual DB objects
-            matched_tag_ids = []
-            for tag_name in metadata.get('suggested_tags', []):
-                tag = Tag.objects.filter(name__iexact=tag_name).first()
-                if tag:
-                    matched_tag_ids.append(tag.id)
+            if ml_cat_ids:
+                matched_category_ids = ml_cat_ids
+            else:
+                matched_category_ids = []
+                for cat_name in metadata.get('suggested_categories', []):
+                    cat = Category.objects.filter(name__iexact=cat_name).first()
+                    if cat:
+                        matched_category_ids.append(cat.id)
             
             return Response({
                 'success': True,
@@ -596,6 +624,7 @@ Return JSON:
                 'tag_ids': matched_tag_ids,
                 'detected_brand': metadata.get('detected_brand', ''),
                 'detected_model': metadata.get('detected_model', ''),
+                'prediction_source': prediction_source,
             })
 
         except json.JSONDecodeError as e:

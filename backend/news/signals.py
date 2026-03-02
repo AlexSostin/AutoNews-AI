@@ -245,6 +245,35 @@ def auto_remove_from_vector_index(sender, instance, **kwargs):
 
 
 # ============================================================================
+# AUTO-REBUILD TF-IDF CONTENT RECOMMENDER
+# Rebuilds local ML model when articles change (debounced via Redis)
+# ============================================================================
+
+@receiver(post_save, sender=Article)
+def rebuild_content_recommender(sender, instance, **kwargs):
+    """Rebuild TF-IDF model when a published article is saved (debounced 5 min)."""
+    if not instance.is_published or instance.is_deleted:
+        return
+    
+    def _rebuild():
+        try:
+            from django.core.cache import cache
+            lock_key = 'content_recommender_rebuild_lock'
+            if cache.get(lock_key):
+                return  # Already rebuilt recently
+            cache.set(lock_key, True, timeout=300)  # 5 min debounce
+            
+            from ai_engine.modules.content_recommender import build
+            result = build()
+            if result.get('success') and not result.get('skipped'):
+                logger.info(f"🧠 Content Recommender rebuilt: {result.get('article_count')} articles")
+        except Exception as e:
+            logger.error(f"❌ Content Recommender rebuild failed: {e}")
+    
+    thread = threading.Thread(target=_rebuild, daemon=True)
+    transaction.on_commit(lambda: thread.start())
+
+# ============================================================================
 # AUTO-CREATE CAR SPECIFICATIONS ON ARTICLE PUBLISH
 # ============================================================================
 
