@@ -552,12 +552,14 @@ class TestVehicleSpecsDisplayMethods:
         assert '$45,000' in display
 
     def test_get_price_display_cny(self):
-        """L1383-1391: CNY with USD equivalent."""
+        """CNY price — shows original currency only (USD conversion handled by frontend)."""
         vs = self._make_vs(make='pr3', price_from=250000, currency='CNY',
                            price_usd_from=34000)
         display = vs.get_price_display()
         assert '¥' in display
-        assert '$34,000' in display
+        assert '250,000' in display
+        # USD estimate no longer baked in — frontend PriceConverter does live conversion
+        assert '$' not in display
 
     def test_get_price_display_no_price(self):
         """L1371-1372: No price → 'N/A'."""
