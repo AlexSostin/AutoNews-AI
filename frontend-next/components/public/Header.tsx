@@ -379,7 +379,7 @@ export default function Header() {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <User size={18} />
-                  Sign In
+                  Login
                 </Link>
               )}
             </div>
