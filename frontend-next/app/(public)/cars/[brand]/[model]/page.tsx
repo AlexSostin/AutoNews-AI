@@ -216,7 +216,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                 )}
                                 {data.specs.zero_to_sixty && data.specs.zero_to_sixty !== 'Not specified' && (
                                     <span className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/15 text-purple-200 font-semibold">
-                                        🏁 0-60 {data.specs.zero_to_sixty}
+                                        🏁 0-100 {data.specs.zero_to_sixty}
                                     </span>
                                 )}
                             </div>

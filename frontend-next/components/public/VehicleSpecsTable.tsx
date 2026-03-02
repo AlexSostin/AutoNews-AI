@@ -253,9 +253,6 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
                 <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600 rounded-t-2xl">
                     <h2 className="text-xl font-bold text-white">💰 Pricing</h2>
-                    <p className="text-white/70 text-sm mt-1">
-                        Convert to your local currency
-                    </p>
                 </div>
                 <div className="p-6 space-y-4">
                     {vsList.map(vs => {
@@ -263,18 +260,39 @@ export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTabl
                             ? Math.round((vs.price_usd_from + vs.price_usd_to) / 2)
                             : vs.price_usd_from;
 
+                        // Build clean original price (without USD estimate)
+                        const currSymbol: Record<string, string> = {
+                            CNY: '¥', USD: '$', EUR: '€', GBP: '£', JPY: '¥', RUB: '₽',
+                        };
+                        const sym = currSymbol[vs.currency || ''] || '';
+                        let originalPrice = '';
+                        if (vs.price_from && vs.currency) {
+                            originalPrice = `${sym}${vs.price_from.toLocaleString()}`;
+                            if (vs.price_to && vs.price_to !== vs.price_from) {
+                                originalPrice += ` – ${sym}${vs.price_to.toLocaleString()}`;
+                            }
+                            originalPrice += ` ${vs.currency}`;
+                        } else if (vs.price_display) {
+                            // Fallback: strip any "(~$xxx USD)" estimate from price_display
+                            originalPrice = vs.price_display.replace(/\s*\(~?\$[\d,.]+\s*USD\)/gi, '').trim();
+                        }
+
                         return (
-                            <div key={vs.id} className="space-y-2">
+                            <div key={vs.id} className="space-y-3">
                                 {multi && (
                                     <h3 className="font-bold text-indigo-700 text-sm">{vs.trim_name}</h3>
                                 )}
-                                {vs.price_display && (
-                                    <p className="text-gray-600 text-sm">
-                                        Original: <span className="font-semibold text-gray-900">{vs.price_display}</span>
-                                    </p>
+                                {originalPrice && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-gray-500">Manufacturer price:</span>
+                                        <span className="font-bold text-gray-900 text-lg">{originalPrice}</span>
+                                    </div>
                                 )}
                                 {avgUsd && (
-                                    <PriceConverter priceUsd={avgUsd} />
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-gray-500">Converted:</span>
+                                        <PriceConverter priceUsd={avgUsd} />
+                                    </div>
                                 )}
                                 {multi && <hr className="border-gray-100" />}
                             </div>

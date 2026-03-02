@@ -498,7 +498,8 @@ class VehicleSpecs(models.Model):
         return "N/A"
     
     def get_price_display(self):
-        """Return formatted price with USD equivalent for non-USD currencies."""
+        """Return formatted price in original currency only.
+        USD conversion is handled by the frontend PriceConverter (live rates)."""
         if not self.price_from:
             return "N/A"
         
@@ -510,14 +511,9 @@ class VehicleSpecs(models.Model):
                 return f"${self.price_from:,} – ${self.price_to:,}"
             return f"From ${self.price_from:,}"
         
-        # Non-USD: show original + USD equivalent
+        # Non-USD: show original currency only (no stale USD estimate)
         if self.price_to:
-            main = f"{sym}{self.price_from:,} – {sym}{self.price_to:,}"
-        else:
-            main = f"From {sym}{self.price_from:,}"
+            return f"{sym}{self.price_from:,} – {sym}{self.price_to:,}"
         
-        if self.price_usd_from:
-            return f"{main} (~${self.price_usd_from:,} USD)"
-        
-        return main
+        return f"From {sym}{self.price_from:,}"
 
