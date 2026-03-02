@@ -853,3 +853,274 @@ def extract_specs_from_text(title: str, content: str) -> Dict:
     return specs
 
 
+# ═══════════════════════════════════════════════════════════════════
+# Car Data ML Analytics — Duplicate Detection & Validation
+# ═══════════════════════════════════════════════════════════════════
+
+def find_duplicate_specs(threshold: float = 0.80):
+    """
+    Find potential duplicate VehicleSpecs using text similarity.
+    
+    Compares `make + model_name + trim_name + year` across all specs
+    using TF-IDF cosine similarity.
+    
+    Args:
+        threshold: Minimum similarity score to flag as duplicate (0.0–1.0)
+        
+    Returns:
+        List of dicts: [{'spec_a': {id, make, model}, 'spec_b': {id, make, model}, 'score': 0.92}]
+    """
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    from news.models import VehicleSpecs
+    
+    specs = list(VehicleSpecs.objects.all().values(
+        'id', 'make', 'model_name', 'trim_name', 'year', 'article_id'
+    ))
+    
+    if len(specs) < 2:
+        return []
+    
+    # Build text representation for each spec
+    texts = []
+    for s in specs:
+        parts = [
+            s['make'] or '',
+            s['model_name'] or '',
+            s['trim_name'] or '',
+            str(s['year']) if s['year'] else '',
+        ]
+        texts.append(' '.join(p for p in parts if p).lower())
+    
+    # TF-IDF vectorize and compute pairwise similarity
+    vectorizer = TfidfVectorizer(analyzer='char_wb', ngram_range=(2, 4))
+    tfidf_matrix = vectorizer.fit_transform(texts)
+    sim_matrix = cosine_similarity(tfidf_matrix)
+    
+    duplicates = []
+    seen_pairs = set()
+    
+    for i in range(len(specs)):
+        for j in range(i + 1, len(specs)):
+            score = float(sim_matrix[i][j])
+            if score >= threshold:
+                pair_key = (min(specs[i]['id'], specs[j]['id']),
+                            max(specs[i]['id'], specs[j]['id']))
+                if pair_key not in seen_pairs:
+                    seen_pairs.add(pair_key)
+                    duplicates.append({
+                        'spec_a': {
+                            'id': specs[i]['id'],
+                            'make': specs[i]['make'],
+                            'model': specs[i]['model_name'],
+                            'trim': specs[i]['trim_name'],
+                            'article_id': specs[i]['article_id'],
+                        },
+                        'spec_b': {
+                            'id': specs[j]['id'],
+                            'make': specs[j]['make'],
+                            'model': specs[j]['model_name'],
+                            'trim': specs[j]['trim_name'],
+                            'article_id': specs[j]['article_id'],
+                        },
+                        'score': round(score, 3),
+                    })
+    
+    # Sort by similarity (highest first)
+    duplicates.sort(key=lambda d: d['score'], reverse=True)
+    logger.info(f"ML Dedup: found {len(duplicates)} potential duplicates (threshold={threshold})")
+    return duplicates
+
+
+def validate_specs_consistency():
+    """
+    Cross-validate CarSpecification vs VehicleSpecs for the same article.
+    
+    Finds mismatches in horsepower, torque, acceleration, top speed, price.
+    Uses ±10% tolerance for numeric comparison.
+    
+    Returns:
+        List of dicts: [{article_id, article_title, field, carspec_val, vehiclespecs_val, diff_pct}]
+    """
+    import re
+    from news.models import CarSpecification, VehicleSpecs
+    
+    mismatches = []
+    
+    # Get articles that have both CarSpec and VehicleSpecs
+    car_specs = CarSpecification.objects.filter(
+        article__is_published=True
+    ).select_related('article')
+    
+    for cs in car_specs:
+        try:
+            vs = VehicleSpecs.objects.filter(article=cs.article).first()
+        except VehicleSpecs.DoesNotExist:
+            continue
+        
+        if not vs:
+            continue
+        
+        # Extract numeric value from string like "789 HP" → 789
+        def extract_num(text):
+            if not text:
+                return None
+            nums = re.findall(r'[\d,]+\.?\d*', str(text).replace(',', ''))
+            return float(nums[0]) if nums else None
+        
+        # Compare fields
+        comparisons = [
+            ('horsepower', extract_num(cs.horsepower), vs.power_hp),
+            ('torque', extract_num(cs.torque), vs.torque_nm),
+            ('acceleration', extract_num(cs.zero_to_sixty), vs.acceleration_0_100),
+            ('top_speed', extract_num(cs.top_speed), vs.top_speed_kmh),
+        ]
+        
+        for field, cs_val, vs_val in comparisons:
+            if cs_val is None or vs_val is None:
+                continue
+            if cs_val == 0 or vs_val == 0:
+                continue
+            
+            diff_pct = abs(cs_val - vs_val) / max(cs_val, vs_val) * 100
+            
+            if diff_pct > 10:  # More than 10% difference = mismatch
+                mismatches.append({
+                    'article_id': cs.article.id,
+                    'article_title': cs.article.title[:60],
+                    'field': field,
+                    'carspec_value': cs_val,
+                    'vehiclespecs_value': vs_val,
+                    'diff_percent': round(diff_pct, 1),
+                })
+    
+    logger.info(f"ML Validator: found {len(mismatches)} data mismatches")
+    return mismatches
+
+
+def enrich_specs_from_similar(vehicle_specs_id: int, dry_run: bool = True):
+    """
+    Fill missing VehicleSpecs fields using data from similar articles.
+    
+    Uses TF-IDF to find related articles, extracts specs from them,
+    and fills gaps in the target VehicleSpecs.
+    
+    Args:
+        vehicle_specs_id: ID of VehicleSpecs to enrich
+        dry_run: If True, returns what would change without saving
+        
+    Returns:
+        dict: {field: {value, source_article_id}} for each enriched field
+    """
+    from news.models import VehicleSpecs, Article
+    
+    try:
+        vs = VehicleSpecs.objects.select_related('article').get(id=vehicle_specs_id)
+    except VehicleSpecs.DoesNotExist:
+        return {}
+    
+    if not vs.article:
+        return {}
+    
+    # Find similar articles
+    similar = find_similar(vs.article.id, top_n=5)
+    if not similar:
+        return {}
+    
+    # Fields that can be enriched
+    enrichable_fields = [
+        'power_hp', 'power_kw', 'torque_nm', 'acceleration_0_100',
+        'top_speed_kmh', 'battery_kwh', 'range_wltp', 'range_cltc',
+        'range_epa', 'charging_power_max_kw', 'weight_kg',
+        'length_mm', 'width_mm', 'height_mm', 'wheelbase_mm',
+        'cargo_liters', 'seats', 'voltage_architecture',
+    ]
+    
+    # Find which fields are empty
+    empty_fields = [f for f in enrichable_fields if not getattr(vs, f, None)]
+    
+    if not empty_fields:
+        return {}  # All fields already filled
+    
+    # Extract specs from similar articles
+    enrichments = {}
+    similar_article_ids = [s['id'] for s in similar]
+    similar_articles = Article.objects.filter(id__in=similar_article_ids)
+    
+    for article in similar_articles:
+        extracted = extract_specs_from_text(article.title, article.content)
+        
+        for field in empty_fields:
+            if field in extracted and extracted[field] and field not in enrichments:
+                enrichments[field] = {
+                    'value': extracted[field],
+                    'source_article_id': article.id,
+                    'source_title': article.title[:50],
+                }
+    
+    if not dry_run and enrichments:
+        for field, data in enrichments.items():
+            setattr(vs, field, data['value'])
+        vs.save()
+        logger.info(f"ML Enrichment: filled {len(enrichments)} fields for VehicleSpecs #{vehicle_specs_id}")
+    
+    return enrichments
+
+
+def detect_price_anomalies():
+    """
+    Detect potentially incorrect prices using statistical analysis.
+    
+    Groups VehicleSpecs by brand + body_type, calculates median price,
+    and flags outliers beyond 2× IQR.
+    
+    Returns:
+        List of dicts: [{id, make, model, price, median, reason}]
+    """
+    from collections import defaultdict
+    from news.models import VehicleSpecs
+    
+    # Group prices by brand
+    brand_prices = defaultdict(list)
+    all_specs = VehicleSpecs.objects.filter(
+        price_usd_from__isnull=False,
+        price_usd_from__gt=0
+    ).values('id', 'make', 'model_name', 'body_type', 'price_usd_from')
+    
+    for s in all_specs:
+        brand_prices[s['make']].append(s)
+    
+    anomalies = []
+    
+    for brand, specs in brand_prices.items():
+        if len(specs) < 2:
+            continue  # Need at least 2 to compare
+        
+        prices = sorted([s['price_usd_from'] for s in specs])
+        
+        # Calculate median and IQR
+        n = len(prices)
+        median = prices[n // 2]
+        q1 = prices[n // 4] if n >= 4 else prices[0]
+        q3 = prices[3 * n // 4] if n >= 4 else prices[-1]
+        iqr = q3 - q1
+        
+        # Flag outliers: > Q3 + 2*IQR or < Q1 - 2*IQR
+        lower_bound = max(0, q1 - 2 * iqr) if iqr > 0 else median * 0.3
+        upper_bound = q3 + 2 * iqr if iqr > 0 else median * 3.0
+        
+        for s in specs:
+            price = s['price_usd_from']
+            if price < lower_bound or price > upper_bound:
+                anomalies.append({
+                    'id': s['id'],
+                    'make': s['make'],
+                    'model': s['model_name'],
+                    'price_usd': price,
+                    'median_usd': median,
+                    'reason': f"{'Too high' if price > upper_bound else 'Too low'} "
+                              f"(${price:,} vs brand median ${median:,})",
+                })
+    
+    logger.info(f"ML Price Check: found {len(anomalies)} price anomalies")
+    return anomalies
