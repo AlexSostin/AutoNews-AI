@@ -198,9 +198,10 @@ python scripts/analyze_tests.py
 ### API Endpoints
 
 | Endpoint | Purpose |
-|---|---|
+| --- | --- |
 | `GET /api/v1/articles/ml-health/` | Full health report JSON |
 | `GET /api/v1/articles/ml-info/` | Basic model info |
+| `GET /api/v1/analytics/extra-stats/` | Subscriber growth, RSS stats, error summary |
 
 ### Brand Detection Pipeline (detect_brand())
 
