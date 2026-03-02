@@ -1235,3 +1235,222 @@ def detect_brand(title: str, content: str = ''):
             logger.debug(f"TF-IDF brand detection failed: {e}")
     
     return None
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ML Health Dashboard — Model Maturity & Performance Metrics
+# ═══════════════════════════════════════════════════════════════════
+
+MATURITY_LEVELS = [
+    {'level': 1, 'name': 'Rookie',    'emoji': '🥉', 'min_articles': 0,    'description': 'Basic regex extraction, limited accuracy'},
+    {'level': 2, 'name': 'Learning',  'emoji': '🥈', 'min_articles': 50,   'description': 'Recommendations work, dedup detection active'},
+    {'level': 3, 'name': 'Competent', 'emoji': '🥇', 'min_articles': 200,  'description': 'Good tag/category prediction, reliable search'},
+    {'level': 4, 'name': 'Expert',    'emoji': '💎', 'min_articles': 500,  'description': 'Precise semantic search, strong enrichment'},
+    {'level': 5, 'name': 'Master',    'emoji': '🏆', 'min_articles': 1000, 'description': 'Maximum accuracy, self-sufficient analytics'},
+]
+
+
+def get_ml_health_report():
+    """
+    Comprehensive ML model health report with maturity level and per-feature scores.
+    
+    Returns:
+        dict: {
+            overall_level: {level, name, emoji, description},
+            overall_score: 0-100,
+            data_stats: {...},
+            feature_scores: {feature_name: {score: 0-100, status, details}},
+            recommendations: [str],
+            next_level: {level, name, articles_needed} or None
+        }
+    """
+    from news.models import (
+        Article, VehicleSpecs, CarSpecification, Brand, BrandAlias, Tag
+    )
+    
+    # ── Data Statistics ──────────────────────────────
+    total_articles = Article.objects.filter(is_published=True).count()
+    total_vehicle_specs = VehicleSpecs.objects.count()
+    total_car_specs = CarSpecification.objects.count()
+    total_brands = Brand.objects.count()
+    total_aliases = BrandAlias.objects.count()
+    total_tags = Tag.objects.count()
+    
+    # Articles with specs
+    articles_with_vs = VehicleSpecs.objects.values('article_id').distinct().count()
+    articles_with_cs = CarSpecification.objects.values('article_id').distinct().count()
+    spec_coverage = (articles_with_vs / max(total_articles, 1)) * 100
+    
+    # Spec completeness — how many fields are filled on average
+    SPEC_FIELDS = [
+        'power_hp', 'power_kw', 'torque_nm', 'acceleration_0_100',
+        'top_speed_kmh', 'battery_kwh', 'range_wltp', 'range_cltc',
+        'range_epa', 'weight_kg', 'length_mm', 'width_mm', 'height_mm',
+        'wheelbase_mm', 'cargo_liters', 'seats', 'fuel_type', 'drivetrain',
+        'body_type', 'voltage_architecture', 'price_from', 'currency',
+    ]
+    
+    total_filled = 0
+    total_possible = 0
+    for vs in VehicleSpecs.objects.all():
+        for field in SPEC_FIELDS:
+            total_possible += 1
+            val = getattr(vs, field, None)
+            if val is not None and val != '' and val != 0:
+                total_filled += 1
+    
+    spec_completeness = (total_filled / max(total_possible, 1)) * 100
+    
+    # TF-IDF model status
+    model_info = get_model_info()
+    model_trained = model_info.get('status') != 'not_trained'
+    model_articles = model_info.get('articles', 0)
+    
+    # ── Per-Feature Scores ───────────────────────────
+    features = {}
+    
+    # 1. TF-IDF Recommendations
+    if model_trained and model_articles >= 50:
+        rec_score = min(100, (model_articles / 500) * 100)
+        features['recommendations'] = {
+            'score': round(rec_score),
+            'status': '🟢' if rec_score >= 70 else '🟡' if rec_score >= 40 else '🔴',
+            'details': f'{model_articles} articles in TF-IDF model',
+        }
+    else:
+        features['recommendations'] = {
+            'score': max(5, round((model_articles / 50) * 30)),
+            'status': '🔴',
+            'details': f'Need ≥50 articles for good recommendations ({model_articles} now)',
+        }
+    
+    # 2. Tag Prediction
+    tag_score = min(100, (total_tags / 100) * 50 + (model_articles / 200) * 50)
+    features['tag_prediction'] = {
+        'score': round(tag_score),
+        'status': '🟢' if tag_score >= 70 else '🟡' if tag_score >= 40 else '🔴',
+        'details': f'{total_tags} tags, {model_articles} articles for similarity',
+    }
+    
+    # 3. Spec Extraction (ML regex)
+    spec_score = min(100, spec_completeness * 2)  # 50% filled = 100 score
+    features['spec_extraction'] = {
+        'score': round(spec_score),
+        'status': '🟢' if spec_score >= 70 else '🟡' if spec_score >= 40 else '🔴',
+        'details': f'{spec_completeness:.0f}% fields filled across {total_vehicle_specs} specs',
+    }
+    
+    # 4. Duplicate Detection
+    dup_score = min(100, (total_vehicle_specs / 10) * 30 + (total_brands / 5) * 30 + 40)
+    features['duplicate_detection'] = {
+        'score': round(min(dup_score, 100)),
+        'status': '🟢' if total_vehicle_specs >= 20 else '🟡' if total_vehicle_specs >= 5 else '🔴',
+        'details': f'{total_vehicle_specs} specs, {total_brands} brands for comparison',
+    }
+    
+    # 5. Brand Detection
+    brand_score = min(100, (total_brands / 20) * 50 + (total_aliases / 10) * 50)
+    features['brand_detection'] = {
+        'score': round(brand_score),
+        'status': '🟢' if brand_score >= 70 else '🟡' if brand_score >= 40 else '🔴',
+        'details': f'{total_brands} brands, {total_aliases} aliases',
+    }
+    
+    # 6. Data Validation
+    val_score = min(100, (articles_with_cs / max(total_articles, 1)) * 100 * 0.5 +
+                   (articles_with_vs / max(total_articles, 1)) * 100 * 0.5)
+    features['data_validation'] = {
+        'score': round(val_score),
+        'status': '🟢' if val_score >= 50 else '🟡' if val_score >= 20 else '🔴',
+        'details': f'{articles_with_cs} CarSpecs + {articles_with_vs} VehicleSpecs for cross-check',
+    }
+    
+    # 7. Semantic Search
+    search_score = features['recommendations']['score']  # Same model powers search
+    features['semantic_search'] = {
+        'score': search_score,
+        'status': features['recommendations']['status'],
+        'details': f'Powered by same TF-IDF model ({model_articles} articles)',
+    }
+    
+    # ── Overall Score ────────────────────────────────
+    weights = {
+        'recommendations': 0.20,
+        'tag_prediction': 0.15,
+        'spec_extraction': 0.20,
+        'duplicate_detection': 0.10,
+        'brand_detection': 0.10,
+        'data_validation': 0.15,
+        'semantic_search': 0.10,
+    }
+    overall_score = sum(features[f]['score'] * w for f, w in weights.items())
+    
+    # ── Maturity Level ───────────────────────────────
+    current_level = MATURITY_LEVELS[0]
+    for lvl in MATURITY_LEVELS:
+        if total_articles >= lvl['min_articles']:
+            current_level = lvl
+    
+    # Next level
+    next_level = None
+    for lvl in MATURITY_LEVELS:
+        if lvl['level'] > current_level['level']:
+            next_level = {
+                'level': lvl['level'],
+                'name': lvl['name'],
+                'emoji': lvl['emoji'],
+                'articles_needed': lvl['min_articles'] - total_articles,
+            }
+            break
+    
+    # ── Recommendations ──────────────────────────────
+    recommendations = []
+    
+    if spec_coverage < 50:
+        recommendations.append(
+            f"📋 Spec coverage is {spec_coverage:.0f}% — run `manage.py backfill_vehicle_specs` "
+            f"to create specs for {total_articles - articles_with_vs} unlinked articles"
+        )
+    
+    if spec_completeness < 30:
+        recommendations.append(
+            f"📊 Spec completeness is only {spec_completeness:.0f}% — "
+            f"run `manage.py analyze_car_data --enrich` to fill gaps from similar articles"
+        )
+    
+    if total_aliases < 10:
+        recommendations.append(
+            f"🏷️ Only {total_aliases} brand aliases — consider adding more "
+            f"(e.g., 'SAIC' → 'IM', 'BAIC' → 'ArcFox')"
+        )
+    
+    if next_level and next_level['articles_needed'] <= 50:
+        recommendations.append(
+            f"🚀 Only {next_level['articles_needed']} articles to reach "
+            f"{next_level['emoji']} {next_level['name']} level!"
+        )
+    
+    if not model_trained:
+        recommendations.append(
+            "⚠️ TF-IDF model not trained — run `manage.py train_content_model`"
+        )
+    
+    return {
+        'overall_level': current_level,
+        'overall_score': round(overall_score),
+        'next_level': next_level,
+        'data_stats': {
+            'total_articles': total_articles,
+            'total_vehicle_specs': total_vehicle_specs,
+            'total_car_specs': total_car_specs,
+            'total_brands': total_brands,
+            'total_aliases': total_aliases,
+            'total_tags': total_tags,
+            'spec_coverage_pct': round(spec_coverage, 1),
+            'spec_completeness_pct': round(spec_completeness, 1),
+            'model_trained': model_trained,
+            'model_articles': model_articles,
+        },
+        'feature_scores': features,
+        'recommendations': recommendations,
+    }

@@ -606,3 +606,12 @@ class ArticleEngagementMixin:
         except Exception as e:
             return Response({'error': str(e)})
 
+    @action(detail=False, methods=['get'], url_path='ml-health')
+    def ml_health(self, request):
+        """Get comprehensive ML model health report with maturity level and scores."""
+        try:
+            from ai_engine.modules.content_recommender import get_ml_health_report
+            return Response(get_ml_health_report())
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
