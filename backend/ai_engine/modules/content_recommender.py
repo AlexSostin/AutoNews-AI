@@ -20,7 +20,6 @@ from collections import Counter
 
 import numpy as np
 import joblib
-from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 

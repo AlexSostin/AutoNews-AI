@@ -948,7 +948,7 @@ class AnalyticsExtraStatsAPIView(APIView):
         )
 
         backend_total = BackendErrorLog.objects.count()
-        backend_last_24h = BackendErrorLog.objects.filter(timestamp__gte=now - timedelta(hours=24)).count()
+        backend_last_24h = BackendErrorLog.objects.filter(last_seen__gte=now - timedelta(hours=24)).count()
 
         return Response({
             'subscribers': {
