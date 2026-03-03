@@ -9,7 +9,7 @@ Endpoints:
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from django.db.models import Count, Q, Subquery, OuterRef, Value, IntegerField
+from django.db.models import Count
 from django.utils.text import slugify
 
 from ..models import CarSpecification, Article, Tag, Brand
@@ -24,45 +24,15 @@ class CarBrandsListView(APIView):
         brand_count = Brand.objects.count()
 
         if brand_count > 0:
-            # Count models and articles per brand using Subquery
-            # (CarSpecification has no FK to Brand — links via text 'make' field)
-            model_count_subquery = (
-                CarSpecification.objects
-                .filter(
-                    make__iexact=OuterRef('name'),
-                    article__is_published=True,
-                    article__is_news_only=False,
-                )
-                .exclude(model='')
-                .exclude(model='Not specified')
-                .values('make')
-                .annotate(cnt=Count('model', distinct=True))
-                .values('cnt')[:1]
-            )
-            article_count_subquery = (
-                CarSpecification.objects
-                .filter(
-                    make__iexact=OuterRef('name'),
-                    article__is_published=True,
-                    article__is_news_only=False,
-                )
-                .values('make')
-                .annotate(cnt=Count('article', distinct=True))
-                .values('cnt')[:1]
-            )
-
             brands = (
                 Brand.objects
                 .filter(is_visible=True)
                 .select_related('parent')
                 .prefetch_related('sub_brands')
-                .annotate(
-                    _model_count=Subquery(model_count_subquery, output_field=IntegerField(), default=Value(0)),
-                    _article_count=Subquery(article_count_subquery, output_field=IntegerField(), default=Value(0)),
-                )
             )
 
-            # Prefetch all first specs for images in ONE query
+            # Load ALL published non-news specs in one query
+            # (used for both counting AND image lookup — no Subquery needed)
             all_specs = (
                 CarSpecification.objects
                 .filter(article__is_published=True, article__is_news_only=False)
@@ -71,14 +41,25 @@ class CarBrandsListView(APIView):
                 .select_related('article')
                 .order_by('make', 'id')
             )
-            spec_by_make = {}
+
+            # Build per-brand counts and first-spec lookup from the loaded specs
+            spec_by_make = {}        # first spec per brand (for image)
+            models_by_make = {}      # set of distinct model names per brand
+            articles_by_make = {}    # set of distinct article IDs per brand
             for spec in all_specs:
                 key = spec.make.lower()
                 if key not in spec_by_make:
                     spec_by_make[key] = spec
+                if spec.model and spec.model != 'Not specified':
+                    models_by_make.setdefault(key, set()).add(spec.model)
+                articles_by_make.setdefault(key, set()).add(spec.article_id)
 
             result = []
             for brand in brands:
+                brand_key = brand.name.lower()
+                model_count = len(models_by_make.get(brand_key, set()))
+                article_count = len(articles_by_make.get(brand_key, set()))
+
                 # Get image from logo or first spec
                 image = None
                 if brand.logo:
@@ -89,7 +70,7 @@ class CarBrandsListView(APIView):
                         image = request.build_absolute_uri(brand.logo.url)
 
                 if not image:
-                    first_spec = spec_by_make.get(brand.name.lower())
+                    first_spec = spec_by_make.get(brand_key)
                     if first_spec:
                         image = get_image_url(first_spec.article, request)
 
@@ -97,8 +78,8 @@ class CarBrandsListView(APIView):
                     'id': brand.id,
                     'name': brand.name,
                     'slug': brand.slug,
-                    'model_count': brand._model_count or 0,
-                    'article_count': brand._article_count or 0,
+                    'model_count': model_count,
+                    'article_count': article_count,
                     'image': image,
                     'country': brand.country,
                     'description': brand.description,
@@ -117,15 +98,10 @@ class CarBrandsListView(APIView):
 
             # Return wrapped response with totals if requested
             if request.query_params.get('include_totals'):
-                total_articles = Article.objects.filter(
-                    is_published=True, is_news_only=False
-                ).count()
-                total_models = (
-                    CarSpecification.objects
-                    .filter(article__is_published=True, article__is_news_only=False)
-                    .exclude(model='').exclude(model='Not specified')
-                    .values('model').distinct().count()
-                )
+                total_articles = len(set(
+                    aid for aids in articles_by_make.values() for aid in aids
+                ))
+                total_models = sum(len(m) for m in models_by_make.values())
                 return Response({
                     'brands': result,
                     'total_articles': total_articles,

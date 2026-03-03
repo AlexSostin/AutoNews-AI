@@ -41,13 +41,17 @@ class Brand(models.Model):
     def get_article_count(self):
         """Count articles for this brand only, case-insensitive."""
         return CarSpecification.objects.filter(
-            make__iexact=self.name, article__is_published=True
+            make__iexact=self.name,
+            article__is_published=True,
+            article__is_news_only=False,
         ).values('article').distinct().count()
 
     def get_model_count(self):
         """Count unique models for this brand only, case-insensitive."""
         return CarSpecification.objects.filter(
-            make__iexact=self.name
+            make__iexact=self.name,
+            article__is_published=True,
+            article__is_news_only=False,
         ).exclude(model='').exclude(model='Not specified').values('model').distinct().count()
 
 class BrandAlias(models.Model):
