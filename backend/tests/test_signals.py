@@ -14,6 +14,29 @@ pytestmark = pytest.mark.django_db(transaction=True)
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.fixture
+def _reenable_thread_signals():
+    """
+    Re-connect thread-spawning signals that the autouse _disable_heavy_signals
+    fixture disconnects globally. Use this in test classes that specifically
+    test the behavior of those signals (e.g. that they call transaction.on_commit).
+    """
+    from django.db.models.signals import post_save, post_delete
+    from news.signals import (
+        auto_index_article_vector,
+        auto_remove_from_vector_index,
+        auto_create_car_specs,
+    )
+    from news.models import Article
+    post_save.connect(auto_index_article_vector, sender=Article)
+    post_delete.connect(auto_remove_from_vector_index, sender=Article)
+    post_save.connect(auto_create_car_specs, sender=Article)
+    yield
+    post_save.disconnect(auto_index_article_vector, sender=Article)
+    post_delete.disconnect(auto_remove_from_vector_index, sender=Article)
+    post_save.disconnect(auto_create_car_specs, sender=Article)
+
+
+@pytest.fixture
 def category(db):
     from news.models import Category
     return Category.objects.create(name='EV News', slug='ev-news')
@@ -154,6 +177,10 @@ class TestNotifyPendingArticle:
 class TestAutoIndexArticleVector:
     """Signal: auto_index_article_vector — indexes published articles for vector search"""
 
+    @pytest.fixture(autouse=True)
+    def setup(self, _reenable_thread_signals):
+        pass
+
     @patch('news.signals.threading.Thread')
     @patch('news.signals.transaction.on_commit')
     def test_indexes_published_article_on_create(self, mock_commit, mock_thread, db):
@@ -200,6 +227,10 @@ class TestAutoIndexArticleVector:
 class TestAutoRemoveFromVectorIndex:
     """Signal: auto_remove_from_vector_index — fires on Article delete"""
 
+    @pytest.fixture(autouse=True)
+    def setup(self, _reenable_thread_signals):
+        pass
+
     @patch('news.signals.threading.Thread')
     @patch('news.signals.transaction.on_commit')
     def test_removes_on_delete(self, mock_commit, mock_thread, article):
@@ -214,6 +245,10 @@ class TestAutoRemoveFromVectorIndex:
 
 class TestAutoCreateCarSpecs:
     """Signal: auto_create_car_specs — fires on Article save to extract specs"""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, _reenable_thread_signals):
+        pass
 
     def test_skips_unpublished(self, unpublished_article):
         from news.models import CarSpecification

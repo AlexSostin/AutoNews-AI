@@ -143,7 +143,7 @@ class TestSearchDDGS:
         from ai_engine.modules.searcher import _search_ddgs
         assert _search_ddgs('test') == []
 
-    @patch('ai_engine.modules.searcher.DDGS')
+    @patch('ai_engine.modules.searcher.DDGS', create=True)
     @patch('ai_engine.modules.searcher.HAS_DDGS', True)
     def test_successful_search(self, mock_ddgs_cls):
         """L148-163: Successful DDGS search."""
@@ -160,7 +160,7 @@ class TestSearchDDGS:
         assert len(results) == 1  # YouTube blocked
         assert results[0]['trusted'] is True
 
-    @patch('ai_engine.modules.searcher.DDGS')
+    @patch('ai_engine.modules.searcher.DDGS', create=True)
     @patch('ai_engine.modules.searcher.HAS_DDGS', True)
     def test_ddgs_exception(self, mock_ddgs_cls):
         """L164-166: DDGS exception → empty list."""
