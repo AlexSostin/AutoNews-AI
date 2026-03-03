@@ -197,34 +197,35 @@ def _reduce_repetition(html: str) -> str:
     # Extract all spec mentions: "1505 km", "530 hp", "82.5 kWh", etc.
     spec_re = re.compile(r'(\d[\d,.]*\s*(?:km|hp|kW|Nm|mm|kWh|mph|kg|seconds?|s)\b)', re.IGNORECASE)
 
-    # Count spec occurrences across ALL content blocks (p, li, h2, h3)
-    all_blocks = re.findall(r'<(?:p|li|h2|h3)>.*?</(?:p|li|h2|h3)>', html, re.DOTALL)
-    if not all_blocks:
+    # Count spec occurrences ONLY in body blocks (p, li) — NOT headings (h2/h3).
+    # Specs in the article title heading are expected to appear in the body too,
+    # so counting h2/h3 would wrongly flag normal spec mentions as "overused".
+    body_blocks = re.findall(r'<(?:p|li)>.*?</(?:p|li)>', html, re.DOTALL)
+    if not body_blocks:
         return html
 
     spec_counts = collections.Counter()
-    for block in all_blocks:
+    for block in body_blocks:
         specs_in_block = set(spec_re.findall(block))  # unique per block
         for spec in specs_in_block:
             spec_counts[spec.strip().lower()] += 1
 
-    # Find specs that appear in 4+ different blocks
-    overused = {spec for spec, count in spec_counts.items() if count >= 4}
+    # Find specs that appear in 5+ different body blocks (raised from 4 to reduce false positives)
+    overused = {spec for spec, count in spec_counts.items() if count >= 5}
     if not overused:
         return html
 
     print(f"  🔁 Repetition detector: overused specs: {overused}")
 
     # Only remove from <p> and <li> blocks (not headings)
-    removable_blocks = re.findall(r'<(?:p|li)>.*?</(?:p|li)>', html, re.DOTALL)
     spec_seen = collections.Counter()
     removed = 0
-    for block in removable_blocks:
+    for block in body_blocks:
         block_specs = {s.strip().lower() for s in spec_re.findall(block)}
         dominated = block_specs & overused
         if dominated:
-            # Check if ALL overused specs in this block have been seen 2+ times already
-            all_seen_enough = all(spec_seen[s] >= 2 for s in dominated)
+            # Check if ALL overused specs in this block have been seen 3+ times already
+            all_seen_enough = all(spec_seen[s] >= 3 for s in dominated)
             for s in dominated:
                 spec_seen[s] += 1
             if all_seen_enough:
