@@ -115,6 +115,23 @@ class CarBrandsListView(APIView):
                 b.sort_order for b in brands if b.name == x['name']
             ) else -1)
 
+            # Return wrapped response with totals if requested
+            if request.query_params.get('include_totals'):
+                total_articles = Article.objects.filter(
+                    is_published=True, is_news_only=False
+                ).count()
+                total_models = (
+                    CarSpecification.objects
+                    .filter(article__is_published=True, article__is_news_only=False)
+                    .exclude(model='').exclude(model='Not specified')
+                    .values('model').distinct().count()
+                )
+                return Response({
+                    'brands': result,
+                    'total_articles': total_articles,
+                    'total_models': total_models,
+                })
+
             return Response(result)
 
         # Fallback: old aggregation (no Brand records yet)

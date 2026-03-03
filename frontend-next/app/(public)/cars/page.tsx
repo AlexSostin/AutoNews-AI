@@ -31,18 +31,24 @@ interface Brand {
     image: string | null;
 }
 
-async function getBrands(): Promise<Brand[]> {
+interface BrandsResponse {
+    brands: Brand[];
+    total_articles: number;
+    total_models: number;
+}
+
+async function getBrands(): Promise<BrandsResponse> {
     try {
-        const res = await fetch(`${getApiUrl()}/cars/brands/`, { next: { revalidate: 30 } });
-        if (!res.ok) return [];
+        const res = await fetch(`${getApiUrl()}/cars/brands/?include_totals=true`, { next: { revalidate: 30 } });
+        if (!res.ok) return { brands: [], total_articles: 0, total_models: 0 };
         return await res.json();
     } catch {
-        return [];
+        return { brands: [], total_articles: 0, total_models: 0 };
     }
 }
 
 export default async function CarsPage() {
-    const brands = await getBrands();
+    const { brands, total_articles, total_models } = await getBrands();
 
     return (
         <main className="flex-1 bg-gradient-to-b from-gray-50 to-white min-h-screen">
@@ -64,9 +70,9 @@ export default async function CarsPage() {
                             {brands.length} Brands
                         </span>
                         <span>•</span>
-                        <span>{brands.reduce((sum, b) => sum + b.model_count, 0)} Models</span>
+                        <span>{total_models || brands.reduce((sum, b) => sum + b.model_count, 0)} Models</span>
                         <span>•</span>
-                        <span>{brands.reduce((sum, b) => sum + b.article_count, 0)} Articles</span>
+                        <span>{total_articles || brands.reduce((sum, b) => sum + b.article_count, 0)} Articles</span>
                     </div>
                 </div>
             </section>

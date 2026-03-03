@@ -181,7 +181,10 @@ class BrandAliasViewSet(viewsets.ModelViewSet):
     def brand_audit(self, request):
         """
         GET /api/v1/brand-aliases/brand-audit/
-        Scan articles for brand data issues.
+        Scan articles for brand data issues:
+        1. unknown_brand — CarSpec.make doesn't match any Brand
+        2. stale_alias — CarSpec.make could be normalized via alias
+        3. no_spec — published article has no CarSpec at all
         """
         from ..models import Brand
 
@@ -189,6 +192,11 @@ class BrandAliasViewSet(viewsets.ModelViewSet):
             Brand.objects.values_list('name', flat=True)
         )
         brand_names_lower = {n.lower() for n in brand_names}
+
+        # Pre-load aliases for stale detection (keyed by alias lowercase)
+        aliases_by_lower = {}
+        for a in BrandAlias.objects.all():
+            aliases_by_lower.setdefault(a.alias.lower(), []).append(a)
 
         issues = []
 
@@ -202,17 +210,42 @@ class BrandAliasViewSet(viewsets.ModelViewSet):
         ).select_related('article')[:500]
 
         for spec in specs:
-            if spec.make.lower() not in brand_names_lower:
+            make_lower = spec.make.lower()
+            if make_lower not in brand_names_lower:
+                suggestion = BrandAlias.resolve(spec.make) if spec.make else None
                 issues.append({
                     'type': 'unknown_brand',
                     'article_id': spec.article_id,
                     'article_title': spec.article.title[:80] if spec.article else '',
                     'current_make': spec.make,
-                    'suggestion': BrandAlias.resolve(spec.make) if spec.make else None,
+                    'suggestion': suggestion,
                 })
+            elif make_lower in aliases_by_lower:
+                # Check if any alias (without model_prefix constraint) applies
+                for alias_obj in aliases_by_lower[make_lower]:
+                    if alias_obj.model_prefix:
+                        # Only flag if model actually starts with the prefix
+                        model_name = spec.model or ''
+                        if model_name.lower().startswith(alias_obj.model_prefix.lower()):
+                            issues.append({
+                                'type': 'stale_alias',
+                                'article_id': spec.article_id,
+                                'article_title': spec.article.title[:80] if spec.article else '',
+                                'current_make': spec.make,
+                                'suggestion': alias_obj.canonical_name,
+                            })
+                            break
+                    elif alias_obj.canonical_name != spec.make:
+                        issues.append({
+                            'type': 'stale_alias',
+                            'article_id': spec.article_id,
+                            'article_title': spec.article.title[:80] if spec.article else '',
+                            'current_make': spec.make,
+                            'suggestion': alias_obj.canonical_name,
+                        })
+                        break
 
         # Find articles with no CarSpec at all
-        from django.db.models import Exists as Ex
         articles_without_spec = Article.objects.filter(
             is_published=True
         ).exclude(
