@@ -56,7 +56,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -139,7 +139,7 @@ if SENTRY_DSN:
 - [x] File upload size limits (5MB)
 - [x] Input validation on all forms
 - [x] Bot protection (User-Agent middleware)
-- [x] CI pipeline with 391+ automated tests
+- [x] CI pipeline with 1880+ automated tests
 - [x] Backend error auto-logging (ErrorCaptureMiddleware)
 - [x] Frontend error tracking (FrontendEventLog)
 - [x] DB schema verification on startup (verify_migrations)
@@ -394,7 +394,7 @@ SECURE_CONTENT_SECURITY_POLICY = {
 
 ## 📝 Version History
 
-- **v4.0** - February 2026 - Added error tracking (BackendErrorLog, FrontendEventLog), ErrorCaptureMiddleware, DB schema verification (verify_migrations), 391+ tests
+- **v4.0** - February 2026 - Added error tracking (BackendErrorLog, FrontendEventLog), ErrorCaptureMiddleware, DB schema verification (verify_migrations), 1880+ tests
 - **v3.0** - February 2026 - Added A/B testing, automation system, CI pipeline, bot protection
 - **v2.0** - January 2026 - Updated for Railway deployment
 - **v1.0** - December 2025 - Initial security implementation

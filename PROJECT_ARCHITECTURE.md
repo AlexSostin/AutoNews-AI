@@ -2,7 +2,7 @@
 
 This document provides a comprehensive overview of the FreshMotors platform architecture, technology stack, and core workflows.
 
-**Last Updated**: 27 February 2026
+**Last Updated**: 3 March 2026
 
 ---
 
@@ -12,14 +12,14 @@ This document provides a comprehensive overview of the FreshMotors platform arch
 
 - **Framework**: Django 6.0.1 / Django REST Framework 3.15
 - **Language**: Python 3.13
-- **Database**: PostgreSQL (Production via Railway), SQLite (Local dev)
+- **Database**: PostgreSQL (Production via Railway, Local via Docker)
 - **Cache / Queue**: Redis (view tracking, caching, Celery broker, sessions)
 - **Task Queue**: Celery (background enrichment, auto-spec extraction, auto-publishing)
 - **AI Providers**: Google Gemini 2.0 Flash (primary), Groq Llama 3.3 70b (fallback)
 - **Media**: Cloudinary (production CDN), local storage (dev)
 - **APIs**: YouTube Data API v3, Google Search Console API, Google OAuth 2.0, Pexels API
 - **Monitoring**: Sentry (error tracking)
-- **Testing**: pytest (391+ tests, 28+ files), Playwright E2E (14 tests), GitHub Actions CI
+- **Testing**: pytest (1880+ tests, 73+ files), Playwright E2E (29 tests), GitHub Actions CI
 
 ### Frontend
 
@@ -65,9 +65,9 @@ AutoNews-AI/
 |-----------------|---------|
 | `auto_news_site/` | Django settings, URL routing, WSGI/ASGI config |
 | `news/models/` | DB schema package: `__init__.py` re-exports all models. Split into: `articles.py`, `categories_tags.py`, `vehicles.py`, `pending_articles.py`, `user_accounts.py`, `system.py` (BackendErrorLog, FrontendEventLog, AdminActionLog, Notification) |
-| `news/api_views/` | 20+ DRF ViewSets split by domain: `articles.py`, `auth.py`, `system.py`, `rss_feeds.py`, `youtube.py`, `vehicles.py`, `images.py`, etc. |
+| `news/api_views/` | 22+ DRF ViewSets split by domain: `articles.py`, `auth.py`, `system.py`, `rss_feeds.py`, `youtube.py`, `vehicles.py`, `images.py`, etc. |
 | `news/api_views/mixins/` | Mixin classes for ArticleViewSet: `ArticleGenerationMixin` (YouTube, RSS, reformat, regenerate), `ArticleEnrichmentMixin` (re-enrich specs), `ArticleEngagementMixin` (comments, ratings, favorites) |
-| `news/api_urls.py` | Router registrations and URL patterns (60+ endpoints) |
+| `news/api_urls.py` | Router registrations and URL patterns (89+ endpoints) |
 | `news/serializers.py` | Data serialization layer (with A/B variant injection for public users) |
 | `news/signals.py` | Auto-notifications, car spec extraction triggers, tag learning signal, human review ML logging |
 | `news/error_capture.py` | ErrorCaptureMiddleware — auto-logs 500 errors to BackendErrorLog |
@@ -94,14 +94,14 @@ AutoNews-AI/
 | `ai_engine/modules/seo_helpers.py` | SEO keyword extraction and meta generation |
 | `ai_engine/modules/youtube_client.py` | YouTube channel monitoring and batch scanning |
 | `news/cache_signals.py` | Auto-invalidation of Redis + @cache_page on model changes |
-| `tests/` | pytest test suite (391+ tests across 28+ test files) |
+| `tests/` | pytest test suite (1880+ tests across 73+ test files) |
 
 ### Frontend Structure (`/frontend-next`)
 
 | Directory / File | Purpose |
 |-----------------|---------|
 | `app/(public)/` | Public pages: articles, categories, brands, profile, login |
-| `app/admin/` | Admin pages: 25+ management screens (incl. health dashboard) |
+| `app/admin/` | Admin pages: 31+ management screens (incl. health dashboard) |
 | `app/admin/automation/` | Automation control panel |
 | `app/admin/ab-testing/` | A/B testing management |
 | `app/admin/ads/` | Ad placement management |
@@ -190,7 +190,7 @@ AutoNews-AI/
 
 ## 🧪 Testing & CI
 
-### Test Suite (391+ tests, 28+ files)
+### Test Suite (1880+ tests, 73+ files)
 
 | File | Tests | What it covers |
 |------|-------|----------------|
@@ -223,9 +223,9 @@ AutoNews-AI/
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
 
-- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (391+ tests)
+- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (1880+ tests)
 - **Frontend**: `npm run lint` + `npx tsc --noEmit` + `npm run build`
-- **E2E**: Playwright → 14 tests against live site (continue-on-error)
+- **E2E**: Playwright → 29 tests against live site (continue-on-error)
 - **Security**: `safety check` for Python dependency vulnerabilities
 - **Trigger**: Push to main, pull requests
 
@@ -233,7 +233,7 @@ AutoNews-AI/
 
 ## 🔒 Security & Authentication
 
-- **JWT Tokens**: Access (1h) + Refresh (7d) via SimpleJWT with rotation
+- **JWT Tokens**: Access (15min) + Refresh (7d) via SimpleJWT with rotation
 - **Google OAuth 2.0**: Social login with automatic account linking
 - **Email Verification**: 6-digit code for email changes
 - **Password Reset**: Token-based with email delivery

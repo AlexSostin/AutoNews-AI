@@ -27,6 +27,7 @@ Security recommendations and best practices for AutoNews backend.
 ## 🔐 Security Configuration
 
 ### Environment Variables
+
 ```env
 # Django
 SECRET_KEY=<64+ character random string>
@@ -49,6 +50,7 @@ ENVIRONMENT=production
 ```
 
 ### Security Headers
+
 ```python
 # settings.py
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -64,11 +66,17 @@ X_FRAME_OPTIONS = 'DENY'
 ```
 
 ### Rate Limiting
+
 ```python
 # Applied to critical endpoints
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
 def generate_from_youtube(self, request):
     ...
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # 15 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
 
 REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
@@ -99,11 +107,13 @@ REST_FRAMEWORK = {
 ## 🔄 Regular Maintenance
 
 ### Monthly
+
 - Review Sentry error logs
 - Check for failed login attempts
 - Update dependencies
 
 ### Quarterly
+
 - Rotate SECRET_KEY
 - Security audit
 - Dependency vulnerability scan

@@ -99,8 +99,8 @@
 
 ### ✅ CI/CD
 
-- **GitHub Actions**: Автоматические pytest тесты (391+ тестов, 28+ файлов) при каждом пуше
-- **E2E тесты**: Playwright (14 тестов: homepage, articles, SEO, performance, mobile)
+- **GitHub Actions**: Автоматические pytest тесты (1880+ тестов, 73+ файлов) при каждом пуше
+- **E2E тесты**: Playwright (29 тестов: homepage, articles, SEO, performance, mobile, admin, auth)
 - **Backend тесты**: PostgreSQL + Redis в CI, pytest с полным покрытием
 - **Frontend checks**: Lint, type checking, build verification
 - **Security**: Проверка уязвимостей Python зависимостей (safety)
@@ -133,7 +133,7 @@
 | **yt-dlp** | Извлечение транскриптов YouTube |
 | **Pexels API** | Поиск стоковых фотографий |
 | **TinyMCE 8** | WYSIWYG HTML-редактор статей (self-hosted) |
-| **pytest** | Тестовый фреймворк (391+ тестов, 28+ файлов) |
+| **pytest** | Тестовый фреймворк (1880+ тестов, 73+ файлов) |
 
 ### Frontend
 
@@ -168,12 +168,12 @@ AutoNews-AI/
 │   ├── auto_news_site/        # Django settings, urls, wsgi
 │   ├── news/                  # Core app
 │   │   ├── models/            # Модели (Article, Brand, RSS, A/B, Ads, ErrorLog...)
-│   │   ├── api_views/         # 30+ DRF ViewSets (разделены по модулям)
+│   │   ├── api_views/         # 22+ DRF ViewSets (разделены по модулям)
 │   │   │   ├── mixins/        # ArticleGenerationMixin, ArticleEnrichmentMixin...
 │   │   │   ├── articles.py    # ArticleViewSet
 │   │   │   ├── system.py      # Health, ErrorLog, Notifications
 │   │   │   └── ...            # auth, rss, youtube, vehicles, etc.
-│   │   ├── api_urls.py        # API routing (60+ endpoints)
+│   │   ├── api_urls.py        # API routing (89+ endpoints)
 │   │   ├── serializers.py     # Data serialization (with AB variant injection)
 │   │   ├── management/commands/ # verify_migrations, reformat_rss_articles
 │   │   └── error_capture.py   # ErrorCaptureMiddleware (auto-logs 500s)
@@ -181,13 +181,13 @@ AutoNews-AI/
 │   │   ├── main.py            # Pipeline orchestrator
 │   │   └── modules/           # transcriber, analyzer, publisher, entity_validator,
 │   │                          # article_generator, deep_specs, auto_publisher, tag_suggester
-│   ├── tests/                 # Pytest test suite (391+ tests, 28+ files)
+│   ├── tests/                 # Pytest test suite (1880+ tests, 73+ files)
 │   └── Dockerfile
 │
 ├── frontend-next/             # Next.js 16 (App Router)
 │   ├── app/
 │   │   ├── (public)/          # Public pages (articles, brands, profile)
-│   │   └── admin/             # Admin dashboard (25+ pages, incl. health)
+│   │   └── admin/             # Admin dashboard (31+ pages, incl. health)
 │   ├── components/            # Reusable components
 │   └── lib/                   # API client, auth, analytics, utils
 │
@@ -373,9 +373,9 @@ DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
 # Database
-DB_NAME=autonews_db
-DB_USER=autonews_user
-DB_PASSWORD=your-password
+POSTGRES_DB=autonews
+POSTGRES_USER=autonews_user
+POSTGRES_PASSWORD=your-password
 
 # AI Providers
 GEMINI_API_KEY=your-gemini-key
