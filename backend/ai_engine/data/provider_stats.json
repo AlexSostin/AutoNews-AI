@@ -701,6 +701,15 @@
       "total_time": 72.3,
       "spec_fields_filled": 5,
       "timestamp": "2026-03-02T19:25:19.752376"
+    },
+    {
+      "provider": "gemini",
+      "make": "Dongfeng",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 67.1,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-03-03T08:04:59.076845"
     }
   ]
 }

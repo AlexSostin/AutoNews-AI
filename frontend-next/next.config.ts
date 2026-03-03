@@ -86,6 +86,7 @@ const nextConfig: NextConfig = {
               "connect-src 'self' https://api.freshmotors.net https://*.up.railway.app wss://*.up.railway.app wss://localhost:8000 ws://localhost:8000 ws://127.0.0.1:8000 http://localhost:8000 http://127.0.0.1:8000 https://*.sentry.io https://cdn.tiny.cloud https://pagead2.googlesyndication.com https://*.google.com https://*.google https://*.gstatic.com https://*.adtrafficquality.google https://*.google-analytics.com https://*.doubleclick.net https://accounts.google.com https://cloudflareinsights.com",
               "media-src 'self' https: http:",
               "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.google.com https://*.google https://accounts.google.com",
+              "worker-src 'self' blob:",
               "object-src 'none'",
               "frame-ancestors 'none'",
               "base-uri 'self'",

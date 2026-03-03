@@ -590,7 +590,7 @@ CORS_ALLOWED_METHODS = [
     'POST',
     'PUT',
 ]
-CORS_ALLOWED_HEADERS = [
+CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
     'authorization',
@@ -600,6 +600,8 @@ CORS_ALLOWED_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'sentry-trace',
+    'baggage',
 ]
 
 # Security Headers
