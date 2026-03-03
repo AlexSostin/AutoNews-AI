@@ -19,7 +19,10 @@ import sentry_sdk
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables
+# .env = base config (Docker hostnames like postgres, redis)
+# .env.local = local overrides (127.0.0.1:5433 etc.) — only exists outside Docker
 load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR / '.env.local', override=True)
 
 # Sentry Configuration
 SENTRY_DSN = os.getenv('SENTRY_DSN', '')
@@ -209,7 +212,7 @@ else:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.getenv('POSTGRES_DB', 'autonews'),
             'USER': os.getenv('POSTGRES_USER', 'autonews_user'),
-            'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', '127.0.0.1'),
             'PORT': os.getenv('DB_PORT', '5433'),
             'CONN_MAX_AGE': 0 if DEBUG else 600,  # Fresh connections in dev, reuse in prod

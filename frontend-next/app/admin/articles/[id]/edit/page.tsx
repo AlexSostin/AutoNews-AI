@@ -107,6 +107,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
     tags: [] as number[],
     published: false,
     is_hero: false,
+    is_news_only: false,
     youtube_url: '',
     author_name: '',
     author_channel_url: '',
@@ -167,6 +168,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         tags: Array.isArray(article.tags) ? article.tags.map((tag: any) => tag.id) : [],
         published: article.is_published ?? false,
         is_hero: article.is_hero ?? false,
+        is_news_only: article.is_news_only ?? false,
         youtube_url: article.youtube_url || '',
         author_name: article.author_name || '',
         author_channel_url: article.author_channel_url || '',
@@ -216,6 +218,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         formData.tags.forEach(id => formDataToSend.append('tag_ids', id.toString()));
         formDataToSend.append('is_published', formData.published.toString());
         formDataToSend.append('is_hero', formData.is_hero.toString());
+        formDataToSend.append('is_news_only', formData.is_news_only.toString());
 
         if (formData.youtube_url) {
           formDataToSend.append('youtube_url', formData.youtube_url);
@@ -261,6 +264,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           tag_ids: formData.tags,
           is_published: formData.published,
           is_hero: formData.is_hero,
+          is_news_only: formData.is_news_only,
           youtube_url: formData.youtube_url,
           author_name: formData.author_name,
           author_channel_url: formData.author_channel_url,
@@ -556,8 +560,10 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           <ArticlePublishSettings
             isPublished={formData.published}
             isHero={formData.is_hero}
+            isNewsOnly={formData.is_news_only}
             onPublishedChange={(v: boolean) => setFormData({ ...formData, published: v })}
             onHeroChange={(v: boolean) => setFormData({ ...formData, is_hero: v })}
+            onNewsOnlyChange={(v: boolean) => setFormData({ ...formData, is_news_only: v })}
           />
 
           {/* 8. Bottom Save Button */}

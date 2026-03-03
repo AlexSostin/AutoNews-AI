@@ -373,6 +373,7 @@ class BrandViewSet(viewsets.ModelViewSet):
                 'model': spec.model,
                 'image': image,
                 'is_published': art.is_published,
+                'is_news_only': art.is_news_only,
                 'created_at': art.created_at.isoformat() if art.created_at else None,
             })
 
@@ -380,6 +381,32 @@ class BrandViewSet(viewsets.ModelViewSet):
             'brand': brand.name,
             'articles': articles,
             'count': len(articles),
+        })
+
+    @action(detail=True, methods=['post'], url_path='toggle-news-only')
+    def toggle_news_only(self, request, pk=None):
+        """
+        Toggle is_news_only on an article.
+
+        POST /api/v1/admin/brands/{id}/toggle-news-only/
+        Body: { "article_id": 123 }
+        """
+        from ..models import Article
+        article_id = request.data.get('article_id')
+        if not article_id:
+            return Response({'error': 'article_id is required'}, status=400)
+        try:
+            article = Article.objects.get(id=article_id)
+        except Article.DoesNotExist:
+            return Response({'error': 'Article not found'}, status=404)
+
+        article.is_news_only = not article.is_news_only
+        article.save(update_fields=['is_news_only'])
+
+        return Response({
+            'success': True,
+            'article_id': article.id,
+            'is_news_only': article.is_news_only,
         })
 
     @action(detail=True, methods=['post'], url_path='move-article')

@@ -9,8 +9,9 @@ description: Essential project setup, architecture, and conventions for AutoNews
 
 - **Backend**: Django 6.0 + DRF 3.15, Python 3.13, Docker container `autonews_backend`
 - **Frontend**: Next.js 16.1 (App Router, TypeScript, Tailwind CSS)
-- **Database**: PostgreSQL (Railway prod / SQLite local dev)
-- **Cache/Queue**: Redis (view tracking, caching, Celery broker, sessions)
+- **Database**: PostgreSQL 17 (Railway prod / Docker local dev on port 5433)
+- **Cache/Queue**: Redis 7 (Railway prod / Docker local dev on port 6379)
+- **Local Config**: `.env` (Docker hostnames) + `.env.local` (localhost overrides) → `settings.py` loads both
 - **Task Queue**: Celery (background enrichment, auto-spec extraction, auto-publishing)
 - **AI Primary**: Google Gemini 2.0 Flash
 - **AI Fallback**: Groq Llama 3.3 70b (NOT OpenAI)

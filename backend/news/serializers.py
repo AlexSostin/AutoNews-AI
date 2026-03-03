@@ -201,7 +201,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
                   'tag_names', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'price_usd', 'average_rating', 'views',
                   'rating_count', 'created_at', 'updated_at', 'is_published', 'is_favorited', 
-                  'is_hero', 'author_name', 'author_channel_url',
+                  'is_hero', 'is_news_only', 'author_name', 'author_channel_url',
                   'show_source', 'show_youtube', 'show_price', 'image_source']
     
     def get_category_names(self, obj):
@@ -340,7 +340,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
                   'tags', 'tag_ids', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'youtube_url', 'price_usd', 'views', 
                   'car_specification', 'vehicle_specs', 'images', 'average_rating', 'rating_count',
-                  'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero',
+                  'created_at', 'updated_at', 'is_published', 'is_favorited', 'is_hero', 'is_news_only',
                   'author_name', 'author_channel_url',
                   'show_source', 'show_youtube', 'show_price', 'image_source']
         read_only_fields = ['views', 'created_at', 'updated_at']

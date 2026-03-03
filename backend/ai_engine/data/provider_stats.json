@@ -710,6 +710,69 @@
       "total_time": 67.1,
       "spec_fields_filled": 6,
       "timestamp": "2026-03-03T08:04:59.076845"
+    },
+    {
+      "provider": "gemini",
+      "make": "Zeekr",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 60.7,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-03T12:07:06.016656"
+    },
+    {
+      "provider": "gemini",
+      "make": "Zeekr",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 64.0,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-03-03T15:11:10.248540"
+    },
+    {
+      "provider": "gemini",
+      "make": "Zeekr",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 69.1,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-03-03T15:11:15.303025"
+    },
+    {
+      "provider": "gemini",
+      "make": "Dongfeng",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 76.2,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-03-03T15:12:26.435713"
+    },
+    {
+      "provider": "gemini",
+      "make": "Voyah",
+      "quality_score": 0,
+      "spec_coverage": 60.0,
+      "total_time": 74.1,
+      "spec_fields_filled": 6,
+      "timestamp": "2026-03-03T15:12:29.392168"
+    },
+    {
+      "provider": "gemini",
+      "make": "Geely",
+      "quality_score": 0,
+      "spec_coverage": 40.0,
+      "total_time": 58.2,
+      "spec_fields_filled": 4,
+      "timestamp": "2026-03-03T15:13:24.663695"
+    },
+    {
+      "provider": "gemini",
+      "make": "Geely",
+      "quality_score": 0,
+      "spec_coverage": 40.0,
+      "total_time": 60.3,
+      "spec_fields_filled": 4,
+      "timestamp": "2026-03-03T15:13:29.735301"
     }
   ]
 }

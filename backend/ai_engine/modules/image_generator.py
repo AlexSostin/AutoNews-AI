@@ -74,33 +74,32 @@ def generate_car_image(image_url: str, car_name: str, style: str = 'scenic_road'
     if custom_prompt and custom_prompt.strip():
         # User provided a custom prompt — use it with photography enhancements
         prompt = (
-            f"{custom_prompt.strip()}"
-            f"\n\nPhotography direction: "
-            f"Shot with a Canon EOS R5, 85mm f/1.4 lens. Professional lighting setup. "
-            f"Shallow depth of field, tack-sharp focus on the main subject. "
+            f"Generate an image exactly matching this request: {custom_prompt.strip()}\n\n"
+            f"Photography direction: "
+            f"Magazine-quality editorial shot. Professional lighting setup. "
             f"Rich, vibrant color grading with cinematic warmth. Ultra-realistic details. "
             f"\n\nCritical requirements: "
-            f"Use the reference image as visual context/inspiration. "
-            f"NO text, watermarks, or logos. "
-            f"Output a single stunning, magazine-quality photograph."
+            f"You may use the reference image ONLY as vague creative inspiration for color/mood, "
+            f"but YOU MUST focus on drawing exactly what is requested in the prompt above. "
+            f"If the prompt asks for a specific car part (like a steering wheel), draw ONLY that part. "
+            f"NO text, watermarks, or logos."
         )
     else:
-        # Default auto-prompt for car photos
+        # Default auto-prompt for automotive photos
         scene_desc = SCENE_STYLES.get(style, SCENE_STYLES['scenic_road'])
         
         prompt = (
-            f"Create a stunning photorealistic automotive photograph of this exact car: {car_name}. "
-            f"\n\nScene: Place the car {scene_desc}. "
+            f"Create a stunning photorealistic automotive photograph based on this subject: '{car_name}'. "
+            f"\n\nScene: Place the subject {scene_desc}. "
             f"\n\nPhotography direction: "
-            f"Shot with a Canon EOS R5, 85mm f/1.4 lens at eye level, three-quarter front angle. "
-            f"Professional 3-point automotive lighting setup. Shallow depth of field with the car "
+            f"Professional 3-point automotive lighting setup. Shallow depth of field with the main subject "
             f"in tack-sharp focus. Rule of thirds composition. "
             f"Rich, vibrant color grading with cinematic warmth. "
-            f"Ultra-realistic reflections on paint and glass surfaces. "
-            f"Visible microdetails: panel gaps, badge lettering, tire tread. "
+            f"Ultra-realistic reflections on surfaces. "
+            f"Visible microdetails. "
             f"\n\nCritical requirements: "
-            f"The car must match the EXACT make, model, body shape, headlights, grille, and color "
-            f"from the reference image. Do NOT change the car's design. "
+            f"Use the reference image to understand the main subject. If the reference image focuses on a car part, draw that part. "
+            f"Do NOT just draw a generic car if the subject is about a specific component. "
             f"NO text, watermarks, logos, or license plates. "
             f"Output a single hero shot, magazine cover quality."
         )

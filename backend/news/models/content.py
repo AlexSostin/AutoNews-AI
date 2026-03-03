@@ -110,6 +110,7 @@ class Article(models.Model):
     is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete - allows recreating articles with same slug")
     views = models.PositiveIntegerField(default=0, help_text="Number of times this article has been viewed", db_index=True)
     is_hero = models.BooleanField(default=False, db_index=True, help_text="Show in Home page Hero section")
+    is_news_only = models.BooleanField(default=False, db_index=True, help_text="General news only. Exclude from specific Car Catalog brand/model pages.")
     
     # Visibility toggles (control what's shown on public article page)
     show_source = models.BooleanField(default=True, help_text="Show source/author credit on public page")

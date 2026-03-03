@@ -142,6 +142,7 @@ urlpatterns = [
     path('admin/brands/<int:pk>/merge/', BrandViewSet.as_view({'post': 'merge'}), name='admin_brands_merge'),
     path('admin/brands/<int:pk>/articles/', BrandViewSet.as_view({'get': 'articles'}), name='admin_brands_articles'),
     path('admin/brands/<int:pk>/move-article/', BrandViewSet.as_view({'post': 'move_article'}), name='admin_brands_move_article'),
+    path('admin/brands/<int:pk>/toggle-news-only/', BrandViewSet.as_view({'post': 'toggle_news_only'}), name='admin_brands_toggle_news_only'),
     
     # Admin user management
     path('admin/users/', AdminUserManagementViewSet.as_view({'get': 'list'}), name='admin_users_list'),

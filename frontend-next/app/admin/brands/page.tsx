@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, X, Merge, Eye, EyeOff, Search, RefreshCw, Globe, ChevronDown, ChevronRight, ArrowRightLeft } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Merge, Eye, EyeOff, Search, RefreshCw, Globe, ChevronDown, ChevronRight, ArrowRightLeft, Newspaper } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
 
@@ -33,6 +33,7 @@ interface BrandArticle {
     model: string;
     image: string | null;
     is_published: boolean;
+    is_news_only: boolean;
     created_at: string | null;
 }
 
@@ -98,6 +99,18 @@ export default function BrandsPage() {
             setBrandArticles([]);
         } finally {
             setLoadingArticles(false);
+        }
+    };
+
+    const handleToggleNewsOnly = async (brandId: number, articleId: number) => {
+        try {
+            const res = await api.post(`/admin/brands/${brandId}/toggle-news-only/`, { article_id: articleId });
+            if (res.data.success) {
+                setBrandArticles(prev => prev.map(a => a.id === articleId ? { ...a, is_news_only: res.data.is_news_only } : a));
+            }
+        } catch (err) {
+            logCaughtError('brand_toggle_news_only', err, { brandId, articleId });
+            setError('❌ Failed to toggle news-only status');
         }
     };
 
@@ -373,6 +386,7 @@ export default function BrandsPage() {
                                         onMoveSelect={(specId, brandId) => setMoveTarget({ specId, brandId })}
                                         onMoveConfirm={(specId, brandId) => handleMoveArticle(specId, brandId)}
                                         onMoveCancel={() => setMoveTarget({ specId: 0, brandId: null })}
+                                        onToggleNewsOnly={(articleId) => handleToggleNewsOnly(brand.id, articleId)}
                                     />
                                 ))}
                                 {subBrands.map(brand => (
@@ -394,6 +408,7 @@ export default function BrandsPage() {
                                         onMoveSelect={(specId, brandId) => setMoveTarget({ specId, brandId })}
                                         onMoveConfirm={(specId, brandId) => handleMoveArticle(specId, brandId)}
                                         onMoveCancel={() => setMoveTarget({ specId: 0, brandId: null })}
+                                        onToggleNewsOnly={(articleId) => handleToggleNewsOnly(brand.id, articleId)}
                                     />
                                 ))}
                             </tbody>
@@ -595,6 +610,7 @@ function BrandRowWithArticles({
     onMoveSelect,
     onMoveConfirm,
     onMoveCancel,
+    onToggleNewsOnly,
 }: {
     brand: Brand;
     allBrands: Brand[];
@@ -612,6 +628,7 @@ function BrandRowWithArticles({
     onMoveSelect: (specId: number, brandId: number) => void;
     onMoveConfirm: (specId: number, brandId: number) => void;
     onMoveCancel: () => void;
+    onToggleNewsOnly: (articleId: number) => void;
 }) {
     return (
         <>
@@ -748,8 +765,22 @@ function BrandRowWithArticles({
                                                 <div className="text-xs text-gray-400">
                                                     {art.make} {art.model && `· ${art.model}`}
                                                     {!art.is_published && <span className="ml-2 text-amber-600">(draft)</span>}
+                                                    {art.is_news_only && <span className="ml-2 text-blue-600">(news only)</span>}
                                                 </div>
                                             </div>
+
+                                            {/* News Only toggle */}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onToggleNewsOnly(art.id); }}
+                                                className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors flex-shrink-0 ${art.is_news_only
+                                                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                                                    }`}
+                                                title={art.is_news_only ? 'Marked as news only — click to include in catalog' : 'Click to mark as news only (exclude from catalog)'}
+                                            >
+                                                <Newspaper size={14} />
+                                                <span className="hidden sm:inline">{art.is_news_only ? 'News' : 'Car'}</span>
+                                            </button>
 
                                             {/* Move button / selector */}
                                             {moveTarget.specId === art.spec_id ? (

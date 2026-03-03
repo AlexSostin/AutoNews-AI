@@ -31,6 +31,7 @@ class CarBrandsListView(APIView):
                 .filter(
                     make__iexact=OuterRef('name'),
                     article__is_published=True,
+                    article__is_news_only=False,
                 )
                 .exclude(model='')
                 .exclude(model='Not specified')
@@ -43,6 +44,7 @@ class CarBrandsListView(APIView):
                 .filter(
                     make__iexact=OuterRef('name'),
                     article__is_published=True,
+                    article__is_news_only=False,
                 )
                 .values('make')
                 .annotate(cnt=Count('article', distinct=True))
@@ -63,7 +65,7 @@ class CarBrandsListView(APIView):
             # Prefetch all first specs for images in ONE query
             all_specs = (
                 CarSpecification.objects
-                .filter(article__is_published=True)
+                .filter(article__is_published=True, article__is_news_only=False)
                 .exclude(make='')
                 .exclude(make='Not specified')
                 .select_related('article')
@@ -133,7 +135,7 @@ class CarBrandsListView(APIView):
 
         all_specs = (
             CarSpecification.objects
-            .filter(article__is_published=True)
+            .filter(article__is_published=True, article__is_news_only=False)
             .exclude(make='')
             .exclude(make='Not specified')
             .select_related('article')
@@ -188,7 +190,7 @@ class CarBrandDetailView(APIView):
 
         models = (
             CarSpecification.objects
-            .filter(make__iexact=brand_name, article__is_published=True)
+            .filter(make__iexact=brand_name, article__is_published=True, article__is_news_only=False)
             .exclude(model='')
             .exclude(model='Not specified')
             .values('model')
@@ -204,7 +206,7 @@ class CarBrandDetailView(APIView):
             model_name = m['model']
             spec = (
                 CarSpecification.objects
-                .filter(make__iexact=brand_name, model=model_name, article__is_published=True)
+                .filter(make__iexact=brand_name, model=model_name, article__is_published=True, article__is_news_only=False)
                 .select_related('article')
                 .first()
             )
@@ -277,7 +279,7 @@ class CarModelDetailView(APIView):
         # Get all specs (trims) for this model
         specs = (
             CarSpecification.objects
-            .filter(make__iexact=brand_name, model=model_name, article__is_published=True)
+            .filter(make__iexact=brand_name, model=model_name, article__is_published=True, article__is_news_only=False)
             .select_related('article')
             .order_by('-article__created_at')
         )

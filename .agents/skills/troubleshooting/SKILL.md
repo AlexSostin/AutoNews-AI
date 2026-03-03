@@ -107,6 +107,139 @@ is used as a fallback.
 
 ---
 
+## Stale Docker-Proxy → Ghost PostgreSQL (CRITICAL, 2026-03-03)
+
+**Time lost**: ~3 hours debugging perfectly correct code.
+
+**Symptom**: Admin panel (`/admin/brands`) showed 18 brands (8 visible), but public `/cars` page showed 13 brands (all visible). Visibility toggle (`is_visible`) appeared not to work. Code was correct — `Brand.objects.filter(is_visible=True)` was there.
+
+**Investigation path** (what DIDN'T help):
+
+1. ❌ Checked Django code — filter was correct
+2. ❌ Checked .env — settings looked fine
+3. ❌ Checked Redis cache — no brands cache
+4. ❌ Restarted Django — still 13 brands
+5. ❌ Touched public_views.py — no change
+
+**What DID help** — checking PostgreSQL version from inside vs outside Docker:
+
+```bash
+# Inside Docker (correct PG 17)
+docker exec autonews_postgres psql -U autonews_user -d autonews -c "SELECT version();"
+# → PostgreSQL 17.8 ✅ (18 brands, 8 visible)
+
+# Outside Docker (wrong PG 15!)
+PGPASSWORD=SecurePass123 psql -h localhost -p 5433 -U autonews_user -d autonews -c "SELECT version();"
+# → PostgreSQL 15.16 ❌ (13 brands, all visible)
+```
+
+**Root cause**: A **stale `docker-proxy` process** (started Feb 28, PIDs 980/990) was still routing `localhost:5433` to an old container IP (`172.18.0.5`, PG 15). The new `autonews_postgres` container (PG 17) had IP `172.18.0.2`, but the old proxy was never cleaned up.
+
+```bash
+# How to detect stale docker-proxy:
+ps aux | grep "docker-proxy.*5433"
+# → root 980 ... /usr/bin/docker-proxy -container-ip 172.18.0.5 -container-port 5432
+# If container IP doesn't match current container → STALE!
+```
+
+**Fix**:
+
+```bash
+sudo kill 980 990           # Kill stale proxies
+docker compose restart postgres  # Creates fresh proxies
+```
+
+**Prevention**: Added `.env.local` system (see next section).
+
+**Lesson**: When Docker data looks inconsistent, **ALWAYS compare `SELECT version()` from inside vs outside**. Different versions = different databases = stale docker-proxy.
+
+---
+
+## Local Dev Environment Setup (2026-03-03)
+
+### Architecture
+
+```
+Docker:     PostgreSQL 17 (port 5433) + Redis (port 6379)
+Local:      Django runserver (port 8000) + Next.js dev (port 3000)
+```
+
+### Config files
+
+| File | Purpose | Used by |
+|---|---|---|
+| `.env` | Base config (Docker hostnames: `postgres`, `redis`) | Docker backend |
+| `.env.local` | Overrides for local dev (`127.0.0.1:5433`) | Local `manage.py` |
+| `settings.py` | Loads both: `.env` then `.env.local` (override=True) | Both |
+
+**How it works**:
+
+- **Inside Docker**: `.env.local` doesn't exist → `DB_HOST=postgres`, `DB_PORT=5432`
+- **Outside Docker (local)**: `.env.local` overrides → `DB_HOST=127.0.0.1`, `DB_PORT=5433`
+- **Production (Railway)**: `DATABASE_URL` env var → `dj_database_url.parse()` (bypasses both files)
+
+### Env var naming
+
+Settings.py expects these exact names:
+
+```python
+'NAME': os.getenv('POSTGRES_DB', 'autonews'),        # NOT DB_NAME
+'USER': os.getenv('POSTGRES_USER', 'autonews_user'),  # NOT DB_USER
+'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),        # NOT DB_PASSWORD
+'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+'PORT': os.getenv('DB_PORT', '5433'),
+```
+
+⚠️ **If you rename env vars, make sure settings.py `os.getenv()` calls match!** Mismatched names are silently ignored (defaults used).
+
+---
+
+## Docker Debugging Playbook
+
+When Docker data looks wrong, run these checks **in order**:
+
+### 1. Version check (is it the same DB?)
+
+```bash
+docker exec autonews_postgres psql -U autonews_user -d autonews -c "SELECT version();"
+PGPASSWORD=SecurePass123 psql -h localhost -p 5433 -U autonews_user -d autonews -c "SELECT version();"
+# Different versions = DIFFERENT databases!
+```
+
+### 2. Stale docker-proxy check
+
+```bash
+ps aux | grep "docker-proxy.*5433"
+docker inspect autonews_postgres --format='{{range .NetworkSettings.Networks}}IP: {{.IPAddress}}{{end}}'
+# Proxy container-ip MUST match inspect IP
+```
+
+### 3. Port binding check
+
+```bash
+ss -tlnp | grep 5433
+# Should show docker-proxy, NOT a bare postgres process
+```
+
+### 4. Data consistency check
+
+```bash
+# Run same query inside and outside — results MUST match
+docker exec autonews_postgres psql -U autonews_user -d autonews -c "SELECT COUNT(*) FROM news_brand;"
+PGPASSWORD=SecurePass123 psql -h localhost -p 5433 -U autonews_user -d autonews -c "SELECT COUNT(*) FROM news_brand;"
+```
+
+### 5. Nuclear fix (if proxies are stale)
+
+```bash
+docker compose down
+docker volume prune -f
+sudo kill $(pgrep -f "docker-proxy.*5433")  # Kill stale proxies
+docker compose up -d postgres redis
+```
+
+---
+
 ## Debugging Checklist (Before Going Down Rabbit Holes)
 
 1. **Check the exact error message** — copy it fully, don't paraphrase
@@ -115,3 +248,5 @@ is used as a fallback.
 4. **Don't over-engineer** — fix the root cause, don't add proxy layers or middleware
 5. **Stash changes and test clean** — `git stash` → run tests → confirms if the issue is from your changes or pre-existing
 6. **Check CI independently** — CI failures may be unrelated to your current work (missing deps, API changes)
+7. **Compare Docker inside vs outside** — different PostgreSQL versions = stale docker-proxy = ghost DB!
+8. **Check env var names match** — `POSTGRES_DB` ≠ `DB_NAME`, silent fallback to defaults

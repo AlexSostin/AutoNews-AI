@@ -41,6 +41,7 @@ export interface Article {
   updated_at: string;
   is_published: boolean;
   is_favorited: boolean;
+  is_news_only: boolean;
   seo_title: string;
   seo_description: string;
   specs: CarSpecification | null;
@@ -151,6 +152,7 @@ export interface ArticleFormData {
   category: number;
   tags: number[];
   is_published: boolean;
+  is_news_only: boolean;
   youtube_url?: string;
   seo_title?: string;
   seo_description?: string;
