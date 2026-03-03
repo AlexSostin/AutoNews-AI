@@ -780,6 +780,8 @@ export default function NewArticlePage() {
             alert('Please save the article first before generating AI images.');
           }}
           generatingAI={generatingAI}
+          restoreYouTubeThumbnail={async () => { alert('Please save the article first.'); }}
+          restoringYT={false}
         />
 
         {/* 5. Publish Settings */}
