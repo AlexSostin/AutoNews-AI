@@ -34,6 +34,7 @@ class CarBrandsListView(APIView):
                 )
                 .exclude(model='')
                 .exclude(model='Not specified')
+                .values('make')
                 .annotate(cnt=Count('model', distinct=True))
                 .values('cnt')[:1]
             )
@@ -43,6 +44,7 @@ class CarBrandsListView(APIView):
                     make__iexact=OuterRef('name'),
                     article__is_published=True,
                 )
+                .values('make')
                 .annotate(cnt=Count('article', distinct=True))
                 .values('cnt')[:1]
             )
