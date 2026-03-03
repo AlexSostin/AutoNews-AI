@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Search, Wand2, Maximize2 } from 'lucide-react';
+import { Loader2, Search, Wand2, Maximize2, Video } from 'lucide-react';
 
 interface ArticleImageManagerProps {
     formData: any;
@@ -11,6 +11,8 @@ interface ArticleImageManagerProps {
     photoSearchLoading: boolean;
     generateAIImage: (slot: number, style: string, mode: 'auto' | 'custom', customPrompt: string) => Promise<void>;
     generatingAI: number | null;
+    restoreYouTubeThumbnail: () => Promise<void>;
+    restoringYT: boolean;
 }
 
 export function ArticleImageManager({
@@ -22,7 +24,9 @@ export function ArticleImageManager({
     openPhotoSearch,
     photoSearchLoading,
     generateAIImage,
-    generatingAI
+    generatingAI,
+    restoreYouTubeThumbnail,
+    restoringYT,
 }: ArticleImageManagerProps) {
     const [aiMode, setAiMode] = React.useState<'auto' | 'custom'>('auto');
     const [aiStyle, setAiStyle] = React.useState('scenic_road');
@@ -157,13 +161,18 @@ export function ArticleImageManager({
                                 <span className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">📤 New Upload</span>
                             </div>
                         )}
-                        <div className="flex gap-1.5 mt-1">
+                        <div className="flex gap-1.5 mt-1 flex-wrap">
                             <button type="button" onClick={() => openPhotoSearch(1)} disabled={photoSearchLoading} className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-all text-sm font-medium disabled:opacity-50 shadow-sm">
                                 <Search className="w-3.5 h-3.5" /> 🔍 Find Photo
                             </button>
                             <button type="button" onClick={() => generateAIImage(1, aiStyle, aiMode, aiCustomPrompt)} disabled={generatingAI !== null || (!formData.current_image && !formData.image)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:from-purple-600 hover:to-indigo-700 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
                                 {generatingAI === 1 ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Wand2 className="w-3.5 h-3.5" /> 🎨 AI Photo</>}
                             </button>
+                            {formData.youtube_url && (
+                                <button type="button" onClick={restoreYouTubeThumbnail} disabled={restoringYT || generatingAI !== null} className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                                    {restoringYT ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Restoring...</> : <><Video className="w-3.5 h-3.5" /> 🎥 YouTube Thumb</>}
+                                </button>
+                            )}
                         </div>
                     </div>
 

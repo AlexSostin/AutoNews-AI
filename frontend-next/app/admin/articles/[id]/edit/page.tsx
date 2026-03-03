@@ -31,6 +31,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
   const [generatingAI, setGeneratingAI] = useState<number | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [restoringYT, setRestoringYT] = useState(false);
   // Find Photo state
   const [photoSearchOpen, setPhotoSearchOpen] = useState(false);
   const [photoSearchSlot, setPhotoSearchSlot] = useState(1);
@@ -95,6 +96,35 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       alert(`❌ Failed to save photo: ${error?.response?.data?.error || error.message}`);
     } finally {
       setSavingPhoto(null);
+    }
+  };
+
+  // Restore YouTube thumbnail for Image 1
+  const restoreYouTubeThumbnail = async () => {
+    if (!articleId || !formData.youtube_url || restoringYT) return;
+    // Extract video ID from various YouTube URL formats
+    const match = formData.youtube_url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+    if (!match) {
+      alert('❌ Could not extract video ID from YouTube URL');
+      return;
+    }
+    const videoId = match[1];
+    const thumbUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+    setRestoringYT(true);
+    try {
+      const response = await api.post(`/articles/${articleId}/save-external-image/`, {
+        image_url: thumbUrl,
+        image_slot: 1,
+      });
+      if (response.data.success) {
+        setFormData((prev: any) => ({ ...prev, current_image: response.data.image_url, delete_image: false, image: null }));
+        setImageSource('youtube');
+        alert('✅ YouTube thumbnail restored!');
+      }
+    } catch (error: any) {
+      alert(`❌ Failed to restore thumbnail: ${error?.response?.data?.error || error.message}`);
+    } finally {
+      setRestoringYT(false);
     }
   };
 
@@ -548,6 +578,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               }
             }}
             generatingAI={generatingAI}
+            restoreYouTubeThumbnail={restoreYouTubeThumbnail}
+            restoringYT={restoringYT}
           />
 
           {/* 6. Gallery */}
