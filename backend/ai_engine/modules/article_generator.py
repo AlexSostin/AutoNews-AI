@@ -306,6 +306,88 @@ def _shorten_car_names(html: str) -> str:
     
     return html
 
+
+def _detect_missing_sections(html: str, word_count: int) -> dict:
+    """
+    Analyze a generated article to detect missing sections and quality issues.
+    Returns a dict with 'missing_sections', 'thin_sections', and a ready-to-use 'retry_prompt'.
+    """
+    # Expected sections in a full article
+    EXPECTED_SECTIONS = {
+        'Performance & Specs': ['performance', 'specs', 'powertrain', 'engine', 'motor'],
+        'Design & Interior': ['design', 'interior', 'styling', 'cabin'],
+        'Technology & Features': ['technology', 'features', 'tech', 'adas', 'infotainment'],
+        'Pricing & Availability': ['pricing', 'price', 'availability', 'cost'],
+        'Pros & Cons': ['pros', 'cons', 'advantages', 'disadvantages'],
+        'FreshMotors Verdict': ['verdict', 'conclusion', 'final'],
+    }
+
+    # Extract all H2 headings from the article
+    h2_texts = [h.lower() for h in re.findall(r'<h2[^>]*>(.*?)</h2>', html, re.IGNORECASE)]
+    h2_combined = ' '.join(h2_texts)
+
+    missing = []
+    for section_name, keywords in EXPECTED_SECTIONS.items():
+        if not any(kw in h2_combined for kw in keywords):
+            missing.append(section_name)
+
+    # Detect thin sections (H2 followed by very little content)
+    thin = []
+    h2_positions = [(m.start(), m.end(), m.group(1)) for m in re.finditer(r'<h2[^>]*>(.*?)</h2>', html, re.IGNORECASE)]
+    for i, (start, end, title) in enumerate(h2_positions):
+        if i == 0:
+            continue  # Skip the title H2 — it's the article headline, not a body section
+        # Skip sections that are naturally short (bullet-point lists, short verdicts)
+        title_lower = title.strip().lower()
+        if any(kw in title_lower for kw in ['pros', 'cons', 'verdict', 'conclusion']):
+            continue
+        # Content between this H2 and the next one (or end of doc)
+        next_start = h2_positions[i + 1][0] if i + 1 < len(h2_positions) else len(html)
+        section_html = html[end:next_start]
+        section_text = re.sub(r'<[^>]+>', ' ', section_html)
+        section_words = len(section_text.split())
+        if section_words < 15:  # Less than ~1 sentence = practically empty
+            thin.append(title.strip())
+
+    # Build a targeted retry prompt
+    retry_parts = []
+
+    if missing:
+        retry_parts.append(
+            f"Your article is MISSING these sections: {', '.join(missing)}. "
+            f"Add detailed, data-driven content for each."
+        )
+
+    if thin:
+        retry_parts.append(
+            f"These sections are TOO THIN (under 40 words): {', '.join(thin)}. "
+            f"Expand them with specific facts, numbers, and real-world context."
+        )
+
+    if word_count < 500 and not missing:
+        retry_parts.append(
+            f"The article is only {word_count} words. "
+            "Deepen your analysis: add competitor comparisons with real data, "
+            "explain what the specs mean for the driver, and include market context."
+        )
+
+    retry_prompt = ""
+    if retry_parts:
+        retry_prompt = (
+            "⚠️ SMART RETRY — Your previous article needs improvement:\n"
+            + "\n".join(f"  • {p}" for p in retry_parts)
+            + "\n\nFix ONLY the issues above. Keep everything else intact. "
+            "Do NOT add filler — only REAL information.\n\n"
+        )
+
+    return {
+        'missing_sections': missing,
+        'thin_sections': thin,
+        'needs_retry': bool(retry_parts),
+        'retry_prompt': retry_prompt,
+    }
+
+
 def enhance_existing_article(existing_html: str, specs: dict = None, provider='gemini'):
     """
     Enhance an existing article by enriching it with web search data.
@@ -655,6 +737,8 @@ Required Structure (OMIT any section where you have NO data):
   ═══ POWERTRAIN SPEC TEMPLATE (MANDATORY for this section) ═══
   For EACH motor/engine in the car, list SEPARATELY:
 
+  ▸ PLATFORM: [e.g. SEA (Geely), e-Platform 3.0 (BYD), MEB (VW), CMA (Volvo/Geely), E-GMP (Hyundai/Kia)] — ONLY if known
+  ▸ VOLTAGE ARCHITECTURE: [400V or 800V] — determines charging speed. 800V = ultra-fast DC charging (10-80% in ~18 min)
   ▸ POWERTRAIN TYPE: [BEV | EREV | PHEV | ICE | Hybrid]
   ▸ MOTOR 1 (traction): [type e.g. permanent magnet] — [HP] / [kW] — [torque Nm] — drives [front/rear/all]
   ▸ MOTOR 2 (if dual-motor): [type] — [HP] / [kW] — [torque Nm] — drives [front/rear]
@@ -738,16 +822,16 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
         article_content = None
         for attempt in range(MAX_RETRIES):
             current_prompt = prompt
-            if attempt > 0:
-                # On retry, add stronger length instructions
-                current_prompt = (
-                    "⚠️ IMPORTANT: Your previous response was TOO SHORT. "
-                    f"You MUST write AT LEAST 800 words (you wrote only ~{word_count} words). "
-                    "Include ALL sections: intro, design, performance, tech, competitors, verdict. "
-                    "DO NOT abbreviate or summarize. Write a COMPLETE, FULL-LENGTH article.\n\n"
-                    + prompt
-                )
-                print(f"🔄 Retry #{attempt}: previous attempt was only {word_count} words, need 800+")
+            if attempt > 0 and article_content:
+                # Smart retry: detect what's missing and ask for targeted improvements
+                analysis = _detect_missing_sections(article_content, word_count)
+                if analysis['needs_retry']:
+                    current_prompt = analysis['retry_prompt'] + prompt
+                    missing_str = ', '.join(analysis['missing_sections']) if analysis['missing_sections'] else 'none'
+                    thin_str = ', '.join(analysis['thin_sections']) if analysis['thin_sections'] else 'none'
+                    print(f"🔄 Smart Retry #{attempt}: {word_count} words | missing: {missing_str} | thin: {thin_str}")
+                else:
+                    break  # Article structure is fine, no point retrying
             
             article_content = ai.generate_completion(
                 prompt=current_prompt,
@@ -765,6 +849,12 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
             print(f"  Attempt {attempt + 1}: {word_count} words, {len(article_content)} chars")
             
             if word_count >= MIN_WORD_COUNT:
+                # Also check structure quality on first attempt
+                if attempt == 0:
+                    analysis = _detect_missing_sections(article_content, word_count)
+                    if analysis['needs_retry'] and (analysis['missing_sections'] or analysis['thin_sections']):
+                        print(f"  📋 Structure check: needs improvement, will retry")
+                        continue  # Force a smart retry even if word count is OK
                 break  # Good enough
         
         if word_count < MIN_WORD_COUNT:
