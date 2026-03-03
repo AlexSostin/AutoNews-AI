@@ -631,8 +631,7 @@ CRITICAL REQUIREMENTS:
    ❌ "It competes with the Tesla Model 3 (250 hp), BMW i4 (335 hp), Hyundai Ioniq 5 (320 hp), Audi e-tron (355 hp)..." (list spam)
 
 5. **Word count**: TARGET 700-1200 words. Aim for 800-1000 words as the sweet spot.
-    MINIMUM REQUIREMENT: 600 words (articles shorter than this will be retried).
-    If source data is thin (spy shots, teaser), a 500-600 word article is acceptable.
+    MINIMUM REQUIREMENT: 700 words (articles shorter than this will be retried).
     If source data is rich (full specs, features, pricing), write a COMPREHENSIVE 1000-1200 word article.
     QUALITY always beats QUANTITY. Every sentence should earn its place.
 
@@ -643,7 +642,7 @@ CRITICAL REQUIREMENTS:
     DO explain real-world implications of specs — what does 1508 km range mean for road trips?
 
 6. **THIN DATA MODE** — If the source only has 3-5 confirmed specs:
-   - Write 400-600 words MAX. Do NOT pad to reach 800.
+   - Write 600-700 words using ONLY what you know. Do NOT pad.
    - Use structure: Introduction → What We Know → Pricing → Verdict.
    - SKIP Performance, Technology, Driving Experience sections entirely.
    - Do NOT write paragraphs explaining what you DON'T know.
@@ -841,7 +840,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
         # Use AI provider factory
         ai = get_ai_provider(provider)
         
-        MIN_WORD_COUNT = 600  # Minimum acceptable article length
+        MIN_WORD_COUNT = 700  # Minimum acceptable article length
         MAX_RETRIES = 2       # Retry if too short
         
         article_content = None
