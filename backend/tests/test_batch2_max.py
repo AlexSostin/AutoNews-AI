@@ -451,7 +451,8 @@ class TestBrandModel:
         from news.models import Brand, Article, CarSpecification
         brand = Brand.objects.create(name='ModelCount', slug='model-count')
         art = Article.objects.create(
-            title='MC', slug='mc-test', content='<p>C</p>'
+            title='MC', slug='mc-test', content='<p>C</p>',
+            is_published=True
         )
         CarSpecification.objects.create(
             article=art, model_name='MC X', make='ModelCount', model='X'
