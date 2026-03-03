@@ -11,6 +11,7 @@ interface InfiniteArticleListProps {
     initialArticles: Article[];
     initialPage?: number;
     pageSize?: number;
+    maxAutoLoad?: number; // After this many articles, switch to manual "Load More" button
     mobileRecommendedSlot?: React.ReactNode;
 }
 
@@ -18,6 +19,7 @@ export default function InfiniteArticleList({
     initialArticles,
     initialPage = 1,
     pageSize = 18,
+    maxAutoLoad = 30,
     mobileRecommendedSlot,
 }: InfiniteArticleListProps) {
     const [articles, setArticles] = useState<Article[]>(initialArticles);
@@ -28,6 +30,9 @@ export default function InfiniteArticleList({
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const loadingRef = useRef(false);
+
+    // Determine if we've exceeded the auto-load threshold
+    const shouldAutoScroll = articles.length < maxAutoLoad;
 
     // Load more articles
     const loadMore = useCallback(async () => {
@@ -66,8 +71,10 @@ export default function InfiniteArticleList({
         }
     }, [page, hasMore, pageSize]);
 
-    // Intersection Observer for infinite scroll
+    // Intersection Observer for infinite scroll (only when under threshold)
     useEffect(() => {
+        if (!shouldAutoScroll) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting && hasMore && !loading) {
@@ -87,7 +94,7 @@ export default function InfiniteArticleList({
                 observer.unobserve(currentTarget);
             }
         };
-    }, [hasMore, loading, loadMore]);
+    }, [hasMore, loading, loadMore, shouldAutoScroll]);
 
     // Insert ads every 6 articles
     const renderArticlesWithAds = () => {
@@ -140,6 +147,24 @@ export default function InfiniteArticleList({
                 </div>
             )}
 
+            {/* Manual Load More Button (after threshold) */}
+            {!shouldAutoScroll && hasMore && !loading && !error && (
+                <div className="text-center py-8">
+                    <button
+                        onClick={loadMore}
+                        className="group relative inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 hover:-translate-y-0.5 active:scale-95"
+                    >
+                        <span>Load More Articles</span>
+                        <svg className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                    </button>
+                    <p className="text-sm text-gray-500 mt-3">
+                        Showing {articles.length} articles
+                    </p>
+                </div>
+            )}
+
             {/* Error State */}
             {error && (
                 <div className="text-center py-8">
@@ -165,8 +190,8 @@ export default function InfiniteArticleList({
                 </div>
             )}
 
-            {/* Intersection Observer Target */}
-            <div ref={observerTarget} className="h-4" />
+            {/* Intersection Observer Target (only active when auto-scrolling) */}
+            {shouldAutoScroll && <div ref={observerTarget} className="h-4" />}
         </div>
     );
 }

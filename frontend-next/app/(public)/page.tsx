@@ -177,9 +177,9 @@ export default async function Home() {
           </section>
         )}
 
-        {/* Browse by Brand Section */}
+        {/* Browse by Brand Section - hidden on mobile, shown on sm+ */}
         {brands.length > 0 && settings?.show_browse_by_brand !== false && (
-          <section className="py-12">
+          <section className="hidden sm:block py-12">
             <div className="container mx-auto px-4">
               <div className="text-center mb-10">
                 <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
@@ -188,6 +188,7 @@ export default async function Home() {
                 <div className="w-20 h-1.5 bg-purple-600 mx-auto rounded-full" />
               </div>
 
+              {/* Desktop: original grid layout */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
                 {brands.map((brand: any) => (
                   <Link
@@ -225,10 +226,6 @@ export default async function Home() {
 
         {/* Latest Articles */}
         <section className="container mx-auto px-4 py-16">
-          {/* Mobile: show Recommended above articles */}
-          <div className="lg:hidden mb-8">
-            <TrendingSection />
-          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-3">

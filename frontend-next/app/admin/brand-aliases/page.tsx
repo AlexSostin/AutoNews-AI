@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
     Plus, Edit, Trash2, X, ArrowRightLeft, AlertCircle,
     Building2, ChevronDown, ChevronRight, Globe, ExternalLink,
-    Shield, Search, Car, Wrench, Check, Loader2
+    Shield, Search, Car, Wrench, Check, Loader2, RefreshCw
 } from 'lucide-react';
 import api from '@/lib/api';
 import Link from 'next/link';
@@ -84,6 +84,13 @@ export default function BrandIntelligencePage() {
     const [auditLoading, setAuditLoading] = useState(true);
     const [fixingIds, setFixingIds] = useState<Set<number>>(new Set());
     const [fixedIds, setFixedIds] = useState<Set<number>>(new Set());
+
+    // Sync & Populate state
+    const [syncing, setSyncing] = useState(false);
+    const [syncResult, setSyncResult] = useState<{
+        message: string;
+        results: { populated: number; updated: number; aliases_created: number; merged: number; synced: number; log: string[] };
+    } | null>(null);
 
     useEffect(() => {
         fetchTree();
@@ -224,6 +231,24 @@ export default function BrandIntelligencePage() {
         }
     };
 
+    const handleSyncPopulate = async () => {
+        if (!confirm('Run Sync & Populate? This will:\n\n• Set up brand ownership hierarchy\n• Fill country, website, descriptions\n• Create missing brand aliases\n• Auto-merge duplicate brands\n\nThis is safe to run multiple times.')) return;
+        setSyncing(true);
+        setSyncResult(null);
+        try {
+            const res = await api.post('/brand-aliases/sync-populate/');
+            setSyncResult(res.data);
+            // Refresh data
+            fetchTree();
+            fetchAudit();
+            fetchAliases();
+        } catch (err: any) {
+            alert(err.response?.data?.detail || 'Sync failed');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     /* ─── Group aliases by canonical ─── */
     const grouped = aliases.reduce((acc, alias) => {
         if (!acc[alias.canonical_name]) acc[alias.canonical_name] = [];
@@ -250,6 +275,53 @@ export default function BrandIntelligencePage() {
                     Ownership hierarchy, brand aliases, and ML-powered data monitoring.
                 </p>
             </div>
+
+            {/* Sync & Populate Button */}
+            <div className="flex items-center gap-3 mb-6">
+                <button
+                    onClick={handleSyncPopulate}
+                    disabled={syncing}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-sm hover:shadow-md hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+                    {syncing ? 'Syncing...' : '🔄 Sync & Populate'}
+                </button>
+                {syncResult && (
+                    <span className="text-sm text-green-600 font-medium">{syncResult.message}</span>
+                )}
+            </div>
+
+            {/* Sync Results Panel */}
+            {syncResult && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-black text-gray-900 text-sm">Sync Results</h3>
+                        <button onClick={() => setSyncResult(null)} className="p-1 text-gray-400 hover:text-gray-600 rounded">
+                            <X size={14} />
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-5 gap-3 mb-4">
+                        {[{ label: 'Created', value: syncResult.results.populated, color: 'text-green-600' },
+                        { label: 'Updated', value: syncResult.results.updated, color: 'text-blue-600' },
+                        { label: 'Aliases', value: syncResult.results.aliases_created, color: 'text-purple-600' },
+                        { label: 'Merged', value: syncResult.results.merged, color: 'text-amber-600' },
+                        { label: 'Synced', value: syncResult.results.synced, color: 'text-cyan-600' },
+                        ].map(s => (
+                            <div key={s.label} className="text-center">
+                                <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
+                                <div className="text-xs text-gray-400">{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
+                    {syncResult.results.log.length > 0 && (
+                        <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
+                            {syncResult.results.log.map((line, i) => (
+                                <p key={i} className="text-xs text-gray-600 font-mono">{line}</p>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Stats Row */}
             {tree && (

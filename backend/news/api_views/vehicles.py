@@ -280,6 +280,104 @@ class BrandAliasViewSet(viewsets.ModelViewSet):
             'new_make': spec.make,
         })
 
+    @action(detail=False, methods=['post'], url_path='sync-populate', permission_classes=[IsAdminUser])
+    def sync_populate(self, request):
+        """
+        POST /api/v1/brand-aliases/sync-populate/
+        One-click: populate brand hierarchy + sync from specs + auto-merge duplicates.
+        """
+        from ..models import Brand
+        from django.utils.text import slugify
+        from django.core.management import call_command
+        from io import StringIO
+
+        results = {'populated': 0, 'updated': 0, 'aliases_created': 0, 'merged': 0, 'synced': 0, 'log': []}
+
+        # ── Step 1: Run populate_brand_data management command ──
+        try:
+            out = StringIO()
+            call_command('populate_brand_data', '--force', stdout=out)
+            output_text = out.getvalue()
+            results['log'].append('✅ Brand data populated')
+            # Count results from output
+            for line in output_text.split('\n'):
+                if 'Created brand' in line:
+                    results['populated'] += 1
+                elif 'Updated' in line:
+                    results['updated'] += 1
+                elif 'Alias:' in line:
+                    results['aliases_created'] += 1
+        except Exception as e:
+            results['log'].append(f'⚠️ Populate failed: {str(e)[:200]}')
+            logger.error(f'sync-populate: populate_brand_data failed: {e}')
+
+        # ── Step 2: Sync brands from CarSpecification ──
+        try:
+            known_brands = set(Brand.objects.values_list('name', flat=True))
+            known_lower = {n.lower(): n for n in known_brands}
+            alias_map = {a.alias.lower(): a.canonical_name for a in BrandAlias.objects.all()}
+
+            spec_makes = (
+                CarSpecification.objects
+                .exclude(make='')
+                .exclude(make='Not specified')
+                .values_list('make', flat=True)
+                .distinct()
+            )
+            for make in spec_makes:
+                # Resolve through aliases first
+                resolved = alias_map.get(make.lower(), make)
+                if resolved.lower() not in known_lower:
+                    Brand.objects.get_or_create(
+                        name=resolved,
+                        defaults={'slug': slugify(resolved), 'is_visible': True},
+                    )
+                    results['synced'] += 1
+                    results['log'].append(f'+ Brand from specs: {resolved}')
+        except Exception as e:
+            results['log'].append(f'⚠️ Sync failed: {str(e)[:200]}')
+            logger.error(f'sync-populate: sync failed: {e}')
+
+        # ── Step 3: Auto-merge obvious duplicates ──
+        KNOWN_MERGES = [
+            ('HUAWEI AVATR', 'Avatr'),
+            ('Huawei Avatr', 'Avatr'),
+            ('Zeekr (Geely)', 'ZEEKR'),
+            ('ZEEKR (Geely)', 'ZEEKR'),
+            ('Geely ZEEKR', 'ZEEKR'),
+            ('DongFeng VOYAH', 'VOYAH'),
+            ('Dongfeng VOYAH', 'VOYAH'),
+            ('Great Wall Motors', 'GWM'),
+            ('Great Wall', 'GWM'),
+        ]
+        for source_name, target_name in KNOWN_MERGES:
+            try:
+                source = Brand.objects.filter(name__iexact=source_name).first()
+                target = Brand.objects.filter(name__iexact=target_name).first()
+                if source and target and source.id != target.id:
+                    # Move CarSpecs from source to target
+                    moved = CarSpecification.objects.filter(make__iexact=source.name).update(make=target.name)
+                    # Create alias if not exists
+                    BrandAlias.objects.get_or_create(
+                        alias=source.name,
+                        defaults={'canonical_name': target.name},
+                    )
+                    # Re-parent sub-brands
+                    source.sub_brands.update(parent=target)
+                    # Delete source brand
+                    source.delete()
+                    results['merged'] += 1
+                    results['log'].append(f'🔀 Merged: {source_name} → {target_name} ({moved} specs moved)')
+            except Exception as e:
+                results['log'].append(f'⚠️ Merge {source_name}→{target_name} failed: {str(e)[:100]}')
+
+        total_actions = results['populated'] + results['updated'] + results['aliases_created'] + results['merged'] + results['synced']
+        return Response({
+            'success': True,
+            'message': f'Sync complete: {total_actions} actions performed',
+            'results': results,
+        })
+
 class VehicleSpecsViewSet(viewsets.ModelViewSet):
     """Admin ViewSet for managing detailed vehicle specifications (multi-trim)."""
     queryset = VehicleSpecs.objects.select_related('article').all()
