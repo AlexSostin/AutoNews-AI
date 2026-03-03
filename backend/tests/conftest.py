@@ -69,3 +69,49 @@ def authenticated_client(api_client, django_user_model):
     
     api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
     return api_client
+
+
+@pytest.fixture(autouse=True)
+def _disable_heavy_signals():
+    """
+    Disconnect background-thread signals during tests to prevent teardown deadlocks.
+    
+    Several post_save signals on Article spawn daemon threads via transaction.on_commit()
+    for vector indexing, spec extraction, tag learning, etc. During test teardown, these
+    threads may still be running DB queries while Django tries to TRUNCATE tables → deadlock.
+    """
+    from django.db.models.signals import post_save, post_delete
+
+    from news.signals import (
+        auto_index_article_vector,
+        auto_remove_from_vector_index,
+        rebuild_content_recommender,
+        auto_create_car_specs,
+        learn_tag_choices,
+        log_human_review_decision,
+        sync_vehicle_specs_to_car_spec,
+        sync_car_spec_tags,
+    )
+    from news.models import Article, VehicleSpecs, CarSpecification
+
+    # Disconnect heavy signals
+    post_save.disconnect(auto_index_article_vector, sender=Article)
+    post_delete.disconnect(auto_remove_from_vector_index, sender=Article)
+    post_save.disconnect(rebuild_content_recommender, sender=Article)
+    post_save.disconnect(auto_create_car_specs, sender=Article)
+    post_save.disconnect(learn_tag_choices, sender=Article)
+    post_save.disconnect(log_human_review_decision, sender=Article)
+    post_save.disconnect(sync_vehicle_specs_to_car_spec, sender=VehicleSpecs)
+    post_save.disconnect(sync_car_spec_tags, sender=CarSpecification)
+
+    yield
+
+    # Reconnect after test
+    post_save.connect(auto_index_article_vector, sender=Article)
+    post_delete.connect(auto_remove_from_vector_index, sender=Article)
+    post_save.connect(rebuild_content_recommender, sender=Article)
+    post_save.connect(auto_create_car_specs, sender=Article)
+    post_save.connect(learn_tag_choices, sender=Article)
+    post_save.connect(log_human_review_decision, sender=Article)
+    post_save.connect(sync_vehicle_specs_to_car_spec, sender=VehicleSpecs)
+    post_save.connect(sync_car_spec_tags, sender=CarSpecification)
