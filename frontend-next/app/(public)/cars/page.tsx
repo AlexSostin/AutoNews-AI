@@ -38,12 +38,22 @@ interface BrandsResponse {
 }
 
 async function getBrands(): Promise<BrandsResponse> {
+    const fallback: BrandsResponse = { brands: [], total_articles: 0, total_models: 0 };
     try {
         const res = await fetch(`${getApiUrl()}/cars/brands/?include_totals=true`, { next: { revalidate: 30 } });
-        if (!res.ok) return { brands: [], total_articles: 0, total_models: 0 };
-        return await res.json();
+        if (!res.ok) return fallback;
+        const data = await res.json();
+        // Handle both array (old API) and object (new API with include_totals)
+        if (Array.isArray(data)) {
+            return { brands: data, total_articles: 0, total_models: 0 };
+        }
+        return {
+            brands: Array.isArray(data?.brands) ? data.brands : [],
+            total_articles: data?.total_articles ?? 0,
+            total_models: data?.total_models ?? 0,
+        };
     } catch {
-        return { brands: [], total_articles: 0, total_models: 0 };
+        return fallback;
     }
 }
 
