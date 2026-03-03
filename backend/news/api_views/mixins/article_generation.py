@@ -867,7 +867,25 @@ Return JSON:
                         pass
             
             article.save()
-            
+
+            # Log competitor pairs for ML learning (if full regeneration included competitor data)
+            try:
+                gen_meta = result.get('generation_metadata') or {}
+                comp_data = gen_meta.get('competitor_data', [])
+                comp_subject_make = (result.get('specs') or {}).get('make', '')
+                comp_subject_model = (result.get('specs') or {}).get('model', '')
+                if comp_data and comp_subject_make and comp_subject_model:
+                    from ai_engine.modules.competitor_lookup import log_competitor_pairs
+                    log_competitor_pairs(
+                        article_id=article.id,
+                        subject_make=comp_subject_make,
+                        subject_model=comp_subject_model,
+                        competitors=comp_data,
+                        selection_method='rule_based',
+                    )
+            except Exception as _cle:
+                logger.warning(f"Competitor pair logging failed (non-fatal): {_cle}")
+
             # Update tags
             if result.get('tag_names'):
                 new_tags = []

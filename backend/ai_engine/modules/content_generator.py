@@ -282,8 +282,59 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         send_progress(5, 65, f"✍️ Generating article with {provider_name}...")
         print(f"✍️  Generating article...")
         
-        # Pass web context to generator
-        article_html = generate_article(analysis, provider=provider, web_context=web_context, source_title=video_title)
+        # 2.95 COMPETITOR LOOKUP — enrich prompt with real cars from our DB
+        competitor_context = ""
+        competitor_data = []
+        try:
+            from ai_engine.modules.competitor_lookup import get_competitor_context
+            _make = specs.get('make', '')
+            _model = specs.get('model', '')
+            # Infer fuel_type from specs (EV/PHEV/Gas/Hybrid)
+            _fuel_raw = specs.get('powertrain_type') or specs.get('fuel_type') or ''
+            _fuel_map = {
+                'ev': 'EV', 'electric': 'EV', 'bev': 'EV',
+                'phev': 'PHEV', 'plug-in': 'PHEV',
+                'hybrid': 'Hybrid', 'erev': 'Hybrid',
+                'gas': 'Gas', 'petrol': 'Gas', 'ice': 'Gas',
+                'diesel': 'Diesel', 'hydrogen': 'Hydrogen',
+            }
+            _fuel_type = _fuel_map.get(_fuel_raw.lower().strip(), '')
+            _body_type = specs.get('body_type', '')
+            # Try to parse power_hp from specs string
+            _power_hp = None
+            _price_usd = None
+            try:
+                import re as _re2
+                hp_match = _re2.search(r'(\d+)\s*(?:hp|HP|bhp)', specs.get('horsepower', ''))
+                if hp_match:
+                    _power_hp = int(hp_match.group(1))
+                _price_usd = int(specs.get('price_usd', 0) or 0) or None
+            except Exception:
+                pass
+            if _make and _model:
+                send_progress(4, 64, "🏆 Finding similar cars for comparison...")
+                competitor_context, competitor_data = get_competitor_context(
+                    make=_make,
+                    model_name=_model,
+                    fuel_type=_fuel_type,
+                    body_type=_body_type,
+                    power_hp=_power_hp,
+                    price_usd=_price_usd,
+                )
+                if competitor_context:
+                    print(f"✓ Competitor context: {len(competitor_data)} cars found for comparison")
+                else:
+                    print("ℹ️ No competitor context — no matching cars in DB yet")
+        except Exception as _ce:
+            print(f"⚠️ Competitor lookup failed (non-fatal): {_ce}")
+
+        # Pass web context + competitor context to generator
+        article_html = generate_article(
+            analysis, provider=provider,
+            web_context=web_context,
+            source_title=video_title,
+            competitor_context=competitor_context or None,
+        )
         
         if not article_html or len(article_html) < 100:
             send_progress(5, 100, "❌ Article generation failed")
@@ -467,6 +518,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             'timestamp': datetime.utcnow().isoformat(),
             'timings': _timings,
             'ai_editor': ai_editor_diff,
+            'competitor_data': competitor_data,  # for ML logging after article save
         }
         print(f"📊 Generation timing: {_timings}")
         

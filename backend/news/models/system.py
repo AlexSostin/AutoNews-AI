@@ -1274,3 +1274,86 @@ class BackendErrorLog(models.Model):
         status = "✅" if self.resolved else "🚨"
         return f"{status} [{self.get_source_display()}] {self.error_class}: {self.message[:60]}"
 
+
+class CompetitorPairLog(models.Model):
+    """
+    ML learning log for competitor comparisons used in article generation.
+
+    Every time AI generates an article with a "How It Compares" section,
+    we record which competitor cars were shown alongside the subject car.
+
+    A nightly job (`score_competitor_pairs` management command) fills in
+    `engagement_score_at_log` from the linked article's engagement_score.
+
+    Over time, `get_competitor_context()` in competitor_lookup.py uses
+    average engagement scores to rank competitor candidates — pairs that
+    historically produced high-engagement articles float to the top.
+    """
+
+    # The article that was generated
+    article = models.ForeignKey(
+        'news.Article', on_delete=models.CASCADE,
+        related_name='competitor_pair_logs',
+        help_text="Article that included these competitor comparisons"
+    )
+
+    # Subject car (the car the article is ABOUT)
+    subject_make = models.CharField(max_length=100, db_index=True)
+    subject_model = models.CharField(max_length=100, db_index=True)
+
+    # Competitor car (one record per competitor per article)
+    competitor_make = models.CharField(max_length=100, db_index=True)
+    competitor_model = models.CharField(max_length=100, db_index=True)
+    competitor_trim = models.CharField(max_length=100, blank=True, default='')
+
+    # Specs snapshot at time of generation (for debugging / drift detection)
+    competitor_power_hp = models.IntegerField(null=True, blank=True)
+    competitor_range_km = models.IntegerField(null=True, blank=True)
+    competitor_price_usd = models.IntegerField(null=True, blank=True)
+
+    # ML feedback signal: filled in by `score_competitor_pairs` command
+    # after the article has been live for 48+ hours
+    engagement_score_at_log = models.FloatField(
+        null=True, blank=True,
+        help_text="article.engagement_score captured 48h+ after publication"
+    )
+    engagement_scored_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When engagement_score_at_log was last updated"
+    )
+
+    # Scoring metadata
+    match_score = models.FloatField(
+        default=0.0,
+        help_text="How well this competitor matched at selection time (0-1)"
+    )
+    selection_method = models.CharField(
+        max_length=20, default='rule_based',
+        choices=[
+            ('rule_based', 'Rule-Based (fuel+body+price)'),
+            ('ml_ranked', 'ML-Ranked (engagement history)'),
+        ],
+        help_text="How this competitor was selected"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Competitor Pair Log'
+        verbose_name_plural = 'Competitor Pair Logs'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['subject_make', 'subject_model']),
+            models.Index(fields=['competitor_make', 'competitor_model']),
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['engagement_score_at_log']),
+        ]
+
+    def __str__(self):
+        score_str = f" | eng={self.engagement_score_at_log:.1f}" if self.engagement_score_at_log is not None else ""
+        return (
+            f"{self.subject_make} {self.subject_model} vs "
+            f"{self.competitor_make} {self.competitor_model}"
+            f"{score_str}"
+        )
+

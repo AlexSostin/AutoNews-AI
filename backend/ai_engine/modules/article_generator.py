@@ -308,10 +308,13 @@ def _shorten_car_names(html: str) -> str:
     return html
 
 
-def _detect_missing_sections(html: str, word_count: int) -> dict:
+def _detect_missing_sections(html: str, word_count: int, has_competitors: bool = False) -> dict:
     """
     Analyze a generated article to detect missing sections and quality issues.
     Returns a dict with 'missing_sections', 'thin_sections', and a ready-to-use 'retry_prompt'.
+
+    Args:
+        has_competitors: If True, adds 'How It Compares' to expected sections.
     """
     # Expected sections in a full article
     EXPECTED_SECTIONS = {
@@ -322,6 +325,9 @@ def _detect_missing_sections(html: str, word_count: int) -> dict:
         'Pros & Cons': ['pros', 'cons', 'advantages', 'disadvantages'],
         'FreshMotors Verdict': ['verdict', 'conclusion', 'final'],
     }
+
+    if has_competitors:
+        EXPECTED_SECTIONS['How It Compares'] = ['compares', 'comparison', 'competition', 'competitor', 'versus', 'vs.', 'rivals']
 
     # Extract all H2 headings from the article
     h2_texts = [h.lower() for h in re.findall(r'<h2[^>]*>(.*?)</h2>', html, re.IGNORECASE)]
@@ -347,7 +353,7 @@ def _detect_missing_sections(html: str, word_count: int) -> dict:
         section_html = html[end:next_start]
         section_text = re.sub(r'<[^>]+>', ' ', section_html)
         section_words = len(section_text.split())
-        if section_words < 15:  # Less than ~1 sentence = practically empty
+        if section_words < 40:  # Less than ~2 sentences = practically empty
             thin.append(title.strip())
 
     # Build a targeted retry prompt
@@ -506,7 +512,7 @@ OUTPUT the complete enhanced article as HTML."""
         return None
 
 
-def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None):
+def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None, competitor_context=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
     
@@ -515,16 +521,29 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
         provider: 'groq' (default) or 'gemini'
         web_context: Optional string containing web search results
         source_title: Original title from RSS/YouTube source (for entity grounding)
+        competitor_context: Optional pre-formatted competitor block from competitor_lookup.py
     
     Returns:
         HTML article content
     """
     provider_display = "Groq" if provider == 'groq' else "Google Gemini"
     print(f"Generating article with {provider_display}...")
+
+    has_competitors = bool(competitor_context)
     
     web_data_section = ""
     if web_context:
         web_data_section = f"\nCRITICAL WEB DATA — USE THIS IN YOUR ARTICLE (sales figures, real specs, market reception, test results):\n{web_context}\n"
+
+    competitor_section = ""
+    if has_competitors:
+        competitor_section = (
+            f"\n{'='*47}\n"
+            f"COMPETITOR REFERENCE (from our database):\n"
+            f"{competitor_context}\n"
+            f"REQUIRED: Include a <h2>How It Compares</h2> section that uses these exact figures.\n"
+            f"{'='*47}\n"
+        )
     
     # Build entity anchor from source title (Layer 1: anti-hallucination)
     entity_anchor = ""
@@ -553,6 +572,7 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     prompt = f"""
 {entity_anchor}
 {web_data_section}
+{competitor_section}
 TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
 
 Create a professional, SEO-optimized automotive article based on the analysis below.
@@ -611,9 +631,13 @@ CRITICAL REQUIREMENTS:
    ❌ "It competes with the Tesla Model 3 (250 hp), BMW i4 (335 hp), Hyundai Ioniq 5 (320 hp), Audi e-tron (355 hp)..." (list spam)
 
 5. **Word count**: TARGET 700-1200 words. Aim for 800-1000 words as the sweet spot.
+    MINIMUM REQUIREMENT: 600 words (articles shorter than this will be retried).
     If source data is thin (spy shots, teaser), a 500-600 word article is acceptable.
     If source data is rich (full specs, features, pricing), write a COMPREHENSIVE 1000-1200 word article.
     QUALITY always beats QUANTITY. Every sentence should earn its place.
+
+    **STRUCTURE REQUIREMENT**: Your article MUST contain between 3 and 7 <h2> section headings
+    (not counting the title). Use this range consistently — never fewer than 3, never more than 7.
     Do NOT pad with long feature lists or exhaustive option packages.
     DO include deep technical explanations — what does the powertrain architecture mean for the driver?
     DO explain real-world implications of specs — what does 1508 km range mean for road trips?
@@ -817,7 +841,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
         # Use AI provider factory
         ai = get_ai_provider(provider)
         
-        MIN_WORD_COUNT = 300  # Minimum acceptable article length (lowered to allow shorter accurate articles)
+        MIN_WORD_COUNT = 600  # Minimum acceptable article length
         MAX_RETRIES = 2       # Retry if too short
         
         article_content = None
@@ -825,7 +849,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
             current_prompt = prompt
             if attempt > 0 and article_content:
                 # Smart retry: detect what's missing and ask for targeted improvements
-                analysis = _detect_missing_sections(article_content, word_count)
+                analysis = _detect_missing_sections(article_content, word_count, has_competitors=has_competitors)
                 if analysis['needs_retry']:
                     current_prompt = analysis['retry_prompt'] + prompt
                     missing_str = ', '.join(analysis['missing_sections']) if analysis['missing_sections'] else 'none'
@@ -852,7 +876,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
             if word_count >= MIN_WORD_COUNT:
                 # Also check structure quality on first attempt
                 if attempt == 0:
-                    analysis = _detect_missing_sections(article_content, word_count)
+                    analysis = _detect_missing_sections(article_content, word_count, has_competitors=has_competitors)
                     if analysis['needs_retry'] and (analysis['missing_sections'] or analysis['thin_sections']):
                         print(f"  📋 Structure check: needs improvement, will retry")
                         continue  # Force a smart retry even if word count is OK
