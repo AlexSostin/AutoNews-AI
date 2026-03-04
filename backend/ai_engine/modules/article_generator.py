@@ -546,6 +546,12 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
             f"REQUIRED: Include a <h2>How It Compares</h2> section that uses these exact figures.\n"
             f"{'='*47}\n"
         )
+    else:
+        competitor_section = (
+            "\n⚠️ NO competitor data available from our database for this car.\n"
+            "Do NOT include a 'How It Compares' section. Do NOT fabricate competitor comparisons.\n"
+            "Instead, add more depth to the Driving Experience and Technology sections.\n"
+        )
     
     # Build entity anchor from source title (Layer 1: anti-hallucination)
     entity_anchor = ""
