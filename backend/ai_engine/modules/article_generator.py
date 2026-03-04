@@ -371,11 +371,13 @@ def _detect_missing_sections(html: str, word_count: int, has_competitors: bool =
             f"Expand them with specific facts, numbers, and real-world context."
         )
 
-    if word_count < 500 and not missing:
+    if word_count < 1000 and not missing:
         retry_parts.append(
-            f"The article is only {word_count} words. "
-            "Deepen your analysis: add competitor comparisons with real data, "
-            "explain what the specs mean for the driver, and include market context."
+            f"The article is only {word_count} words — MINIMUM is 1000 words. "
+            "Write LONGER, more detailed sections. Deepen your analysis: add competitor comparisons with real data, "
+            "explain what the specs mean for the driver, include real-world driving context, "
+            "and expand the Pricing & Availability section with regional details. "
+            "Also ensure FreshMotors Verdict has 2-3 meaningful sentences."
         )
 
     retry_prompt = ""
@@ -841,7 +843,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
         ai = get_ai_provider(provider)
         
         MIN_WORD_COUNT = 1000  # Minimum acceptable article length
-        MAX_RETRIES = 2       # Retry if too short
+        MAX_RETRIES = 3       # Retry if too short or missing structure
         
         article_content = None
         for attempt in range(MAX_RETRIES):
