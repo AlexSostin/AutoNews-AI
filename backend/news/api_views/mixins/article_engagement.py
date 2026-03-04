@@ -562,7 +562,7 @@ class ArticleEngagementMixin:
         Accepts ?exclude=slug1&exclude=slug2 to avoid repeats across sessions.
         """
         from news.models import Article, CarSpecification
-        from news.serializers import ArticleListSerializer
+        from news.serializers import ArticleDetailSerializer as _ArticleSerializer
 
         article = self.get_object()
         exclude_slugs = set(request.GET.getlist('exclude', []))
@@ -577,7 +577,7 @@ class ArticleEngagementMixin:
             """Return serialized first result or None."""
             a = qs.first()
             if a:
-                s = ArticleListSerializer(a, context={'request': request})
+                s = _ArticleSerializer(a, context={'request': request})
                 return s.data
             return None
 
@@ -614,7 +614,7 @@ class ArticleEngagementMixin:
                     aid = s['id']
                     candidate = base_qs.filter(id=aid).first()
                     if candidate:
-                        serializer = ArticleListSerializer(candidate, context={'request': request})
+                        serializer = _ArticleSerializer(candidate, context={'request': request})
                         logger.info(f"[next_article] Priority 3 (ML) for {slug}")
                         return Response({'article': serializer.data, 'source': 'ml_similar'})
         except Exception as e:

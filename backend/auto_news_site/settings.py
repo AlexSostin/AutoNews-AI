@@ -22,7 +22,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # .env = base config (Docker hostnames like postgres, redis)
 # .env.local = local overrides (127.0.0.1:5433 etc.) — only exists outside Docker
 load_dotenv(BASE_DIR / '.env')
-load_dotenv(BASE_DIR / '.env.local', override=True)
+if not os.getenv('RUNNING_IN_DOCKER'):
+    load_dotenv(BASE_DIR / '.env.local', override=True)
 
 # Sentry Configuration
 SENTRY_DSN = os.getenv('SENTRY_DSN', '')

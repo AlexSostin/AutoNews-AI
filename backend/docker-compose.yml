@@ -42,6 +42,7 @@ services:
       - "8000:8000"
     environment:
       - DEBUG=True
+      - RUNNING_IN_DOCKER=1
       - DB_HOST=postgres
       - DB_PORT=5432
       - POSTGRES_DB=autonews
