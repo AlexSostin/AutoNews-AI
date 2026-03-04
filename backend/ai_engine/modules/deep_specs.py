@@ -359,9 +359,16 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         else:
             existing = None
         
-        if existing and existing.power_hp and existing.length_mm:
+        # Coverage check: count filled key fields (10 key indicators)
+        KEY_INDICATORS = [
+            'power_hp', 'torque_nm', 'acceleration_0_100', 'top_speed_kmh',
+            'battery_kwh', 'range_km', 'length_mm', 'width_mm', 'weight_kg', 'price_from',
+        ]
+        if existing:
+            filled_count = sum(1 for f in KEY_INDICATORS if getattr(existing, f, None) is not None)
+            coverage_pct = filled_count / len(KEY_INDICATORS)
+            
             # Check for suspicious PHEV ranges before skipping
-            # Small battery (<50kWh) with huge range (>500km) = likely combined range, not electric
             needs_range_fix = False
             if existing.battery_kwh and existing.battery_kwh < 50:
                 fix_fields = []
@@ -375,19 +382,18 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
                     needs_range_fix = True
                     print(f"⚠️ PHEV suspicious range for {make} {model_name}: "
                           f"battery={existing.battery_kwh}kWh but {', '.join(f'{f}={getattr(existing, f)}' for f in fix_fields)}")
-                    # Clear suspicious values so re-enrichment fills correct ones
                     for f in fix_fields:
                         setattr(existing, f, None)
                     existing.save(update_fields=fix_fields)
                     print(f"   🧹 Cleared {', '.join(fix_fields)} — will re-enrich with corrected prompt")
             
-            if not needs_range_fix:
-                # Already has good data — skip
-                if existing.article_id != article.id:
-                    print(f"📋 VehicleSpecs already populated for {make} {model_name} (linked to article #{existing.article_id})")
-                else:
-                    print(f"📋 VehicleSpecs already populated for {make} {model_name}")
+            if not needs_range_fix and coverage_pct >= 0.7:
+                # Good enough coverage (≥7/10 key fields) — skip re-enrichment
+                print(f"📋 VehicleSpecs already well-populated for {make} {model_name} "
+                      f"({filled_count}/{len(KEY_INDICATORS)} key fields = {coverage_pct:.0%})")
                 return existing
+            elif not needs_range_fix:
+                print(f"⚠️ VehicleSpecs partially filled ({filled_count}/{len(KEY_INDICATORS)} key fields = {coverage_pct:.0%}) — will re-enrich to fill gaps")
         
         # Build prompt and call AI
         prompt = _build_prompt(make, model_name, trim, year, specs, web_context)

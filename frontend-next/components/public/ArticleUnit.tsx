@@ -192,11 +192,7 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                     <p className="text-base sm:text-lg text-gray-600 mt-3 max-w-3xl">{article.summary}</p>
                 )}
 
-                {article.price_usd && article.show_price !== false && (
-                    <div className="mt-4">
-                        <PriceConverter priceUsd={article.price_usd} />
-                    </div>
-                )}
+
             </div>
 
             {/* Content */}
