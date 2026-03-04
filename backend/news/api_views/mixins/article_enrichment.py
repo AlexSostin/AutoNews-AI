@@ -58,6 +58,67 @@ class ArticleEnrichmentMixin:
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+            url_path='auto-resolve-fact-check')
+    def auto_resolve_fact_check(self, request, slug=None):
+        """
+        Auto-fix fact-check warning blocks in a published article.
+        Re-fetches web context, then uses LLM to correct/remove unverified claims.
+        POST /api/v1/articles/{slug}/auto-resolve-fact-check/
+        """
+        from news.models import CarSpecification
+        article = self.get_object()
+
+        if 'ai-editor-note' not in (article.content or '') and 'ai-fact-check-block' not in (article.content or ''):
+            return Response({'error': 'No fact-check warning found in this article'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Step 1: build web context from stored specs or title
+        web_context = ''
+        try:
+            car_spec = CarSpecification.objects.filter(article=article).first()
+            specs_dict = None
+            if car_spec and car_spec.make:
+                specs_dict = {
+                    'make': car_spec.make or '',
+                    'model': car_spec.model or '',
+                    'trim': car_spec.trim or '',
+                }
+            else:
+                specs_dict = self._parse_specs_from_title(article.title)
+
+            if specs_dict and specs_dict.get('make'):
+                from ai_engine.modules.searcher import get_web_context
+                web_context = get_web_context(specs_dict)
+        except Exception as ws_err:
+            logger.warning(f"auto_resolve_fact_check: web search failed: {ws_err}")
+
+        if not web_context:
+            return Response({'error': 'Could not fetch web context for this article — auto-resolve requires web sources'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Step 2: run auto-resolve
+        try:
+            provider = request.data.get('provider', 'gemini')
+            from ai_engine.modules.fact_checker import auto_resolve_fact_check as _resolve
+            result = _resolve(article.content, web_context, provider=provider)
+        except Exception as e:
+            logger.error(f"auto_resolve_fact_check failed for article {article.id}: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if result.get('error'):
+            return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Step 3: save corrected content
+        article.content = result['content']
+        article.save(update_fields=['content'])
+        invalidate_article_cache()
+
+        return Response({
+            'success': True,
+            'fixed': result.get('fixed', []),
+            'removed': result.get('removed', []),
+            'message': f"Fixed {len(result.get('fixed', []))} claims, removed {len(result.get('removed', []))} unsupported claims."
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
             url_path='re-enrich')
     def re_enrich(self, request, slug=None):
         """

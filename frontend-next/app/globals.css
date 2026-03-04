@@ -366,3 +366,19 @@ textarea::placeholder {
 .article-content-wrapper button img {
   margin: 0 !important;
 }
+
+/* Figure & Caption (image captions) */
+.article-content-wrapper figure {
+  @apply my-8 mx-auto;
+}
+
+.article-content-wrapper figure img {
+  @apply my-0;
+}
+
+.article-content-wrapper figcaption {
+  @apply mt-2 text-sm text-gray-500 italic text-center;
+  border-left: 3px solid;
+  @apply border-brand-300 pl-3 ml-auto mr-auto;
+  max-width: fit-content;
+}

@@ -179,7 +179,23 @@ def _clean_banned_phrases(html: str) -> str:
     # Remove "SEO Visual Assets:" header
     html = re.sub(r'<p>\s*(?:<strong>)?SEO Visual Assets:?(?:</strong>)?\s*</p>', '', html, flags=re.IGNORECASE)
     html = re.sub(r'(?:^|\n)\s*SEO Visual Assets:?\s*(?:\n|$)', '\n', html, flags=re.IGNORECASE)
-    
+
+    # 3b. Remove <li> items that describe missing data (banned Cons in prompt)
+    _banned_cons_rx = re.compile(
+        r'<li>[^<]*(?:'
+        r'(?:are|is)\s+not\s+(?:fully\s+)?(?:detailed|specified|disclosed|confirmed|announced|yet\s+public|provided|available)'
+        r'|details?\s+(?:have\s+)?not\s+(?:yet\s+)?been\s+(?:released|confirmed|disclosed|provided)'
+        r'|(?:specific|full|complete)\s+[^<]*(?:not\s+(?:available|provided|disclosed|released|detailed))'
+        r'|not\s+yet\s+confirmed|remain\s+unknown|awaiting\s+(?:official\s+)?confirmation'
+        r')[^<]*</li>',
+        re.IGNORECASE
+    )
+    cleaned_cons = _banned_cons_rx.sub('', html)
+    if cleaned_cons != html:
+        removed_li = html.count('<li>') - cleaned_cons.count('<li>')
+        print(f"  🧹 Removed {removed_li} invalid Cons items (missing-data phrases)")
+        html = cleaned_cons
+
     # 4. Clean up empty paragraphs left behind
     html = re.sub(r'<p>\s*</p>', '', html)
     
@@ -355,6 +371,25 @@ def _detect_missing_sections(html: str, word_count: int, has_competitors: bool =
         section_words = len(section_text.split())
         if section_words < 40:  # Less than ~2 sentences = practically empty
             thin.append(title.strip())
+
+    # Special check: Verdict heading exists but content is almost empty
+    verdict_idx = None
+    for i, (start, end, title) in enumerate(h2_positions):
+        if any(kw in title.strip().lower() for kw in ['verdict', 'conclusion', 'final']):
+            verdict_idx = i
+            break
+    if verdict_idx is not None:
+        _, vend, _ = h2_positions[verdict_idx]
+        vnext = h2_positions[verdict_idx + 1][0] if verdict_idx + 1 < len(h2_positions) else len(html)
+        verdict_html = html[vend:vnext]
+        verdict_text = re.sub(r'<[^>]+>', ' ', verdict_html).strip()
+        verdict_words = len(verdict_text.split())
+        if verdict_words < 15:  # Heading exists but essentially empty
+            if 'FreshMotors Verdict' not in missing:
+                missing.append('FreshMotors Verdict')
+    elif 'FreshMotors Verdict' not in missing:
+        # Verdict heading not found at all
+        missing.append('FreshMotors Verdict')
 
     # Build a targeted retry prompt
     retry_parts = []
@@ -821,9 +856,12 @@ Required Structure (OMIT any section where you have NO data):
   ✅ "No Apple CarPlay — a dealbreaker for many"
   ❌ "Range is impressive" (too vague)
   ❌ "Specs are unknown" (NOT a con — it's missing info)
-- <h2>FreshMotors Verdict</h2> — who should buy this car and why. Be specific and opinionated.
-  Give it a character: "The daily driver for someone who's outgrown their Model 3" or
+- <h2>FreshMotors Verdict</h2> — THIS SECTION IS MANDATORY AND MUST CONTAIN REAL CONTENT (minimum 60-80 words).
+  Write a compelling, opinionated verdict about who should buy this car and why.
+  Be specific: "The daily driver for someone who's outgrown their Model 3" or
   "A rugged weekend warrior that doubles as a comfortable commuter".
+  Mention 1-2 standout strengths, 1 weakness, and a final recommendation.
+  ⚠️ DO NOT leave this section empty or with only the heading — it MUST have a full paragraph of at least 60 words.
 
 AT THE VERY END, add:
 <div class="alt-texts" style="display:none">
@@ -839,10 +877,12 @@ Analysis Data:
 
 {f'FINAL CHECK: The vehicle name MUST be exactly as specified in the MANDATORY VEHICLE IDENTITY section above. If you wrote a different model name or number, your article is WRONG. Go back and fix it.' if entity_anchor else ''}
 
-Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, accurate, and entertaining. Quality over quantity — every sentence should earn its place.
+Remember: TARGET 1100-1300 words. Each main section (Performance, Design, Technology, Driving Experience) must have at least 2 full paragraphs. Write with depth — explain what specs mean for real-world driving, not just listing numbers. Do NOT stop writing early. FreshMotors Verdict is MANDATORY and must be written last.
 """
     
-    system_prompt = """You are a senior automotive journalist at FreshMotors. You write with technical precision and confident authority — think Autocar or Car and Driver, not a YouTube vlog. You prioritize ACCURACY over completeness: if you don't know a spec, you skip it rather than guess. You write for car enthusiasts who want honest, data-driven analysis. You compare to competitors ONLY when you have real data. Your tone is professional but accessible — authoritative without being dry, engaging without being clickbait. You know major car brands well (including Chinese EVs), but you never fabricate specs you're unsure about. Let the facts and specs make the impression — no hype words needed."""
+    system_prompt = """You are a senior automotive journalist at FreshMotors. You write with technical precision and confident authority — think Autocar or Car and Driver, not a YouTube vlog. You prioritize ACCURACY over completeness: if you don't know a spec, you skip it rather than guess. You write for car enthusiasts who want honest, data-driven analysis. You compare to competitors ONLY when you have real data. Your tone is professional but accessible — authoritative without being dry, engaging without being clickbait. You know major car brands well (including Chinese EVs), but you never fabricate specs you're unsure about. Let the facts and specs make the impression — no hype words needed.
+
+CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 1100-1300 words. Count your words as you write. Every major section (Performance, Design, Technology, Driving Experience) must have at least 2 full paragraphs. Do NOT stop writing until you have covered all sections with sufficient depth. SHORT articles will be automatically rejected and regenerated."""
     
     try:
         # Use AI provider factory
@@ -930,7 +970,10 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
             if second_pos > 0:
                 article_content = article_content[:second_pos].rstrip()
                 print(f"  🔁 Dedup guard: trimmed duplicate content at position {second_pos}")
-        
+
+        # Guaranteed verdict injector — runs a separate short API call if verdict is empty/missing
+        article_content = _ensure_verdict_written(article_content, analysis_data, provider)
+
         return article_content
     except Exception as e:
         logger.error(f"Article generation failed with {provider_display}: {e}")
@@ -958,6 +1001,91 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
             logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
         
         return ""
+
+
+def _ensure_verdict_written(html: str, analysis_data, provider: str = 'gemini') -> str:
+    """
+    Post-generation guarantee: if FreshMotors Verdict section is missing or empty,
+    make a short targeted API call to write a proper verdict and inject it.
+    """
+    import re as _re
+
+    # Check if verdict heading exists and has content
+    verdict_match = _re.search(
+        r'(<h2[^>]*>[^<]*(?:verdict|conclusion|final)[^<]*</h2>)(.*?)(?=<h2|<div class="alt-texts"|$)',
+        html, _re.IGNORECASE | _re.DOTALL
+    )
+
+    if verdict_match:
+        verdict_content = _re.sub(r'<[^>]+>', ' ', verdict_match.group(2)).strip()
+        verdict_words = len(verdict_content.split())
+        if verdict_words >= 30:
+            return html  # Verdict looks fine
+        verdict_heading_html = verdict_match.group(1)
+        print(f"  🔧 Verdict injector: found heading but only {verdict_words} words — generating verdict...")
+    else:
+        verdict_heading_html = '<h2>FreshMotors Verdict</h2>'
+        print(f"  🔧 Verdict injector: verdict section missing — generating verdict...")
+
+    # Extract article context for the verdict prompt
+    article_text = _re.sub(r'<[^>]+>', ' ', html)[:2500]  # first 2500 chars of plain text
+
+    verdict_prompt = f"""You are writing the final section of an automotive article for FreshMotors.com.
+
+Here is the article so far (plain text summary):
+{article_text}
+
+Write ONLY the FreshMotors Verdict section — a single paragraph of 70-100 words.
+Rules:
+- Be specific and opinionated about WHO should buy this car and WHY
+- Mention 1-2 real strengths (use specific specs from the article)  
+- Mention 1 genuine weakness or caveat
+- End with a clear recommendation
+- Write in plain prose — NO bullet points, NO subheadings
+- Output ONLY the verdict paragraph wrapped in <p> tags, nothing else
+- Do NOT include the <h2>FreshMotors Verdict</h2> heading — just the paragraph
+
+Example of good verdict:
+<p>The VOYAH Taishan 1430 is the ultimate long-haul family SUV for buyers who want to leave range anxiety behind permanently. Its 1,430 km combined range and 350 km electric-only capability make it genuinely useful for both daily commutes and cross-country trips, while the Huawei-powered tech stack keeps it feeling premium throughout. The 2.8-ton curb weight is a real-world caveat, but for families prioritizing space and range over outright agility, this is a serious contender at its price point.</p>
+"""
+
+    try:
+        ai = get_ai_provider(provider)
+        verdict_para = ai.generate_completion(
+            prompt=verdict_prompt,
+            system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph as instructed.",
+            temperature=0.7,
+            max_tokens=300
+        )
+
+        if verdict_para:
+            verdict_para = verdict_para.strip()
+            # Ensure it's wrapped in <p>
+            if not verdict_para.startswith('<p'):
+                verdict_para = f'<p>{verdict_para}</p>'
+
+            # Remove any heading the model might have added
+            verdict_para = _re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=_re.IGNORECASE | _re.DOTALL).strip()
+
+            verdict_block = f'{verdict_heading_html}\n{verdict_para}'
+
+            if verdict_match:
+                # Replace the existing empty verdict
+                html = html[:verdict_match.start(1)] + verdict_block + html[verdict_match.end():]
+            else:
+                # Insert before alt-texts div or at the end
+                alt_pos = html.find('<div class="alt-texts"')
+                if alt_pos > 0:
+                    html = html[:alt_pos] + verdict_block + '\n\n' + html[alt_pos:]
+                else:
+                    html = html.rstrip() + '\n\n' + verdict_block
+
+            print(f"  ✅ Verdict injected ({len(verdict_para.split())} words)")
+    except Exception as e:
+        print(f"  ⚠️ Verdict injector failed: {e}")
+
+    return html
+
 
 def ensure_html_only(content):
     """

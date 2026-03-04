@@ -30,7 +30,7 @@ import 'tinymce/models/dom';
 // @ts-ignore - TinyMCE types might be missing in package.json
 import { Editor } from '@tinymce/tinymce-react';
 import { FormCard } from '@/app/admin/components/forms/FormCard';
-import { FileText, Sparkles, Loader2, Zap, RefreshCw, Wand2 } from 'lucide-react';
+import { FileText, Sparkles, Loader2, Zap, RefreshCw, Wand2, Wrench } from 'lucide-react';
 
 interface ArticleContentEditorProps {
     content: string;
@@ -39,10 +39,12 @@ interface ArticleContentEditorProps {
     onEnrich: () => void;
     onRegenerate: () => void;
     onAutoFill?: () => void;
+    onAutoResolve?: () => void;
     isReformatting: boolean;
     isEnriching: boolean;
     isRegenerating: boolean;
     isAutoFilling?: boolean;
+    isAutoResolving?: boolean;
     hasYoutubeUrl: boolean;
 }
 
@@ -53,10 +55,12 @@ export function ArticleContentEditor({
     onEnrich,
     onRegenerate,
     onAutoFill,
+    onAutoResolve,
     isReformatting,
     isEnriching,
     isRegenerating,
     isAutoFilling,
+    isAutoResolving,
     hasYoutubeUrl
 }: ArticleContentEditorProps) {
     const editorRef = useRef<any>(null);
@@ -101,6 +105,19 @@ export function ArticleContentEditor({
                 >
                     {isAutoFilling ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
                     {isAutoFilling ? 'Extracting...' : '🪄 Auto-fill'}
+                </button>
+            )}
+            {/* Auto-Resolve button — only shown when fact-check warning is in content */}
+            {onAutoResolve && (content.includes('ai-editor-note') || content.includes('ai-fact-check-block')) && (
+                <button
+                    type="button"
+                    onClick={onAutoResolve}
+                    disabled={isAutoResolving || isReformatting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                    title="Auto-fix fact-check warnings using original web sources"
+                >
+                    {isAutoResolving ? <Loader2 size={14} className="animate-spin" /> : <Wrench size={14} />}
+                    {isAutoResolving ? 'Resolving...' : '🔧 Auto-Resolve'}
                 </button>
             )}
         </div>

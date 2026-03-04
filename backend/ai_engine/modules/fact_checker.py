@@ -78,8 +78,10 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
             
             # Formulate the warning HTML
             issues_list = "".join(f"<li>{issue}</li>" for issue in result['issues'])
+            # Store issues as JSON in data attribute so the editor can use them for auto-resolve
+            issues_json = json.dumps(result['issues']).replace('"', '&quot;')
             warning_html = f"""
-            <div class="ai-editor-note" style="background-color: #fef0f0; border-left: 4px solid #f56c6c; padding: 15px; margin-bottom: 20px;">
+            <div class="ai-editor-note ai-fact-check-block" data-issues="{issues_json}" style="background-color: #fef0f0; border-left: 4px solid #f56c6c; padding: 15px; margin-bottom: 20px;">
                 <h4 style="color: #f56c6c; margin-top: 0;">⚠️ AI Fact-Check Warning</h4>
                 <p>The following discrepancies were detected between the generated text and the web sources:</p>
                 <ul>{issues_list}</ul>
@@ -96,3 +98,73 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
         logger.error(f"Fact-checking failed: {e}")
         print(f"⚠️ Fact-checking failed: {e}. Skipping validation.")
         return article_html
+
+
+def auto_resolve_fact_check(article_html: str, web_context: str, provider: str = 'gemini') -> dict:
+    """
+    Attempts to automatically fix hallucinated claims in the article:
+    - Replaces wrong numbers with correct ones from web context
+    - Removes claims not supported by any source
+    Returns: { 'content': fixed_html, 'fixed': [...], 'removed': [...] }
+    """
+    if not web_context or len(web_context.strip()) < 50:
+        return {'content': article_html, 'fixed': [], 'removed': [], 'error': 'No web context available'}
+
+    try:
+        from ai_engine.modules.ai_provider import get_ai_provider
+    except ImportError:
+        from modules.ai_provider import get_ai_provider
+
+    ai = get_ai_provider(provider)
+
+    prompt = f"""
+You are an expert automotive editor. Your task is to fix factual errors in the article below.
+
+WEB CONTEXT (Ground Truth — use ONLY these values to correct the article):
+{web_context}
+
+ARTICLE TO FIX:
+{article_html}
+
+Instructions:
+1. Find numerical claims in the article that are NOT supported by the web context.
+2. If a correct value IS available in the web context → replace the wrong value with the correct one.
+3. If a claim is completely unsupported and no correct value exists → remove the entire sentence containing that claim.
+4. Do NOT fabricate new numbers. Only use values from the web context.
+5. Remove the entire <div class="ai-editor-note ai-fact-check-block"...> warning block from the output.
+6. Return a JSON object:
+{{
+    "fixed_html": "<the corrected article HTML without the warning block>",
+    "fixed": ["Changed 65 kWh battery to 40 kWh (from web context)", ...],
+    "removed": ["Removed claim about 5.2s 0-100 km/h — not in web context", ...]
+}}
+
+Return ONLY valid JSON. No markdown fences.
+"""
+
+    system_prompt = "You are a precise automotive fact-correcting editor. Output only valid JSON."
+
+    try:
+        response = ai.generate_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            temperature=0.1,
+            max_tokens=8192
+        )
+
+        clean_json = response.strip()
+        if clean_json.startswith("```json"):
+            clean_json = clean_json[7:]
+        if clean_json.endswith("```"):
+            clean_json = clean_json[:-3]
+
+        result = json.loads(clean_json.strip())
+        return {
+            'content': result.get('fixed_html', article_html),
+            'fixed': result.get('fixed', []),
+            'removed': result.get('removed', []),
+        }
+
+    except Exception as e:
+        logger.error(f"Auto-resolve failed: {e}")
+        return {'content': article_html, 'fixed': [], 'removed': [], 'error': str(e)}

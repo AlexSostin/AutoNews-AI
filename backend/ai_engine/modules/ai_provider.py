@@ -76,8 +76,9 @@ class GeminiProvider(AIProvider):
         # Combine system prompt and user prompt for Gemini
         full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
         
-        # Model priority: 2.5-flash (better instruction following) > 2.0-flash
+        # Model priority: 2.5-flash-lite (fast+cheap) > 2.5-flash > 2.0-flash fallback
         model_names_to_try = [
+            'gemini-2.5-flash-lite',
             'gemini-2.5-flash',
             'gemini-2.0-flash',
         ]

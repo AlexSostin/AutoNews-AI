@@ -127,6 +127,9 @@ frontend-next/
 - **Cloudinary URLs**: `_get_image_url()` in `cars_views.py` can double-prefix URLs. Check for absolute URLs before prepending media host
 - **DuckDuckGo search**: `duckduckgo_search` library can fail silently. Always wrap in try/except
 - **Tailwind CSS warnings**: `@theme` and `@apply` in `globals.css` are Tailwind v4 directives, not errors
+- **Infinite scroll `next-article`**: Must use `ArticleDetailSerializer` (not `ArticleListSerializer`) — list serializer has no `content` field, causes empty article body in scroll
+- **Infinite scroll scroll anchor**: When adding article to DOM above footer, use `getBoundingClientRect().top` before + `requestAnimationFrame` after to restore footer viewport position
+- **BackToTop smart click**: Custom event `article-active-slug` dispatched by `InfiniteArticleScroll` on each article switch; `BackToTop` listens and stores `activeSlugRef` for single-click jump to current article. Double-click = page top
 
 ## Common Patterns
 

@@ -160,6 +160,49 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'])
+    def auto_resolve_fact_check(self, request):
+        """
+        Auto-fix a PendingArticle's fact-check warnings using the stored web context.
+        POST body: { "pending_id": <int>, "provider": "gemini" }
+        """
+        pending_id = request.data.get('pending_id')
+        provider = request.data.get('provider', 'gemini')
+
+        if not pending_id:
+            return Response({'error': 'pending_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from news.models.content import PendingArticle
+            pending = PendingArticle.objects.get(id=pending_id)
+        except Exception:
+            return Response({'error': 'PendingArticle not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        web_context = pending.specs.get('web_context', '') if pending.specs else ''
+        if not web_context:
+            return Response({'error': 'No web context stored for this article — cannot auto-resolve'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from ai_engine.modules.fact_checker import auto_resolve_fact_check
+            result = auto_resolve_fact_check(pending.content, web_context, provider=provider)
+        except Exception as e:
+            logger.error(f"auto_resolve_fact_check failed: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if result.get('error'):
+            return Response({'error': result['error']}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save corrected content
+        pending.content = result['content']
+        pending.save(update_fields=['content'])
+
+        return Response({
+            'success': True,
+            'fixed': result.get('fixed', []),
+            'removed': result.get('removed', []),
+            'message': f"Fixed {len(result.get('fixed', []))} claims, removed {len(result.get('removed', []))} unsupported claims."
+        })
+
+    @action(detail=False, methods=['post'])
     def scan_all(self, request):
         """Trigger scan for all enabled channels (Background Process)"""
         if not request.user.is_staff:

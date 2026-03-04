@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import api, { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
+import GeneratePinModal from '@/components/admin/GeneratePinModal';
 
 interface Category {
   id: number;
@@ -83,6 +84,10 @@ export default function YouTubeChannelsPage() {
   const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+
+  // PIN gate for generation
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pendingVideo, setPendingVideo] = useState<Video | null>(null);
 
 
   useEffect(() => {
@@ -225,16 +230,15 @@ export default function YouTubeChannelsPage() {
     }
   };
 
-  const handleGenerateFromVideo = async (video: Video) => {
+  // Called after PIN confirmed — actually runs the generation
+  const doGenerateFromVideo = async (video: Video) => {
     if (!scanningChannel) return;
 
-    // Set loading state for this specific video
     setScannedVideos(prev => prev.map(v =>
       v.id === video.id ? { ...v, status: 'loading', errorMsg: undefined } : v
     ));
 
     try {
-      // Use the new generate_pending endpoint on the specific channel
       const response = await api.post(`/youtube-channels/${scanningChannel.id}/generate_pending/`, {
         video_url: video.url,
         video_id: video.id,
@@ -242,7 +246,6 @@ export default function YouTubeChannelsPage() {
         provider: 'gemini'
       });
 
-      // Set success state
       setScannedVideos(prev => prev.map(v =>
         v.id === video.id ? {
           ...v,
@@ -251,17 +254,32 @@ export default function YouTubeChannelsPage() {
         } : v
       ));
 
-      // Refresh channels data to update pending counts
       fetchData();
-
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || 'Generation failed';
-
-      // Set error state
       setScannedVideos(prev => prev.map(v =>
         v.id === video.id ? { ...v, status: 'error', errorMsg: errorMsg } : v
       ));
     }
+  };
+
+  // PIN gate: show modal first, generate only after confirmed
+  const handleGenerateFromVideo = (video: Video) => {
+    setPendingVideo(video);
+    setShowPinModal(true);
+  };
+
+  const handlePinConfirmed = () => {
+    setShowPinModal(false);
+    if (pendingVideo) {
+      doGenerateFromVideo(pendingVideo);
+      setPendingVideo(null);
+    }
+  };
+
+  const handlePinCancelled = () => {
+    setShowPinModal(false);
+    setPendingVideo(null);
   };
 
   const handleApproveToDraft = async (pendingId: number, videoId: string) => {
@@ -758,6 +776,16 @@ export default function YouTubeChannelsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PIN Confirmation Modal */}
+      {showPinModal && (
+        <GeneratePinModal
+          title="Generate Article"
+          description={pendingVideo ? `Generate article from: "${pendingVideo.title.slice(0, 50)}${pendingVideo.title.length > 50 ? '…' : ''}"` : 'Confirm generation'}
+          onConfirm={handlePinConfirmed}
+          onCancel={handlePinCancelled}
+        />
       )}
     </div>
   );

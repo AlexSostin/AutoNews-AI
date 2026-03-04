@@ -20,6 +20,7 @@ import { ArticleImageManager } from '../../components/ArticleImageManager';
 export default function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [articleId, setArticleId] = useState<string | null>(null);
+  const [articleSlug, setArticleSlug] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [reformatting, setReformatting] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [autoResolving, setAutoResolving] = useState(false);
 
   const [generatingAI, setGeneratingAI] = useState<number | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -171,6 +173,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       ]);
 
       const article = articleRes.data;
+      // Store the article slug — needed for slug-based API endpoints like auto-resolve-fact-check
+      setArticleSlug(article.slug || null);
 
       // Helper to build full image URL (runtime detection)
       const getMediaUrl = () => {
@@ -446,6 +450,27 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             isEnriching={enriching}
             isRegenerating={regenerating}
             hasYoutubeUrl={!!formData.youtube_url}
+            isAutoResolving={autoResolving}
+            onAutoResolve={async () => {
+              if (!articleId || autoResolving) return;
+              if (!confirm('🔧 Auto-Resolve Fact-Check?\n\nAI will:\n• Re-fetch web sources for this car\n• Replace wrong numbers with correct ones\n• Remove unverified claims\n\nThe article will be updated automatically.')) return;
+              setAutoResolving(true);
+              try {
+                const { data } = await api.post(`/articles/${articleSlug || articleId}/auto-resolve-fact-check/`, { provider: 'gemini' });
+                if (data.success) {
+                  const fixed = data.fixed?.length || 0;
+                  const removed = data.removed?.length || 0;
+                  alert(`✅ Done!\n\nFixed: ${fixed} claims\nRemoved: ${removed} unverified claims\n\nPage will reload to show updated content.`);
+                  window.location.reload();
+                } else {
+                  alert(`❌ ${data.message || 'Auto-resolve failed'}`);
+                }
+              } catch (err: any) {
+                alert(`❌ Error: ${err.response?.data?.error || err.message}`);
+              } finally {
+                setAutoResolving(false);
+              }
+            }}
           />
 
           {/* 3. Categories, Tags & YouTube */}

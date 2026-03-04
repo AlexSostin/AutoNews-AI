@@ -16,7 +16,8 @@ import {
   ChevronUp,
   Edit,
   FileText,
-  ArrowLeft
+  ArrowLeft,
+  Wrench
 } from 'lucide-react';
 import api, { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
@@ -55,6 +56,7 @@ export default function PendingArticlesPage() {
   const [sourceFilter, setSourceFilter] = useState<'youtube' | 'rss'>('youtube'); // New: source filter
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [processing, setProcessing] = useState<number | null>(null);
+  const [autoResolving, setAutoResolving] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -126,6 +128,26 @@ export default function PendingArticlesPage() {
       setMessage({ type: 'error', text: error.response?.data?.error || 'An error occurred' });
     } finally {
       setProcessing(null);
+    }
+  };
+
+  const handleAutoResolve = async (id: number) => {
+    setAutoResolving(id);
+    setMessage(null);
+    try {
+      const response = await api.post('/youtube-channels/auto_resolve_fact_check/', {
+        pending_id: id,
+        provider: 'gemini'
+      });
+      const data = response.data;
+      setMessage({ type: 'success', text: data.message || 'Fact-check auto-resolved!' });
+      // Reload the article list so content updates are visible
+      fetchData();
+    } catch (error: any) {
+      const errMsg = error.response?.data?.error || 'Auto-resolve failed';
+      setMessage({ type: 'error', text: errMsg });
+    } finally {
+      setAutoResolving(null);
     }
   };
 
@@ -336,6 +358,22 @@ export default function PendingArticlesPage() {
                           <Youtube size={16} />
                           Watch Video
                         </a>
+                        {/* Auto-Resolve button — only shown when fact-check warning block is present */}
+                        {(article.content.includes('ai-fact-check-block') || article.content.includes('ai-editor-note')) && (
+                          <button
+                            onClick={() => handleAutoResolve(article.id)}
+                            disabled={autoResolving === article.id}
+                            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-50 text-sm font-medium"
+                            title="Auto-fix fact-check warnings using web context"
+                          >
+                            {autoResolving === article.id ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Wrench size={16} />
+                            )}
+                            {autoResolving === article.id ? 'Resolving...' : '🔧 Auto-Resolve'}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

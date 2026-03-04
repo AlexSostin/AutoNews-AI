@@ -226,6 +226,12 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
                     print(f"Skipping {youtube_url} - duplicate detected after content generation")
                     return {'success': False, 'reason': 'pending', 'error': 'Duplicate detected'}
 
+        # Merge web_context into specs so auto-resolve fact-check can use it later
+        specs_with_context = dict(result['specs'] or {})
+        web_ctx = result.get('web_context', '')
+        if web_ctx:
+            specs_with_context['web_context'] = web_ctx[:10000]  # cap at 10k chars
+
         pending = PendingArticle.objects.create(
             youtube_channel=channel,
             video_url=youtube_url,
@@ -240,11 +246,9 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
             image_source='youtube',
             author_name=result.get('author_name', ''),
             author_channel_url=result.get('author_channel_url', ''),
-            
             # Save structured data for draft safety
-            specs=result['specs'],
+            specs=specs_with_context,
             tags=result['tag_names'],
-            
             status='pending'
         )
     except Exception as e:
@@ -267,7 +271,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
                     image_source='youtube',
                     author_name=result.get('author_name', ''),
                     author_channel_url=result.get('author_channel_url', ''),
-                    specs=result['specs'],
+                    specs=specs_with_context,
                     tags=result['tag_names'],
                     status='pending'
                 )
