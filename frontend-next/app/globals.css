@@ -370,10 +370,12 @@ textarea::placeholder {
 /* Figure & Caption (image captions) */
 .article-content-wrapper figure {
   @apply my-8 mx-auto;
+  width: 100%;
 }
 
 .article-content-wrapper figure img {
   @apply my-0;
+  width: 100%;
 }
 
 .article-content-wrapper figcaption {

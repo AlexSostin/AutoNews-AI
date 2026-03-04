@@ -509,7 +509,23 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         
         action = "Created" if created else "Updated"
         print(f"📋 {action} VehicleSpecs for {make} {model_name}: {filled} fields populated")
-        
+
+        # Immediately convert price to USD (don't wait for weekly scheduler)
+        if vehicle_specs.price_from and vehicle_specs.currency and vehicle_specs.currency != 'USD':
+            try:
+                from news.services.currency_service import convert_to_usd
+                from django.utils import timezone
+                usd_from = convert_to_usd(vehicle_specs.price_from, vehicle_specs.currency)
+                usd_to = convert_to_usd(vehicle_specs.price_to, vehicle_specs.currency) if vehicle_specs.price_to else None
+                if usd_from:
+                    vehicle_specs.price_usd_from = usd_from
+                    vehicle_specs.price_usd_to = usd_to
+                    vehicle_specs.price_updated_at = timezone.now()
+                    vehicle_specs.save(update_fields=['price_usd_from', 'price_usd_to', 'price_updated_at'])
+                    print(f"💱 Price converted: {vehicle_specs.currency} {vehicle_specs.price_from:,} → ${usd_from:,} USD")
+            except Exception as conv_err:
+                print(f"⚠️ Price conversion failed: {conv_err}")
+
         return vehicle_specs
         
     except Exception as e:
