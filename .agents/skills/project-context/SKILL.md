@@ -113,7 +113,10 @@ frontend-next/
 - Frontend uses `lib/api.ts` (Axios with auth interceptor)
 - All admin pages in `app/admin/` use Tailwind CSS
 - User language: Russian (communicate in Russian)
-- User name: Саша (Alex)
+- User name: **Алекс / Санёк / Сашка** — используй в зависимости от ситуации:
+  - **Алекс** — нейтрально, по делу, формально
+  - **Санёк** — дружески, когда что-то получилось / хорошее настроение
+  - **Сашка** — неформально, по-простому, в лёгкой обстановке
 
 ## Known Gotchas (from past bugs)
 

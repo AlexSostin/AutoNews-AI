@@ -889,89 +889,103 @@ class AnalyticsExtraStatsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        import logging
         from news.models import Subscriber, FrontendEventLog, BackendErrorLog
         from news.models.sources import RSSFeed
         from django.db.models.functions import TruncMonth
 
+        logger = logging.getLogger(__name__)
         now = timezone.now()
 
-        # ── 1. Subscriber growth (monthly for last 12 months) ──
-        subscribers = Subscriber.objects.filter(is_active=True)
-        total_subscribers = subscribers.count()
+        # ── 1. Subscriber growth ──
+        subscribers_data = {}
+        try:
+            subscribers = Subscriber.objects.filter(is_active=True)
+            total_subscribers = subscribers.count()
 
-        monthly_growth = (
-            subscribers
-            .filter(created_at__gte=now - timedelta(days=365))
-            .annotate(month=TruncMonth('created_at'))
-            .values('month')
-            .annotate(count=Count('id'))
-            .order_by('month')
-        )
-        sub_labels = [m['month'].strftime('%b %Y') for m in monthly_growth]
-        sub_data = [m['count'] for m in monthly_growth]
-        # Cumulative
-        cumulative = []
-        running = total_subscribers - sum(sub_data)
-        for d in sub_data:
-            running += d
-            cumulative.append(running)
+            monthly_growth = (
+                subscribers
+                .filter(created_at__gte=now - timedelta(days=365))
+                .annotate(month=TruncMonth('created_at'))
+                .values('month')
+                .annotate(count=Count('id'))
+                .order_by('month')
+            )
+            sub_labels = [m['month'].strftime('%b %Y') for m in monthly_growth]
+            sub_data = [m['count'] for m in monthly_growth]
+            # Cumulative
+            cumulative = []
+            running = total_subscribers - sum(sub_data)
+            for d in sub_data:
+                running += d
+                cumulative.append(running)
 
-        # ── 2. RSS Feed stats ──
-        feeds = RSSFeed.objects.all()
-        total_feeds = feeds.count()
-        active_feeds = feeds.filter(is_enabled=True).count()
-        total_entries = sum(feeds.values_list('entries_processed', flat=True))
-
-        # By source type
-        by_type = dict(feeds.values('source_type').annotate(c=Count('id')).values_list('source_type', 'c'))
-
-        # Recently active (checked in last 24h)
-        recently_active = feeds.filter(last_checked__gte=now - timedelta(hours=24)).count()
-
-        # Top feeds by entries
-        top_feeds = list(
-            feeds.filter(is_enabled=True)
-            .order_by('-entries_processed')[:5]
-            .values('name', 'entries_processed', 'source_type')
-        )
-
-        # ── 3. Error log summary ──
-        frontend_total = FrontendEventLog.objects.count()
-        frontend_unresolved = FrontendEventLog.objects.filter(resolved=False).count()
-        frontend_last_24h = FrontendEventLog.objects.filter(last_seen__gte=now - timedelta(hours=24)).count()
-        
-        # Top error types
-        top_errors = list(
-            FrontendEventLog.objects.filter(resolved=False)
-            .order_by('-occurrence_count')[:5]
-            .values('error_type', 'message', 'occurrence_count', 'last_seen')
-        )
-
-        backend_total = BackendErrorLog.objects.count()
-        backend_last_24h = BackendErrorLog.objects.filter(last_seen__gte=now - timedelta(hours=24)).count()
-
-        return Response({
-            'subscribers': {
+            subscribers_data = {
                 'total': total_subscribers,
                 'labels': sub_labels,
                 'data': sub_data,
                 'cumulative': cumulative,
-            },
-            'rss': {
+            }
+        except Exception as e:
+            logger.exception("extra-stats: subscribers section failed")
+            subscribers_data = {'total': 0, 'labels': [], 'data': [], 'cumulative': [], 'error': str(e)}
+
+        # ── 2. RSS Feed stats ──
+        rss_data = {}
+        try:
+            feeds = RSSFeed.objects.all()
+            total_feeds = feeds.count()
+            active_feeds = feeds.filter(is_enabled=True).count()
+            total_entries = sum(feeds.values_list('entries_processed', flat=True))
+            by_type = dict(feeds.values('source_type').annotate(c=Count('id')).values_list('source_type', 'c'))
+            recently_active = feeds.filter(last_checked__gte=now - timedelta(hours=24)).count()
+            top_feeds = list(
+                feeds.filter(is_enabled=True)
+                .order_by('-entries_processed')[:5]
+                .values('name', 'entries_processed', 'source_type')
+            )
+            rss_data = {
                 'total_feeds': total_feeds,
                 'active_feeds': active_feeds,
                 'total_entries': total_entries,
                 'recently_active': recently_active,
                 'by_type': by_type,
                 'top_feeds': top_feeds,
-            },
-            'errors': {
+            }
+        except Exception as e:
+            logger.exception("extra-stats: rss section failed")
+            rss_data = {'total_feeds': 0, 'active_feeds': 0, 'total_entries': 0,
+                        'recently_active': 0, 'by_type': {}, 'top_feeds': [], 'error': str(e)}
+
+        # ── 3. Error log summary ──
+        errors_data = {}
+        try:
+            frontend_total = FrontendEventLog.objects.count()
+            frontend_unresolved = FrontendEventLog.objects.filter(resolved=False).count()
+            frontend_last_24h = FrontendEventLog.objects.filter(last_seen__gte=now - timedelta(hours=24)).count()
+            top_errors = list(
+                FrontendEventLog.objects.filter(resolved=False)
+                .order_by('-occurrence_count')[:5]
+                .values('error_type', 'message', 'occurrence_count', 'last_seen')
+            )
+            backend_total = BackendErrorLog.objects.count()
+            backend_last_24h = BackendErrorLog.objects.filter(last_seen__gte=now - timedelta(hours=24)).count()
+            errors_data = {
                 'frontend_total': frontend_total,
                 'frontend_unresolved': frontend_unresolved,
                 'frontend_last_24h': frontend_last_24h,
                 'top_errors': top_errors,
                 'backend_total': backend_total,
                 'backend_last_24h': backend_last_24h,
-            },
+            }
+        except Exception as e:
+            logger.exception("extra-stats: errors section failed")
+            errors_data = {'frontend_total': 0, 'frontend_unresolved': 0, 'frontend_last_24h': 0,
+                           'top_errors': [], 'backend_total': 0, 'backend_last_24h': 0, 'error': str(e)}
+
+        return Response({
+            'subscribers': subscribers_data,
+            'rss': rss_data,
+            'errors': errors_data,
         })
 
