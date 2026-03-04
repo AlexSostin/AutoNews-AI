@@ -343,7 +343,8 @@ END OF EXAMPLE — Now write YOUR article following the same patterns
 ═══════════════════════════════════════════════
 """
     
-    # Gemini gets all 4 examples for maximum style guidance
+    # Gemini gets 2 examples: one EV SUV + one PHEV Sedan with competitor
+    # (4 examples caused prompt to be too long → Verdict was truncated)
     return f"""
 ═══════════════════════════════════════════════
 REFERENCE EXAMPLES — Match this style, structure, depth, and HTML quality
@@ -353,20 +354,14 @@ Study these examples carefully. Your output MUST match this level of:
 - DETAILED technical specs with real-world context and implications
 - Driving Experience sections that bring the car to life
 - Honest pros & cons with specific, measurable claims
-- Competitor comparisons backed by real data
+- Competitor comparisons backed by real data (only when competitor data is provided)
 - FreshMotors Verdict that tells the reader WHO this car is for
 - Target length: 1000-1400 words
 
 --- EXAMPLE 1 (Electric SUV) ---
 {EXAMPLE_SUV}
 
---- EXAMPLE 2 (PHEV Sedan) ---
-{EXAMPLE_PHEV_SEDAN}
-
---- EXAMPLE 3 (Off-Road PHEV SUV) ---
-{EXAMPLE_OFFROAD_SUV}
-
---- EXAMPLE 4 (PHEV Flagship Sedan with Competitor) ---
+--- EXAMPLE 2 (PHEV Flagship Sedan with Competitor comparison) ---
 {EXAMPLE_PHEV_FLAGSHIP}
 
 ═══════════════════════════════════════════════
