@@ -2,7 +2,7 @@
 
 This document provides a comprehensive overview of the FreshMotors platform architecture, technology stack, and core workflows.
 
-**Last Updated**: 3 March 2026
+**Last Updated**: 4 March 2026
 
 ---
 
@@ -108,7 +108,7 @@ AutoNews-AI/
 | `app/admin/users/` | User management |
 | `app/admin/health/` | Health dashboard — backend/frontend error monitoring |
 | `components/admin/` | Sidebar, AdminHeader, modals, ArticleContentEditor (TinyMCE) |
-| `components/public/` | ViewTracker, FeedbackButton, ShareButtons, RatingStars, ReadingProgressBar |
+| `components/public/` | Public UX: `ViewTracker`, `FeedbackButton`, `ShareButtons`, `RatingStars`, `ReadingProgressBar`, `BackToTop` (smart scroll), `InfiniteArticleScroll`, `ArticleUnit`, `NextArticlePreview`, `NewArticleToast`, `CommentSection`, `RelatedCarousel`, `ABImpressionTracker` |
 | `lib/api.ts` | Axios client with auth interceptors |
 | `lib/auth.ts` | JWT auth helpers, Google OAuth |
 | `lib/analytics.ts` | GA4 event tracking functions |
@@ -188,6 +188,18 @@ AutoNews-AI/
 
 ---
 
+## 📰 Infinite Scroll (Article Detail)
+
+- **`[slug]/page.tsx`**: SSR fetches initial article → passes to `InfiniteArticleScroll`
+- **`InfiniteArticleScroll.tsx`**: Orchestrates article feed. IntersectionObserver sentinel triggers `next-article` API fetch. Posts `article-active-slug` custom event on article switch.
+- **`ArticleUnit.tsx`**: Renders each article. Fires `onBecameActive` when scrolled into view (updates URL via `pushState`, fires GA4 `page_view`).
+- **`NextArticlePreview.tsx`**: Preview card shown before loading next article (countdown + skip).
+- **`NewArticleToast.tsx`**: Toast shown when user is 50%+ in the page footer while next article is fetching — avoids interrupting footer interactions.
+- **`BackToTop.tsx`**: Smart scroll button — single click scrolls to current article top (resolved via `data-article-slug` attr + custom event), double click scrolls to page top.
+- **Backend**: `next_article` action in `ArticleEngagementMixin` uses `ArticleDetailSerializer` (full content) — priority: same model → same make → ML similar → same category → popular.
+
+---
+
 ## 🧪 Testing & CI
 
 ### Test Suite (1880+ tests, 73+ files)
@@ -258,3 +270,4 @@ AutoNews-AI/
 | `YOUTUBE_COOKIES_CONTENT` | yt-dlp YouTube bypass |
 | `PEXELS_API_KEY` | Stock photo search |
 | `SENTRY_DSN` | Error monitoring |
+| `RUNNING_IN_DOCKER` | Set to `1` in `docker-compose.yml` — prevents `.env.local` from overriding Docker service hostnames in `settings.py` |

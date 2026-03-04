@@ -4,6 +4,22 @@
 
 ---
 
+## 📅 4 Марта 2026
+
+### ✅ Реализовано сегодня
+
+> **Статус:** ✅ Завершено
+
+- [x] **Infinite Scroll — полный контент** — `next_article` API теперь использует `ArticleDetailSerializer` (вместо `ArticleListSerializer`). Исправлен пустой контент у 2-5 статей в скролле.
+- [x] **Browse All button при раннем Skip** — кнопка теперь показывается при любом `phase === 'done'`, не только при `articles.length >= MAX_ARTICLES`. Устранён тупик при раннем пропуске.
+- [x] **Scroll Anchoring в футере** — при загрузке новой статьи пока пользователь в футере (рейтинг/комментарии) — viewport не съезжает. Реализован через `getBoundingClientRect` + `requestAnimationFrame`.
+- [x] **NewArticleToast** — если пользователь >50% в футере и сработал sentinel — показывается тост вместо preview-карточки. Кнопки: Show (прыжок к новой статье) / Dismiss.
+- [x] **BackToTop Smart Button** — одиночный клик = начало текущей статьи (по `data-article-slug`), двойной = самый верх. Custom event `article-active-slug` для связи без prop drilling.
+- [x] **Analytics 500 fix** — `AnalyticsExtraStatsAPIView` теперь возвращает частичный ответ при ошибке вместо краша. Каждый блок обёрнут в отдельный try/except.
+- [x] **Docker backend fix** — `RUNNING_IN_DOCKER=1` в `docker-compose.yml` предотвращает загрузку `.env.local` внутри контейнера (DB_HOST 127.0.0.1 vs postgres).
+
+---
+
 ## 📅 27 Февраля 2026
 
 ### ✅ Реализовано сегодня
