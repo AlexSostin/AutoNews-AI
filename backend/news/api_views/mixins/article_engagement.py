@@ -554,6 +554,94 @@ class ArticleEngagementMixin:
         serializer = ArticleListSerializer(sorted_articles, many=True, context={'request': request})
         return Response({'success': True, 'similar_articles': serializer.data})
 
+    @action(detail=True, methods=['get'], url_path='next-article', permission_classes=[AllowAny])
+    def next_article(self, request, slug=None):
+        """Return the single best next article for infinite scroll.
+        
+        Priority: same make+model → ML similar → same category → popular.
+        Accepts ?exclude=slug1&exclude=slug2 to avoid repeats across sessions.
+        """
+        from news.models import Article, CarSpecification
+        from news.serializers import ArticleListSerializer
+
+        article = self.get_object()
+        exclude_slugs = set(request.GET.getlist('exclude', []))
+        exclude_slugs.add(slug)  # always exclude self
+
+        # Build base queryset of published, non-deleted articles
+        base_qs = Article.objects.filter(
+            is_published=True, is_deleted=False
+        ).exclude(slug__in=exclude_slugs)
+
+        def first_article(qs):
+            """Return serialized first result or None."""
+            a = qs.first()
+            if a:
+                s = ArticleListSerializer(a, context={'request': request})
+                return s.data
+            return None
+
+        # --- Priority 1: Same make + same model ---
+        try:
+            spec = CarSpecification.objects.filter(article=article).first()
+            if spec and spec.make and spec.make != 'Not specified':
+                qs = base_qs.filter(
+                    carspecification__make__iexact=spec.make
+                )
+                if spec.model and spec.model != 'Not specified':
+                    model_qs = qs.filter(
+                        carspecification__model__iexact=spec.model
+                    ).order_by('-created_at').distinct()
+                    result = first_article(model_qs)
+                    if result:
+                        logger.info(f"[next_article] Priority 1 (same model) for {slug}")
+                        return Response({'article': result, 'source': 'same_model'})
+                # Same make (any model)
+                make_qs = qs.order_by('-created_at').distinct()
+                result = first_article(make_qs)
+                if result:
+                    logger.info(f"[next_article] Priority 2 (same make) for {slug}")
+                    return Response({'article': result, 'source': 'same_make'})
+        except Exception as e:
+            logger.warning(f"[next_article] make/model lookup failed: {e}")
+
+        # --- Priority 3: ML similar articles ---
+        try:
+            from ai_engine.modules.content_recommender import find_similar, is_available
+            if is_available():
+                similar = find_similar(article.id, top_n=20)
+                for s in similar:
+                    aid = s['id']
+                    candidate = base_qs.filter(id=aid).first()
+                    if candidate:
+                        serializer = ArticleListSerializer(candidate, context={'request': request})
+                        logger.info(f"[next_article] Priority 3 (ML) for {slug}")
+                        return Response({'article': serializer.data, 'source': 'ml_similar'})
+        except Exception as e:
+            logger.warning(f"[next_article] ML similar failed: {e}")
+
+        # --- Priority 4: Same category ---
+        try:
+            cat_ids = article.categories.values_list('id', flat=True)
+            if cat_ids:
+                cat_qs = base_qs.filter(
+                    categories__id__in=cat_ids
+                ).order_by('-views').distinct()
+                result = first_article(cat_qs)
+                if result:
+                    logger.info(f"[next_article] Priority 4 (category) for {slug}")
+                    return Response({'article': result, 'source': 'same_category'})
+        except Exception as e:
+            logger.warning(f"[next_article] category fallback failed: {e}")
+
+        # --- Priority 5: Popular ---
+        result = first_article(base_qs.order_by('-views', '-created_at'))
+        if result:
+            logger.info(f"[next_article] Priority 5 (popular) for {slug}")
+            return Response({'article': result, 'source': 'popular'})
+
+        return Response({'article': None, 'source': 'none'}, status=200)
+
     @action(detail=False, methods=['get'], url_path='semantic-search')
     def semantic_search(self, request):
         """Search articles by meaning using TF-IDF ML model.
