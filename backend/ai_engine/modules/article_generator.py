@@ -473,7 +473,7 @@ OUTPUT the complete enhanced article as HTML."""
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.5,  # Lower temperature for factual enhancement
-            max_tokens=8192
+            max_tokens=16384
         )
         
         if not enhanced or len(enhanced) < 200:
@@ -630,9 +630,9 @@ CRITICAL REQUIREMENTS:
    ✅ "At $28,100, it costs nearly half what a Model Y does in Europe"
    ❌ "It competes with the Tesla Model 3 (250 hp), BMW i4 (335 hp), Hyundai Ioniq 5 (320 hp), Audi e-tron (355 hp)..." (list spam)
 
-5. **Word count**: TARGET 700-1200 words. Aim for 800-1000 words as the sweet spot.
-    MINIMUM REQUIREMENT: 700 words (articles shorter than this will be retried).
-    If source data is rich (full specs, features, pricing), write a COMPREHENSIVE 1000-1200 word article.
+5. **Word count**: TARGET 1000-1400 words. Aim for 1100-1300 words as the sweet spot.
+    MINIMUM REQUIREMENT: 1000 words (articles shorter than this will be retried).
+    If source data is rich (full specs, features, pricing), write a COMPREHENSIVE 1200-1400 word article.
     QUALITY always beats QUANTITY. Every sentence should earn its place.
 
     **STRUCTURE REQUIREMENT**: Your article MUST contain between 3 and 7 <h2> section headings
@@ -840,7 +840,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
         # Use AI provider factory
         ai = get_ai_provider(provider)
         
-        MIN_WORD_COUNT = 700  # Minimum acceptable article length
+        MIN_WORD_COUNT = 1000  # Minimum acceptable article length
         MAX_RETRIES = 2       # Retry if too short
         
         article_content = None
@@ -861,7 +861,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
                 prompt=current_prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
-                max_tokens=8192
+                max_tokens=16384
             )
             
             if not article_content:
@@ -939,7 +939,7 @@ Remember: Write like you're explaining to a car-enthusiast friend. Be helpful, a
                 prompt=prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
-                max_tokens=8192
+                max_tokens=16384
             )
             if article_content:
                 print(f"✓ Fallback successful with {fallback_display}!")
@@ -1224,7 +1224,7 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.65,
-            max_tokens=6000  # Increased for better quality content
+            max_tokens=16384
         )
         
         if not article_content:

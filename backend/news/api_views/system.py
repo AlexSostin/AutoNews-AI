@@ -860,7 +860,7 @@ class BackendErrorLogViewSet(viewsets.ModelViewSet):
         from ..models.system import FrontendEventLog
         from datetime import timedelta
 
-        cutoff = timezone.now() - timedelta(hours=1)
+        cutoff = timezone.now() - timedelta(minutes=5)
 
         backend_count = self.get_queryset().filter(
             resolved=False, last_seen__lt=cutoff,
