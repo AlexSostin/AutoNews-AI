@@ -237,6 +237,85 @@ EXAMPLE_OFFROAD_SUV = """
 """.strip()
 
 
+# ─── Example 4: PHEV Flagship Sedan ─────────────────────────────────────────────
+EXAMPLE_PHEV_FLAGSHIP = """
+<h2>2026 BYD HAN DM i: 1,560 km Combined Range PHEV Sedan Starts at $22,500</h2>
+
+<p>BYD continues to challenge established automotive norms with the 2026 HAN DM i. This plug-in hybrid sedan offers a remarkable 1,560 km combined range and a highly competitive starting price of approximately $22,500. Leveraging BYD's advanced DM-i hybrid technology, the HAN DM i delivers an unparalleled blend of efficiency, performance, and value in the mid-size sedan segment.</p>
+
+<h2>Performance & Powertrain</h2>
+
+<p>The 2026 HAN DM i showcases BYD's refined DM-i (Dual Mode intelligent) hybrid architecture, prioritizing electric drive with the internal combustion engine acting primarily as a generator.</p>
+
+<ul>
+<li><strong>POWERTRAIN TYPE:</strong> PHEV (Plug-in Hybrid Electric Vehicle)</li>
+<li><strong>ENGINE:</strong> 1.5L Turbocharged — 115 kW (154 hp) — 225 N·m</li>
+<li><strong>MOTOR (traction):</strong> Permanent Magnet Synchronous Motor — 200 kW (268 hp) — 315 N·m — drives front wheels</li>
+<li><strong>TOTAL SYSTEM OUTPUT:</strong> 200 kW (268 hp) combined — 315 N·m combined torque</li>
+<li><strong>BATTERY:</strong> 31 kWh — Lithium Iron Phosphate (LFP) — BYD FinDreams Battery</li>
+<li><strong>ELECTRIC-ONLY RANGE:</strong> Approximately 210 km (CLTC)</li>
+<li><strong>COMBINED RANGE:</strong> 1,560 km</li>
+<li><strong>FUEL TANK CAPACITY:</strong> 50 L</li>
+<li><strong>0-100 km/h:</strong> 6.9 seconds</li>
+<li><strong>TOP SPEED:</strong> 200 km/h</li>
+<li><strong>DRIVETRAIN:</strong> Front-wheel Drive (FWD)</li>
+</ul>
+
+<p>The heart of the HAN DM i is its sophisticated powertrain. A 1.5-liter turbocharged engine, rated at 115 kW (154 hp), works in tandem with a potent 200 kW (268 hp) permanent magnet synchronous electric motor. The system's combined output propels the sedan from 0 to 100 km/h in 6.9 seconds — more than adequate for highway merging and overtaking.</p>
+
+<h2>Design & Interior</h2>
+
+<p>The 2026 HAN DM i maintains BYD's elegant "Dragon Face" design language. At 4,995 mm long with a 2,920 mm wheelbase, the proportions deliver a commanding presence and a genuinely spacious cabin. Inside, a 15.6-inch LCD central display (1,920 × 1,080) runs BYD's DiLink 100 system, complemented by a 12.3-inch digital dashboard. Comfort features include seat heating and ventilation, steering wheel heating, driver seat memory, multicolor ambient lighting, wireless 50W phone charging, and six USB ports.</p>
+
+<h2>Technology & Features</h2>
+
+<p>BYD's DiLink 100 system supports 5G connectivity and advanced voice interaction. DC fast charging peaks at 40 kW (27-minute charge), while slow charging takes 2.8 hours. A practical 6 kW V2L (Vehicle-to-Load) output powers external devices for camping or emergencies. Multiple access methods — remote key, Bluetooth, and NFC — offer convenient entry. Driving modes include Sports, Economy, Standard, and Snow.</p>
+
+<h2>Driving Experience</h2>
+
+<p>With MacPherson strut front and five-link independent rear suspension, the HAN DM i delivers a composed, comfortable ride. At 1,910 kg curb weight, highway cruising is stable and predictable. The DM-i system's primary reliance on electric propulsion translates to a quiet cabin free from typical ICE vibrations. The 6.15-meter turning radius keeps urban navigation manageable for a sedan of this size.</p>
+
+<h2>Pricing & Availability</h2>
+
+<ul>
+<li>Starting price: approximately $22,500</li>
+<li>2025 variants in China: RMB 168,800 – 225,800 (~$23,400 – $31,300)</li>
+<li>2026 model is now current in China</li>
+</ul>
+
+<h2>How It Compares</h2>
+
+<p>Against select competitors in our database, the HAN DM i carves out a distinct value position:</p>
+
+<ul>
+<li><strong>2025 AVATR 07 REV:</strong> Offers 252 hp and a 700 km CLTC range at $36,153–$50,614. The AVATR commands a higher price for less power and no plug-in hybrid flexibility, though it offers a longer pure-electric range as an EREV.</li>
+</ul>
+
+<p>The HAN DM i's combination of 1,560 km total range, sub-$23,000 entry price, and 210 km electric-only driving makes it exceptionally difficult to beat on pure value.</p>
+
+<h2>Pros & Cons</h2>
+
+<p><strong>Pros:</strong></p>
+<ul>
+<li>1,560 km combined range eliminates range anxiety entirely</li>
+<li>$22,500 starting price undercuts most competitors in the segment</li>
+<li>210 km electric-only range covers daily commutes on electricity alone</li>
+<li>6 kW V2L output adds genuine practical utility</li>
+</ul>
+
+<p><strong>Cons:</strong></p>
+<ul>
+<li>40 kW DC fast charging is adequate but slow compared to pure EVs</li>
+<li>Front-wheel-drive only — no AWD option available</li>
+<li>1,910 kg curb weight may impact dynamic agility in corners</li>
+</ul>
+
+<h2>FreshMotors Verdict</h2>
+
+<p>The BYD HAN DM i is more than a PHEV sedan — it's a statement of what's possible at this price. A 1,560 km combined range and a starting price that undercuts most rivals redefines the accessible new energy segment. For buyers who want a silent electric commute during the week and an effortless road trip on the weekend, all without breaking the bank, the HAN DM i makes the math very simple.</p>
+""".strip()
+
+
 # ─── Combined for prompt injection ──────────────────────────────────────────────
 def get_few_shot_examples(provider='gemini') -> str:
     """Return formatted few-shot examples for the article generation prompt.
@@ -264,7 +343,7 @@ END OF EXAMPLE — Now write YOUR article following the same patterns
 ═══════════════════════════════════════════════
 """
     
-    # Gemini gets all 3 examples for maximum style guidance
+    # Gemini gets all 4 examples for maximum style guidance
     return f"""
 ═══════════════════════════════════════════════
 REFERENCE EXAMPLES — Match this style, structure, depth, and HTML quality
@@ -276,7 +355,7 @@ Study these examples carefully. Your output MUST match this level of:
 - Honest pros & cons with specific, measurable claims
 - Competitor comparisons backed by real data
 - FreshMotors Verdict that tells the reader WHO this car is for
-- Target length: 800-1200 words
+- Target length: 1000-1400 words
 
 --- EXAMPLE 1 (Electric SUV) ---
 {EXAMPLE_SUV}
@@ -286,6 +365,9 @@ Study these examples carefully. Your output MUST match this level of:
 
 --- EXAMPLE 3 (Off-Road PHEV SUV) ---
 {EXAMPLE_OFFROAD_SUV}
+
+--- EXAMPLE 4 (PHEV Flagship Sedan with Competitor) ---
+{EXAMPLE_PHEV_FLAGSHIP}
 
 ═══════════════════════════════════════════════
 END OF EXAMPLES — Now write YOUR article following the same patterns

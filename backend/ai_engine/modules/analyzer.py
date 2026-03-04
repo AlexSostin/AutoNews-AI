@@ -135,7 +135,7 @@ def _get_db_tags():
     Returns a dict: {group_name: [tag_names]}
     Only includes relevant groups for the AI prompt.
     """
-    RELEVANT_GROUPS = ['Manufacturers', 'Body Types', 'Fuel Types', 'Segments', 'Drivetrain', 'Years', 'Models']
+    RELEVANT_GROUPS = ['Manufacturers', 'Body Types', 'Fuel Types', 'Segments', 'Drivetrain', 'Years', 'Models', 'Tech & Features']
     
     try:
         import django
@@ -192,7 +192,7 @@ Based on this automotive analysis, determine the best category and relevant tags
 Categories (choose ONE):
 {categories_str}
 
-Tags (choose 6-10 relevant tags from these groups):
+Tags (choose 8-15 relevant tags from these groups — be THOROUGH):
 RULES:
 - ALWAYS include at least one tag from Manufacturers (the car brand)
 - ALWAYS include a Model tag if the car model is in the Models list (e.g., "Zeekr X EV", "Seal 06")
@@ -213,7 +213,23 @@ RULES:
   * "E-REV" — extended-range EV (Li Auto, VOYAH)
   * "Hybrid" — non-plug-in hybrid (Toyota HEV)
 - ALWAYS include a Drivetrain tag if known (AWD, FWD, RWD, 4WD)
-- Include a Segment tag if applicable (Luxury, Budget, Sport, etc.)
+- Include a Segment tag if applicable (Luxury, Budget, Sport, Comfort, City, Family, Premium, Off-road)
+- IMPORTANT — Tech & Features: Scan the article content for technology mentions and assign ALL matching tags:
+  * "Fast Charging" — if DC fast charging >100 kW is mentioned
+  * "Long-Range" — if range >500 km (EV) or >1000 km combined (PHEV)
+  * "ADAS" — if advanced driver assistance systems are mentioned
+  * "LiDAR" — if LiDAR sensors are mentioned
+  * "Fuel Economy" — if fuel efficiency or low consumption is highlighted
+  * "Battery" — if battery specs (kWh, chemistry) are detailed
+  * "Charging" — if any charging capabilities are mentioned
+  * "Performance" — if acceleration <5s or power >400 hp
+  * "Safety" — if safety features are discussed
+  * "Technology" — if infotainment, connectivity, or tech features are prominent
+  * "Digital Cockpit" — if digital displays or cockpit tech are highlighted
+  * "Adaptive Cruise" — if adaptive cruise control is mentioned
+  * "Lane Assist" — if lane keeping assist is mentioned
+  * "Parking Assist" — if parking assist features are mentioned
+  * Also check: AI, Camera, Climate, Connected Car, Interior, Sensors, Radar, Infotainment, OTA Update, V2L, etc.
 
 {tags_section}
 Analysis:
@@ -231,7 +247,7 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5], [tag6]
             prompt=prompt,
             system_prompt="You are an expert automotive content categorizer. Choose tags that exactly match the provided options.",
             temperature=0.2,  # Low temperature for deterministic categorization
-            max_tokens=200
+            max_tokens=400
         )
         
         if not result:
