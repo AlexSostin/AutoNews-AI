@@ -252,17 +252,18 @@ class TestGenerateDeepVehicleSpecs:
 
     @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_existing_specs_skipped(self, mock_ai):
-        """L361-389: Existing specs with power+length → skip AI call."""
+        """Existing specs with ≥7/10 key fields populated → skip AI call."""
         from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
         from news.models import VehicleSpecs
 
         article = self._make_article('Existing Specs Test')
-        # Pre-create a VehicleSpecs with key fields populated
+        # Pre-create a VehicleSpecs with ≥7/10 key fields to satisfy 70% threshold
         VehicleSpecs.objects.create(
             article=article,
             make='BYD', model_name='Seal', trim_name='',
-            power_hp=530, length_mm=4800,
-        )
+            power_hp=530, torque_nm=670, acceleration_0_100=3.8, top_speed_kmh=210,
+            battery_kwh=82.5, range_km=570, length_mm=4800, width_mm=1875, weight_kg=2150,
+        )  # 9/10 key fields → 90% → skip
 
         result = generate_deep_vehicle_specs(
             article,
@@ -452,8 +453,9 @@ class TestGenerateDeepVehicleSpecs:
         )
         vs2 = VehicleSpecs.objects.create(
             article=article2, make='BYD', model_name='Seal', trim_name='',
-            power_hp=530, length_mm=4800, torque_nm=670,  # 3 fields — best
-        )
+            power_hp=530, torque_nm=670, acceleration_0_100=3.8, top_speed_kmh=210,
+            battery_kwh=82.5, range_km=570, length_mm=4800, width_mm=1875, weight_kg=2150,
+        )  # 9/10 key fields → best record with high coverage
 
         mock_provider = MagicMock()
         mock_ai.return_value = mock_provider
@@ -464,7 +466,7 @@ class TestGenerateDeepVehicleSpecs:
             provider='gemini'
         )
         assert result is not None
-        # Should keep the best record and skip AI call since it has power_hp + length_mm
+        # Should keep the best record and skip AI call (≥7/10 key fields)
         assert result.power_hp == 530
 
     @patch('ai_engine.modules.ai_provider.get_ai_provider')
@@ -561,10 +563,11 @@ class TestGenerateDeepVehicleSpecs:
         VehicleSpecs.objects.create(
             article=article1,  # Linked to article1
             make='Tesla', model_name='Model Y', trim_name='',
-            power_hp=456, length_mm=4750,
-        )
+            power_hp=456, torque_nm=430, acceleration_0_100=5.0, top_speed_kmh=217,
+            battery_kwh=75.0, range_km=533, length_mm=4750, width_mm=1921, weight_kg=1979,
+        )  # 9/10 key fields → skip triggered
 
-        # Call with article2 → existing is linked to article1 → L385-386
+        # Call with article2 → existing is linked to article1
         result = generate_deep_vehicle_specs(
             article2,
             specs={'make': 'Tesla', 'model': 'Model Y', 'trim': '', 'year': 2025},
@@ -584,8 +587,9 @@ class TestGenerateDeepVehicleSpecs:
         vs = VehicleSpecs.objects.create(
             article=article,
             make='byd', model_name='seal', trim_name='',  # Wrong casing
-            power_hp=530, length_mm=4800,
-        )
+            power_hp=530, torque_nm=670, acceleration_0_100=3.8, top_speed_kmh=210,
+            battery_kwh=82.5, range_km=570, length_mm=4800, width_mm=1875, weight_kg=2150,
+        )  # 9/10 key fields → skip via 70% threshold
 
         result = generate_deep_vehicle_specs(
             article,

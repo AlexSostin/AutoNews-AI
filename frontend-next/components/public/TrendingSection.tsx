@@ -37,20 +37,17 @@ export default function TrendingSection() {
       setLoading(false);
     };
 
-    fetch(`${apiUrl}/articles/recommended/?page_size=10`)
+    fetch(`${apiUrl}/articles/trending/`)
       .then(res => {
         if (!res.ok) throw new Error(`API returned ${res.status}`);
         return res.json();
       })
-      .then(processResults)
+      .then(data => processResults({ results: Array.isArray(data) ? data : data.results || [] }))
       .catch(() => {
-        // Fallback to trending if recommended fails (e.g. during backend restart)
-        fetch(`${apiUrl}/articles/trending/`)
-          .then(res => {
-            if (!res.ok) throw new Error(`Trending API returned ${res.status}`);
-            return res.json();
-          })
-          .then(data => processResults({ results: Array.isArray(data) ? data : data.results || [] }))
+        // Fallback to recommended if trending fails
+        fetch(`${apiUrl}/articles/recommended/?page_size=10`)
+          .then(res => res.json())
+          .then(processResults)
           .catch(err => {
             console.error('Failed to load articles:', err);
             setLoading(false);
@@ -131,10 +128,12 @@ export default function TrendingSection() {
                   <span className="px-2 py-0.5 bg-white/20 rounded-full truncate max-w-[80px]">
                     {article.categories?.[0]?.name || 'News'}
                   </span>
-                  <div className="flex items-center gap-1">
-                    <Eye size={12} />
-                    <span>{article.views}</span>
-                  </div>
+                  {article.views > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Eye size={12} />
+                      <span>{article.views}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
