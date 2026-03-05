@@ -19,8 +19,10 @@ except ImportError:
 # Import AI provider
 try:
     from ai_engine.modules.ai_provider import get_ai_provider
+    from ai_engine.modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
 except ImportError:
     from modules.ai_provider import get_ai_provider
+    from modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
 
 # Legacy client for backwards compatibility
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
@@ -77,8 +79,8 @@ Cons:
 Summary: [2-3 sentence overview]
 
 Transcript:
-{transcript_text[:15000]}
-
+{wrap_untrusted(transcript_text, 'TRANSCRIPT', 15000)}
+{ANTI_INJECTION_NOTICE}
 IMPORTANT: 
 1. Use EXACT labels above. 
 2. Prioritize facts from the transcript.

@@ -17,6 +17,13 @@ from news.api_views._shared import invalidate_article_cache, is_valid_youtube_ur
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ai_engine.modules.prompt_sanitizer import sanitize_for_prompt, wrap_untrusted
+except ImportError:
+    # Fallback — no sanitization if module not found (shouldn't happen)
+    sanitize_for_prompt = lambda text, max_length=15000: text[:max_length]
+    wrap_untrusted = lambda text, label='DATA', max_length=15000: text[:max_length]
+
 
 class ArticleGenerationMixin:
     """Mixin for article generation actions on ArticleViewSet."""
@@ -421,7 +428,8 @@ PRESERVE:
 - The original article structure and order
 
 TEXT TO FORMAT:
-{content[:15000]}
+{sanitize_for_prompt(content, max_length=15000)}
+
 
 Return ONLY the HTML-formatted version with every word preserved."""
 

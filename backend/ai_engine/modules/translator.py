@@ -8,9 +8,11 @@ import os
 try:
     from ai_engine.modules.ai_provider import get_ai_provider
     from ai_engine.modules.utils import calculate_reading_time, validate_article_quality
+    from ai_engine.modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
 except ImportError:
     from modules.ai_provider import get_ai_provider
     from modules.utils import calculate_reading_time, validate_article_quality
+    from modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
 
 
 # Length presets (approximate word counts)
@@ -85,9 +87,8 @@ You are a professional automotive journalist and translator. Your task is to:
 3. Optimize it for SEO
 
 RUSSIAN SOURCE TEXT:
----
-{russian_text}
----
+{wrap_untrusted(russian_text, 'RUSSIAN_TEXT')}
+{ANTI_INJECTION_NOTICE}
 
 ARTICLE REQUIREMENTS:
 

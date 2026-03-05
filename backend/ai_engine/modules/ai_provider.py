@@ -31,6 +31,9 @@ if GEMINI_API_KEY and GENAI_AVAILABLE:
     except Exception as e:
         print(f"Warning: Failed to create Gemini client: {e}")
 
+# Tracks which model was actually used in the last successful generation
+_last_model_used = ''
+
 
 class AIProvider:
     """Base class for AI providers"""
@@ -73,9 +76,6 @@ class GeminiProvider(AIProvider):
         if not GENAI_AVAILABLE or not gemini_client:
             raise Exception("google-genai library not available or client not initialised")
         
-        # Combine system prompt and user prompt for Gemini
-        full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-        
         # Model priority: 2.5-flash-lite (fast+cheap) > 2.5-flash > 2.0-flash fallback
         model_names_to_try = [
             'gemini-2.5-flash-lite',
@@ -83,16 +83,22 @@ class GeminiProvider(AIProvider):
             'gemini-2.0-flash',
         ]
         
+        # Build config with proper system_instruction isolation
+        # (prevents prompt injection from user content overriding system behavior)
+        gen_config = types.GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+        )
+        if system_prompt:
+            gen_config.system_instruction = system_prompt
+        
         last_error = None
         for model_name in model_names_to_try:
             try:
                 response = gemini_client.models.generate_content(
                     model=model_name,
-                    contents=full_prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=temperature,
-                        max_output_tokens=max_tokens,
-                    ),
+                    contents=prompt,
+                    config=gen_config,
                 )
                 
                 # Robust text extraction
@@ -108,6 +114,9 @@ class GeminiProvider(AIProvider):
                 
                 if text:
                     print(f"✅ Generated with {model_name}")
+                    # Record which model succeeded for provider tracker
+                    import ai_engine.modules.ai_provider as _self_mod
+                    _self_mod._last_model_used = model_name
                     return text
                     
             except Exception as e:

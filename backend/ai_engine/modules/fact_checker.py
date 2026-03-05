@@ -3,6 +3,11 @@ import json
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ai_engine.modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
+except ImportError:
+    from modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
+
 def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini', source_title: str = None) -> str:
     """
     Runs a secondary LLM pass to extract factual claims from the generated article
@@ -33,10 +38,11 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
     You are an expert fact-checker. Your job is to verify the numerical claims in the ARTICLE against the provided WEB CONTEXT.
     
     WEB CONTEXT (Ground Truth):
-    {web_context}
+    {wrap_untrusted(web_context, 'WEB_CONTEXT')}
     
     ARTICLE TEXT TO VERIFY:
-    {article_html}
+    {wrap_untrusted(article_html, 'ARTICLE')}
+    {ANTI_INJECTION_NOTICE}
     
     Instructions:
     1. Extract 3-5 key numerical claims from the ARTICLE (like Price, Horsepower, Range, Battery size, 0-100 km/h).
@@ -121,10 +127,11 @@ def auto_resolve_fact_check(article_html: str, web_context: str, provider: str =
 You are an expert automotive editor. Your task is to fix factual errors in the article below.
 
 WEB CONTEXT (Ground Truth — use ONLY these values to correct the article):
-{web_context}
+{wrap_untrusted(web_context, 'WEB_CONTEXT')}
 
 ARTICLE TO FIX:
-{article_html}
+{wrap_untrusted(article_html, 'ARTICLE')}
+{ANTI_INJECTION_NOTICE}
 
 Instructions:
 1. Find numerical claims in the article that are NOT supported by the web context.

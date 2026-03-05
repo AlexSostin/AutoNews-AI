@@ -25,9 +25,11 @@ except ImportError:
 try:
     from ai_engine.modules.utils import clean_title, calculate_reading_time, validate_article_quality, clean_html_markup
     from ai_engine.modules.ai_provider import get_ai_provider
+    from ai_engine.modules.prompt_sanitizer import wrap_untrusted, sanitize_for_prompt, ANTI_INJECTION_NOTICE
 except ImportError:
     from modules.utils import clean_title, calculate_reading_time, validate_article_quality, clean_html_markup
     from modules.ai_provider import get_ai_provider
+    from modules.prompt_sanitizer import wrap_untrusted, sanitize_for_prompt, ANTI_INJECTION_NOTICE
 
 # Legacy Groq client for backwards compatibility
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
@@ -485,10 +487,11 @@ You are an expert automotive journalist. You have an EXISTING article that is al
 Your job is to ENHANCE it — not rewrite it. Keep the same tone, structure, and personality.
 
 EXISTING ARTICLE:
-{existing_html}
+{wrap_untrusted(existing_html, 'EXISTING_ARTICLE')}
 
 CRITICAL WEB DATA — ADD THESE FACTS TO THE ARTICLE:
-{web_context}
+{wrap_untrusted(web_context, 'WEB_CONTEXT')}
+{ANTI_INJECTION_NOTICE}
 
 INSTRUCTIONS:
 1. Keep the SAME structure, headings, and overall tone of the existing article
@@ -570,7 +573,7 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     
     web_data_section = ""
     if web_context:
-        web_data_section = f"\nCRITICAL WEB DATA — USE THIS IN YOUR ARTICLE (sales figures, real specs, market reception, test results):\n{web_context}\n"
+        web_data_section = f"\nCRITICAL WEB DATA — USE THIS IN YOUR ARTICLE (sales figures, real specs, market reception, test results):\n{wrap_untrusted(web_context, 'WEB_CONTEXT')}\n{ANTI_INJECTION_NOTICE}"
 
     competitor_section = ""
     if has_competitors:
@@ -1173,7 +1176,7 @@ def expand_press_release(press_release_text, source_url, provider='gemini', web_
     
     web_data_section = ""
     if web_context:
-        web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to enrich the article):\n{web_context}\n"
+        web_data_section = f"\nADDITIONAL WEB CONTEXT (Use this to enrich the article):\n{wrap_untrusted(web_context, 'WEB_CONTEXT')}\n{ANTI_INJECTION_NOTICE}"
     
     # Build entity anchor from source title (Layer 1: anti-hallucination)
     entity_anchor = ""
@@ -1207,7 +1210,8 @@ TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current
 Expand the following press release into a comprehensive, SEO-optimized automotive article.
 
 PRESS RELEASE:
-{press_release_text}
+{wrap_untrusted(press_release_text, 'PRESS_RELEASE')}
+{ANTI_INJECTION_NOTICE}
 
 SOURCE: {source_url}
 

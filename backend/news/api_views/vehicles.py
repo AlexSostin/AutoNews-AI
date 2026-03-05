@@ -35,6 +35,11 @@ import json
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ai_engine.modules.prompt_sanitizer import sanitize_for_prompt
+except ImportError:
+    sanitize_for_prompt = lambda text, max_length=15000: text[:max_length]
+
 
 
 class CarSpecificationViewSet(viewsets.ModelViewSet):
@@ -448,7 +453,7 @@ CRITICAL: If the text contains MULTIPLE trims/variants of the same car, return a
         extraction_prompt = f"""Extract vehicle specifications from this text and return as JSON.
 
 TEXT:
-{text[:12000]}
+{sanitize_for_prompt(text, max_length=12000)}
 
 For EACH trim/variant found, return an object with this structure (use null for unknown values):
 {{

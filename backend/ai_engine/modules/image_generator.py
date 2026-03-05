@@ -71,10 +71,19 @@ def generate_car_image(image_url: str, car_name: str, style: str = 'scenic_road'
     if not api_key:
         return {'success': False, 'error': 'GEMINI_API_KEY not set'}
     
+    try:
+        from ai_engine.modules.prompt_sanitizer import sanitize_for_prompt
+    except ImportError:
+        try:
+            from modules.prompt_sanitizer import sanitize_for_prompt
+        except ImportError:
+            sanitize_for_prompt = lambda text, max_length=15000: text[:max_length]
+
     if custom_prompt and custom_prompt.strip():
-        # User provided a custom prompt — use it with photography enhancements
+        # User provided a custom prompt — sanitize then use with photography enhancements
+        clean_custom = sanitize_for_prompt(custom_prompt.strip(), max_length=2000)
         prompt = (
-            f"Generate an image exactly matching this request: {custom_prompt.strip()}\n\n"
+            f"Generate an image exactly matching this request: {clean_custom}\n\n"
             f"Photography direction: "
             f"Magazine-quality editorial shot. Professional lighting setup. "
             f"Rich, vibrant color grading with cinematic warmth. Ultra-realistic details. "
