@@ -276,3 +276,101 @@ cd /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/frontend-n
 ```bash
 sudo lsof -ti:3000 | xargs sudo kill -9
 ```
+
+---
+
+## 2FA Login Flow — Critical Gotchas (March 2026)
+
+### Gotcha 1: Missing `permission_classes = [AllowAny]` on verify endpoints
+
+**Symptom**: `/api/v1/auth/2fa/verify/` always returns `401` even with correct credentials and correct TOTP code.
+
+**Root cause**: DRF global default is `IsAuthenticatedOrReadOnly`. POST requests from unauthenticated users are blocked **before your view code runs**.
+
+**Fix**: Always add `permission_classes = [AllowAny]` to any endpoint called before login is complete:
+
+```python
+class TwoFactorVerifyView(APIView):
+    permission_classes = [AllowAny]  # ← REQUIRED
+
+class TwoFactorGoogleVerifyView(APIView):
+    permission_classes = [AllowAny]  # ← REQUIRED
+```
+
+**Applies to**: any verify/refresh/reset-password endpoint that users hit without a JWT.
+
+---
+
+### Gotcha 2: `django-axes` blocks `authenticate()` in verify endpoints
+
+**Symptom**: After a few failed login attempts, `TwoFactorVerifyView` starts returning 401 for correct credentials.
+
+**Root cause**: `django-axes` intercepts all calls to Django's `authenticate()`. If the user's IP is locked out from `/token/` failures, `authenticate()` in your verify endpoint also returns `None`.
+
+**Fix**: Replace `authenticate()` with direct user lookup + `check_password()`:
+
+```python
+# WRONG — axes can block this
+user = authenticate(request, username=username, password=password)
+
+# CORRECT — bypasses axes (safe because 2FA adds a second factor)
+try:
+    user = User.objects.get(username__iexact=username)
+except User.DoesNotExist:
+    return Response({'detail': 'Invalid credentials.'}, status=401)
+if not user.check_password(password):
+    return Response({'detail': 'Invalid credentials.'}, status=401)
+```
+
+---
+
+### Gotcha 3: Google OAuth bypasses 2FA
+
+**Symptom**: Staff user with 2FA enabled can log in via Google without entering TOTP.
+
+**Root cause**: `google_oauth` view calls `RefreshToken.for_user(user)` directly without checking for 2FA.
+
+**Fix** (`user_accounts.py`): Check `TOTPDevice` before issuing tokens:
+
+```python
+if user.is_staff and TOTPDevice.objects.filter(user=user, is_confirmed=True).exists():
+    return Response({'requires_2fa': True, 'google_user_id': str(user.id)}, status=200)
+# Only proceed to token generation if no 2FA required
+```
+
+New endpoint: `POST /api/v1/auth/2fa/google-verify/` with `{google_user_id, totp_code}`.
+
+---
+
+### Gotcha 4: 2FA must be staff-only in the token endpoint
+
+**Fix** (`api_urls.py`): Add `user.is_staff` check before the 2FA gate:
+
+```python
+if user.is_staff:
+    has_2fa = TOTPDevice.objects.filter(user=user, is_confirmed=True).exists()
+    if has_2fa:
+        return Response({'requires_2fa': True}, status=200)
+```
+
+Regular users should never see the 2FA screen.
+
+---
+
+## Tailwind `dark:` Classes in Admin Panel
+
+**Symptom**: Admin UI tables/badges turn black/unreadable for users with dark OS mode.
+
+**Root cause**: Tailwind uses `darkMode: 'media'` (OS preference) by default. Components with `dark:bg-gray-800` etc. render dark for all users with dark OS.
+
+**Fix**: Remove all `dark:` variants from admin components that should always be light:
+
+```tsx
+// WRONG — goes black on dark OS
+<div className="bg-white dark:bg-gray-800">
+
+// CORRECT — always white
+<div className="bg-white">
+```
+
+Affected files: `UserTable.tsx`, `UserRoleBadge.tsx`, and any admin component.

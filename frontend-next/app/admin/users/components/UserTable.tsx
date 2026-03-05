@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    Shield, CheckCircle, Ban, UserCog, KeyRound, Copy, Trash2
+    Shield, CheckCircle, Ban, UserCog, KeyRound, Copy, Trash2, Lock
 } from 'lucide-react';
 import { UserRoleBadge } from './UserRoleBadge';
 
@@ -129,10 +129,13 @@ export function UserTable({
                                             <button
                                                 onClick={() => onDeleteUser(user)}
                                                 disabled={currentUser === user.id || user.is_superuser}
-                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                                title="Delete User"
+                                                className={`p-1.5 rounded-lg transition-colors ${user.is_superuser
+                                                        ? 'text-amber-400 cursor-not-allowed'
+                                                        : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                                                    }`}
+                                                title={user.is_superuser ? 'Superusers are protected — cannot be deleted' : 'Delete User'}
                                             >
-                                                <Trash2 size={18} />
+                                                {user.is_superuser ? <Lock size={16} /> : <Trash2 size={18} />}
                                             </button>
                                         </div>
                                     </td>
