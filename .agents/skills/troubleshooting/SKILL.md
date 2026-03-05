@@ -251,6 +251,7 @@ docker compose up -d postgres redis
 7. **Compare Docker inside vs outside** — different PostgreSQL versions = stale docker-proxy = ghost DB!
 8. **Check env var names match** — `POSTGRES_DB` ≠ `DB_NAME`, silent fallback to defaults
 9. **AI prompt injection** — when adding new `generate_completion()` calls, always use `wrap_untrusted()` from `prompt_sanitizer.py` for external data. Never f-string raw user/RSS/web content into prompts
+10. **⚠️ After adding packages to requirements.txt** — ALWAYS rebuild Docker image: `docker compose build backend` (from `/backend` dir). Without rebuild the container runs the OLD image without the new packages → `ModuleNotFoundError`. This happened with `django-axes`, `pyotp`, `qrcode` (March 2026).
 
 ---
 
