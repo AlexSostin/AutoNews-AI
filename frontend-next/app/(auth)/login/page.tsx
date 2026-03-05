@@ -18,9 +18,9 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 2FA state
+  // 2FA state — store credentials for step 2 (backend needs username+password+totp_code)
   const [requires2FA, setRequires2FA] = useState(false);
-  const [tempToken, setTempToken] = useState('');
+  const [pending2FACredentials, setPending2FACredentials] = useState({ username: '', password: '' });
   const [totpCode, setTotpCode] = useState('');
   const totpInputRef = useRef<HTMLInputElement>(null);
 
@@ -77,9 +77,9 @@ export default function LoginPage() {
       await login(formData);
       onLoginSuccess();
     } catch (err: unknown) {
-      // 2FA required — show TOTP step
+      // 2FA required — save credentials so step 2 can re-authenticate
       if (err instanceof TwoFARequiredError) {
-        setTempToken(err.tempToken);
+        setPending2FACredentials({ username: formData.username, password: formData.password });
         setRequires2FA(true);
         setIsLoading(false);
         return;
@@ -100,7 +100,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login2FA(tempToken, totpCode);
+      await login2FA(pending2FACredentials.username, pending2FACredentials.password, totpCode);
       onLoginSuccess();
     } catch {
       setError('Invalid code. Please check your Google Authenticator and try again.');
@@ -158,8 +158,8 @@ export default function LoginPage() {
                   maxLength={6}
                   value={totpCode}
                   onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
-                  className="w-48 text-center text-3xl font-mono tracking-[0.6em] px-4 py-4 border-2 border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
-                  placeholder="000000"
+                  className="w-full text-center text-4xl font-mono tracking-[0.5em] px-6 py-5 border-2 border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 bg-gray-50"
+                  placeholder="······"
                   autoComplete="one-time-code"
                 />
               </div>
@@ -175,7 +175,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => { setRequires2FA(false); setTotpCode(''); setError(''); }}
+                onClick={() => { setRequires2FA(false); setTotpCode(''); setError(''); setPending2FACredentials({ username: '', password: '' }); }}
                 className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
               >
                 ← Back to login

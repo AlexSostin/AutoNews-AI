@@ -12,11 +12,9 @@ const setCookie = (name: string, value: string, maxAgeSeconds: number = 7 * 24 *
 
 // Special error class to signal that 2FA is required
 export class TwoFARequiredError extends Error {
-  tempToken: string;
-  constructor(tempToken: string) {
+  constructor() {
     super('2FA required');
     this.name = 'TwoFARequiredError';
-    this.tempToken = tempToken;
   }
 }
 
@@ -26,27 +24,21 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
 
   // If backend requires 2FA — throw special error for the login page to handle
   if (data.requires_2fa) {
-    throw new TwoFARequiredError(data.temp_token || '');
+    throw new TwoFARequiredError();
   }
 
   const { access, refresh } = data;
 
   // Store tokens in cookies (needed for middleware)
-  // Access token cookie lives 7 days (cookie presence allows middleware to pass)
-  // The actual token validation happens on the backend
-  setCookie('access_token', access); // 7 days (default)
-  setCookie('refresh_token', refresh, 30 * 24 * 60 * 60); // 30 days
+  setCookie('access_token', access);
+  setCookie('refresh_token', refresh, 30 * 24 * 60 * 60);
 
-  // Also store in localStorage for client-side access
   localStorage.setItem('access_token', access);
   localStorage.setItem('refresh_token', refresh);
 
-  // Store user data
   const userData = await getCurrentUser(access);
   if (userData) {
     localStorage.setItem('user', JSON.stringify(userData));
-
-    // Установить пользователя в Sentry для отслеживания ошибок
     setUserContext({
       id: userData.id.toString(),
       email: userData.email,
@@ -55,7 +47,6 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
     });
   }
 
-  // Trigger auth change event for Header update
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('authChange'));
   }
@@ -63,11 +54,12 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
   return { access, refresh };
 };
 
-// Complete 2FA login with TOTP code
-export const login2FA = async (tempToken: string, totpCode: string): Promise<AuthTokens> => {
+// Complete 2FA login — backend expects {username, password, totp_code}
+export const login2FA = async (username: string, password: string, totpCode: string): Promise<AuthTokens> => {
   const response = await api.post('/auth/2fa/verify/', {
-    temp_token: tempToken,
-    code: totpCode,
+    username,
+    password,
+    totp_code: totpCode,
   });
   const { access, refresh } = response.data;
 
