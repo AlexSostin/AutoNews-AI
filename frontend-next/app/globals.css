@@ -359,7 +359,11 @@ textarea::placeholder {
 
 /* Images in content (exclude Next.js Image inside lightbox buttons) */
 .article-content-wrapper img:not(button img) {
-  @apply rounded-lg shadow-lg my-6 mx-auto;
+  @apply rounded-lg my-6 mx-auto;
+  display: block;
+  max-width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
 }
 
 /* Reset margins for images inside interactive containers (lightbox, etc.) */

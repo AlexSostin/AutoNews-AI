@@ -1,21 +1,34 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 /**
- * BackToTop — smart scroll button with two behaviors:
- *  - Single click → scroll to current article top (tracked via 'article-active-slug' custom event)
- *  - Double click → scroll to page top
+ * BackToTop — smart scroll buttons:
+ *  - ↑ Single click → scroll to current article top
+ *  - ↑ Double click → scroll to page top
+ *  - ↓ Single click → scroll to footer
  *
- * On non-article pages (no event received) both clicks go to page top.
+ *  Hidden on: login, register, admin pages, and any full-screen form pages.
  */
+
+// Paths where the scroll buttons should NOT appear
+const HIDDEN_ON_PATHS = ['/login', '/register'];
+const HIDDEN_ON_PREFIXES = ['/admin'];
+
 export default function BackToTop() {
+  const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const activeSlugRef = useRef<string | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickCountRef = useRef(0);
+
+  // Check if current route should hide the buttons
+  const isHidden =
+    HIDDEN_ON_PATHS.includes(pathname) ||
+    HIDDEN_ON_PREFIXES.some(prefix => pathname.startsWith(prefix));
 
   // Show/hide on scroll
   useEffect(() => {
@@ -57,6 +70,15 @@ export default function BackToTop() {
     showHint('↑ Page top');
   };
 
+  const scrollToFooter = () => {
+    const maxScroll = Math.max(
+      document.body.scrollHeight,
+      document.documentElement.scrollHeight
+    );
+    window.scrollTo({ top: maxScroll, behavior: 'smooth' });
+    showHint('↓ Footer');
+  };
+
   const handleClick = () => {
     clickCountRef.current += 1;
 
@@ -74,8 +96,8 @@ export default function BackToTop() {
 
   return (
     <>
-      {isVisible && (
-        <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2">
+      {isVisible && !isHidden && (
+        <div className="fixed bottom-8 right-8 z-50 flex flex-col items-center gap-2">
           {/* Hint label */}
           {hint && (
             <span className="text-xs font-bold px-2.5 py-1 rounded-full shadow-md bg-white text-indigo-700 border border-indigo-200 animate-fade-in whitespace-nowrap">
@@ -83,6 +105,7 @@ export default function BackToTop() {
             </span>
           )}
 
+          {/* Up button */}
           <button
             onClick={handleClick}
             className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white p-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 hover:rotate-12 group"
@@ -90,6 +113,16 @@ export default function BackToTop() {
             title="Click → article top · Double-click → page top"
           >
             <ArrowUp size={24} className="group-hover:animate-bounce" />
+          </button>
+
+          {/* Down button — scroll to footer */}
+          <button
+            onClick={scrollToFooter}
+            className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 hover:-rotate-12 group opacity-80 hover:opacity-100"
+            aria-label="Scroll to footer"
+            title="Scroll to footer"
+          >
+            <ArrowDown size={18} className="group-hover:animate-bounce" />
           </button>
         </div>
       )}

@@ -17,6 +17,9 @@ import SpecsCardLink from '@/components/public/SpecsCardLink';
 import ViewTracker from '@/components/public/ViewTracker';
 import FavoriteButton from '@/components/public/FavoriteButton';
 import PriceConverter from '@/components/public/PriceConverter';
+import ArticleFeedbackCapsules from '@/components/public/ArticleFeedbackCapsules';
+import CommentSection from '@/components/public/CommentSection';
+import FeedbackButton from '@/components/public/FeedbackButton';
 import { Calendar, User, Rss, ExternalLink, Youtube, Tag } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
@@ -123,8 +126,9 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 </div>
             )}
 
-            {/* Hero Image */}
-            <div className="relative h-[250px] sm:h-[350px] md:h-[500px] max-h-[600px] w-full rounded-2xl overflow-hidden shadow-md">
+            {/* Hero Image — floats above background, no black bars, no pixel artifacts */}
+            <div className="relative h-[250px] sm:h-[350px] md:h-[500px] max-h-[600px] w-full rounded-2xl overflow-hidden will-change-transform"
+                style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)' }}>
                 <Image
                     src={imageUrl}
                     alt={article.title}
@@ -263,6 +267,17 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 )}
 
                 <AdBanner position="sidebar" />
+            </div>
+
+            {/* --- Rating + Comments for every article in the feed --- */}
+            <div className="space-y-6 mt-6">
+                <ArticleFeedbackCapsules
+                    articleSlug={article.slug}
+                    initialRating={article.average_rating}
+                    ratingCount={article.rating_count}
+                />
+                <FeedbackButton articleSlug={article.slug} />
+                <CommentSection articleId={article.id} />
             </div>
         </article>
     );

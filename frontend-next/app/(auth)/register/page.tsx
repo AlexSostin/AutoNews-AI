@@ -74,10 +74,10 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800 flex items-center justify-center px-4 py-8">
       <div className="max-w-md w-full">
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-5 sm:p-8">
           {/* Logo inside card */}
           <div className="text-center mb-6 pb-6 border-b border-gray-100">
             <Link href="/" className="inline-block hover:scale-105 transition-transform duration-300">
@@ -86,13 +86,13 @@ export default function RegisterPage() {
                 alt="Fresh Motors"
                 width={400}
                 height={100}
-                className="h-[200px] w-auto object-contain mx-auto scale-x-[1.5]"
+                className="h-[110px] sm:h-[160px] w-auto object-contain mx-auto scale-x-[1.5]"
                 priority
               />
             </Link>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
                 {error}

@@ -1,9 +1,10 @@
 'use client';
 
 /**
- * InfiniteArticleScroll — orchestrates loading of subsequent articles.
- * - Watches the bottom of the last article with IntersectionObserver sentinel
- * - Shows NextArticlePreview card before loading next article
+ * InfiniteArticleScroll — auto-loads subsequent articles as user scrolls.
+ * - Sentinel at the bottom triggers fetch when user approaches
+ * - New articles append BELOW each article's own rating+comments section
+ * - Seamless continuous feed — no preview cards or countdowns
  * - Switches URL via history.pushState as each article becomes active
  * - Fires GA4 page_view event per article switch
  * - Limits to MAX_ARTICLES to keep DOM manageable
@@ -11,15 +12,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ArticleUnit from '@/components/public/ArticleUnit';
-import NextArticlePreview from '@/components/public/NextArticlePreview';
-import CommentSection from '@/components/public/CommentSection';
-import RelatedCarousel from '@/components/public/RelatedCarousel';
 import ReadingProgressBar from '@/components/public/ReadingProgressBar';
-import FeedbackButton from '@/components/public/FeedbackButton';
-import RatingStars from '@/components/public/RatingStars';
 import ABImpressionTracker from '@/components/public/ABImpressionTracker';
 import JsonLd from '@/components/public/JsonLd';
-import NewArticleToast from '@/components/public/NewArticleToast';
 
 const MAX_ARTICLES = 5;
 
@@ -35,36 +30,28 @@ interface InfiniteArticleScrollProps {
     initialArticle: any;
 }
 
-type Phase = 'reading' | 'preview' | 'loading' | 'done';
+type Phase = 'idle' | 'fetching' | 'done';
 
 export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticleScrollProps) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [articles, setArticles] = useState<any[]>([initialArticle]);
-    const [previewArticle, setPreviewArticle] = useState<any | null>(null);
-    const [phase, setPhase] = useState<Phase>('reading');
+    const [phase, setPhase] = useState<Phase>('idle');
     const [activeSlug, setActiveSlug] = useState(initialArticle.slug);
-    // Toast: shown when user is in footer and next article loads
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [toastArticle, setToastArticle] = useState<any | null>(null);
+    const [infiniteScrollEnabled, setInfiniteScrollEnabled] = useState(true);
+
     const sentinelRef = useRef<HTMLDivElement>(null);
     const loadedSlugsRef = useRef<string[]>([initialArticle.slug]);
-    const footerRef = useRef<HTMLDivElement>(null);
-    // Stores footer position before new article is appended (for scroll anchoring)
-    const footerAnchor = useRef<{ absTop: number; viewportTop: number } | null>(null);
-    // Ref to articles container div (for toast's "Show" scroll target)
-    const articleListRef = useRef<HTMLDivElement>(null);
+    // Cooldown: prevent rapid re-triggering after an article loads
+    const cooldownUntilRef = useRef<number>(0);
 
     // --- URL + analytics switching ---
     const handleBecameActive = useCallback((slug: string, title: string) => {
         if (slug === activeSlug) return;
         setActiveSlug(slug);
-        // pushState: update URL without navigation
         const newUrl = `/articles/${slug}`;
         window.history.pushState({ slug }, '', newUrl);
         document.title = `${title} | Fresh Motors`;
-        // Notify BackToTop of the new active article
         window.dispatchEvent(new CustomEvent('article-active-slug', { detail: slug }));
-        // GA4 virtual pageview
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const w = window as any;
@@ -77,13 +64,16 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
         } catch { /* silent */ }
     }, [activeSlug]);
 
-    // --- Fetch next article ---
-    const fetchNext = useCallback(async () => {
-        if (phase !== 'reading') return;
-        if (articles.length >= MAX_ARTICLES) {
+    // --- Fetch and auto-load next article ---
+    const fetchAndLoad = useCallback(async () => {
+        if (phase !== 'idle') return;
+        // Use ref for length check to avoid stale closure
+        if (loadedSlugsRef.current.length >= MAX_ARTICLES) {
             setPhase('done');
             return;
         }
+
+        setPhase('fetching');
 
         const currentSlug = articles[articles.length - 1].slug;
         const excludeParam = loadedSlugsRef.current.map(s => `exclude=${encodeURIComponent(s)}`).join('&');
@@ -95,100 +85,51 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
             const data = await res.json();
             if (!data.article) { setPhase('done'); return; }
 
-            // If user is 50%+ in the footer → show toast instead of preview card
-            const isInFooter = footerRef.current
-                ? footerRef.current.getBoundingClientRect().top < window.innerHeight * 0.5
-                : false;
-
-            if (isInFooter) {
-                // Store article for later (toast will trigger load on click)
-                setToastArticle(data.article);
-                setPhase('done'); // keep reading phase hidden until user responds
-            } else {
-                setPreviewArticle(data.article);
-                setPhase('preview');
-            }
+            // Directly add to the list — article renders AFTER previous article's comments
+            loadedSlugsRef.current.push(data.article.slug);
+            setArticles(prev => [...prev, data.article]);
+            // Cooldown and phase delay must be equal to prevent dead zone
+            // where sentinel is visible but cooldown blocks triggering
+            cooldownUntilRef.current = Date.now() + 3000;
+            setTimeout(() => setPhase('idle'), 3000);
         } catch {
             setPhase('done');
         }
     }, [phase, articles]);
 
+    // --- Fetch infinite scroll setting ---
+    useEffect(() => {
+        const apiUrl = getApiUrl();
+        fetch(`${apiUrl}/settings/1/`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data && typeof data.infinite_scroll_enabled === 'boolean') {
+                    setInfiniteScrollEnabled(data.infinite_scroll_enabled);
+                }
+            })
+            .catch(() => { /* silent */ });
+    }, []);
+
     // --- IntersectionObserver on sentinel ---
     useEffect(() => {
-        if (phase !== 'reading') return;
+        if (!infiniteScrollEnabled) return;
+        if (phase !== 'idle') return;
         const el = sentinelRef.current;
         if (!el) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
+                    if (Date.now() < cooldownUntilRef.current) return;
                     observer.disconnect();
-                    fetchNext();
+                    fetchAndLoad();
                 }
             },
-            { rootMargin: '200px' } // start 200px before the bottom
+            { rootMargin: '0px 0px 800px 0px' }  // prefetch when user is ~800px away
         );
         observer.observe(el);
         return () => observer.disconnect();
-    }, [fetchNext, phase, articles.length]); // re-attach after new article loads
-
-    // --- Load next article after preview approval ---
-    const handleLoadNext = useCallback(() => {
-        if (!previewArticle) return;
-
-        // If user is 50%+ into the footer, save anchor to restore position after DOM update
-        if (footerRef.current) {
-            const rect = footerRef.current.getBoundingClientRect();
-            if (rect.top < window.innerHeight * 0.5) {
-                footerAnchor.current = {
-                    absTop: rect.top + window.scrollY,
-                    viewportTop: rect.top,
-                };
-            }
-        }
-
-        setPhase('loading');
-        loadedSlugsRef.current.push(previewArticle.slug);
-        setArticles(prev => [...prev, previewArticle]);
-        setPreviewArticle(null);
-        setPhase('reading');
-    }, [previewArticle]);
-
-    // After articles update: restore scroll if user was in footer zone
-    useEffect(() => {
-        if (!footerAnchor.current || !footerRef.current) return;
-        const anchor = footerAnchor.current;
-        footerAnchor.current = null;
-        requestAnimationFrame(() => {
-            if (!footerRef.current) return;
-            const newFooterTop = footerRef.current.getBoundingClientRect().top + window.scrollY;
-            // Scroll so footer stays at same viewport position as before
-            window.scrollTo({ top: newFooterTop - anchor.viewportTop, behavior: 'instant' });
-        });
-    }, [articles.length]);
-
-    const handleSkip = useCallback(() => {
-        setPreviewArticle(null);
-        setPhase('done');
-    }, []);
-
-    // --- Toast: user clicked "Show" → scroll to new article ---
-    const handleToastShow = useCallback(() => {
-        if (!toastArticle) return;
-        loadedSlugsRef.current.push(toastArticle.slug);
-        setArticles(prev => [...prev, toastArticle]);
-        setToastArticle(null);
-        setPhase('reading');
-        // After render, scroll to the newly added article
-        requestAnimationFrame(() => {
-            const el = document.querySelector<HTMLElement>(`[data-article-slug="${toastArticle.slug}"]`);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-    }, [toastArticle]);
-
-    const handleToastDismiss = useCallback(() => {
-        setToastArticle(null);
-    }, []);
+    }, [fetchAndLoad, phase, articles.length, infiniteScrollEnabled]);
 
     // JSON-LD for initial article
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.freshmotors.net';
@@ -219,7 +160,7 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
                 <div className="container mx-auto px-4 py-8">
                     <div className="max-w-4xl mx-auto space-y-12">
 
-                        {/* --- Feed of articles --- */}
+                        {/* --- Articles feed (rating + comments inside each ArticleUnit) --- */}
                         {articles.map((article, index) => (
                             <ArticleUnit
                                 key={article.slug}
@@ -229,28 +170,19 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
                             />
                         ))}
 
-                        {/* --- Sentinel: triggers fetch when visible --- */}
-                        {phase === 'reading' && (
+                        {/* --- Sentinel: triggers fetch when user approaches --- */}
+                        {infiniteScrollEnabled && phase === 'idle' && (
                             <div ref={sentinelRef} className="h-4" aria-hidden="true" />
                         )}
 
                         {/* --- Loading spinner --- */}
-                        {phase === 'loading' && (
+                        {infiniteScrollEnabled && phase === 'fetching' && (
                             <div className="flex justify-center py-8">
                                 <div className="size-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
                             </div>
                         )}
 
-                        {/* --- Next article preview card --- */}
-                        {phase === 'preview' && previewArticle && (
-                            <NextArticlePreview
-                                article={previewArticle}
-                                onLoad={handleLoadNext}
-                                onSkip={handleSkip}
-                            />
-                        )}
-
-                        {/* --- Max reached OR skipped: show browse button --- */}
+                        {/* --- Max reached: browse button --- */}
                         {phase === 'done' && (
                             <div className="text-center py-6">
                                 <a
@@ -262,36 +194,9 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
                             </div>
                         )}
 
-                        {/* --- Bottom of FIRST article: comments + related (always shown) --- */}
-                        <div ref={footerRef} className="space-y-6 mt-2">
-                            <FeedbackButton articleSlug={initialArticle.slug} />
-                            <RatingStars
-                                articleSlug={initialArticle.slug}
-                                initialRating={initialArticle.average_rating}
-                                ratingCount={initialArticle.rating_count}
-                            />
-                            {initialArticle.categories?.[0]?.slug && (
-                                <RelatedCarousel
-                                    categorySlug={initialArticle.categories[0].slug}
-                                    currentArticleSlug={activeSlug}
-                                    currentArticleId={initialArticle.id}
-                                />
-                            )}
-                            <CommentSection articleId={initialArticle.id} />
-                        </div>
-
                     </div>
                 </div>
             </main>
-
-            {/* --- New article toast (shown when user is in footer) --- */}
-            {toastArticle && (
-                <NewArticleToast
-                    title={toastArticle.title}
-                    onShow={handleToastShow}
-                    onDismiss={handleToastDismiss}
-                />
-            )}
         </>
     );
 }

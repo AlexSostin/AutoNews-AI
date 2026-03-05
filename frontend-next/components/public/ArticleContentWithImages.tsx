@@ -306,7 +306,7 @@ function InlineImage({ src, alt, imageSource, authorName }: { src: string; alt: 
       {/* Thumbnail button */}
       <button
         onClick={() => !imgError && setOpen(true)}
-        className={`relative w-full my-10 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-50 to-gray-100 group focus:outline-none focus:ring-2 focus:ring-indigo-500 block text-left ${imgError ? 'cursor-default' : 'cursor-zoom-in'}`}
+        className={`relative w-full my-10 rounded-2xl overflow-hidden shadow-2xl bg-black group focus:outline-none focus:ring-2 focus:ring-indigo-500 block text-left ${imgError ? 'cursor-default' : 'cursor-zoom-in'}`}
         aria-label={imgError ? 'Image unavailable' : 'Open image fullscreen'}
       >
         <div className="relative w-full aspect-video">
