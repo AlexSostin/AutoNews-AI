@@ -113,7 +113,19 @@ export default function Header() {
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between py-4">
-          <Link href="/" className="hover:scale-105 transition-transform mr-6 lg:mr-16 shrink-0">
+          <Link
+            href="/"
+            className="hover:scale-105 transition-transform mr-6 lg:mr-16 shrink-0"
+            onClick={(e) => {
+              // Always scroll to top instantly
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              // If we're already on the homepage — refresh page data
+              if (window.location.pathname === '/') {
+                e.preventDefault();
+                router.refresh();
+              }
+            }}
+          >
             <Image
               src="/logo.png"
               alt="Fresh Motors"
