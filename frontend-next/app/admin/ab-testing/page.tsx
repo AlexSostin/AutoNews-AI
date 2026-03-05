@@ -32,6 +32,10 @@ interface ABTestData {
     article_id: number;
     article_slug: string;
     original_title: string;
+    // Fields added by bulk endpoint
+    article_title?: string;
+    article_views?: number;
+    article_created_at?: string;
     variants: TitleVariant[];
     total_impressions: number;
     total_clicks: number;
@@ -56,34 +60,32 @@ export default function ABTestingPage() {
     const fetchArticlesWithAB = useCallback(async () => {
         setLoading(true);
         try {
-            // Fetch published articles
+            // Single bulk request — replaces N parallel ab-stats/ calls
             const res = await authenticatedFetch(
-                `${API_BASE}/articles/?page_size=100&ordering=-created_at`
+                `${API_BASE}/articles/ab-stats-bulk/`
             );
-            const data = await res.json();
-            const allArticles: Article[] = data.results || [];
+            if (!res.ok) throw new Error('Failed to fetch bulk AB stats');
+            const allData: ABTestData[] = await res.json();
 
-            // Check each article for A/B test data
+            // Build lookup and articles list from the bulk response
             const tests: Record<string, ABTestData> = {};
-            await Promise.all(
-                allArticles.map(async (article) => {
-                    try {
-                        const abRes = await authenticatedFetch(
-                            `${API_BASE}/articles/${article.slug}/ab-stats/`
-                        );
-                        if (abRes.ok) {
-                            const abData: ABTestData = await abRes.json();
-                            if (abData.variants && abData.variants.length > 0) {
-                                tests[article.slug] = abData;
-                            }
-                        }
-                    } catch {
-                        // No A/B test for this article
-                    }
-                })
-            );
+            const arts: Article[] = [];
 
-            setArticles(allArticles.filter((a) => tests[a.slug]));
+            for (const item of allData) {
+                if (item.variants && item.variants.length > 0) {
+                    tests[item.article_slug] = item;
+                    arts.push({
+                        id: item.article_id,
+                        slug: item.article_slug,
+                        title: item.article_title || item.original_title,
+                        is_published: true,
+                        created_at: item.article_created_at || '',
+                        views: item.article_views || 0,
+                    });
+                }
+            }
+
+            setArticles(arts);
             setAbTests(tests);
         } catch (err) {
             console.error('Failed to fetch A/B data:', err);

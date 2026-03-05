@@ -207,7 +207,10 @@ if DATABASE_URL:
     # Parse DATABASE_URL (Railway provides this)
     import dj_database_url
     DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+        # conn_max_age=0: close connections after each request
+        # Prevents "too many clients" on Railway (limit ~25 connections)
+        # conn_max_age=600 caused exhaustion when multiple workers kept connections open
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=0)
     }
 else:
     # Fallback to individual environment variables (local development)

@@ -362,6 +362,60 @@ class ArticleEngagementMixin:
             'total_clicks': sum(v.clicks for v in variants),
         })
 
+    @action(detail=False, methods=['get'], url_path='ab-stats-bulk', permission_classes=[IsAdminUser])
+    def ab_stats_bulk(self, request):
+        """Get ALL A/B test stats in one query (admin only).
+
+        Returns all articles that have at least one title variant.
+        Frontend uses this instead of N parallel ab-stats/ requests.
+        """
+        from news.models import ArticleTitleVariant
+        from django.core.cache import cache
+
+        cache_key = 'ab_stats_bulk_v1'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        # Single optimized query — all variants with their articles
+        variants = ArticleTitleVariant.objects.select_related('article').order_by(
+            'article__id', 'variant'
+        )
+
+        # Group by article
+        grouped = {}
+        for v in variants:
+            art = v.article
+            if art.id not in grouped:
+                grouped[art.id] = {
+                    'article_id': art.id,
+                    'article_slug': art.slug,
+                    'original_title': art.title,
+                    'article_title': art.title,
+                    'article_views': art.views,
+                    'article_created_at': art.created_at.isoformat() if art.created_at else None,
+                    'variants': [],
+                    'total_impressions': 0,
+                    'total_clicks': 0,
+                }
+            grouped[art.id]['variants'].append({
+                'id': v.id,
+                'variant': v.variant,
+                'title': v.title,
+                'impressions': v.impressions,
+                'clicks': v.clicks,
+                'ctr': v.ctr,
+                'is_winner': v.is_winner,
+            })
+            grouped[art.id]['total_impressions'] += v.impressions
+            grouped[art.id]['total_clicks'] += v.clicks
+
+        result = list(grouped.values())
+        # Cache for 30 seconds — AB stats don't change that fast
+        cache.set(cache_key, result, 30)
+
+        return Response(result)
+
     @action(detail=True, methods=['post'], url_path='ab-pick-winner', permission_classes=[IsAdminUser])
     def ab_pick_winner(self, request, slug=None):
         """Pick the winning A/B variant and apply it as the article title."""
