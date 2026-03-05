@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Eye, EyeOff, Smartphone, ShieldCheck } from 'lucide-react';
 import '../register/register-password.css';
 import { useRouter } from 'next/navigation';
-import { login, login2FA, TwoFARequiredError } from '@/lib/auth';
+import { login, login2FA, loginGoogle2FA, TwoFARequiredError } from '@/lib/auth';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
@@ -21,8 +21,15 @@ export default function LoginPage() {
   // 2FA state — store credentials for step 2 (backend needs username+password+totp_code)
   const [requires2FA, setRequires2FA] = useState(false);
   const [pending2FACredentials, setPending2FACredentials] = useState({ username: '', password: '' });
+  const [googleUserId, setGoogleUserId] = useState(''); // set when 2FA triggered from Google OAuth
   const [totpCode, setTotpCode] = useState('');
   const totpInputRef = useRef<HTMLInputElement>(null);
+
+  // Google OAuth 2FA — called when backend returns requires_2fa for staff user
+  const handleGoogleRequires2FA = (userId: string) => {
+    setGoogleUserId(userId);
+    setRequires2FA(true);
+  };
 
   // Redirect if already logged in
   useEffect(() => {
@@ -100,7 +107,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login2FA(pending2FACredentials.username, pending2FACredentials.password, totpCode);
+      // Google OAuth 2FA path uses googleUserId; regular login uses username+password
+      if (googleUserId) {
+        await loginGoogle2FA(googleUserId, totpCode);
+      } else {
+        await login2FA(pending2FACredentials.username, pending2FACredentials.password, totpCode);
+      }
       onLoginSuccess();
     } catch {
       setError('Invalid code. Please check your Google Authenticator and try again.');
@@ -266,6 +278,7 @@ export default function LoginPage() {
                     setTimeout(() => { window.location.href = '/'; }, 500);
                   }}
                   onError={(err) => { toast.error(err); }}
+                  onRequires2FA={handleGoogleRequires2FA}
                 />
               </div>
             </>

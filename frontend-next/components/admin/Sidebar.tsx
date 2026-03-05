@@ -110,7 +110,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/admin/settings', icon: Settings, label: 'Site Settings' },
       { href: '/admin/account', icon: UserCog, label: 'Account Settings' },
-      { href: '/admin/users', icon: Users, label: 'Users', superuserOnly: true },
+      { href: '/admin/users', icon: Users, label: 'Users' },
     ],
   },
 ];

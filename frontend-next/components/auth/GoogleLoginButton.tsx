@@ -7,9 +7,10 @@ import { useState } from 'react';
 interface GoogleLoginButtonProps {
     onSuccess?: () => void;
     onError?: (error: string) => void;
+    onRequires2FA?: (googleUserId: string) => void;
 }
 
-export default function GoogleLoginButton({ onSuccess, onError }: GoogleLoginButtonProps) {
+export default function GoogleLoginButton({ onSuccess, onError, onRequires2FA }: GoogleLoginButtonProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -45,6 +46,12 @@ export default function GoogleLoginButton({ onSuccess, onError }: GoogleLoginBut
             }
 
             const data = await response.json();
+
+            // If this staff user has 2FA enabled — show TOTP prompt
+            if (data.requires_2fa && data.google_user_id) {
+                onRequires2FA?.(data.google_user_id);
+                return;
+            }
 
             // Store tokens
             localStorage.setItem('access_token', data.access);

@@ -194,9 +194,19 @@ class UserViewSet(viewsets.ViewSet):
             
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
-            
+
+            # If user is staff and has 2FA enabled — require TOTP before issuing tokens
+            from news.models import TOTPDevice
+            if user.is_staff and TOTPDevice.objects.filter(user=user, is_confirmed=True).exists():
+                logger.info(f"🔐 Google OAuth requires 2FA: user={user.username}")
+                return Response({
+                    'requires_2fa': True,
+                    'google_user_id': str(user.id),
+                    'message': 'Please provide your 2FA code to complete login.',
+                }, status=status.HTTP_200_OK)
+
             logger.info(f"Google OAuth {'registration' if created else 'login'}: {email}")
-            
+
             return Response({
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),

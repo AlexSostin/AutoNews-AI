@@ -86,6 +86,37 @@ export const login2FA = async (username: string, password: string, totpCode: str
   return { access, refresh };
 };
 
+// Complete 2FA login after Google OAuth — backend expects {google_user_id, totp_code}
+export const loginGoogle2FA = async (googleUserId: string, totpCode: string): Promise<AuthTokens> => {
+  const response = await api.post('/auth/2fa/google-verify/', {
+    google_user_id: googleUserId,
+    totp_code: totpCode,
+  });
+  const { access, refresh } = response.data;
+
+  setCookie('access_token', access);
+  setCookie('refresh_token', refresh, 30 * 24 * 60 * 60);
+  localStorage.setItem('access_token', access);
+  localStorage.setItem('refresh_token', refresh);
+
+  const userData = await getCurrentUser(access);
+  if (userData) {
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUserContext({
+      id: userData.id.toString(),
+      email: userData.email,
+      username: userData.username,
+      is_staff: userData.is_staff
+    });
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('authChange'));
+  }
+
+  return { access, refresh };
+};
+
 export const logout = () => {
   // Clear localStorage
   localStorage.removeItem('access_token');

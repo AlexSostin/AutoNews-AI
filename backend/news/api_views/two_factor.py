@@ -156,6 +156,60 @@ class TwoFactorVerifyView(APIView):
         })
 
 
+class TwoFactorGoogleVerifyView(APIView):
+    """Verify 2FA code for users who signed in via Google OAuth.
+
+    Client sends google_user_id and totp_code (no password needed since
+    Google already authenticated the user).
+    Returns JWT tokens if TOTP is valid.
+    """
+
+    def post(self, request):
+        from django.contrib.auth.models import User
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        google_user_id = request.data.get('google_user_id', '').strip()
+        totp_code = request.data.get('totp_code', '').strip()
+
+        if not google_user_id or not totp_code:
+            return Response(
+                {'detail': 'google_user_id and totp_code are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(pk=google_user_id)
+        except (User.DoesNotExist, ValueError):
+            return Response({'detail': 'Invalid user.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Verify TOTP code
+        try:
+            device = TOTPDevice.objects.get(user=user, is_confirmed=True)
+        except TOTPDevice.DoesNotExist:
+            return Response({'detail': '2FA is not enabled for this account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not device.verify_code(totp_code) and not device.verify_backup_code(totp_code):
+            logger.warning(f"🔒 Google 2FA verification FAILED: user={user.username}")
+            return Response({'detail': 'Invalid 2FA code.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        refresh = RefreshToken.for_user(user)
+        logger.info(f"🔑 Google OAuth 2FA login SUCCESS: user={user.username}")
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_staff': user.is_staff,
+                'date_joined': user.date_joined.isoformat(),
+            },
+        })
+
+
 class TwoFactorDisableView(APIView):
     """Disable 2FA (requires valid TOTP code to confirm identity)."""
     permission_classes = [IsAdminUser]

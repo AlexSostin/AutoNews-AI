@@ -33,7 +33,7 @@ from .ab_testing_views import (
 )
 from .api_views.two_factor import (
     TwoFactorSetupView, TwoFactorConfirmView, TwoFactorVerifyView,
-    TwoFactorDisableView, TwoFactorStatusView
+    TwoFactorGoogleVerifyView, TwoFactorDisableView, TwoFactorStatusView
 )
 
 
@@ -49,20 +49,21 @@ class RateLimitedTokenObtainPairView(TokenObtainPairView):
         try:
             response = super().post(request, *args, **kwargs)
             if response.status_code == 200:
-                # Check if user has 2FA enabled — use iexact for case-insensitive match
+                # Check if user has 2FA enabled — only for is_staff users
                 try:
                     from django.contrib.auth.models import User
                     from news.models import TOTPDevice
                     user = User.objects.get(username__iexact=username)
-                    has_2fa = TOTPDevice.objects.filter(user=user, is_confirmed=True).exists()
-                    logger.info(f"🔐 2FA check: user={user.username} has_2fa={has_2fa}")
-                    if has_2fa:
-                        # Don't return tokens — require 2FA verification
-                        logger.info(f"🔐 Login requires 2FA: user={user.username} ip={ip}")
-                        return Response({
-                            'requires_2fa': True,
-                            'message': 'Please provide your 2FA code.',
-                        }, status=200)
+                    # 2FA is only required for staff/admin accounts, not regular users
+                    if user.is_staff:
+                        has_2fa = TOTPDevice.objects.filter(user=user, is_confirmed=True).exists()
+                        logger.info(f"🔐 2FA check: user={user.username} is_staff=True has_2fa={has_2fa}")
+                        if has_2fa:
+                            logger.info(f"🔐 Login requires 2FA: user={user.username} ip={ip}")
+                            return Response({
+                                'requires_2fa': True,
+                                'message': 'Please provide your 2FA code.',
+                            }, status=200)
                 except User.DoesNotExist:
                     logger.warning(f"⚠️ 2FA check: user not found username={username}")
                 except Exception as e:
@@ -152,6 +153,7 @@ urlpatterns = [
     path('auth/2fa/setup/', TwoFactorSetupView.as_view(), name='2fa_setup'),
     path('auth/2fa/confirm/', TwoFactorConfirmView.as_view(), name='2fa_confirm'),
     path('auth/2fa/verify/', TwoFactorVerifyView.as_view(), name='2fa_verify'),
+    path('auth/2fa/google-verify/', TwoFactorGoogleVerifyView.as_view(), name='2fa_google_verify'),
     path('auth/2fa/disable/', TwoFactorDisableView.as_view(), name='2fa_disable'),
     path('auth/2fa/status/', TwoFactorStatusView.as_view(), name='2fa_status'),
     
