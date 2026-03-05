@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework import status
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate  # kept for potential future use
 
 from news.models import TOTPDevice
 
@@ -118,9 +118,13 @@ class TwoFactorVerifyView(APIView):
     # No permission_classes — this is called before authentication is complete
 
     def post(self, request):
-        username = request.data.get('username', '')
+        from django.contrib.auth.models import User
+
+        username = request.data.get('username', '').strip()
         password = request.data.get('password', '')
         totp_code = request.data.get('totp_code', '').strip()
+
+        logger.info(f"🔐 2FA verify attempt: username={username!r} totp_len={len(totp_code)}")
 
         if not username or not password or not totp_code:
             return Response(
@@ -128,32 +132,47 @@ class TwoFactorVerifyView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Authenticate credentials
-        user = authenticate(request, username=username, password=password)
-        if user is None:
+        # Lookup user — bypass django-axes by using check_password directly
+        # (axes would block after multiple /token/ failures, causing 2FA verify to silently fail)
+        try:
+            user = User.objects.get(username__iexact=username)
+        except User.DoesNotExist:
+            logger.warning(f"🔒 2FA verify: user not found username={username!r}")
             return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user.check_password(password):
+            logger.warning(f"🔒 2FA verify: wrong password for user={user.username}")
+            return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user.is_active:
+            logger.warning(f"🔒 2FA verify: user is inactive username={user.username}")
+            return Response({'detail': 'Account is disabled.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         # Verify TOTP code
         try:
             device = TOTPDevice.objects.get(user=user, is_confirmed=True)
         except TOTPDevice.DoesNotExist:
+            logger.error(f"🔒 2FA verify: no confirmed device for user={user.username}")
             return Response({'detail': '2FA is not enabled for this account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.info(f"🔐 2FA verify: checking code for user={user.username}")
 
         # Try TOTP code first, then backup code
         if not device.verify_code(totp_code) and not device.verify_backup_code(totp_code):
-            logger.warning(f"🔒 2FA verification FAILED: user={username}")
+            logger.warning(f"🔒 2FA verification FAILED: user={user.username}")
             return Response({'detail': 'Invalid 2FA code.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         # Issue JWT tokens
         from rest_framework_simplejwt.tokens import RefreshToken
         refresh = RefreshToken.for_user(user)
 
-        logger.info(f"🔑 2FA login SUCCESS: user={username}")
+        logger.info(f"🔑 2FA login SUCCESS: user={user.username}")
 
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
         })
+
 
 
 class TwoFactorGoogleVerifyView(APIView):
