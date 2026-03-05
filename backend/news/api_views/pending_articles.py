@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.utils import timezone
 from ..models import Article, PendingArticle, Category, Tag, CarSpecification, VehicleSpecs
 from ..serializers import PendingArticleSerializer
@@ -23,7 +23,7 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
         'suggested_category'
     ).all()
     serializer_class = PendingArticleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'video_title']
     ordering_fields = ['created_at', 'status']

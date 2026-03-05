@@ -371,9 +371,8 @@ class TestReEnrich:
             f'{API}/articles/{article.slug}/re-enrich/',
             format='json',
         )
-        # Regular authenticated users can access (IsAuthenticated)
-        # but the test verifies the endpoint exists and responds
-        assert resp.status_code in (200, 500)  # May fail on missing AI modules
+        # Regular users should be blocked — admin-only endpoint
+        assert resp.status_code == 403
 
 
 # ═══════════════════════════════════════════════════════════════════════════

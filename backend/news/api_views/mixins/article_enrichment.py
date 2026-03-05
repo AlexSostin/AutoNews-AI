@@ -5,7 +5,7 @@ bulk re-enrichment, and debug endpoints.
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 import re
 import logging
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ArticleEnrichmentMixin:
     """Mixin for article enrichment actions on ArticleViewSet."""
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def extract_specs(self, request, slug=None):
         """
         Extract vehicle specifications from article using AI
@@ -57,7 +57,7 @@ class ArticleEnrichmentMixin:
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser],
             url_path='auto-resolve-fact-check')
     def auto_resolve_fact_check(self, request, slug=None):
         """
@@ -118,7 +118,7 @@ class ArticleEnrichmentMixin:
             'message': f"Fixed {len(result.get('fixed', []))} claims, removed {len(result.get('removed', []))} unsupported claims."
         })
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser],
             url_path='re-enrich')
     def re_enrich(self, request, slug=None):
         """

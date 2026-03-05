@@ -237,12 +237,12 @@ class TestABStats:
 class TestExtractSpecs:
 
     @patch('ai_engine.modules.specs_extractor.extract_vehicle_specs')
-    def test_extract_specs_success(self, mock_extract, auth_client, article):
+    def test_extract_specs_success(self, mock_extract, staff_client, article):
         mock_extract.return_value = {
             'make': 'Tesla', 'model_name': 'Model 3',
             'fuel_type': 'Electric',
         }
-        resp = auth_client.post(
+        resp = staff_client.post(
             f'{API}/articles/{article.slug}/extract_specs/',
             format='json',
         )
@@ -251,8 +251,8 @@ class TestExtractSpecs:
 
     @patch('ai_engine.modules.specs_extractor.extract_vehicle_specs',
            side_effect=Exception('AI error'))
-    def test_extract_specs_error(self, mock_extract, auth_client, article):
-        resp = auth_client.post(
+    def test_extract_specs_error(self, mock_extract, staff_client, article):
+        resp = staff_client.post(
             f'{API}/articles/{article.slug}/extract_specs/',
             format='json',
         )

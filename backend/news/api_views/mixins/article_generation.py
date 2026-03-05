@@ -5,7 +5,7 @@ content reformatting, and article regeneration.
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 import os
@@ -28,7 +28,7 @@ except ImportError:
 class ArticleGenerationMixin:
     """Mixin for article generation actions on ArticleViewSet."""
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def generate_from_youtube(self, request):
         """Generate article from YouTube URL with WebSocket progress"""
@@ -128,7 +128,7 @@ class ArticleGenerationMixin:
                 status=status.HTTP_400_BAD_REQUEST
             )
     
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], url_path='translate-enhance')
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser], url_path='translate-enhance')
     @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
     def translate_enhance(self, request):
         """Translate Russian text to English and generate a formatted HTML article."""
@@ -381,7 +381,7 @@ class ArticleGenerationMixin:
             **result,
         })
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser],
             url_path='reformat-content')
     def reformat_content(self, request, slug=None):
         """
@@ -500,7 +500,7 @@ Return ONLY the HTML-formatted version with every word preserved."""
                 'message': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated],
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser],
             url_path='auto-fill-metadata')
     def auto_fill_metadata(self, request):
         """
@@ -649,7 +649,7 @@ Return JSON:
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated],
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser],
             url_path='regenerate')
     def regenerate(self, request, slug=None):
         """

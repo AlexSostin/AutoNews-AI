@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 class GenerateAIImageView(APIView):
     """Generate AI car photo using Gemini Image API and save to article."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     
     def get(self, request):
         """Return available scene styles."""
@@ -135,7 +135,7 @@ class GenerateAIImageView(APIView):
 
 class SearchPhotosView(APIView):
     """Search for car press photos online using DuckDuckGo Image Search."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     
     def get(self, request, identifier=None):
         """Search for press photos for an article's car."""
@@ -206,7 +206,7 @@ class SearchPhotosView(APIView):
 
 class SaveExternalImageView(APIView):
     """Download an external image URL and save it to an article's image slot."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     
     @method_decorator(ratelimit(key='user', rate='10/d', method='POST', block=True))
     def post(self, request, identifier=None):
@@ -291,7 +291,7 @@ class SaveExternalImageView(APIView):
 
 class ProxyImageView(APIView):
     """Proxy external image downloads to avoid CSP restrictions on the frontend."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     
     def post(self, request):
         """Download an external image and return it as binary response."""

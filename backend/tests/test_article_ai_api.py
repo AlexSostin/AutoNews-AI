@@ -159,8 +159,8 @@ class TestGenerateAIImageView:
 
     @patch('ai_engine.modules.image_generator.get_available_styles',
            return_value=['scenic_road', 'studio', 'urban'])
-    def test_get_styles(self, mock_styles, auth_client):
-        resp = auth_client.get(f'{API}/ai-image-styles/')
+    def test_get_styles(self, mock_styles, staff_client):
+        resp = staff_client.get(f'{API}/ai-image-styles/')
         assert resp.status_code == 200
         assert 'styles' in resp.data
         assert len(resp.data['styles']) == 3
