@@ -49,6 +49,7 @@ export interface GSCStats {
         position: number;
     };
     last_sync: string | null;
+    days?: number;
 }
 
 export interface AIStats {
@@ -109,6 +110,7 @@ export interface ProviderStatsData {
         avg_coverage: number;
         avg_time: number;
         count: number;
+        provider?: string; // family: 'gemini' | 'groq'
     }>;
     total_records: number;
 }

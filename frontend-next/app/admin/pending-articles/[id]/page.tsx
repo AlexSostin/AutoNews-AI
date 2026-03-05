@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { ArrowLeft, CheckCircle, XCircle, Loader2, ExternalLink, Calendar, Tag, Rss } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface PendingArticle {
     id: number;
@@ -192,7 +193,7 @@ export default function PendingArticlePreviewPage() {
                     {/* Content */}
                     <div
                         className="prose prose-lg max-w-none"
-                        dangerouslySetInnerHTML={{ __html: article.content }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
                     />
 
                     {/* Additional Images */}

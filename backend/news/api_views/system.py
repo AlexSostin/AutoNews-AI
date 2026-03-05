@@ -505,6 +505,28 @@ class AutomationStatsView(APIView):
             is_auto_published=True
         ).order_by('-reviewed_at')[:10]
         
+        # === ML Model Info ===
+        ml_info = {'trained': False}
+        try:
+            from ai_engine.modules.content_recommender import get_model_info
+            ml_info = get_model_info()
+        except Exception:
+            pass
+        
+        # === Enrichment Report ===
+        enrichment_report = None
+        try:
+            import json as _json
+            meta_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                'ai_engine', 'models', 'enrichment_meta.json'
+            )
+            if os.path.exists(meta_path):
+                with open(meta_path) as f:
+                    enrichment_report = _json.load(f)
+        except Exception:
+            pass
+        
         return Response({
             'pending_total': pending_total,
             'pending_high_quality': pending_high_quality,
@@ -529,6 +551,10 @@ class AutomationStatsView(APIView):
             'recent_decisions': decisions_data,
             'decision_breakdown': decision_breakdown,
             'total_decisions': total_decisions,
+            # ML model
+            'ml_model': ml_info,
+            # Enrichment
+            'enrichment_report': enrichment_report,
             # Legacy
             'recent_auto_published': [
                 {
@@ -593,10 +619,128 @@ class AutomationTriggerView(APIView):
             threading.Thread(target=_run_deep_specs_backfill, daemon=True).start()
             return Response({'message': 'VehicleSpecs backfill triggered', 'status': 'running'})
         
+        elif task_type == 'ml-retrain':
+            def _retrain_ml():
+                try:
+                    from ai_engine.modules.content_recommender import build
+                    build(force=True)
+                except Exception as e:
+                    logger.error(f'ML retrain failed: {e}')
+            threading.Thread(target=_retrain_ml, daemon=True).start()
+            return Response({'message': 'ML model retrain triggered', 'status': 'running'})
+        
         return Response(
             {'error': f'Unknown task type: {task_type}'},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+class NavBadgesView(APIView):
+    """
+    GET /api/v1/nav-badges/
+    Returns badge counts for all sidebar nav items.
+    Cached for 60s to minimise DB load during polling.
+    """
+    permission_classes = [IsAdminUser]
+
+    CACHE_KEY = 'nav_badges_v1'
+
+    def get(self, request):
+        cached = cache.get(self.CACHE_KEY)
+        if cached is not None:
+            return Response(cached)
+
+        from datetime import timedelta
+        from news.models import Comment, PendingArticle, Subscriber
+        from news.models.interactions import ArticleFeedback
+
+        now = timezone.now()
+        week_ago = now - timedelta(days=7)
+
+        # Comments pending moderation
+        comments_pending = Comment.objects.filter(
+            moderation_status='pending'
+        ).count()
+
+        # Feedback not yet resolved
+        feedback_unresolved = ArticleFeedback.objects.filter(
+            is_resolved=False
+        ).count()
+
+        # New subscribers in last 7 days
+        subscribers_new = Subscriber.objects.filter(
+            created_at__gte=week_ago
+        ).count()
+
+        # RSS articles waiting to be reviewed / published
+        rss_pending = PendingArticle.objects.filter(
+            status='pending'
+        ).count()
+
+        badges = {
+            'comments': comments_pending,
+            'feedback': feedback_unresolved,
+            'subscribers': subscribers_new,
+            'rss_pending': rss_pending,
+        }
+
+        cache.set(self.CACHE_KEY, badges, 60)
+        return Response(badges)
+
+
+class CapsuleFeedbackView(APIView):
+    """
+    POST /api/v1/capsule-feedback/  → submit one capsule vote
+    GET  /api/v1/capsule-feedback/<slug>/  → get current user's votes for an article
+    """
+    permission_classes = [AllowAny]
+
+    def _get_ip(self, request):
+        xff = request.META.get('HTTP_X_FORWARDED_FOR')
+        return xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR')
+
+    def get(self, request, slug=None):
+        if not slug:
+            return Response({'error': 'slug required'}, status=status.HTTP_400_BAD_REQUEST)
+        from news.models.interactions import ArticleCapsuleFeedback
+        ip = self._get_ip(request)
+        voted = list(
+            ArticleCapsuleFeedback.objects.filter(
+                article__slug=slug, ip_address=ip
+            ).values_list('feedback_type', flat=True)
+        )
+        return Response({'voted': voted, 'slug': slug})
+
+    @method_decorator(ratelimit(key='ip', rate='30/m', method='POST', block=True))
+    def post(self, request):
+        from news.models.interactions import ArticleCapsuleFeedback
+        slug = request.data.get('slug')
+        feedback_type = request.data.get('feedback_type')
+
+        if not slug or not feedback_type:
+            return Response({'error': 'slug and feedback_type required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_types = {c[0] for c in ArticleCapsuleFeedback.FEEDBACK_CHOICES}
+        if feedback_type not in valid_types:
+            return Response({'error': f'Invalid feedback_type. Valid: {sorted(valid_types)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        article = get_object_or_404(Article, slug=slug)
+        ip = self._get_ip(request)
+
+        obj, created = ArticleCapsuleFeedback.objects.get_or_create(
+            article=article,
+            feedback_type=feedback_type,
+            ip_address=ip,
+            defaults={'is_positive': feedback_type in ArticleCapsuleFeedback.POSITIVE_TYPES},
+        )
+
+        if not created:
+            # Toggle: remove vote if already exists
+            obj.delete()
+            return Response({'status': 'removed', 'feedback_type': feedback_type})
+
+        return Response({'status': 'created', 'feedback_type': feedback_type}, status=status.HTTP_201_CREATED)
+
 
 class AdminActionStatsView(APIView):
     """

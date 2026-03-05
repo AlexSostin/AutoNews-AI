@@ -225,3 +225,55 @@ class InternalLinkClick(models.Model):
         
     def __str__(self):
         return f"{self.source_article.slug} -> {self.destination_url} ({self.link_type})"
+
+
+class ArticleCapsuleFeedback(models.Model):
+    """Capsule-style feedback: users tap pre-defined quality signals.
+    Each capsule = one fine-grained reward for ML training.
+    Deduped by IP+article+feedback_type (one vote per capsule per visitor)."""
+
+    FEEDBACK_CHOICES = [
+        # Positive (is_positive=True)
+        ('accurate_specs', '📊 Accurate Specs'),
+        ('well_written', '✍️ Well Written'),
+        ('great_photos', '📸 Great Photos'),
+        ('fair_review', '⚖️ Fair Review'),
+        ('useful_info', '💡 Useful Info'),
+        # Negative (is_positive=False)
+        ('wrong_specs', '📊 Wrong Specs'),
+        ('too_long', '✍️ Too Long'),
+        ('need_photos', '📸 Need Photos'),
+        ('missing_price', '💰 Missing Price'),
+        ('inaccurate', '❌ Inaccurate'),
+    ]
+
+    POSITIVE_TYPES = {'accurate_specs', 'well_written', 'great_photos', 'fair_review', 'useful_info'}
+
+    article = models.ForeignKey('news.Article', on_delete=models.CASCADE, related_name='capsule_feedback')
+    feedback_type = models.CharField(max_length=20, choices=FEEDBACK_CHOICES)
+    is_positive = models.BooleanField(help_text="Auto-set based on feedback_type")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['article', 'feedback_type']),
+            models.Index(fields=['feedback_type', 'is_positive']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['article', 'feedback_type', 'ip_address'],
+                name='unique_capsule_per_ip',
+            ),
+        ]
+        verbose_name = 'Article Capsule Feedback'
+        verbose_name_plural = 'Article Capsule Feedback'
+
+    def save(self, *args, **kwargs):
+        self.is_positive = self.feedback_type in self.POSITIVE_TYPES
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        icon = '✅' if self.is_positive else '❌'
+        return f"{icon} {self.get_feedback_type_display()} — {self.article.title[:40]}"

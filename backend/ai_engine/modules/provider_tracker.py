@@ -40,7 +40,7 @@ def _save_stats(data: dict):
 
 def record_generation(provider: str, make: str, quality_score: int = 0,
                       spec_coverage: float = 0.0, total_time: float = 0.0,
-                      spec_fields_filled: int = 0):
+                      spec_fields_filled: int = 0, model: str = ''):
     """
     Record a generation event for provider performance tracking.
     
@@ -51,6 +51,7 @@ def record_generation(provider: str, make: str, quality_score: int = 0,
         spec_coverage: spec coverage percentage (0-100)
         total_time: total generation time in seconds
         spec_fields_filled: number of spec fields filled
+        model: specific model name used (e.g. 'gemini-2.5-flash-lite')
     """
     from datetime import datetime
     
@@ -58,6 +59,7 @@ def record_generation(provider: str, make: str, quality_score: int = 0,
     
     record = {
         'provider': provider,
+        'model': model or provider,  # e.g. 'gemini-2.5-flash-lite'
         'make': make.strip().title() if make else 'Unknown',
         'quality_score': quality_score,
         'spec_coverage': round(spec_coverage, 1),
@@ -73,7 +75,7 @@ def record_generation(provider: str, make: str, quality_score: int = 0,
         data['records'] = data['records'][-500:]
     
     _save_stats(data)
-    logger.info(f"[PROVIDER-TRACKER] Recorded: {provider} × {make} — "
+    logger.info(f"[PROVIDER-TRACKER] Recorded: {model or provider} × {make} — "
                 f"quality={quality_score}, coverage={spec_coverage:.0f}%")
 
 
@@ -149,38 +151,44 @@ def get_provider_summary() -> dict:
     if not records:
         return {'providers': {}, 'by_brand': {}, 'total_records': 0}
     
-    # Overall per-provider
+    # Overall per-provider (key = model name or provider name)
     providers = defaultdict(lambda: {'quality': [], 'coverage': [], 'time': [], 'count': 0})
     by_brand = defaultdict(lambda: defaultdict(lambda: {'quality': [], 'count': 0}))
+    # Also track which provider-family each key belongs to (for coloring on frontend)
+    key_to_provider = {}
     
     for r in records:
         p = r.get('provider', 'gemini')
+        # Use model as display key if available, else fall back to provider
+        model = r.get('model', '') or p
         make = r.get('make', 'Unknown')
         
-        providers[p]['quality'].append(r.get('quality_score', 0))
-        providers[p]['coverage'].append(r.get('spec_coverage', 0))
-        providers[p]['time'].append(r.get('total_time', 0))
-        providers[p]['count'] += 1
+        providers[model]['quality'].append(r.get('quality_score', 0))
+        providers[model]['coverage'].append(r.get('spec_coverage', 0))
+        providers[model]['time'].append(r.get('total_time', 0))
+        providers[model]['count'] += 1
+        key_to_provider[model] = p  # track family
         
-        by_brand[make][p]['quality'].append(r.get('quality_score', 0))
-        by_brand[make][p]['count'] += 1
+        by_brand[make][model]['quality'].append(r.get('quality_score', 0))
+        by_brand[make][model]['count'] += 1
     
     # Compute averages
     result_providers = {}
-    for p, stats in providers.items():
-        result_providers[p] = {
+    for model_key, stats in providers.items():
+        result_providers[model_key] = {
             'avg_quality': round(sum(stats['quality']) / len(stats['quality']), 1) if stats['quality'] else 0,
             'avg_coverage': round(sum(stats['coverage']) / len(stats['coverage']), 1) if stats['coverage'] else 0,
             'avg_time': round(sum(stats['time']) / len(stats['time']), 1) if stats['time'] else 0,
             'count': stats['count'],
+            'provider': key_to_provider.get(model_key, model_key),  # family: 'gemini' or 'groq'
         }
     
-    # Top brands with per-provider comparison
+    # Top brands with per-model comparison
     result_brands = {}
-    for make, provider_data in sorted(by_brand.items(), key=lambda x: sum(p['count'] for p in x[1].values()), reverse=True)[:10]:
+    for make, model_data in sorted(by_brand.items(), key=lambda x: sum(p['count'] for p in x[1].values()), reverse=True)[:10]:
         result_brands[make] = {}
-        for p, stats in provider_data.items():
-            result_brands[make][p] = {
+        for model_key, stats in model_data.items():
+            result_brands[make][model_key] = {
                 'avg_quality': round(sum(stats['quality']) / len(stats['quality']), 1) if stats['quality'] else 0,
                 'count': stats['count'],
             }

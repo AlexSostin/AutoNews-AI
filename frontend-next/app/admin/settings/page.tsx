@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Facebook, Instagram, Youtube, Linkedin, Wrench, AlertTriangle, Eye } from 'lucide-react';
+import { Save, Facebook, Instagram, Youtube, Linkedin, Wrench, AlertTriangle, Eye, Scroll } from 'lucide-react';
 import api from '@/lib/api';
 
 // Custom SVG Icons
@@ -78,6 +78,7 @@ export default function SettingsPage() {
     hero_title: '',
     hero_subtitle: '',
     show_browse_by_brand: true,
+    infinite_scroll_enabled: true,
   });
 
   useEffect(() => {
@@ -213,6 +214,24 @@ export default function SettingsPage() {
                 type="checkbox"
                 checked={formData.show_browse_by_brand}
                 onChange={(e) => setFormData({ ...formData, show_browse_by_brand: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-100 mt-4">
+            <div>
+              <p className="font-bold text-gray-900">Infinite Article Scroll</p>
+              <p className="text-sm text-gray-600">
+                Automatically load next article when user scrolls past comments
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.infinite_scroll_enabled}
+                onChange={(e) => setFormData({ ...formData, infinite_scroll_enabled: e.target.checked })}
                 className="sr-only peer"
               />
               <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>

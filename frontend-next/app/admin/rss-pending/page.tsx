@@ -18,6 +18,7 @@ import {
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
 import toast from 'react-hot-toast';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface RSSFeed {
     id: number;
@@ -617,7 +618,7 @@ export default function RSSNewsPage() {
                                                     </div>
                                                     <div
                                                         className="prose prose-sm max-w-none text-gray-700 text-xs max-h-[200px] overflow-y-auto"
-                                                        dangerouslySetInnerHTML={{ __html: item.content || '<p>No content available</p>' }}
+                                                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.content || '<p>No content available</p>') }}
                                                     />
                                                 </div>
                                             )}

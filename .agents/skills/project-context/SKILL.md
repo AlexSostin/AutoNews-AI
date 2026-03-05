@@ -5,6 +5,16 @@ description: Essential project setup, architecture, and conventions for AutoNews
 
 # FreshMotors / AutoNews-AI — Project Context
 
+## 👤 About the User (IMPORTANT — read first)
+
+- **Саша** — founder/product owner, NOT a software engineer
+- He is LEARNING development as the project grows — explain everything as a **friendly teacher**, not as a code reviewer
+- When explaining technical concepts (ML, caching, signals, etc.) — use **simple analogies**, avoid jargon
+- The project moves very fast ("at the speed of light") — Саша relies on the assistant to remember context
+- Language: Саша writes in **Russian**, respond in **Russian** for explanations, code remains in English
+- Be **patient and encouraging** — celebrate progress, don't criticize gaps in knowledge
+- When something is complex, break it into: **What is it? → Why do we need it? → How does it work here?**
+
 ## Architecture
 
 - **Backend**: Django 6.0 + DRF 3.15, Python 3.13, Docker container `autonews_backend`
@@ -131,6 +141,31 @@ frontend-next/
 - **Infinite scroll scroll anchor**: When adding article to DOM above footer, use `getBoundingClientRect().top` before + `requestAnimationFrame` after to restore footer viewport position
 - **BackToTop smart click**: Custom event `article-active-slug` dispatched by `InfiniteArticleScroll` on each article switch; `BackToTop` listens and stores `activeSlugRef` for single-click jump to current article. Double-click = page top
 
+## Color Theme System (3 themes)
+
+The site has 3 color themes. **NO Tailwind dark mode** — do NOT use `dark:` classes on public pages.
+
+| Theme | `data-theme` | Preview Color |
+|---|---|---|
+| Indigo (default) | _(none)_ | `#6366f1` |
+| Emerald | `midnight-green` | `#10b981` |
+| Ocean Blue | `deep-ocean` | `#3b82f6` |
+
+**How it works**: `globals.css` overrides `--color-indigo-*` and `--color-purple-*` CSS variables via `[data-theme]` selectors. Components using `indigo-*` or `purple-*` Tailwind classes **automatically adapt** to all 3 themes.
+
+**Key files**:
+
+- `frontend-next/components/public/ThemeProvider.tsx` — context + `useTheme()` hook
+- `frontend-next/components/public/ThemeSwitcher.tsx` — UI dropdown
+- `frontend-next/app/globals.css` — CSS variable overrides per theme
+- Theme stored in `localStorage('user-theme-choice')`, admin default in API `/site/theme/`
+
+**Critical rules**:
+
+- ✅ Use `indigo-*` / `purple-*` / `brand-*` classes → auto-adapts to theme
+- ❌ Do NOT use `dark:` prefix on public pages — picks up OS dark mode, NOT site theme
+- ❌ Do NOT hardcode specific colors (e.g. `#6366f1`) — use CSS variables
+
 ## Common Patterns
 
 - **Adding a new admin page**: Create `app/admin/{name}/page.tsx`, uses `api` from `@/lib/api`, wrap errors with `logCaughtError`
@@ -225,6 +260,30 @@ python scripts/analyze_tests.py
 - Frontend `PriceConverter` component handles **live** USD conversion via `/api/v1/currency-rates/`
 - This prevents conflicting USD amounts (DB rate vs live rate)
 
+## Prompt Injection Defense (added 2026-03-05)
+
+All AI prompts are protected by a 3-layer defense system:
+
+**Layer 1 — Gemini System Instruction Isolation**
+
+- `ai_provider.py` → Gemini uses `system_instruction` API parameter (not string concat)
+- Groq already had proper `role: system` / `role: user` separation
+
+**Layer 2 — Centralized Sanitizer** (`ai_engine/modules/prompt_sanitizer.py`)
+
+- `sanitize_for_prompt(text, max_length)` — strips 25+ injection patterns (instruction override, role hijack, model tokens, prompt leaking)
+- `wrap_untrusted(text, label)` — wraps in `<LABEL role="data" trust="untrusted">` XML delimiters
+- `ANTI_INJECTION_NOTICE` — constant appended after every external data block
+
+**Layer 3 — Structural Delimiters in all prompts**
+Protected modules: `analyzer.py`, `article_generator.py` (3 functions), `fact_checker.py` (2 functions), `translator.py`, `image_generator.py`, `article_generation.py` mixin, `vehicles.py`
+
+**Key rule**: When adding NEW `generate_completion()` calls, ALWAYS:
+
+1. Import `from ai_engine.modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE`
+2. Wrap external data: `wrap_untrusted(external_text, 'LABEL_NAME')`
+3. Add `{ANTI_INJECTION_NOTICE}` after the wrapped block
+
 ## Known Technical Debt
 
 - `CarSpecification` ↔ `VehicleSpecs` — duplicate models, need consolidation
@@ -292,3 +351,61 @@ Redis is configured as `django_redis.cache.RedisCache` with prefix `autonews:`.
 | `/currency-rates/` | `@cache_page(3600)` | 1 hr | External API rates |
 
 Cache invalidation is handled by `cache_signals.py` — post_save/post_delete signals on Article, Category, Tag, Rating, Comment automatically clear related cache keys + `@cache_page` patterns.
+
+---
+
+## ML Feedback Loop Architecture (RLHF in progress)
+
+We collect human preference signals in two ways:
+
+### 1. A/B Title Winner Logging (course-grained)
+
+`ArticleTitleVariant` model — Саша manually picks winner from admin A/B panel.
+
+**Fields for ML training:**
+
+```python
+selected_at         # timestamp of selection
+selection_source    # 'admin' (manual) / 'auto' (CTR-based)
+title_pattern       # JSON: pre-extracted features
+```
+
+**`title_pattern` features** (computed by `extract_title_pattern()` in `ab_testing_views.py`):
+
+```json
+{ "word_count": 9, "char_count": 67, "has_numbers": true,
+  "has_question": false, "has_colon": true,
+  "has_superlative": false, "has_spec": true, "uppercase_ratio": 0.09 }
+```
+
+Saved for **all variants** (winners AND losers) — contrast is what trains the model.
+
+Migration: `0096_ab_title_variant_winner_tracking`
+
+### 2. ArticleMicroFeedback (fine-grained)
+
+`news/models/interactions.py` → `ArticleMicroFeedback`
+
+Users give 👍/👎 on **specific article components** (not the whole article).
+`component_type` examples: `vehicle_specs`, `fact_block`, `pros_cons`
+
+This is our **fine-grained reward signal** — the most powerful form of feedback.
+In 2025-2026 research this approach ("Fine-Grained RLHF") outperforms single reward signals.
+
+### Roadmap to Full RLHF
+
+```
+NOW:  Logging human choices (selection_source, title_pattern, micro_feedback)
+↓
+NEXT: Pattern analysis — "titles with has_numbers=True win 70% of the time"
+↓
+FUTURE: Feed patterns back into Gemini prompt as style guidelines
+↓
+VISION: Fine-tuned reward model → auto-score generated titles without human review
+```
+
+### Key Principle (from 2025-2026 research)
+
+- **Contrast beats volume**: 50 winner/loser pairs > 500 unlabelled examples
+- **Domain specificity**: our car-spec titles (has_spec=True) are far more learnable than generic news
+- **Admin as expert annotator**: for niche automotive content, Саша IS the expert signal

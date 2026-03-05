@@ -126,14 +126,15 @@ export default function AutomationPage() {
 
             <StatsOverview stats={stats} />
             <SafetyOverview stats={stats} />
-            
-            <SiteThemePicker 
-                currentTheme={settings.site_theme} 
-                onUpdateTheme={(v) => updateSetting('site_theme', v)} 
+
+            <SiteThemePicker
+                currentTheme={settings.site_theme}
+                onUpdateTheme={(v) => updateSetting('site_theme', v)}
             />
 
             <TaskModules
                 settings={settings}
+                stats={stats}
                 eligibleStats={stats?.eligible}
                 saving={saving}
                 triggering={triggering}

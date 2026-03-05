@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, AlertCircle, Scale, UserCheck, Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface SiteSettings {
   terms_page_title: string;
@@ -66,7 +67,7 @@ export default function TermsPage() {
               /* Custom Content from Admin */
               <div
                 className="prose prose-lg max-w-none text-gray-700"
-                dangerouslySetInnerHTML={{ __html: pageContent }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(pageContent) }}
               />
             ) : (
               /* Default Content */

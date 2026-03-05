@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useState, useRef, useCallback, type ReactElement } from 'react';
 import { fixImageUrl } from '@/lib/config';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface ArticleContentWithImagesProps {
   content: string;
@@ -113,7 +114,7 @@ export default function ArticleContentWithImages({ content, images, imageSource,
     topLevelBlocks.forEach((block, idx) => {
       if (block.trim()) {
         parts.push(
-          <div key={`element-${idx}`} dangerouslySetInnerHTML={{ __html: block }} className="article-element" />
+          <div key={`element-${idx}`} dangerouslySetInnerHTML={{ __html: sanitizeHtml(block) }} className="article-element" />
         );
 
         const isParagraph = /^<p[\s>]/i.test(block.trim());
@@ -154,7 +155,7 @@ export default function ArticleContentWithImages({ content, images, imageSource,
            It's replaced by the enhanced version after client-side hydration. */
         <div
           className="article-content"
-          dangerouslySetInnerHTML={{ __html: cleanHtmlForSSR }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(cleanHtmlForSSR) }}
           suppressHydrationWarning
         />
       )}

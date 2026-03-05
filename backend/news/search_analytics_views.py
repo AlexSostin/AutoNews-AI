@@ -272,11 +272,14 @@ class GSCAnalyticsAPIView(APIView):
             clicks_data.append(report.clicks if report else 0)
             impressions_data.append(report.impressions if report else 0)
 
-        # 2. Key Metrics Summary (Last 7 days vs previous 7 days)
-        last_7_end = end_date - timedelta(days=2) # Latest data
-        last_7_start = last_7_end - timedelta(days=7)
-        prev_7_end = last_7_start
-        prev_7_start = prev_7_end - timedelta(days=7)
+        # 2. Key Metrics Summary — same period as timeline
+        # Split into current half vs previous half for trend arrows
+        mid_date = end_date - timedelta(days=days // 2)
+        # GSC data lags ~2 days, offset end accordingly
+        gsc_end = end_date - timedelta(days=2)
+        gsc_start = gsc_end - timedelta(days=days)
+        prev_end = gsc_start
+        prev_start = prev_end - timedelta(days=days)
 
         def get_summary(start, end):
             stats = GSCReport.objects.filter(date__gte=start, date__lte=end).aggregate(
@@ -296,8 +299,8 @@ class GSCAnalyticsAPIView(APIView):
                 'position': round(avg_pos, 1)
             }
 
-        current_summary = get_summary(last_7_start, last_7_end)
-        previous_summary = get_summary(prev_7_start, prev_7_end)
+        current_summary = get_summary(gsc_start, gsc_end)
+        previous_summary = get_summary(prev_start, prev_end)
 
         last_report = GSCReport.objects.order_by('-updated_at').first()
         
@@ -309,7 +312,8 @@ class GSCAnalyticsAPIView(APIView):
             },
             'summary': current_summary,
             'previous_summary': previous_summary,
-            'last_sync': last_report.updated_at.isoformat() if last_report else None
+            'last_sync': last_report.updated_at.isoformat() if last_report else None,
+            'days': days,
         })
 
 

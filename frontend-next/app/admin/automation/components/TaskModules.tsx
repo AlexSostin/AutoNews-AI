@@ -4,6 +4,7 @@ import { ModuleCard, SettingRow, NumberInput, ToggleSwitch } from './ui';
 
 interface TaskModulesProps {
     settings: AutomationSettings;
+    stats: AutomationStats | null;
     eligibleStats: AutomationStats['eligible'] | undefined;
     saving: boolean;
     triggering: string | null;
@@ -11,14 +12,32 @@ interface TaskModulesProps {
     triggerTask: (taskType: string) => void;
 }
 
+function formatTimeAgo(iso: string | null | undefined): string {
+    if (!iso) return 'Never';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Unknown';
+    const diff = Date.now() - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+}
+
 export function TaskModules({
     settings,
+    stats,
     eligibleStats,
     saving,
     triggering,
     updateSetting,
     triggerTask
 }: TaskModulesProps) {
+    const ml = stats?.ml_model;
+    const enrichment = stats?.enrichment_report;
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* RSS Scanning */}
@@ -283,6 +302,110 @@ export function TaskModules({
                     images, specs, tags, and red flags. Score 1-10. Articles ≥ <strong className="text-gray-800">{settings.auto_publish_min_quality}</strong> are
                     eligible for auto-publishing.
                 </p>
+            </div>
+
+            {/* 🧠 ML Content Recommender */}
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg shadow-md border-2 border-purple-200 p-5 h-full flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-black text-gray-900">🧠 ML Content Recommender</h3>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${ml?.trained
+                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                            : 'bg-gray-100 text-gray-500 border border-gray-200'
+                        }`}>
+                        {ml?.trained ? '✅ Trained' : '⏳ Not trained'}
+                    </span>
+                </div>
+                {ml?.trained ? (
+                    <div className="space-y-2 flex-1">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-white/70 rounded-lg px-3 py-2 border border-purple-100">
+                                <p className="text-xs text-gray-500 font-medium">Articles</p>
+                                <p className="text-lg font-black text-purple-700">{ml.article_count || 0}</p>
+                            </div>
+                            <div className="bg-white/70 rounded-lg px-3 py-2 border border-purple-100">
+                                <p className="text-xs text-gray-500 font-medium">Features (TF-IDF)</p>
+                                <p className="text-lg font-black text-purple-700">{(ml.vocabulary_size || 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white/70 rounded-lg px-3 py-2 border border-purple-100">
+                                <p className="text-xs text-gray-500 font-medium">Tags</p>
+                                <p className="text-lg font-black text-purple-700">{ml.unique_tags || 0}</p>
+                            </div>
+                            <div className="bg-white/70 rounded-lg px-3 py-2 border border-purple-100">
+                                <p className="text-xs text-gray-500 font-medium">Last trained</p>
+                                <p className="text-sm font-bold text-purple-700">{formatTimeAgo(ml.built_at)}</p>
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            Powers similar articles, tag predictions, and content recommendations.
+                        </p>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-600 flex-1">
+                        ML model has not been trained yet. Click &quot;Retrain Now&quot; or run <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">python manage.py train_content_model</code>.
+                    </p>
+                )}
+                <div className="mt-4 pt-4 border-t border-purple-200">
+                    <button
+                        onClick={() => triggerTask('ml-retrain')}
+                        disabled={triggering === 'ml-retrain'}
+                        className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all ${triggering === 'ml-retrain'
+                                ? 'bg-gray-100 text-gray-400 cursor-wait'
+                                : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
+                            }`}
+                    >
+                        {triggering === 'ml-retrain' ? '⏳ Training...' : '🔄 Retrain Now'}
+                    </button>
+                </div>
+            </div>
+
+            {/* 📦 Bulk Enrichment Report */}
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg shadow-md border-2 border-amber-200 p-5 h-full flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-black text-gray-900">📦 Bulk Enrichment</h3>
+                    <span className="text-xs font-bold text-gray-500">
+                        {enrichment ? formatTimeAgo(enrichment.last_run) : 'Never run'}
+                    </span>
+                </div>
+                {enrichment ? (
+                    <div className="space-y-2 flex-1">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-white/70 rounded-lg px-3 py-2 border border-amber-100">
+                                <p className="text-xs text-gray-500 font-medium">Articles</p>
+                                <p className="text-lg font-black text-amber-700">
+                                    {enrichment.articles_processed}/{enrichment.articles_total}
+                                </p>
+                            </div>
+                            <div className="bg-white/70 rounded-lg px-3 py-2 border border-amber-100">
+                                <p className="text-xs text-gray-500 font-medium">Duration</p>
+                                <p className="text-lg font-black text-amber-700">
+                                    {enrichment.duration_seconds < 60
+                                        ? `${enrichment.duration_seconds}s`
+                                        : `${Math.round(enrichment.duration_seconds / 60)}m`}
+                                </p>
+                            </div>
+                            <div className="bg-white/70 rounded-lg px-3 py-2 border border-amber-100">
+                                <p className="text-xs text-gray-500 font-medium">Tags created</p>
+                                <p className="text-lg font-black text-emerald-600">+{enrichment.tags_created}</p>
+                            </div>
+                            <div className="bg-white/70 rounded-lg px-3 py-2 border border-amber-100">
+                                <p className="text-xs text-gray-500 font-medium">Tags matched</p>
+                                <p className="text-lg font-black text-blue-600">+{enrichment.tags_matched}</p>
+                            </div>
+                        </div>
+                        {enrichment.errors > 0 && (
+                            <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+                                <p className="text-xs font-bold text-red-700">❌ {enrichment.errors} errors during enrichment</p>
+                            </div>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                            Mode: <strong>{enrichment.mode}</strong>
+                        </p>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-600 flex-1">
+                        No enrichment reports yet. Run <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">python manage.py bulk_enrich</code> to enrich articles with Deep Specs, A/B Titles, and Smart Tags.
+                    </p>
+                )}
             </div>
         </div>
     );

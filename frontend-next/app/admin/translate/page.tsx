@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface Category {
     id: number;
@@ -494,7 +495,7 @@ export default function TranslateEnhancePage() {
                                 {showPreview && (
                                     <div
                                         className="p-5 prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900"
-                                        dangerouslySetInnerHTML={{ __html: result.content }}
+                                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(result.content) }}
                                     />
                                 )}
                             </div>

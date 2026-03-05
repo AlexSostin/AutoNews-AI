@@ -54,6 +54,9 @@ class SiteSettings(models.Model):
     # Homepage Sections
     show_browse_by_brand = models.BooleanField(default=True, help_text="Show 'Browse by Brand' section on homepage")
     
+    # Article Reading Experience
+    infinite_scroll_enabled = models.BooleanField(default=True, help_text="Enable infinite article loading on scroll")
+    
     # Footer
     footer_text = models.TextField(default="© 2026 Fresh Motors. All rights reserved.")
     
@@ -449,7 +452,28 @@ class ArticleTitleVariant(models.Model):
         help_text="Minimum impressions per variant before auto-picking winner"
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
+    # === Winner tracking (for ML training data) ===
+    selected_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When this variant was selected as winner (admin or auto)"
+    )
+    selection_source = models.CharField(
+        max_length=10, blank=True, default='',
+        choices=[
+            ('admin', 'Admin picked manually'),
+            ('auto', 'Auto-picked by CTR'),
+            ('ai', 'AI-recommended'),
+        ],
+        help_text="How the winner was selected — for ML training signal"
+    )
+    # Extracted title patterns — pre-computed for future ML analysis
+    # e.g. {"has_numbers": true, "word_count": 9, "has_question": false, "has_brand": true}
+    title_pattern = models.JSONField(
+        null=True, blank=True,
+        help_text="Pre-extracted title features for future ML pattern analysis"
+    )
+
     class Meta:
         ordering = ['variant']
         unique_together = ['article', 'variant']
@@ -471,41 +495,45 @@ class ArticleTitleVariant(models.Model):
         """Auto-pick winners for tests that have enough data.
         Returns list of (article_id, winning_variant) tuples."""
         import logging
+        from django.utils import timezone
         logger = logging.getLogger(__name__)
-        
+
+        now = timezone.now()
         winners = []
         # Get articles with active tests
         active_article_ids = cls.objects.filter(
             is_active=True, is_winner=False
         ).values_list('article_id', flat=True).distinct()
-        
+
         for article_id in active_article_ids:
             variants = list(cls.objects.filter(article_id=article_id, is_active=True).order_by('-impressions'))
             if len(variants) < 2:
                 continue
-            
+
             # Check if all active variants crossed threshold
             if all(v.impressions >= v.auto_pick_threshold for v in variants):
                 # Pick winner (highest CTR)
                 winner = max(variants, key=lambda x: x.ctr)
-                
-                # Mark winner
+
+                # Mark winner with selection metadata
                 winner.is_winner = True
                 winner.is_active = False
-                winner.save()
-                
+                winner.selected_at = now
+                winner.selection_source = 'auto'
+                winner.save(update_fields=['is_winner', 'is_active', 'selected_at', 'selection_source'])
+
                 # Mark others as inactive
                 cls.objects.filter(article_id=article_id).exclude(id=winner.id).update(
                     is_active=False, is_winner=False
                 )
-                
+
                 # Update actual article title
                 from .content import Article
                 Article.objects.filter(id=article_id).update(title=winner.title)
-                
+
                 winners.append((article_id, winner.variant))
                 logger.info(f"A/B winner picked: Article {article_id} → Variant {winner.variant} ({winner.ctr}% CTR)")
-                
+
         return winners
 
 

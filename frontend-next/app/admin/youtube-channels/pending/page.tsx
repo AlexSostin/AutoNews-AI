@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import api, { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface PendingArticle {
   id: number;
@@ -390,7 +391,7 @@ export default function PendingArticlesPage() {
                     )}
                     <div
                       className="text-gray-800 max-h-96 overflow-y-auto"
-                      dangerouslySetInnerHTML={{ __html: article.content.slice(0, 2000) + (article.content.length > 2000 ? '...' : '') }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content.slice(0, 2000) + (article.content.length > 2000 ? '...' : '')) }}
                     />
                   </div>
 

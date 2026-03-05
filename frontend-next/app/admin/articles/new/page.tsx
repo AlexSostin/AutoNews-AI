@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Search, Image as ImageIcon, Loader2, RefreshCw, Zap, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { sanitizeHtml } from '@/lib/sanitize';
 import GenerationProgress from '@/components/admin/GenerationProgress';
 import { TagSelector } from '../[id]/edit/components/TagSelector';
 import { PhotoSearchModal } from '../[id]/edit/components/PhotoSearchModal';
@@ -669,7 +670,7 @@ export default function NewArticlePage() {
                 {showTranslatePreview && (
                   <div
                     className="mt-3 p-3 bg-gray-50 rounded text-sm prose prose-sm max-w-none text-gray-900"
-                    dangerouslySetInnerHTML={{ __html: translateResult.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(translateResult.content) }}
                   />
                 )}
               </div>
@@ -863,7 +864,7 @@ export default function NewArticlePage() {
               {/* Article Content */}
               <div
                 className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-a:text-indigo-600 hover:prose-a:text-indigo-700"
-                dangerouslySetInnerHTML={{ __html: formData.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(formData.content) }}
               />
             </div>
 

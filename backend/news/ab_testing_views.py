@@ -3,12 +3,32 @@ A/B Testing API Views
 Handles impression/click tracking for title variants and admin management.
 """
 import hashlib
+import re
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework import status
 from django.db.models import F, Sum
 from news.models import ArticleTitleVariant, ArticleImageVariant, Article
+
+
+def extract_title_pattern(title: str) -> dict:
+    """Extract ML-friendly features from a title string.
+    Saved alongside winner choice so we can learn what patterns win."""
+    words = title.split()
+    return {
+        'word_count': len(words),
+        'char_count': len(title),
+        'has_numbers': bool(re.search(r'\d', title)),
+        'has_question': title.strip().endswith('?'),
+        'has_exclamation': title.strip().endswith('!'),
+        'starts_with_number': bool(re.match(r'^\d', title.strip())),
+        'has_colon': ':' in title,
+        'has_superlative': bool(re.search(r'\b(best|most|top|ultimate|first|new|latest)\b', title, re.IGNORECASE)),
+        'has_spec': bool(re.search(r'\b(km|hp|kw|kwh|mph|mpg|bhp|nm|л\.с)\b', title, re.IGNORECASE)),
+        'uppercase_ratio': round(sum(1 for c in title if c.isupper()) / max(len(title), 1), 3),
+    }
 
 
 class ABImpressionView(APIView):
@@ -145,9 +165,20 @@ class ABPickWinnerView(APIView):
         except ArticleTitleVariant.DoesNotExist:
             return Response({'error': 'variant not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Mark winner and deactivate all variants for this article
+        now = timezone.now()
+
+        # Mark winner with full selection metadata
         variant.is_winner = True
-        variant.save(update_fields=['is_winner'])
+        variant.selected_at = now
+        variant.selection_source = 'admin'
+        variant.title_pattern = extract_title_pattern(variant.title)
+        variant.save(update_fields=['is_winner', 'selected_at', 'selection_source', 'title_pattern'])
+
+        # Log patterns for ALL variants (losers too — contrast is ML gold)
+        for other in ArticleTitleVariant.objects.filter(article=variant.article).exclude(id=variant.id):
+            if other.title_pattern is None:
+                other.title_pattern = extract_title_pattern(other.title)
+                other.save(update_fields=['title_pattern'])
 
         ArticleTitleVariant.objects.filter(
             article=variant.article
@@ -163,6 +194,8 @@ class ABPickWinnerView(APIView):
             'article_id': article.id,
             'winning_variant': variant.variant,
             'winning_title': variant.title,
+            'selected_at': now.isoformat(),
+            'selection_source': 'admin',
         })
 
 

@@ -85,4 +85,23 @@ export interface AutomationStats {
         quality_score: number;
         published_at: string;
     }>;
+    ml_model?: {
+        trained: boolean;
+        article_count?: number;
+        vocabulary_size?: number;
+        unique_tags?: number;
+        unique_categories?: number;
+        built_at?: string;
+        model_size_kb?: number;
+    };
+    enrichment_report?: {
+        last_run: string;
+        articles_processed: number;
+        articles_total: number;
+        errors: number;
+        tags_created: number;
+        tags_matched: number;
+        duration_seconds: number;
+        mode: string;
+    } | null;
 }

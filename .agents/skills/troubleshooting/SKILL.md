@@ -250,3 +250,28 @@ docker compose up -d postgres redis
 6. **Check CI independently** — CI failures may be unrelated to your current work (missing deps, API changes)
 7. **Compare Docker inside vs outside** — different PostgreSQL versions = stale docker-proxy = ghost DB!
 8. **Check env var names match** — `POSTGRES_DB` ≠ `DB_NAME`, silent fallback to defaults
+9. **AI prompt injection** — when adding new `generate_completion()` calls, always use `wrap_untrusted()` from `prompt_sanitizer.py` for external data. Never f-string raw user/RSS/web content into prompts
+
+---
+
+## WSL Zombie Port (port 3000 stuck after closing terminal)
+
+**Symptom**: `npm run dev` says "Port 3000 is in use by an unknown process" even though no terminal is running the frontend. Happens almost every day in WSL after closing VS Code terminal without stopping the dev server.
+
+**Fix** (two commands):
+
+```bash
+# 1. Kill whatever holds port 3000
+sudo fuser -k 3000/tcp
+
+# 2. Start frontend fresh
+cd /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/frontend-next && npm run dev
+```
+
+**Why it happens**: WSL doesn't always clean up child processes when a terminal is closed. The Node.js dev server stays alive as a zombie process without a parent terminal. `fuser -k` sends SIGKILL to all processes on that port.
+
+**Alternative** if `fuser` is not installed:
+
+```bash
+sudo lsof -ti:3000 | xargs sudo kill -9
+```

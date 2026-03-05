@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getApiUrl } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface AdPlacement {
   id: number;
@@ -107,7 +108,7 @@ export default function AdBanner({
           {/* HTML/JS code type (AdSense, etc.) */}
           {ad.ad_type === 'html_code' && ad.html_code && (
             <div className="ad-html-container rounded-xl overflow-hidden">
-              <div dangerouslySetInnerHTML={{ __html: ad.html_code }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(ad.html_code) }} />
               <span className="text-[10px] text-gray-400 mt-1 block text-right uppercase tracking-wider">
                 Advertisement
               </span>

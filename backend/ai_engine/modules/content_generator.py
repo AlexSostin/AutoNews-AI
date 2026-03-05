@@ -526,7 +526,10 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         try:
             from ai_engine.modules.provider_tracker import record_generation
             from ai_engine.modules.spec_refill import compute_coverage
+            import ai_engine.modules.ai_provider as _ai_mod
             _, _, _spec_cov, _ = compute_coverage(specs)
+            # Use exact model name if Gemini (e.g. 'gemini-2.5-flash-lite')
+            _model_used = _ai_mod._last_model_used if provider == 'gemini' else provider
             record_generation(
                 provider=provider,
                 make=specs.get('make', ''),
@@ -534,6 +537,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 spec_coverage=_spec_cov,
                 total_time=_timings.get('total', 0),
                 spec_fields_filled=int(_spec_cov / 10),
+                model=_model_used,
             )
         except Exception as e:
             print(f"⚠️ Provider tracking failed: {e}")

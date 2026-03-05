@@ -448,14 +448,14 @@ class ArticleEngagementMixin:
     @action(detail=False, methods=['get'])
     @method_decorator(cache_page(60 * 15, key_prefix='trending'))
     def trending(self, request):
-        """Get trending articles (most viewed in last 7 days, fallback to all-time)"""
+        """Get trending articles (most viewed in last 30 days, fallback to all-time)"""
         from django.utils import timezone
         from datetime import timedelta
         from news.models import Article
         from news.serializers import ArticleListSerializer
-        week_ago = timezone.now() - timedelta(days=7)
+        month_ago = timezone.now() - timedelta(days=30)
         trending = Article.objects.defer('engagement_score', 'engagement_updated_at').filter(
-            is_published=True, is_deleted=False, created_at__gte=week_ago, views__gt=0,
+            is_published=True, is_deleted=False, created_at__gte=month_ago, views__gt=0,
         ).order_by('-views')[:10]
         if not trending.exists():
             trending = Article.objects.defer('engagement_score', 'engagement_updated_at').filter(

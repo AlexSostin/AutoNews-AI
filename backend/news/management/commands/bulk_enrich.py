@@ -2,9 +2,16 @@
 Bulk re-enrich all published articles missing enrichments.
 Usage: python manage.py bulk_enrich [--mode missing|all] [--ids 1,2,3] [--dry-run]
 """
+import json
+import os
 import time
 from django.core.management.base import BaseCommand
 from news.models import Article, Tag, VehicleSpecs, ArticleTitleVariant, CarSpecification
+
+ENRICHMENT_META_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+    'ai_engine', 'models', 'enrichment_meta.json'
+)
 
 
 class Command(BaseCommand):
@@ -169,3 +176,42 @@ class Command(BaseCommand):
         self.stdout.write(f'   🏷️  Tags matched: {total_tags_matched}')
         if errors:
             self.stdout.write(self.style.ERROR(f'   ❌ {errors} articles had errors'))
+
+        # Auto-retrain ML model after enrichment (articles/tags changed)
+        if success > 0 and not dry_run:
+            self.stdout.write(f'\n🧠 Auto-retraining ML Content Recommender...')
+            try:
+                from ai_engine.modules.content_recommender import build
+                ml_result = build(force=True)
+                if ml_result.get('success') and not ml_result.get('skipped'):
+                    self.stdout.write(self.style.SUCCESS(
+                        f'   ✅ ML model rebuilt: {ml_result["article_count"]} articles, '
+                        f'{ml_result["vocabulary_size"]} features'
+                    ))
+                elif ml_result.get('skipped'):
+                    self.stdout.write(f'   ⏭️  ML model: data unchanged, skip')
+                else:
+                    self.stdout.write(self.style.WARNING(f'   ⚠️ ML build: {ml_result.get("reason")}'))
+            except Exception as ml_err:
+                self.stdout.write(self.style.WARNING(f'   ⚠️ ML retrain failed (non-fatal): {ml_err}'))
+
+        # Save enrichment report metadata for dashboard
+        if not dry_run:
+            from datetime import datetime
+            report = {
+                'last_run': datetime.utcnow().isoformat(),
+                'articles_processed': success,
+                'articles_total': total,
+                'errors': errors,
+                'tags_created': total_tags_created,
+                'tags_matched': total_tags_matched,
+                'duration_seconds': elapsed,
+                'mode': mode if not ids_str else f'ids({ids_str[:50]})',
+            }
+            try:
+                os.makedirs(os.path.dirname(ENRICHMENT_META_PATH), exist_ok=True)
+                with open(ENRICHMENT_META_PATH, 'w') as f:
+                    json.dump(report, f, indent=2)
+                self.stdout.write(f'   💾 Report saved to {ENRICHMENT_META_PATH}')
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f'   ⚠️ Could not save report: {e}'))

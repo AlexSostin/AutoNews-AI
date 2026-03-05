@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Target, Award, TrendingUp, Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface SiteSettings {
   about_page_title: string;
@@ -68,7 +69,7 @@ export default function AboutPage() {
             <section className="bg-white rounded-2xl shadow-lg p-8 md:p-12 mb-8">
               <div
                 className="prose prose-lg max-w-none text-gray-700"
-                dangerouslySetInnerHTML={{ __html: pageContent }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(pageContent) }}
               />
             </section>
           ) : (

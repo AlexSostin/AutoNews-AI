@@ -221,7 +221,7 @@ def generate_title_variants(article, provider='gemini'):
     Creates 3 variants: A (original), B and C (AI-generated alternatives).
     Returns the created variants or empty list on failure."""
     try:
-        from news.models import ArticleTitleVariant
+        from news.models import ArticleTitleVariant, CarSpecification
         
         # Skip if variants already exist
         if ArticleTitleVariant.objects.filter(article=article).exists():
@@ -236,20 +236,46 @@ def generate_title_variants(article, provider='gemini'):
         
         ai = get_ai_provider(provider)
         
-        prompt = f"""You are an SEO expert and headline writer for an automotive news website.
+        # Pull available spec data to enrich the headline
+        spec_context = ""
+        try:
+            spec = CarSpecification.objects.filter(article=article).first()
+            if spec:
+                parts = []
+                if spec.power_hp:      parts.append(f"{spec.power_hp} hp")
+                if spec.range_km:      parts.append(f"{spec.range_km} km range")
+                if spec.range_cltc:    parts.append(f"{spec.range_cltc} km CLTC")
+                if spec.battery_kwh:   parts.append(f"{spec.battery_kwh} kWh battery")
+                if spec.price_from:
+                    try:
+                        price_cny = float(str(spec.price_from).replace(',', ''))
+                        price_usd = round(price_cny / 7.2)
+                        parts.append(f"starts at ${price_usd:,}")
+                    except Exception:
+                        pass
+                if spec.acceleration_0_100: parts.append(f"0-100 in {spec.acceleration_0_100}s")
+                if parts:
+                    spec_context = f"\nKey specs: {', '.join(parts)}"
+        except Exception:
+            pass
+        
+        prompt = f"""You are a headline writer for an automotive enthusiast website. Your job is to create titles that MAKE PEOPLE CLICK — like a friend texting you "dude you HAVE to see this car".
 
-Given this article title: "{article.title}"
+Original title: "{article.title}"{spec_context}
 
-Generate exactly 2 alternative headline variants that:
-- Are roughly the same length (±20%)
-- Highlight different angles or benefits (performance, price, tech, etc.)
-- Are engaging, click-worthy, but NOT clickbait
-- Maintain factual accuracy
-- Include the car make/model name
+Write exactly 2 alternative headlines. Rules:
+- Use specific numbers from the specs when available (range, price, power, 0-100)
+- One headline should focus on VALUE/PRICE angle ("This Chinese EV costs less than a Corolla...")
+- One headline should focus on PERFORMANCE/WOW angle ("680 hp off-roader that costs...")
+- Use active voice, present tense
+- Max 80 characters each
+- Can start with a number ("700 km range...", "Under $15k...")
+- NO clickbait lies — only real facts from the specs
+- English only
 
-Reply with ONLY the two alternative titles, one per line. No numbering, no explanations, no quotes."""
+Reply with ONLY the two titles, one per line. No numbering, no quotes, no explanations."""
 
-        result = ai.generate_completion(prompt, temperature=0.9, max_tokens=200)
+        result = ai.generate_completion(prompt, temperature=0.85, max_tokens=200)
         
         lines = [l.strip().strip('"').strip("'") for l in result.strip().split('\n') if l.strip()]
         # Filter out lines that look like numbering or explanations
@@ -297,3 +323,4 @@ Reply with ONLY the two alternative titles, one per line. No numbering, no expla
         print(f"⚠️ A/B title variant generation failed: {e}")
         traceback.print_exc()
         return []
+

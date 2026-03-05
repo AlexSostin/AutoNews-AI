@@ -43,6 +43,8 @@ interface MenuItem {
   icon: LucideIcon;
   label: string;
   superuserOnly?: boolean;
+  badgeKey?: 'comments' | 'feedback' | 'subscribers' | 'rss_pending';
+  badgeColor?: string;
 }
 
 interface MenuSection {
@@ -82,16 +84,16 @@ const menuSections: MenuSection[] = [
     title: 'Sources',
     items: [
       { href: '/admin/rss-feeds', icon: Rss, label: 'RSS Feeds' },
-      { href: '/admin/rss-pending', icon: FileStack, label: 'RSS News' },
+      { href: '/admin/rss-pending', icon: FileStack, label: 'RSS News', badgeKey: 'rss_pending', badgeColor: 'bg-blue-500' },
       { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },
     ],
   },
   {
     title: 'Audience',
     items: [
-      { href: '/admin/comments', icon: MessageSquare, label: 'Comments' },
-      { href: '/admin/feedback', icon: MessageSquareWarning, label: 'Feedback' },
-      { href: '/admin/subscribers', icon: Mail, label: 'Subscribers' },
+      { href: '/admin/comments', icon: MessageSquare, label: 'Comments', badgeKey: 'comments', badgeColor: 'bg-red-500' },
+      { href: '/admin/feedback', icon: MessageSquareWarning, label: 'Feedback', badgeKey: 'feedback', badgeColor: 'bg-orange-500' },
+      { href: '/admin/subscribers', icon: Mail, label: 'Subscribers', badgeKey: 'subscribers', badgeColor: 'bg-emerald-500' },
     ],
   },
   {
@@ -124,6 +126,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
   const pathname = usePathname();
   const [isSuperuserState, setIsSuperuserState] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
+  const [navBadges, setNavBadges] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setIsSuperuserState(isSuperuser());
@@ -139,6 +142,19 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
     };
     fetchErrorCount();
     const interval = setInterval(fetchErrorCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch nav badge counts (comments, feedback, subscribers, rss pending)
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        const { data } = await api.get('/nav-badges/');
+        setNavBadges(data);
+      } catch { /* silent — only admins see this */ }
+    };
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -239,11 +255,18 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
                         } ${isCollapsed ? 'justify-center px-0' : ''}`}
                       title={isCollapsed ? item.label : ""}
                     >
-                      <Icon size={18} className="flex-shrink-0" />
+                      <Icon size={18} className="flex-shrink-0" aria-hidden="true" />
                       {!isCollapsed && <span className="truncate">{item.label}</span>}
+                      {/* System Health error badge */}
                       {item.href === '/admin/health' && errorCount > 0 && (
                         <span className={`${isCollapsed ? 'absolute top-0 right-1' : 'ml-auto'} bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1`}>
                           {errorCount > 99 ? '99+' : errorCount}
+                        </span>
+                      )}
+                      {/* Dynamic nav badges */}
+                      {item.badgeKey && (navBadges[item.badgeKey] ?? 0) > 0 && (
+                        <span className={`${isCollapsed ? 'absolute top-0 right-1' : 'ml-auto'} ${item.badgeColor || 'bg-red-500'} text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1`}>
+                          {(navBadges[item.badgeKey] ?? 0) > 99 ? '99+' : navBadges[item.badgeKey]}
                         </span>
                       )}
                     </Link>

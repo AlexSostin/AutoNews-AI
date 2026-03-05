@@ -14,8 +14,8 @@ from .api_views import (
     SearchPhotosView, SaveExternalImageView, ProxyImageView,
     AdPlacementViewSet,
     AutomationSettingsView, AutomationStatsView, AutomationTriggerView,
-    SiteThemeView, ThemeAnalyticsView,
-    AdminActionStatsView, FrontendEventLogViewSet, BackendErrorLogViewSet, HealthSummaryView
+    SiteThemeView, ThemeAnalyticsView, CapsuleFeedbackView,
+    AdminActionStatsView, FrontendEventLogViewSet, BackendErrorLogViewSet, HealthSummaryView, NavBadgesView
 )
 from .health import health_check, health_check_detailed, readiness_check
 from .ab_testing_views import (
@@ -151,6 +151,13 @@ urlpatterns = [
     
     # Admin action analytics
     path('admin/action-stats/', AdminActionStatsView.as_view(), name='admin_action_stats'),
+    
+    # Nav badge counts (comments pending, feedback unresolved, new subscribers, rss pending)
+    path('nav-badges/', NavBadgesView.as_view(), name='nav_badges'),
+    
+    # Capsule feedback (public)
+    path('capsule-feedback/', CapsuleFeedbackView.as_view(), name='capsule_feedback_post'),
+    path('capsule-feedback/<slug:slug>/', CapsuleFeedbackView.as_view(), name='capsule_feedback_get'),
     
     # AI Image Generation
     path('articles/<str:identifier>/generate-ai-image/', GenerateAIImageView.as_view(), name='generate_ai_image'),
