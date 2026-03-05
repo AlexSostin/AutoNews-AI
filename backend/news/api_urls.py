@@ -1,8 +1,17 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status as http_status
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
+import logging
+
+logger = logging.getLogger('news')
 from .api_views import (
     ArticleViewSet, CategoryViewSet, TagViewSet, TagGroupViewSet, 
     CommentViewSet, RatingViewSet, CarSpecificationViewSet, 
@@ -26,10 +35,21 @@ from .ab_testing_views import (
 
 # Rate-limited token views for security
 class RateLimitedTokenObtainPairView(TokenObtainPairView):
-    """Token view with rate limiting to prevent brute-force attacks"""
+    """Token view with rate limiting + login activity logging"""
     @method_decorator(ratelimit(key='ip', rate='5/15m', method='POST', block=True))
     def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
+        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', 'unknown'))
+        if ',' in ip:
+            ip = ip.split(',')[0].strip()
+        username = request.data.get('username', '(empty)')
+        try:
+            response = super().post(request, *args, **kwargs)
+            if response.status_code == 200:
+                logger.info(f"🔑 Login SUCCESS: user={username} ip={ip}")
+            return response
+        except Exception as e:
+            logger.warning(f"🔒 Login FAILED: user={username} ip={ip} reason={type(e).__name__}")
+            raise
 
 
 class RateLimitedTokenRefreshView(TokenRefreshView):
@@ -37,6 +57,23 @@ class RateLimitedTokenRefreshView(TokenRefreshView):
     @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
+
+
+class LogoutView(APIView):
+    """Blacklist the refresh token for instant logout"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'detail': 'Refresh token is required.'}, status=http_status.HTTP_400_BAD_REQUEST)
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            logger.info(f"🚪 Logout: user={request.user.username}")
+            return Response({'detail': 'Successfully logged out.'}, status=http_status.HTTP_200_OK)
+        except TokenError:
+            return Response({'detail': 'Token is invalid or already blacklisted.'}, status=http_status.HTTP_400_BAD_REQUEST)
 
 router = DefaultRouter()
 router.register(r'articles', ArticleViewSet, basename='article')
@@ -87,6 +124,7 @@ urlpatterns = [
     # JWT Auth with rate limiting
     path('token/', RateLimitedTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', RateLimitedTokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/logout/', LogoutView.as_view(), name='auth_logout'),
     
     # User auth endpoints
     path('auth/user/', CurrentUserView.as_view(), name='current_user'),

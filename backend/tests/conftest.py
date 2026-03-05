@@ -16,6 +16,11 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
 import django
 django.setup()
 
+# Disable django-axes in tests — Django test client.login() doesn't pass
+# a request object, which is required by AxesBackend.authenticate()
+from django.conf import settings
+settings.AXES_ENABLED = False
+
 
 @pytest.fixture
 def sample_analysis():
