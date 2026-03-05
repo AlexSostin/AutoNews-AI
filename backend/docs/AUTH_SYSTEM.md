@@ -94,27 +94,49 @@ localStorage.setItem('user', JSON.stringify(userData));
 
 ## 🔐 Двухфакторная аутентификация (2FA)
 
+### Scope: только is_staff пользователи
+
+2FA проверяется только если `user.is_staff == True`. Обычные читатели не видят экран 2FA.
+
 ### Как работает
 
-1. **Админ включает 2FA**: `POST /auth/2fa/setup/` → получает QR-код
-2. **Сканирует QR**: Google Authenticator / Authy / любое TOTP-приложение
+1. **Стафф включает 2FA**: `POST /auth/2fa/setup/` → получает QR-код
+2. **Сканирует QR**: Google Authenticator / любое TOTP-приложение
 3. **Подтверждает**: `POST /auth/2fa/confirm/` с первым кодом → получает 8 backup-кодов
 
-### Логин с 2FA (два шага)
+### Логин с 2FA — стандартный (два шага)
 
 ```
 Шаг 1: POST /token/ → {requires_2fa: true}  (токены НЕ выдаются)
 Шаг 2: POST /auth/2fa/verify/ + {username, password, totp_code} → {access, refresh}
 ```
 
+### Логин через Google OAuth с 2FA (два шага)
+
+```
+Шаг 1: POST /auth/google-oauth/ → {requires_2fa: true, google_user_id: "42"}
+Шаг 2: POST /auth/2fa/google-verify/ + {google_user_id, totp_code} → {access, refresh}
+```
+
+### ⚠️ Важно для разработчиков: permission_classes
+
+Все verify-эндпоинты вызываются ДО того как пользователь получает токен.
+Обязательно добавляй `permission_classes = [AllowAny]` — иначе DRF вернёт 401 раньше чем выполнится код:
+
+```python
+class TwoFactorVerifyView(APIView):
+    permission_classes = [AllowAny]  # ← обязательно!
+```
+
 ### API Endpoints
 
 ```bash
-POST /api/v1/auth/2fa/setup/       # QR-код для authenticator
-POST /api/v1/auth/2fa/confirm/     # Подтверждение + backup коды
-POST /api/v1/auth/2fa/verify/      # Верификация при логине
-POST /api/v1/auth/2fa/disable/     # Отключение (требует код)
-GET  /api/v1/auth/2fa/status/      # Проверка статуса
+POST /api/v1/auth/2fa/setup/          # QR-код для authenticator
+POST /api/v1/auth/2fa/confirm/        # Подтверждение + backup коды
+POST /api/v1/auth/2fa/verify/         # Верификация при стандартном логине
+POST /api/v1/auth/2fa/google-verify/  # Верификация при Google OAuth логине
+POST /api/v1/auth/2fa/disable/        # Отключение (требует код)
+GET  /api/v1/auth/2fa/status/         # Проверка статуса
 ```
 
 ### Backup коды
@@ -207,8 +229,14 @@ GET /api/v1/users/me/        # Получить данные текущего п
 // Проверка авторизации
 isAuthenticated(): boolean
 
-// Логин пользователя
+// Логин пользователя (password)
 login(credentials): Promise<AuthTokens>
+
+// Верификация 2FA при стандартном логине
+loginWith2FA(username, password, totp_code): Promise<AuthTokens>
+
+// Верификация 2FA при Google OAuth логине
+loginGoogle2FA(google_user_id, totp_code): Promise<AuthTokens>
 
 // Выход
 logout(): void
@@ -222,8 +250,11 @@ getCurrentUser(token?): Promise<User | null>
 // Получить пользователя из кеша
 getUserFromStorage(): User | null
 
-// Проверка админа
+// Проверка админа (is_staff или is_superuser)
 isAdmin(): boolean
+
+// Проверка суперюзера
+isSuperuser(): boolean
 ```
 
 ---
@@ -252,14 +283,17 @@ isAdmin(): boolean
 **Реализовано:**
 
 - ✅ Полноценная система авторизации
-- ✅ Роли (Guest, User, Admin)
+- ✅ Роли (Guest, User, Staff, Superuser)
 - ✅ Умная навигация в Header
 - ✅ Личный кабинет
 - ✅ Защита роутов
 - ✅ JWT токены + instant logout
 - ✅ API endpoint для пользователя
 - ✅ Мобильная версия
-- ✅ TOTP 2FA для админов
+- ✅ TOTP 2FA для is_staff пользователей
+- ✅ Google OAuth с 2FA перехватом
+- ✅ Уникальный email на уровне БД (migration 0099)
+- ✅ Users страница в Admin доступна для is_staff (не только superuser)
 
 **Безопасность:**
 
@@ -268,8 +302,11 @@ isAdmin(): boolean
 - ✅ Token в cookies
 - ✅ Авто-редирект на login
 - ✅ Brute-force protection (django-axes)
-- ✅ IsAdminUser на 16 эндпоинтах
-- ✅ 2FA с backup кодами
+- ✅ IsAdminUser на 16+ эндпоинтах
+- ✅ 2FA с backup кодами (только is_staff)
+- ✅ 2FA verify использует check_password() вместо authenticate() — обходит axes блокировку
+- ✅ AllowAny на verify-эндпоинтах (иначе DRF возвращает 401 раньше кода)
+- ✅ Superusers защищены от удаления в Users таблице
 - ✅ Sensitive data scrubbing в error logs
 
 **Готово к запуску!** 🚀

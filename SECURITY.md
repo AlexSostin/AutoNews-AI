@@ -189,11 +189,16 @@ if SENTRY_DSN:
 - [x] Prompt injection defense (3-layer sanitizer)
 - [x] Sensitive data scrubbing in error logs
 - [x] Admin action audit trail (delete, publish, unpublish)
-- [x] TOTP 2FA for admin accounts
+- [x] TOTP 2FA for staff accounts (is_staff only, not all users)
+- [x] Google OAuth 2FA intercept (staff users must enter TOTP after Google login)
 - [x] Backup recovery codes (hashed)
 - [x] Dependency vulnerability scanning (pip-audit + npm audit in CI)
+- [x] Unique email constraint at DB level (migration 0099, case-insensitive)
+- [x] PostgreSQL conn_max_age=0 (prevents 'too many clients' under load)
+- [x] CSP: vercel.live whitelisted for feedback widget
+- [x] Superusers protected from deletion in Users admin table
 
-**Completed: 28/28 (100%)**
+**Completed: 32/32 (100%)**
 
 ---
 
@@ -443,6 +448,7 @@ SECURE_CONTENT_SECURITY_POLICY = {
 
 ## 📝 Version History
 
+- **v5.1** - March 5, 2026 - **2FA Hardening**: AllowAny on verify endpoints, check_password() bypasses django-axes, Google OAuth 2FA intercept, staff-only 2FA scope, unique email (migration 0099), conn_max_age=0 for Railway PG, CSP + vercel.live, superuser lock protection in Users table
 - **v5.0** - March 2026 - **Full 5-Phase Security Audit**: XSS protection, brute-force defense, IDOR prevention (16 endpoints), prompt injection defense, sensitive data scrubbing, AdminActionLog, TOTP 2FA with backup codes, 1875+ tests
 - **v4.0** - February 2026 - Added error tracking (BackendErrorLog, FrontendEventLog), ErrorCaptureMiddleware, DB schema verification (verify_migrations)
 - **v3.0** - February 2026 - Added A/B testing, automation system, CI pipeline, bot protection
