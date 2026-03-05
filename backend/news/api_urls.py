@@ -49,21 +49,24 @@ class RateLimitedTokenObtainPairView(TokenObtainPairView):
         try:
             response = super().post(request, *args, **kwargs)
             if response.status_code == 200:
-                # Check if user has 2FA enabled
+                # Check if user has 2FA enabled — use iexact for case-insensitive match
                 try:
                     from django.contrib.auth.models import User
                     from news.models import TOTPDevice
-                    user = User.objects.get(username=username)
+                    user = User.objects.get(username__iexact=username)
                     has_2fa = TOTPDevice.objects.filter(user=user, is_confirmed=True).exists()
+                    logger.info(f"🔐 2FA check: user={user.username} has_2fa={has_2fa}")
                     if has_2fa:
                         # Don't return tokens — require 2FA verification
-                        logger.info(f"🔐 Login requires 2FA: user={username} ip={ip}")
+                        logger.info(f"🔐 Login requires 2FA: user={user.username} ip={ip}")
                         return Response({
                             'requires_2fa': True,
                             'message': 'Please provide your 2FA code.',
                         }, status=200)
-                except Exception:
-                    pass
+                except User.DoesNotExist:
+                    logger.warning(f"⚠️ 2FA check: user not found username={username}")
+                except Exception as e:
+                    logger.error(f"❌ 2FA check ERROR: {type(e).__name__}: {e}")
                 logger.info(f"🔑 Login SUCCESS: user={username} ip={ip}")
             return response
         except Exception as e:
