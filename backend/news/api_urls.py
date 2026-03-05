@@ -31,11 +31,15 @@ from .ab_testing_views import (
     ABImpressionView, ABClickView, ABTestsListView,
     ABPickWinnerView, ABAutoPickView
 )
+from .api_views.two_factor import (
+    TwoFactorSetupView, TwoFactorConfirmView, TwoFactorVerifyView,
+    TwoFactorDisableView, TwoFactorStatusView
+)
 
 
 # Rate-limited token views for security
 class RateLimitedTokenObtainPairView(TokenObtainPairView):
-    """Token view with rate limiting + login activity logging"""
+    """Token view with rate limiting + login activity logging + 2FA check"""
     @method_decorator(ratelimit(key='ip', rate='5/15m', method='POST', block=True))
     def post(self, request, *args, **kwargs):
         ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', 'unknown'))
@@ -45,6 +49,21 @@ class RateLimitedTokenObtainPairView(TokenObtainPairView):
         try:
             response = super().post(request, *args, **kwargs)
             if response.status_code == 200:
+                # Check if user has 2FA enabled
+                try:
+                    from django.contrib.auth.models import User
+                    from news.models import TOTPDevice
+                    user = User.objects.get(username=username)
+                    has_2fa = TOTPDevice.objects.filter(user=user, is_confirmed=True).exists()
+                    if has_2fa:
+                        # Don't return tokens — require 2FA verification
+                        logger.info(f"🔐 Login requires 2FA: user={username} ip={ip}")
+                        return Response({
+                            'requires_2fa': True,
+                            'message': 'Please provide your 2FA code.',
+                        }, status=200)
+                except Exception:
+                    pass
                 logger.info(f"🔑 Login SUCCESS: user={username} ip={ip}")
             return response
         except Exception as e:
@@ -125,6 +144,13 @@ urlpatterns = [
     path('token/', RateLimitedTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', RateLimitedTokenRefreshView.as_view(), name='token_refresh'),
     path('auth/logout/', LogoutView.as_view(), name='auth_logout'),
+    
+    # 2FA endpoints
+    path('auth/2fa/setup/', TwoFactorSetupView.as_view(), name='2fa_setup'),
+    path('auth/2fa/confirm/', TwoFactorConfirmView.as_view(), name='2fa_confirm'),
+    path('auth/2fa/verify/', TwoFactorVerifyView.as_view(), name='2fa_verify'),
+    path('auth/2fa/disable/', TwoFactorDisableView.as_view(), name='2fa_disable'),
+    path('auth/2fa/status/', TwoFactorStatusView.as_view(), name='2fa_status'),
     
     # User auth endpoints
     path('auth/user/', CurrentUserView.as_view(), name='current_user'),

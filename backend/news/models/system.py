@@ -1386,3 +1386,60 @@ class CompetitorPairLog(models.Model):
             f"{score_str}"
         )
 
+
+class TOTPDevice(models.Model):
+    """
+    TOTP 2FA device for admin accounts.
+    Stores the shared secret for time-based one-time passwords.
+    """
+    user = models.OneToOneField(
+        'auth.User', on_delete=models.CASCADE,
+        related_name='totp_device'
+    )
+    secret = models.CharField(
+        max_length=64,
+        help_text="Base32-encoded TOTP secret"
+    )
+    is_confirmed = models.BooleanField(
+        default=False,
+        help_text="True after user verifies their first code"
+    )
+    backup_codes = models.JSONField(
+        default=list, blank=True,
+        help_text="One-time backup codes (hashed)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "TOTP Device"
+        verbose_name_plural = "TOTP Devices"
+
+    def __str__(self):
+        status = "✅ Confirmed" if self.is_confirmed else "⏳ Pending"
+        return f"2FA for {self.user.username} ({status})"
+
+    def verify_code(self, code):
+        """Verify a TOTP code with ±1 window tolerance."""
+        import pyotp
+        totp = pyotp.TOTP(self.secret)
+        return totp.verify(code, valid_window=1)
+
+    def verify_backup_code(self, code):
+        """Verify and consume a one-time backup code."""
+        import hashlib
+        code_hash = hashlib.sha256(code.strip().encode()).hexdigest()
+        if code_hash in self.backup_codes:
+            self.backup_codes.remove(code_hash)
+            self.save(update_fields=['backup_codes'])
+            return True
+        return False
+
+    @staticmethod
+    def generate_backup_codes(count=8):
+        """Generate one-time backup codes and return (plaintext, hashed) lists."""
+        import secrets
+        import hashlib
+        codes = [secrets.token_hex(4).upper() for _ in range(count)]
+        hashed = [hashlib.sha256(c.encode()).hexdigest() for c in codes]
+        return codes, hashed
+
