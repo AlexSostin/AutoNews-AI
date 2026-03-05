@@ -1083,6 +1083,7 @@ class AdminActionLog(models.Model):
         ('image_change', '🖼️ Image Changed'),
         ('publish', '📢 Published'),
         ('unpublish', '📝 Unpublished'),
+        ('delete', '🗑️ Deleted'),
     ]
     
     article = models.ForeignKey('news.Article', on_delete=models.CASCADE,

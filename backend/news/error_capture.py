@@ -42,12 +42,25 @@ class ErrorCaptureMiddleware:
         from news.models.system import BackendErrorLog
         from django.utils import timezone
         from datetime import timedelta
+        import re
 
         error_class = type(exception).__name__
         message = str(exception)[:1000]
         request_path = getattr(request, 'path', '')[:500]
         request_method = getattr(request, 'method', '')
         full_traceback = tb.format_exc()
+
+        # ── Sensitive data scrubbing ──
+        # Remove passwords, tokens, API keys, secrets from logs
+        SENSITIVE_PATTERNS = [
+            (r'(?i)(password|passwd|pwd|secret|token|api[_-]?key|authorization|credential|session[_-]?id)\s*[=:]\s*\S+', r'\1=***REDACTED***'),
+            (r'(?i)(Bearer\s+)\S+', r'\1***REDACTED***'),
+            (r'(?i)(Basic\s+)\S+', r'\1***REDACTED***'),
+            (r'(?i)(sk-|ghp_|gho_|glpat-|xoxb-|xoxp-)\S+', '***REDACTED_KEY***'),
+        ]
+        for pattern, replacement in SENSITIVE_PATTERNS:
+            message = re.sub(pattern, replacement, message)
+            full_traceback = re.sub(pattern, replacement, full_traceback)
 
         # Extract user info
         request_user = ''

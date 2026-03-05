@@ -290,7 +290,17 @@ class ArticleEngagementMixin:
             pass
         
         new_status = 'published' if article.is_published else 'draft'
+        action_type = 'publish' if article.is_published else 'unpublish'
         logger.info(f"[TOGGLE-PUBLISH] Article {article.id} '{article.title[:50]}' → {new_status}")
+        
+        # Audit log
+        try:
+            from news.models import AdminActionLog
+            AdminActionLog.log(article, request.user, action_type, details={
+                'new_status': new_status,
+            })
+        except Exception:
+            pass
         
         return Response({
             'success': True,

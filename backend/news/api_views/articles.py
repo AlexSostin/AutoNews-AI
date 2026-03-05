@@ -158,6 +158,15 @@ class ArticleViewSet(
         instance.is_deleted = True
         instance.save(update_fields=['is_deleted'])
         
+        # Audit log
+        try:
+            from news.models import AdminActionLog
+            AdminActionLog.log(instance, self.request.user, 'delete', details={
+                'title': instance.title[:100],
+            })
+        except Exception:
+            pass
+        
         # Invalidate cache
         try:
             invalidate_article_cache()
