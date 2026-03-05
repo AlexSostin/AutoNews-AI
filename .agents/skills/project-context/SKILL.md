@@ -284,6 +284,43 @@ Protected modules: `analyzer.py`, `article_generator.py` (3 functions), `fact_ch
 2. Wrap external data: `wrap_untrusted(external_text, 'LABEL_NAME')`
 3. Add `{ANTI_INJECTION_NOTICE}` after the wrapped block
 
+## Security Hardening (Full Audit, March 2026)
+
+### Phase 1: XSS + Dependencies
+
+- `dompurify` on all 11 `dangerouslySetInnerHTML` instances (8 frontend files)
+- CI: `pip-audit` + `npm audit` in test pipeline
+
+### Phase 2: Auth Hardening
+
+- `django-axes==8.3.1` — brute-force protection (5 attempts → 30min lockout by user+IP combo)
+- JWT blacklist for instant logout: `POST /auth/logout/`
+- Login activity logging (success/fail with IP) in `RateLimitedTokenObtainPairView`
+
+### Phase 3: Access Control
+
+- `IsAdminUser` enforced on 16 admin-only endpoints across 5 files:
+  - `article_generation.py` (6 actions), `article_enrichment.py` (3), `pending_articles.py` (ViewSet), `ai_actions.py` (4), `comments.py` (approve)
+
+### Phase 4: Monitoring & Audit Trail
+
+- Sensitive data scrubbing in `error_capture.py`: passwords, tokens, API keys, Bearer/Basic auth → `***REDACTED***`
+- `AdminActionLog` covers: reformat, re_enrich, regenerate, edit_save, image_change, publish, unpublish, **delete**
+
+### Phase 5: TOTP 2FA for Admin Accounts
+
+- Model: `TOTPDevice` in `news/models/system.py`
+- Views: `news/api_views/two_factor.py` (5 endpoints)
+- Dependencies: `pyotp==2.9.0`, `qrcode==8.2`
+- Login flow: `/token/` returns `{requires_2fa: true}` → client calls `/auth/2fa/verify/` with TOTP code
+- Backup codes: 8 one-time hex codes, stored hashed (SHA256)
+
+### Key files
+
+- `news/api_views/two_factor.py` — 2FA setup/confirm/verify/disable/status
+- `news/error_capture.py` — sensitive data scrubbing (4 regex patterns)
+- `ai_engine/modules/prompt_sanitizer.py` — prompt injection defense
+
 ## Known Technical Debt
 
 - `CarSpecification` ↔ `VehicleSpecs` — duplicate models, need consolidation

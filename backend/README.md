@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/Python-3.13-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
 ![Redis](https://img.shields.io/badge/Redis-7-red)
-![pytest](https://img.shields.io/badge/tests-391%2B_passing-brightgreen)
+![pytest](https://img.shields.io/badge/tests-1875%2B_passing-brightgreen)
 
 Backend API для платформы автомобильных новостей FreshMotors. Развёрнут на Railway, фронтенд на Vercel (Next.js 16).
 
@@ -48,7 +48,7 @@ docker exec autonews_backend pytest tests/ -v
 | **Pexels API** | Поиск стоковых фотографий |
 | **Sentry** | Error tracking |
 | **yt-dlp** | Извлечение транскриптов YouTube |
-| **pytest** | 391+ тестов |
+| **pytest** | 1875+ тестов |
 
 ---
 
@@ -68,7 +68,7 @@ backend/
 │   ├── serializers.py         # Сериализация + A/B variant injection
 │   ├── error_capture.py       # ErrorCaptureMiddleware (auto-logs 500s)
 │   ├── management/commands/   # verify_migrations, reformat_rss_articles
-│   └── migrations/            # 88+ миграций
+│   └── migrations/            # 98+ миграций
 ├── ai_engine/                 # AI генерация
 │   ├── main.py                # Pipeline orchestrator
 │   └── modules/
@@ -82,7 +82,7 @@ backend/
 │       ├── auto_publisher.py      # Автопаблишер
 │       ├── content_formatter.py   # Форматирование контента
 │       └── screenshot_extractor.py # Скриншоты из видео
-├── tests/                     # pytest (391+ тестов)
+├── tests/                     # pytest (1875+ тестов)
 │   ├── conftest.py            # Fixtures
 │   ├── test_ab_testing.py     # A/B тестирование (10)
 │   ├── test_analytics_api.py  # Аналитика (8)
@@ -118,6 +118,17 @@ POST /api/v1/ab/click/          # Track click
 GET  /api/v1/ab/tests/          # List tests (admin)
 POST /api/v1/ab/pick-winner/    # Manual pick (admin)
 POST /api/v1/ab/auto-pick/      # Auto-pick (admin)
+```
+
+### Безопасность & 2FA
+
+```
+POST /api/v1/auth/2fa/setup/       # QR-код для Google Authenticator
+POST /api/v1/auth/2fa/confirm/     # Подтверждение 2FA + backup коды
+POST /api/v1/auth/2fa/verify/      # Верификация при логине (step 2)
+POST /api/v1/auth/2fa/disable/     # Отключение 2FA
+GET  /api/v1/auth/2fa/status/      # Статус 2FA
+POST /api/v1/auth/logout/          # Instant logout (JWT blacklist)
 ```
 
 ### Автоматизация
@@ -196,7 +207,7 @@ docker exec autonews_backend pytest tests/test_ab_testing.py -v
 docker exec autonews_backend pytest tests/ --cov=news --cov-report=term-missing
 ```
 
-**391+ тестов** покрывающие: API endpoints, модели, автопаблишер, A/B тестирование, поиск, аналитику, SEO, генерацию, error tracking, CRUD, auth, brands, cars, comments, ratings.
+**1875+ тестов** покрывающие: API endpoints, модели, автопаблишер, A/B тестирование, поиск, аналитику, SEO, генерацию, error tracking, CRUD, auth, brands, cars, comments, ratings, security.
 
 ---
 

@@ -6,21 +6,43 @@ Security recommendations and best practices for AutoNews backend.
 
 ## ✅ Already Implemented
 
+### Infrastructure
+
 - ✅ SECRET_KEY in environment variables
 - ✅ DEBUG = False in production
 - ✅ ALLOWED_HOSTS configured
 - ✅ PostgreSQL database with SSL
 - ✅ HTTPS with HSTS enabled
 - ✅ Secure cookies configured
-- ✅ Rate limiting on critical endpoints
-- ✅ Security logging configured
 - ✅ CORS properly configured
-- ✅ JWT authentication with token rotation
 - ✅ CSRF protection enabled
 - ✅ X-Frame-Options protection
 - ✅ SQL injection protection (ORM)
 - ✅ File upload size limits (5MB)
 - ✅ Sentry error monitoring
+
+### Authentication & Authorization (Phases 2, 3, 5)
+
+- ✅ JWT authentication with token rotation
+- ✅ JWT instant logout (token blacklist)
+- ✅ Rate limiting on critical endpoints (5/15min login, 5/min generation)
+- ✅ Brute-force protection (`django-axes`, 5 attempts → 30min lockout)
+- ✅ `IsAdminUser` on 16 admin-only endpoints (generation, enrichment, AI images, moderation)
+- ✅ TOTP 2FA for admin accounts (Google Authenticator + 8 backup codes)
+- ✅ Login activity logging (success/fail with IP)
+
+### XSS & Input Protection (Phases 1, Prompt Injection Audit)
+
+- ✅ DOMPurify on 11 `dangerouslySetInnerHTML` instances (8 frontend files)
+- ✅ Prompt injection defense: 3-layer system (`prompt_sanitizer.py` → XML delimiters → system instruction isolation)
+- ✅ CI dependency scanning (`pip-audit` + `npm audit`)
+
+### Monitoring & Audit (Phase 4)
+
+- ✅ Sensitive data scrubbing in error logs (passwords, tokens, API keys → `***REDACTED***`)
+- ✅ `AdminActionLog` for all destructive operations (delete, publish, unpublish, edit_save, reformat, regenerate, re_enrich)
+- ✅ `ErrorCaptureMiddleware` auto-logs 500 errors with deduplication
+- ✅ Security logging configured
 
 ---
 
@@ -101,6 +123,15 @@ REST_FRAMEWORK = {
 - [x] Error monitoring (Sentry)
 - [x] All dependencies updated
 - [x] .env in .gitignore
+- [x] XSS protection (DOMPurify)
+- [x] Brute-force protection (django-axes)
+- [x] JWT blacklist (instant logout)
+- [x] IsAdminUser on admin endpoints
+- [x] Prompt injection defense
+- [x] Error log data scrubbing
+- [x] Admin action audit trail
+- [x] TOTP 2FA for admin accounts
+- [x] CI dependency vulnerability scanning
 
 ---
 

@@ -2,9 +2,9 @@
 
 Comprehensive security documentation for the AutoNews platform.
 
-**Last Updated**: February 2026  
+**Last Updated**: March 2026 (Post-Audit v5.0)  
 **Environment**: Railway.app (Production)  
-**Status**: ✅ Production Ready
+**Status**: ✅ Full Security Audit Complete (5/5 Phases)
 
 ---
 
@@ -12,16 +12,55 @@ Comprehensive security documentation for the AutoNews platform.
 
 | Category | Rating | Status |
 |----------|--------|--------|
-| Authentication | 9/10 | ✅ Excellent |
-| Authorization | 8/10 | ✅ Good |
+| Authentication | 10/10 | ✅ Excellent (JWT + 2FA TOTP) |
+| Authorization | 10/10 | ✅ Excellent (IsAdminUser on 16 endpoints) |
+| XSS Protection | 10/10 | ✅ Excellent (DOMPurify on all innerHTML) |
+| Brute-Force | 10/10 | ✅ Excellent (django-axes + rate limiting) |
 | CORS & HTTPS | 9/10 | ✅ Excellent |
 | Secrets Management | 9/10 | ✅ Excellent |
-| Rate Limiting | 8/10 | ✅ Good |
-| Input Validation | 8/10 | ✅ Good |
-| Logging | 8/10 | ✅ Good |
+| Rate Limiting | 9/10 | ✅ Excellent |
+| Input Validation | 9/10 | ✅ Excellent (prompt injection defense) |
+| Logging & Audit | 10/10 | ✅ Excellent (AdminActionLog + error scrubbing) |
 | Infrastructure | 9/10 | ✅ Excellent |
 
-**Overall Rating: 8.5/10** ✅
+**Overall Rating: 9.5/10** ✅
+
+---
+
+## 🛡️ Security Audit Results (March 2026)
+
+### Phase 1: XSS + Dependency Security
+
+- ✅ **DOMPurify** sanitization on 11 `dangerouslySetInnerHTML` instances (8 frontend files)
+- ✅ **CI pipeline**: `pip-audit` + `npm audit` for automated dependency scanning
+
+### Phase 2: Auth Hardening
+
+- ✅ **django-axes** brute-force protection (5 attempts → 30min lockout)
+- ✅ **JWT blacklist** for instant logout (`/auth/logout/`)
+- ✅ Login activity logging (success/fail with IP)
+
+### Phase 3: Access Control (IDOR Prevention)
+
+- ✅ **IsAdminUser** enforced on 16 admin-only endpoints across 5 files
+- ✅ Article generation, enrichment, pending articles, AI actions, comment approval
+
+### Phase 4: Monitoring & Audit Trail
+
+- ✅ **Sensitive data scrubbing** in error logs (passwords, tokens, API keys auto-redacted)
+- ✅ **AdminActionLog** for delete, publish, unpublish actions
+
+### Phase 5: Advanced Security
+
+- ✅ **TOTP 2FA** for admin accounts (Google Authenticator / any TOTP app)
+- ✅ Backup recovery codes (8 one-time codes, hashed storage)
+- ✅ Two-step JWT login flow for 2FA-enabled accounts
+
+### Prompt Injection Defense (3-layer)
+
+- ✅ Gemini system_instruction isolation (not string concat)
+- ✅ Centralized `prompt_sanitizer.py` (25+ injection patterns)
+- ✅ XML delimiters + anti-injection notices on all AI prompts
 
 ---
 
@@ -139,12 +178,22 @@ if SENTRY_DSN:
 - [x] File upload size limits (5MB)
 - [x] Input validation on all forms
 - [x] Bot protection (User-Agent middleware)
-- [x] CI pipeline with 1880+ automated tests
+- [x] CI pipeline with 1875+ automated tests
 - [x] Backend error auto-logging (ErrorCaptureMiddleware)
 - [x] Frontend error tracking (FrontendEventLog)
 - [x] DB schema verification on startup (verify_migrations)
+- [x] XSS protection (DOMPurify on all dangerouslySetInnerHTML)
+- [x] Brute-force protection (django-axes, 5 attempts → lockout)
+- [x] JWT instant logout (token blacklist)
+- [x] IsAdminUser on 16 admin-only endpoints
+- [x] Prompt injection defense (3-layer sanitizer)
+- [x] Sensitive data scrubbing in error logs
+- [x] Admin action audit trail (delete, publish, unpublish)
+- [x] TOTP 2FA for admin accounts
+- [x] Backup recovery codes (hashed)
+- [x] Dependency vulnerability scanning (pip-audit + npm audit in CI)
 
-**Completed: 19/19 (100%)**
+**Completed: 28/28 (100%)**
 
 ---
 
@@ -394,9 +443,10 @@ SECURE_CONTENT_SECURITY_POLICY = {
 
 ## 📝 Version History
 
-- **v4.0** - February 2026 - Added error tracking (BackendErrorLog, FrontendEventLog), ErrorCaptureMiddleware, DB schema verification (verify_migrations), 1880+ tests
+- **v5.0** - March 2026 - **Full 5-Phase Security Audit**: XSS protection, brute-force defense, IDOR prevention (16 endpoints), prompt injection defense, sensitive data scrubbing, AdminActionLog, TOTP 2FA with backup codes, 1875+ tests
+- **v4.0** - February 2026 - Added error tracking (BackendErrorLog, FrontendEventLog), ErrorCaptureMiddleware, DB schema verification (verify_migrations)
 - **v3.0** - February 2026 - Added A/B testing, automation system, CI pipeline, bot protection
 - **v2.0** - January 2026 - Updated for Railway deployment
 - **v1.0** - December 2025 - Initial security implementation
 
-**Next Security Audit**: April 2026
+**Next Security Audit**: June 2026

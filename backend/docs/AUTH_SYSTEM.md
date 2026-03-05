@@ -2,7 +2,7 @@
 
 ## Система ролей
 
-### 👤 Роли пользователей:
+### 👤 Роли пользователей
 
 1. **Гость** (не авторизован):
    - Чтение статей
@@ -25,12 +25,14 @@
 
 ## 🎯 Header - Умная навигация
 
-### Для ГОСТЕЙ:
+### Для ГОСТЕЙ
+
 ```
 🚗 AutoNews | Home | Articles | Categories | 🔍 | 👤 Login
 ```
 
-### Для ПОЛЬЗОВАТЕЛЕЙ:
+### Для ПОЛЬЗОВАТЕЛЕЙ
+
 ```
 🚗 AutoNews | Home | Articles | Categories | 🔍 | 👤 Username ▼
                                                     └─ My Profile
@@ -38,12 +40,14 @@
                                                     └─ Logout
 ```
 
-### Для АДМИНОВ:
+### Для АДМИНОВ
+
 ```
 🚗 AutoNews | Home | Articles | Categories | 🔍 | ⚙️ Admin | 👤 Username ▼
 ```
 
 **Кнопка Admin показывается ТОЛЬКО если:**
+
 - `user.is_staff === true`
 - ИЛИ `user.is_superuser === true`
 
@@ -51,19 +55,32 @@
 
 ## 🔒 Безопасность
 
-### Защита роутов:
+### Защита роутов
 
 **Frontend (middleware.ts):**
+
 - `/admin/*` - требует авторизации
 - `/profile/*` - требует авторизации
 - Редирект на `/login?redirect=...`
 
 **Backend (permissions):**
+
 - `IsAuthenticated` - только для залогиненных
-- `IsAdminUser` - только для staff/superuser
+- `IsAdminUser` - только для staff/superuser (16 эндпоинтов)
 - JWT токены в cookies (HttpOnly-like)
 
-### Хранение данных:
+### Brute-Force Protection
+
+- **django-axes**: 5 неудачных попыток → блокировка на 30 минут
+- Rate limiting: 5 попыток логина за 15 минут на IP
+- Логирование всех попыток (success/fail с IP адресом)
+
+### JWT Instant Logout
+
+- `POST /auth/logout/` — черный список refresh токена
+- Мгновенное отключение доступа (не ждать истечения access token)
+
+### Хранение данных
 
 ```typescript
 // Токены в cookies (безопасно)
@@ -75,9 +92,43 @@ localStorage.setItem('user', JSON.stringify(userData));
 
 ---
 
+## 🔐 Двухфакторная аутентификация (2FA)
+
+### Как работает
+
+1. **Админ включает 2FA**: `POST /auth/2fa/setup/` → получает QR-код
+2. **Сканирует QR**: Google Authenticator / Authy / любое TOTP-приложение
+3. **Подтверждает**: `POST /auth/2fa/confirm/` с первым кодом → получает 8 backup-кодов
+
+### Логин с 2FA (два шага)
+
+```
+Шаг 1: POST /token/ → {requires_2fa: true}  (токены НЕ выдаются)
+Шаг 2: POST /auth/2fa/verify/ + {username, password, totp_code} → {access, refresh}
+```
+
+### API Endpoints
+
+```bash
+POST /api/v1/auth/2fa/setup/       # QR-код для authenticator
+POST /api/v1/auth/2fa/confirm/     # Подтверждение + backup коды
+POST /api/v1/auth/2fa/verify/      # Верификация при логине
+POST /api/v1/auth/2fa/disable/     # Отключение (требует код)
+GET  /api/v1/auth/2fa/status/      # Проверка статуса
+```
+
+### Backup коды
+
+- 8 одноразовых кодов (hex, 8 символов)
+- Хранятся в БД захешированными (SHA256)
+- Каждый код можно использовать только один раз
+
+---
+
 ## 📁 Структура файлов
 
-### Frontend:
+### Frontend
+
 ```
 frontend-next/
 ├── lib/
@@ -93,11 +144,15 @@ frontend-next/
     └── Header.tsx           # Умная навигация
 ```
 
-### Backend:
+### Backend
+
 ```
 backend/news/
-├── api_views.py            # UserViewSet - GET /api/v1/users/me/
-├── api_urls.py             # Роутинг API
+├── api_views/
+│   ├── two_factor.py       # 2FA API (setup, confirm, verify, disable, status)
+│   └── ...
+├── api_urls.py             # Роутинг API + 2FA endpoints
+├── models/system.py        # TOTPDevice модель
 └── serializers.py          # User serialization
 ```
 
@@ -105,18 +160,32 @@ backend/news/
 
 ## 🚀 API Endpoints
 
-### Авторизация:
+### Авторизация
+
 ```bash
-POST /api/v1/token/          # Логин (получить токены)
+POST /api/v1/token/          # Логин (получить токены / requires_2fa)
 POST /api/v1/token/refresh/  # Обновить access token
+POST /api/v1/auth/logout/    # Instant logout (JWT blacklist)
 ```
 
-### Пользователь:
+### 2FA
+
+```bash
+POST /api/v1/auth/2fa/setup/     # Генерация QR кода
+POST /api/v1/auth/2fa/confirm/   # Подтверждение 2FA
+POST /api/v1/auth/2fa/verify/    # Верификация при логине
+POST /api/v1/auth/2fa/disable/   # Отключение
+GET  /api/v1/auth/2fa/status/    # Статус
+```
+
+### Пользователь
+
 ```bash
 GET /api/v1/users/me/        # Получить данные текущего пользователя
 ```
 
 **Response:**
+
 ```json
 {
   "id": 1,
@@ -161,92 +230,46 @@ isAdmin(): boolean
 
 ## 📱 Личный кабинет (/profile)
 
-### Текущие возможности:
+### Текущие возможности
+
 - ✅ Просмотр информации профиля
 - ✅ Дата регистрации
 - ✅ Email
 - ✅ Статус администратора
+- ✅ Смена пароля
 
-### В разработке:
+### В разработке
+
 - 🔄 Избранные статьи (Favorites)
 - 🔄 История комментариев
-- 🔄 История рейтингов
 - 🔄 Редактирование профиля
-- 🔄 Смена пароля
 - 🔄 Email настройки
-
----
-
-## 🎨 UI/UX Features
-
-### Dropdown меню:
-- Плавная анимация
-- Закрытие при клике вне
-- Адаптивный дизайн
-- Иконки для каждого пункта
-
-### Мобильная версия:
-- Гамбургер меню
-- Профиль пользователя
-- Admin кнопка (только для админов)
-- Красивые градиенты
-
-### Защита:
-- Авто-редирект на логин
-- Сохранение redirect URL
-- Loading states
-- Error handling
-
----
-
-## 🔧 Создание админа
-
-```bash
-# В контейнере backend
-docker exec -it autonews_backend python manage.py createsuperuser
-
-# Или через docker-compose
-docker-compose exec backend python manage.py createsuperuser
-```
-
----
-
-## 📝 Тестирование
-
-1. **Гость:**
-   - Открыть сайт → видит "Login"
-   - Кнопки Admin НЕТ
-
-2. **Пользователь:**
-   - Залогиниться
-   - Увидеть dropdown с именем
-   - Открыть /profile
-   - НЕ видеть Admin кнопку
-
-3. **Админ:**
-   - Залогиниться как admin
-   - Увидеть кнопку "⚙️ Admin"
-   - Открыть админ-панель
-   - Полный доступ
 
 ---
 
 ## ✨ Итого
 
 **Реализовано:**
+
 - ✅ Полноценная система авторизации
 - ✅ Роли (Guest, User, Admin)
 - ✅ Умная навигация в Header
 - ✅ Личный кабинет
 - ✅ Защита роутов
-- ✅ JWT токены
+- ✅ JWT токены + instant logout
 - ✅ API endpoint для пользователя
 - ✅ Мобильная версия
+- ✅ TOTP 2FA для админов
 
 **Безопасность:**
+
 - ✅ Admin кнопка только для is_staff
 - ✅ Middleware защита
 - ✅ Token в cookies
 - ✅ Авто-редирект на login
+- ✅ Brute-force protection (django-axes)
+- ✅ IsAdminUser на 16 эндпоинтах
+- ✅ 2FA с backup кодами
+- ✅ Sensitive data scrubbing в error logs
 
 **Готово к запуску!** 🚀
