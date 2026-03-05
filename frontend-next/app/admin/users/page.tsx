@@ -175,14 +175,15 @@ export default function UsersPage() {
         }
     };
 
-    const changeRole = async () => {
-        if (!editModal || !editRole) return;
+    const changeRole = async (newRole?: string) => {
+        const roleToSend = (newRole || editRole).toLowerCase();
+        if (!editModal || !roleToSend) return;
         setActionLoading(editModal.id);
         try {
             const res = await authenticatedFetch(`/admin/users/${editModal.id}/`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role: editRole }),
+                body: JSON.stringify({ role: roleToSend }),
             });
             if (res.ok) {
                 setEditModal(null);
