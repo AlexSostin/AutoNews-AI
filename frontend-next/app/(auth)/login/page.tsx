@@ -187,7 +187,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => { setRequires2FA(false); setTotpCode(''); setError(''); setPending2FACredentials({ username: '', password: '' }); }}
+                onClick={() => { setRequires2FA(false); setTotpCode(''); setError(''); setPending2FACredentials({ username: '', password: '' }); setGoogleUserId(''); }}
                 className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
               >
                 ← Back to login

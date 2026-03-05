@@ -31,7 +31,7 @@ import { UserRoleBadge } from './components/UserRoleBadge';
 import { DeleteUserModal, RoleModal } from './components/UserActionsModal';
 import { PageHeader } from '../components/ui/PageHeader';
 import { UserTable } from './components/UserTable';
-import { isSuperuser } from '@/lib/auth';
+import { isAdmin } from '@/lib/auth';
 
 interface UserData {
     id: number;
@@ -98,9 +98,8 @@ export default function UsersPage() {
     // Current user
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
-    // Access check
     useEffect(() => {
-        if (!isSuperuser()) {
+        if (!isAdmin()) {
             setAccessDenied(true);
             setLoading(false);
         }
