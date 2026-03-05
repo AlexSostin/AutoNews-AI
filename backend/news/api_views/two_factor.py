@@ -115,7 +115,9 @@ class TwoFactorVerifyView(APIView):
     Client sends username, password, and totp_code.
     Returns JWT tokens if everything is valid.
     """
-    # No permission_classes — this is called before authentication is complete
+    # AllowAny required — this endpoint is called BEFORE login is complete
+    # (DRF default IsAuthenticatedOrReadOnly blocks POST from unauthenticated users)
+    permission_classes = [AllowAny]
 
     def post(self, request):
         from django.contrib.auth.models import User
@@ -182,6 +184,8 @@ class TwoFactorGoogleVerifyView(APIView):
     Google already authenticated the user).
     Returns JWT tokens if TOTP is valid.
     """
+    # AllowAny required — called before login is complete
+    permission_classes = [AllowAny]
 
     def post(self, request):
         from django.contrib.auth.models import User
