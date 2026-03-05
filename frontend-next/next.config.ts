@@ -79,11 +79,11 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tiny.cloud https://js.sentry-cdn.com https://pagead2.googlesyndication.com https://www.googletagmanager.com https://*.google.com https://*.google https://*.adtrafficquality.google https://accounts.google.com https://static.cloudflareinsights.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tiny.cloud https://js.sentry-cdn.com https://pagead2.googlesyndication.com https://www.googletagmanager.com https://*.google.com https://*.google https://*.adtrafficquality.google https://accounts.google.com https://static.cloudflareinsights.com https://vercel.live https://*.vercel.live",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tiny.cloud https://accounts.google.com",
               "img-src 'self' data: https: http: blob:",
               "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://api.freshmotors.net https://*.up.railway.app wss://*.up.railway.app wss://localhost:8000 ws://localhost:8000 ws://127.0.0.1:8000 http://localhost:8000 http://127.0.0.1:8000 https://*.sentry.io https://cdn.tiny.cloud https://pagead2.googlesyndication.com https://*.google.com https://*.google https://*.gstatic.com https://*.adtrafficquality.google https://*.google-analytics.com https://*.doubleclick.net https://accounts.google.com https://cloudflareinsights.com",
+              "connect-src 'self' https://api.freshmotors.net https://*.up.railway.app wss://*.up.railway.app wss://localhost:8000 ws://localhost:8000 ws://127.0.0.1:8000 http://localhost:8000 http://127.0.0.1:8000 https://*.sentry.io https://cdn.tiny.cloud https://pagead2.googlesyndication.com https://*.google.com https://*.google https://*.gstatic.com https://*.adtrafficquality.google https://*.google-analytics.com https://*.doubleclick.net https://accounts.google.com https://cloudflareinsights.com https://vercel.live https://*.vercel.live wss://*.vercel.live",
               "media-src 'self' https: http:",
               "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.google.com https://*.google https://accounts.google.com",
               "worker-src 'self' blob:",
