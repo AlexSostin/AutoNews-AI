@@ -42,19 +42,14 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
         if brand_param:
             from django.db.models import Q
             from ..auto_tags import KNOWN_BRANDS, BRAND_DISPLAY_NAMES
-            # Collect all variant strings for this brand (display name + key + aliases)
+            # Collect all raw brand keys whose display name or key matches the param
             brand_lower = brand_param.lower()
             variants = {brand_lower}
-            for key, display in BRAND_DISPLAY_NAMES.items():
-                if display.lower() == brand_lower or key.lower() == brand_lower:
+            for key in KNOWN_BRANDS:
+                display = BRAND_DISPLAY_NAMES.get(key, key)
+                if key.lower() == brand_lower or display.lower() == brand_lower:
                     variants.add(key.lower())
                     variants.add(display.lower())
-            # Collect KNOWN_BRANDS keys that match
-            for key in KNOWN_BRANDS:
-                if key.lower() == brand_lower or BRAND_DISPLAY_NAMES.get(key, key).lower() == brand_lower:
-                    variants.add(key.lower())
-                    for alias in KNOWN_BRANDS[key]:
-                        variants.add(str(alias).lower())
             q = Q()
             for v in variants:
                 q |= Q(title__icontains=v)
