@@ -151,6 +151,7 @@ urlpatterns = [
     path('token/', RateLimitedTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', RateLimitedTokenRefreshView.as_view(), name='token_refresh'),
     path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    path('token/blacklist/', LogoutView.as_view(), name='token_blacklist'),  # standard SimpleJWT name expected by frontend
     path('auth/logout/', LogoutView.as_view(), name='auth_logout'),
     
     # 2FA endpoints
