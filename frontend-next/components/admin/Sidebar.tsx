@@ -33,6 +33,7 @@ import {
   Bot,
   Users,
   Activity,
+  Waypoints,
   LucideIcon
 } from 'lucide-react';
 import { logout, isSuperuser } from '@/lib/auth';
@@ -103,6 +104,7 @@ const menuSections: MenuSection[] = [
       { href: '/admin/ab-testing', icon: FlaskConical, label: 'A/B Testing' },
       { href: '/admin/ads', icon: Megaphone, label: 'Ads / Sponsors' },
       { href: '/admin/health', icon: Activity, label: 'System Health' },
+      { href: '/admin/system-graph', icon: Waypoints, label: 'System Graph' },
     ],
   },
   {
