@@ -184,6 +184,44 @@ export default function AboutPage() {
               </section>
             </>
           )}
+
+          {/* Meet the Founder — always visible, not overridable by settings */}
+          <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 rounded-2xl shadow-xl p-8 md:p-12 mt-8 text-white">
+            <h2 className="text-3xl font-black mb-8 text-center">Meet the Founder</h2>
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+              <div className="flex-shrink-0">
+                <div className="w-28 h-28 rounded-full bg-purple-500 flex items-center justify-center text-5xl font-black text-white shadow-lg">
+                  A
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="mb-1">
+                  <span className="text-2xl font-black text-white">Alexander Sostin</span>
+                </div>
+                <p className="text-purple-300 text-sm mb-5">29 · Rishon LeZion, Israel · Founder & Editor</p>
+                <p className="text-gray-300 mb-4 leading-relaxed">
+                  I&apos;ve always been obsessed with cars — the engineering, the design, the way they keep evolving.
+                  But alongside that passion, I&apos;m also into cycling, football, ping pong, gaming, and animals.
+                </p>
+                <p className="text-gray-300 mb-4 leading-relaxed">
+                  When I&apos;m not doing any of that, I program. I love building things from scratch — which is exactly
+                  how Fresh Motors came to life. I wanted a place that covers the electric vehicle revolution honestly
+                  and in depth, with a special focus on Chinese brands like BYD, Zeekr, and Xpeng that Western media
+                  often overlooks.
+                </p>
+                <p className="text-gray-300 mb-6 leading-relaxed">
+                  This site is a work in progress — I&apos;m constantly improving it, and your readership and feedback
+                  genuinely help shape it. Thanks for being here.
+                </p>
+                <a
+                  href="mailto:info@freshmotors.net"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-semibold transition-colors text-sm"
+                >
+                  📧 info@freshmotors.net
+                </a>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 
