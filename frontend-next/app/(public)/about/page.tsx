@@ -74,18 +74,62 @@ export default function AboutPage() {
             </section>
           )}
 
+          {/* Meet the Founder — always at the top */}
+          <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 rounded-2xl shadow-xl p-8 md:p-12 mb-8 text-white">
+            <h2 className="text-3xl font-black mb-8 text-center">Meet the Founder</h2>
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+              <div className="flex-shrink-0">
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/alex-sostin.jpg"
+                    alt="Alexander Sostin — Founder of Fresh Motors"
+                    className="w-full h-full object-cover object-[center_15%]"
+                  />
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="mb-1">
+                  <span className="text-2xl font-black text-white">Alexander Sostin</span>
+                </div>
+                <p className="text-purple-300 text-sm mb-5">29 · Rishon LeZion, Israel · Founder &amp; Editor</p>
+                <p className="text-gray-300 mb-4 leading-relaxed">
+                  I&apos;ve always been obsessed with cars — the engineering, the design, the way they keep evolving.
+                  Every car on the planet tells a story about the people who built it and the market it was built for.
+                  But alongside that passion, I&apos;m also into cycling, football, ping pong, gaming, and animals.
+                </p>
+                <p className="text-gray-300 mb-4 leading-relaxed">
+                  When I&apos;m not doing any of that, I program. I love building things from scratch — which is exactly
+                  how Fresh Motors came to life. I wanted a place that covers the global automotive world honestly
+                  and in depth: from German engineering to Japanese reliability to the EV revolution coming out of China —
+                  all the cars that matter, wherever they come from.
+                </p>
+                <p className="text-gray-300 mb-6 leading-relaxed">
+                  This site is a work in progress — I&apos;m constantly improving it, and your readership and feedback
+                  genuinely help shape it. Thanks for being here.
+                </p>
+                <a
+                  href="mailto:info@freshmotors.net"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-semibold transition-colors text-sm"
+                >
+                  📧 info@freshmotors.net
+                </a>
+              </div>
+            </div>
+          </section>
+
           {/* Our Story */}
           <section className="bg-white rounded-2xl shadow-lg p-8 md:p-12 mb-8">
             <h2 className="text-3xl font-black text-gray-900 mb-6">Our Story</h2>
             <div className="prose prose-lg max-w-none text-gray-700">
               <p className="mb-4">
-                Fresh Motors was founded in 2024 by Alex Sostin, an automotive enthusiast with a focus on the rapidly evolving global EV market. What started as a personal mission to cover the Chinese electric vehicle revolution — largely ignored by Western automotive media — has grown into a daily news platform tracking over 30 brands across 20+ markets.
+                Fresh Motors was founded in 2024 by Alex Sostin, an automotive enthusiast with a passion for the entire global car industry. What started as a personal mission to track the rapidly evolving EV market — especially brands overlooked by Western media — has grown into a daily news platform covering cars from every major manufacturer worldwide.
               </p>
               <p className="mb-4">
-                We specialise in cars that rarely make headlines outside their home markets: BYD, NIO, ZEEKR, AITO, XPENG, Xiaomi, and dozens of other manufacturers reshaping what affordable, technology-rich motoring looks like. Our readers are automotive professionals, EV enthusiasts, and informed buyers who want facts — not hype.
+                We cover everything that moves: from BYD and Zeekr to BMW and Toyota, from supercar launches to budget city EVs. Our particular strength is covering brands that rarely make headlines outside their home markets — Chinese, Korean, and emerging manufacturers reshaping what modern cars look like and cost. Our readers are automotive professionals, enthusiasts, and informed buyers who want facts, not press releases.
               </p>
               <p>
-                Every article on Fresh Motors is editorially reviewed before publication. We cross-reference manufacturer specifications with independent test data, and we clearly label when information is confirmed versus expected. We believe automotive journalism should be honest about what it knows and what it doesn't.
+                Every article on Fresh Motors is editorially reviewed before publication. We cross-reference manufacturer specifications with independent test data, and we clearly label when information is confirmed versus reported. We believe automotive journalism should be honest about what it knows and what it doesn&apos;t.
               </p>
             </div>
           </section>
@@ -95,13 +139,13 @@ export default function AboutPage() {
             <h2 className="text-3xl font-black text-gray-900 mb-6">Our Editorial Approach</h2>
             <div className="prose prose-lg max-w-none text-gray-700">
               <p className="mb-4">
-                Fresh Motors uses AI-assisted research tools to monitor global automotive news and compile technical specifications from manufacturer announcements, press releases, and international automotive media. All content is reviewed by our editorial team before publication to ensure accuracy and relevance.
+                Fresh Motors uses AI-assisted research tools to monitor global automotive news and compile technical specifications from manufacturer announcements, press releases, and international automotive media. All content is reviewed editorially before publication to ensure accuracy and relevance.
               </p>
               <p className="mb-4">
                 We distinguish clearly between <strong>confirmed specifications</strong> (from official manufacturer sources) and <strong>expected or reported figures</strong> (from credible third-party coverage). We never publish fabricated specs or guessed performance numbers.
               </p>
               <p>
-                Our focus is on providing useful, data-driven content for readers making real decisions — whether that's understanding a new model's powertrain architecture, comparing range across competing vehicles, or tracking pricing trends in key markets.
+                Our focus is on providing useful, data-driven content for readers making real decisions — whether that&apos;s understanding a powertrain architecture, comparing range across competing vehicles, or tracking pricing trends across global markets.
               </p>
             </div>
           </section>
@@ -116,7 +160,7 @@ export default function AboutPage() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Accuracy First</h3>
                 <p className="text-gray-600">
-                  We verify specs against official sources and flag anything that isn't confirmed.
+                  We verify specs against official sources and flag anything that isn&apos;t confirmed.
                 </p>
               </div>
 
@@ -126,7 +170,7 @@ export default function AboutPage() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Global Coverage</h3>
                 <p className="text-gray-600">
-                  We cover brands and markets that most Western auto media ignores, especially Chinese EVs.
+                  Every car on the planet deserves coverage — from legacy European brands to emerging Chinese EV makers.
                 </p>
               </div>
 
@@ -157,74 +201,32 @@ export default function AboutPage() {
             <h2 className="text-3xl font-black text-gray-900 mb-6">What We Cover</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-xl font-bold text-purple-600 mb-3">Chinese Electric Vehicles</h3>
+                <h3 className="text-xl font-bold text-purple-600 mb-3">Global New Models</h3>
                 <p className="text-gray-700 mb-4">
-                  In-depth coverage of BYD, NIO, ZEEKR, AITO, XPENG, Chery, Geely, Dongfeng, and 20+ other manufacturers — including models not yet launched in Western markets.
+                  Launch coverage of every significant new car release worldwide — from Toyota and BMW to BYD, Zeekr, and the emerging brands reshaping the industry.
                 </p>
               </div>
               <div>
                 <h3 className="text-xl font-bold text-purple-600 mb-3">Technical Specifications</h3>
                 <p className="text-gray-700 mb-4">
-                  Detailed powertrain breakdowns, battery chemistry analysis, charging architecture, ADAS hardware — the specs that matter for real-world ownership.
+                  Detailed powertrain breakdowns, battery chemistry, charging architecture, ADAS hardware — the specs that matter for real-world decisions.
                 </p>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-purple-600 mb-3">Market & Pricing</h3>
+                <h3 className="text-xl font-bold text-purple-600 mb-3">Market &amp; Pricing</h3>
                 <p className="text-gray-700 mb-4">
-                  Launch pricing across CNY, EUR, AUD and other markets, with coverage of how global tariffs and trade dynamics affect EV pricing internationally.
+                  Launch pricing across global markets with context on how trade dynamics, tariffs, and local competition affect what you actually pay.
                 </p>
               </div>
               <div>
                 <h3 className="text-xl font-bold text-purple-600 mb-3">Industry Analysis</h3>
                 <p className="text-gray-700 mb-4">
-                  Brand strategy, model lineup evolution, technology platform changes, and competitive positioning across the global EV landscape.
+                  Brand strategy, platform evolution, competitive positioning — understanding the bigger picture behind every car release.
                 </p>
               </div>
             </div>
           </section>
 
-          {/* Meet the Founder — always visible, not overridable by settings */}
-          <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 rounded-2xl shadow-xl p-8 md:p-12 mt-8 text-white">
-            <h2 className="text-3xl font-black mb-8 text-center">Meet the Founder</h2>
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-              <div className="flex-shrink-0">
-                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/alex-sostin.jpg"
-                    alt="Alexander Sostin — Founder of Fresh Motors"
-                    className="w-full h-full object-cover object-top"
-                  />
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="mb-1">
-                  <span className="text-2xl font-black text-white">Alexander Sostin</span>
-                </div>
-                <p className="text-purple-300 text-sm mb-5">29 · Rishon LeZion, Israel · Founder & Editor</p>
-                <p className="text-gray-300 mb-4 leading-relaxed">
-                  I&apos;ve always been obsessed with cars — the engineering, the design, the way they keep evolving.
-                  But alongside that passion, I&apos;m also into cycling, football, ping pong, gaming, and animals.
-                </p>
-                <p className="text-gray-300 mb-4 leading-relaxed">
-                  When I&apos;m not doing any of that, I program. I love building things from scratch — which is exactly
-                  how Fresh Motors came to life. I wanted a place that covers the electric vehicle revolution honestly
-                  and in depth, with a special focus on Chinese brands like BYD, Zeekr, and Xpeng that Western media
-                  often overlooks.
-                </p>
-                <p className="text-gray-300 mb-6 leading-relaxed">
-                  This site is a work in progress — I&apos;m constantly improving it, and your readership and feedback
-                  genuinely help shape it. Thanks for being here.
-                </p>
-                <a
-                  href="mailto:info@freshmotors.net"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-semibold transition-colors text-sm"
-                >
-                  📧 info@freshmotors.net
-                </a>
-              </div>
-            </div>
-          </section>
         </div>
       </main >
 
