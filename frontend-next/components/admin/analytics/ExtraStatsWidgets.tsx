@@ -127,7 +127,7 @@ function RSSFeedStats({ data }: { data: ExtraStats['rss'] }) {
                         <p className="text-xs text-gray-400">Content pipeline</p>
                     </div>
                 </div>
-                <Link href="/admin/rss" className="text-xs text-orange-500 hover:text-orange-700 flex items-center gap-0.5">
+                <Link href="/admin/rss-feeds" className="text-xs text-orange-500 hover:text-orange-700 flex items-center gap-0.5">
                     Manage <ArrowUpRight size={10} />
                 </Link>
             </div>
