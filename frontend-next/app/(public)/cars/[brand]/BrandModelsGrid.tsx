@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { fixImageUrl } from '@/lib/config';
 
 interface ModelData {
@@ -31,13 +32,7 @@ function parseNumeric(val: string): number {
     return match ? parseFloat(match[0]) : 0;
 }
 
-function shortenPrice(price: string): string {
-    if (!price) return '—';
-    // If price has multiple values separated by commas or parens, show just the first
-    const first = price.match(/^\$[\d,.]+\s*[kK]?/)?.[0];
-    if (first && first.length < price.length) return `from ${first}`;
-    return price;
-}
+
 
 export default function BrandModelsGrid({
     models,
@@ -174,10 +169,12 @@ export default function BrandModelsGrid({
                         {/* Image */}
                         <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden relative">
                             {model.image ? (
-                                <img
+                                <Image
                                     src={fixImageUrl(model.image)}
                                     alt={`${brand} ${model.model}`}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    fill
+                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                    unoptimized
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-5xl text-gray-300">

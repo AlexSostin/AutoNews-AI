@@ -111,12 +111,12 @@ export default function ForAuthorsPage() {
                         <span className="font-bold uppercase tracking-wider text-sm">Transparency Policy</span>
                     </div>
                     <p className="text-gray-700 leading-relaxed mb-6 italic">
-                        "We believe content aggregation should be beneficial for those who create it.
+                        &ldquo;We believe content aggregation should be beneficial for those who create it.
                         Fresh Motors aggregates automotive content from YouTube creators and official
                         press releases via RSS feeds. We use AI to create unique summaries and articles,
                         always linking back to original sources. Our goal is to be a discovery platform,
                         not a replacement — helping users quickly grasp topics and directing them to the
-                        original source."
+                        original source.&rdquo;
                     </p>
                     <div className="flex flex-wrap gap-4">
                         <Link

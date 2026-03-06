@@ -14,7 +14,7 @@ interface PickerBrand {
 }
 
 interface CarSpec {
-    [key: string]: any;
+    [key: string]: string | number | null | undefined;
     full_name: string;
     make: string;
     model_name: string;
@@ -69,7 +69,7 @@ const getApi = () => {
 };
 
 // Spec rows config — grouped sections
-const SPEC_SECTIONS: { title: string; icon: React.ReactNode; rows: { key: string; label: string; unit?: string; format?: (v: any) => string }[] }[] = [
+const SPEC_SECTIONS: { title: string; icon: React.ReactNode; rows: { key: string; label: string; unit?: string; format?: (v: number | string) => string }[] }[] = [
     {
         title: 'Performance',
         icon: <Zap size={20} className="text-yellow-500" />,
@@ -113,7 +113,7 @@ const SPEC_SECTIONS: { title: string; icon: React.ReactNode; rows: { key: string
         title: 'Price & Info',
         icon: <DollarSign size={20} className="text-emerald-500" />,
         rows: [
-            { key: 'price_usd_from', label: 'Price (USD)', format: (v: number) => `$${v.toLocaleString()}` },
+            { key: 'price_usd_from', label: 'Price (USD)', format: (v: number | string) => `$${Number(v).toLocaleString()}` },
             { key: 'body_type', label: 'Body Type' },
             { key: 'fuel_type', label: 'Fuel Type' },
             { key: 'year', label: 'Year' },
@@ -302,7 +302,7 @@ function CompareContent() {
         return 'text-gray-800 font-medium';
     };
 
-    const formatVal = (val: any, row: typeof SPEC_SECTIONS[0]['rows'][0]) => {
+    const formatVal = (val: string | number | null | undefined, row: typeof SPEC_SECTIONS[0]['rows'][0]) => {
         if (val === null || val === undefined || val === '') return '—';
         if (row.format) return row.format(val);
         return row.unit ? `${val} ${row.unit}` : String(val);

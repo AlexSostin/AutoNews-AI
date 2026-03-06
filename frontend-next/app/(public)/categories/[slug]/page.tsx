@@ -39,7 +39,7 @@ async function getCategory(slug: string) {
     if (!res.ok) return null;
     const data = await res.json();
     const categories = Array.isArray(data) ? data : data.results || [];
-    return categories.find((cat: any) => cat.slug === slug) || null;
+    return categories.find((cat: Category) => cat.slug === slug) || null;
   } catch {
     return null;
   }
@@ -127,7 +127,7 @@ export default async function CategoryPage({
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-                {articlesData.results.map((article: any) => (
+                {(articlesData.results as Article[]).map((article) => (
                   <ArticleCard key={article.id} article={article} />
                 ))}
               </div>

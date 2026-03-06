@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ClientBrandFallback } from '@/components/public/ClientPageFallbacks';
 import type { Metadata } from 'next';
-import { fixImageUrl } from '@/lib/config';
+
 import BrandModelsGrid from './BrandModelsGrid';
 
 export const revalidate = 3600; // revalidate every hour

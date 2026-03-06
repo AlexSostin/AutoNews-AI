@@ -104,7 +104,7 @@ export default function ContactPage() {
               <div>
                 <h2 className="text-3xl font-black mb-6">Get in Touch</h2>
                 <p className="text-purple-100/80 mb-10 leading-relaxed font-medium">
-                  We're here to help! Whether you have questions about a vehicle, feedback on our content, or business inquiries, reach out using any method below.
+                  We&apos;re here to help! Whether you have questions about a vehicle, feedback on our content, or business inquiries, reach out using any method below.
                 </p>
 
                 <div className="space-y-8">
@@ -173,7 +173,7 @@ export default function ContactPage() {
             {/* Contact Form Area */}
             <div className="lg:w-2/3 p-8 sm:p-12 bg-white">
               <h3 className="text-2xl font-black text-gray-900 mb-1">Send a Message</h3>
-              <p className="text-gray-500 mb-8 font-medium">Use the form below and we'll reply within 24 hours.</p>
+              <p className="text-gray-500 mb-8 font-medium">Use the form below and we&apos;ll reply within 24 hours.</p>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -245,7 +245,7 @@ export default function ContactPage() {
                 {status === 'success' && (
                   <div className="bg-emerald-50 border-2 border-emerald-100 text-emerald-800 px-6 py-4 rounded-2xl font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
                     <span className="text-xl">✓</span>
-                    Message sent successfully! We'll be in touch soon.
+                    Message sent successfully! We&apos;ll be in touch soon.
                   </div>
                 )}
 

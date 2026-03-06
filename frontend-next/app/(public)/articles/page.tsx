@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ArticleCard from '@/components/public/ArticleCard';
@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic';
 
 function ArticlesContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
+
   usePageAnalytics('articles');
 
   const [articles, setArticles] = useState<Article[]>([]);
@@ -89,7 +89,7 @@ function ArticlesContent() {
     if (tag) {
       trackEvent('filter_use', 'articles', { filter_type: 'tag', filter_value: tag });
     }
-  }, [category, tag, search]);
+  }, [category, tag, search, totalCount]);
 
   // Load categories and tags only once
   useEffect(() => {
