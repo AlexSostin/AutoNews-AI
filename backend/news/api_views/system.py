@@ -517,8 +517,9 @@ class AutomationStatsView(APIView):
         enrichment_report = None
         try:
             import json as _json
+            # system.py is in backend/news/api_views/ → need 4x dirname to reach backend/
             meta_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
                 'ai_engine', 'models', 'enrichment_meta.json'
             )
             if os.path.exists(meta_path):
