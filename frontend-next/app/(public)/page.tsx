@@ -158,7 +158,7 @@ export default async function Home() {
               </div>
 
               <div className="flex flex-wrap gap-4 sm:gap-6 justify-center">
-                {categories.map((category: any) => (
+                {categories.map((category: { id: number; slug: string; name: string; article_count: number }) => (
                   <Link
                     key={category.id}
                     href={`/categories/${category.slug}`}
@@ -193,7 +193,7 @@ export default async function Home() {
 
               {/* Desktop: original grid layout */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                {brands.map((brand: any) => (
+                {brands.map((brand: { slug: string; name: string; image?: string; model_count: number }) => (
                   <Link
                     key={brand.slug}
                     href={`/cars/${brand.slug}`}

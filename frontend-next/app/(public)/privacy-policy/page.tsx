@@ -82,7 +82,7 @@ export default function PrivacyPolicyPage() {
                   </p>
                   <p className="text-gray-700">
                     We reserve the right to make changes to this Privacy Policy at any time and for any reason.
-                    We will alert you about any changes by updating the "Last Updated" date of this Privacy Policy.
+                    We will alert you about any changes by updating the &ldquo;Last Updated&rdquo; date of this Privacy Policy.
                   </p>
                 </section>
 
@@ -264,7 +264,7 @@ export default function PrivacyPolicyPage() {
                   <ul className="list-disc list-inside text-gray-700 space-y-2 ml-4">
                     <li><strong>Right to Access:</strong> Request a copy of your personal data</li>
                     <li><strong>Right to Rectification:</strong> Request correction of inaccurate data</li>
-                    <li><strong>Right to Erasure:</strong> Request deletion of your data ("right to be forgotten")</li>
+                    <li><strong>Right to Erasure:</strong> Request deletion of your data (&ldquo;right to be forgotten&rdquo;)</li>
                     <li><strong>Right to Restrict Processing:</strong> Limit how we use your data</li>
                     <li><strong>Right to Data Portability:</strong> Receive your data in a portable format</li>
                     <li><strong>Right to Object:</strong> Object to processing based on legitimate interests</li>
@@ -283,7 +283,7 @@ export default function PrivacyPolicyPage() {
 
                 {/* Children's Privacy */}
                 <section className="mb-10">
-                  <h2 className="text-2xl font-black text-gray-900 mb-4">Children's Privacy</h2>
+                  <h2 className="text-2xl font-black text-gray-900 mb-4">Children&apos;s Privacy</h2>
                   <p className="text-gray-700">
                     Our website is not intended for children under the age of 16. We do not knowingly collect
                     personal information from children under 16. If you are a parent or guardian and believe your

@@ -1308,7 +1308,7 @@ export default function ProfilePage() {
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-800">
-                      <strong>🔒 Secure Verification:</strong> You'll receive a 6-digit code
+                      <strong>🔒 Secure Verification:</strong> You&apos;ll receive a 6-digit code
                       at your new email address to confirm this change.
                     </p>
                   </div>

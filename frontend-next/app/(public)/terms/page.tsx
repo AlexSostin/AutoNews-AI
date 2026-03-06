@@ -75,7 +75,7 @@ export default function TermsPage() {
                 {/* Introduction */}
                 <section className="mb-10">
                   <p className="text-gray-700 mb-4">
-                    Welcome to Fresh Motors. These Terms of Service ("Terms") govern your access to and use of our
+                    Welcome to Fresh Motors. These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of our
                     website, services, and content. By accessing or using Fresh Motors, you agree to be bound by
                     these Terms. If you do not agree to these Terms, please do not use our website.
                   </p>
