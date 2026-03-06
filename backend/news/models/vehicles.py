@@ -4,7 +4,25 @@ from django.utils.text import slugify
 from ..image_utils import optimize_image
 
 
-# Intra-package imports to resolve foreign keys if needed
+def normalize_make(make: str) -> str:
+    """
+    Normalize a car brand name to its canonical display form.
+    Uses BRAND_DISPLAY_NAMES for known brands, falls back to title-case.
+
+    Examples:
+        'ZEEKR'   → 'ZEEKR'
+        'zeekr'   → 'ZEEKR'
+        'Zeekr'   → 'ZEEKR'
+        'byd'     → 'BYD'
+        'Mercedes-Benz' → 'Mercedes-Benz'
+        'unknown brand' → 'Unknown Brand'  (title-case fallback)
+    """
+    if not make:
+        return make
+    from ..auto_tags import BRAND_DISPLAY_NAMES
+    lower = make.strip().lower()
+    return BRAND_DISPLAY_NAMES.get(lower, make.strip().title())
+
 
 class Brand(models.Model):
     """
@@ -156,6 +174,12 @@ class CarSpecification(models.Model):
     
     def __str__(self):
         return f"Specs for {self.article.title}"
+
+    def save(self, *args, **kwargs):
+        """Auto-normalize make to canonical display name before saving."""
+        if self.make:
+            self.make = normalize_make(self.make)
+        super().save(*args, **kwargs)
 
 class VehicleSpecs(models.Model):
     """
@@ -470,7 +494,13 @@ class VehicleSpecs(models.Model):
         if not label and self.article:
             label = self.article.title[:50]
         return f"Specs: {label or 'Unnamed'}"
-    
+
+    def save(self, *args, **kwargs):
+        """Auto-normalize make to canonical display name before saving."""
+        if self.make:
+            self.make = normalize_make(self.make)
+        super().save(*args, **kwargs)
+
     def get_power_display(self):
         """Return formatted power string"""
         if self.power_hp and self.power_kw:
