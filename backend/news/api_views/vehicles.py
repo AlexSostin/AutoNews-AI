@@ -246,20 +246,19 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
                         updated_fields.append(field)
                         break  # stop at first non-empty donor
 
-        if updated_fields:
-            master.save(update_fields=updated_fields)
-
-        # Delete the duplicates
-        deleted_count = CarSpecification.objects.filter(id__in=delete_ids).delete()[0]
+        # Fill empty fields from donors and prepare save fields list
+        all_save_fields = list(updated_fields)
 
         # Auto-verify master — human reviewed and confirmed the merge
         from django.utils import timezone
         master.is_verified = True
         master.verified_at = timezone.now()
-        save_fields = ['is_verified', 'verified_at']
-        if updated_fields:
-            save_fields.extend(updated_fields)
-        master.save(update_fields=save_fields)
+        all_save_fields += ['is_verified', 'verified_at']
+
+        master.save(update_fields=all_save_fields)
+
+        # Delete the duplicates
+        deleted_count = CarSpecification.objects.filter(id__in=delete_ids).delete()[0]
 
         logger.info(
             f'Merged CarSpec: master={master_id} '
