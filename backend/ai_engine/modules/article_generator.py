@@ -198,6 +198,27 @@ def _clean_banned_phrases(html: str) -> str:
         print(f"  🧹 Removed {removed_li} invalid Cons items (missing-data phrases)")
         html = cleaned_cons
 
+    # 3c. Remove sentences/blocks that leak source format (transcript, video, YouTube, etc.)
+    # These must NEVER appear in published articles — they signal AI-generated content to Google
+    _source_leak_rx = re.compile(
+        r'<(p|li)>[^<]*(?:'
+        r'(?:not\s+)?(?:detailed|described|mentioned|covered|provided|available|specified|included)'
+        r'\s+in\s+(?:the\s+)?(?:provided\s+)?transcript'
+        r'|(?:in|from|based\s+on|as\s+(?:shown|mentioned|noted|discussed)\s+in)'
+        r'\s+(?:the\s+)?(?:video|transcript|footage|clip|source\s+material)'
+        r'|transcript\s+(?:mentions?|shows?|notes?|describes?|includes?|covers?|provides?)'
+        r'|according\s+to\s+(?:the\s+)?(?:video|transcript|reviewer|footage)'
+        r'|as\s+(?:shown|seen|demonstrated)\s+in\s+(?:the\s+)?(?:video|footage|clip)'
+        r'|from\s+(?:the\s+)?(?:youtube|video)\s+(?:review|footage|clip)'
+        r')[^<]*</(?:p|li)>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    cleaned_leaks = _source_leak_rx.sub('', html)
+    if cleaned_leaks != html:
+        removed_leaks = html.count('<p>') + html.count('<li>') - cleaned_leaks.count('<p>') - cleaned_leaks.count('<li>')
+        print(f"  🔒 Source leak cleanup: removed {removed_leaks} blocks mentioning transcript/video")
+        html = cleaned_leaks
+
     # 4. Clean up empty paragraphs left behind
     html = re.sub(r'<p>\s*</p>', '', html)
     
@@ -885,7 +906,14 @@ Remember: TARGET 1100-1300 words. Each main section (Performance, Design, Techno
     
     system_prompt = """You are a senior automotive journalist at FreshMotors. You write with technical precision and confident authority — think Autocar or Car and Driver, not a YouTube vlog. You prioritize ACCURACY over completeness: if you don't know a spec, you skip it rather than guess. You write for car enthusiasts who want honest, data-driven analysis. You compare to competitors ONLY when you have real data. Your tone is professional but accessible — authoritative without being dry, engaging without being clickbait. You know major car brands well (including Chinese EVs), but you never fabricate specs you're unsure about. Let the facts and specs make the impression — no hype words needed.
 
-CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 1100-1300 words. Count your words as you write. Every major section (Performance, Design, Technology, Driving Experience) must have at least 2 full paragraphs. Do NOT stop writing until you have covered all sections with sufficient depth. SHORT articles will be automatically rejected and regenerated."""
+CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 1100-1300 words. Count your words as you write. Every major section (Performance, Design, Technology, Driving Experience) must have at least 2 full paragraphs. Do NOT stop writing until you have covered all sections with sufficient depth. SHORT articles will be automatically rejected and regenerated.
+
+⛔ SOURCE FORMAT RULES (ABSOLUTE — violations will cause rejection):
+- NEVER mention the word "transcript", "video", "YouTube", "footage", "clip", "reviewer", or any reference to how the source data was collected
+- NEVER write phrases like "not detailed in the provided transcript", "as shown in the video", "the transcript mentions", "from the source material", "based on the transcript", "according to the video"
+- NEVER explain what information is MISSING from the source — if you don't have data, skip the claim silently
+- Write as if you are a journalist who has driven and researched the car yourself, not summarizing someone else's content
+- The final article must read as ORIGINAL JOURNALISM, not a summary of a YouTube review"""
     
     try:
         # Use AI provider factory
@@ -1355,7 +1383,13 @@ Content Guidelines:
 Remember: Every sentence should earn its place. Be accurate, engaging, and helpful.
 """
     
-    system_prompt = "You are a senior automotive journalist at FreshMotors. You transform press releases into engaging, unique articles with personality and genuine insight. You prioritize ACCURACY: if a spec isn't in the source and you don't know it for certain, you skip it rather than guess. You compare to competitors ONLY when you have real data. Your writing feels like a knowledgeable friend explaining a car, not a corporate rewrite. Be entertaining, accurate, and opinionated where you have basis."
+    system_prompt = """You are a senior automotive journalist at FreshMotors. You transform press releases into engaging, unique articles with personality and genuine insight. You prioritize ACCURACY: if a spec isn't in the source and you don't know it for certain, you skip it rather than guess. You compare to competitors ONLY when you have real data. Your writing feels like a knowledgeable friend explaining a car, not a corporate rewrite. Be entertaining, accurate, and opinionated where you have basis.
+
+⛔ SOURCE FORMAT RULES (ABSOLUTE — violations will cause rejection):
+- NEVER mention the word "transcript", "video", "YouTube", "footage", "clip", "press release", "source material", or any reference to how the data was collected
+- NEVER write phrases like "not detailed in the provided transcript", "as mentioned in the press release", "the source notes", "based on the transcript", "according to the video"
+- NEVER explain what information is MISSING — if you don't have data, skip the claim silently
+- Write as ORIGINAL JOURNALISM — the reader should never know where the source data came from"""
     
     try:
         # Use AI provider factory
