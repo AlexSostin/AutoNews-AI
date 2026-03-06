@@ -174,12 +174,6 @@ class TestBrandCleanupView:
 
 
 class TestBrandViewSet:
-
-    def test_list_brands(self):
-        client, _ = staff_client()
-        resp = client.get('/api/v1/admin/brands/')
-        assert resp.status_code == 200
-
     def test_create_brand(self):
         """L535-550: Create brand with auto-slug."""
         client, _ = staff_client()

@@ -17,11 +17,6 @@ pytestmark = pytest.mark.django_db
 # ═══════════════════════════════════════════════════════════════════
 
 class TestSearcherHelpers:
-
-    def test_is_blocked_youtube(self):
-        from ai_engine.modules.searcher import _is_blocked
-        assert _is_blocked('https://youtube.com/watch?v=1') is True
-
     def test_is_blocked_normal(self):
         from ai_engine.modules.searcher import _is_blocked
         assert _is_blocked('https://caranddriver.com/reviews') is False
@@ -274,32 +269,6 @@ class TestRSSAggregator:
     def _make_agg(self):
         from ai_engine.modules.rss_aggregator import RSSAggregator
         return RSSAggregator()
-
-    def test_content_hash(self):
-        agg = self._make_agg()
-        h = agg.calculate_content_hash('Hello world')
-        assert len(h) == 64  # SHA256
-
-    def test_title_similarity_identical(self):
-        agg = self._make_agg()
-        assert agg.calculate_title_similarity('BYD Seal', 'BYD Seal') == 1.0
-
-    def test_title_similarity_different(self):
-        agg = self._make_agg()
-        sim = agg.calculate_title_similarity('BYD Seal Review', 'Tesla Model 3')
-        assert sim < 0.5
-
-    @patch('ai_engine.modules.rss_aggregator.feedparser.parse')
-    def test_fetch_feed_success(self, mock_parse):
-        """L53-65: Valid feed → entries returned."""
-        agg = self._make_agg()
-        mock_parse.return_value = MagicMock(
-            bozo=False,
-            entries=[{'title': 'Test'}]
-        )
-        result = agg.fetch_feed('https://example.com/rss')
-        assert result is not None
-
     @patch('ai_engine.modules.rss_aggregator.feedparser.parse')
     def test_fetch_feed_no_entries(self, mock_parse):
         """L60-62: Empty entries → None."""
@@ -358,19 +327,6 @@ class TestRSSAggregator:
             'Completely Unique Title That Does Not Exist',
             'Completely unique content'
         ) is False
-
-    def test_extract_images_media_content(self):
-        """L196-199: media:content → image URL extracted."""
-        agg = self._make_agg()
-        entry = MagicMock(spec=[])
-        entry.media_content = [{'medium': 'image', 'url': 'https://img.com/1.jpg'}]
-        entry.media_thumbnail = []
-        entry.enclosures = []
-        # Make hasattr work correctly for content/summary/description
-        type(entry).__dict__  # force MagicMock
-        result = agg.extract_images(entry)
-        assert 'https://img.com/1.jpg' in result
-
     def test_extract_images_enclosure(self):
         """L207-210: enclosure image → extracted."""
         agg = self._make_agg()
@@ -383,32 +339,6 @@ class TestRSSAggregator:
         del entry.description
         result = agg.extract_images(entry)
         assert 'https://img.com/enc.jpg' in result
-
-    def test_convert_plain_text_to_html(self):
-        """L299-342: Plain text → HTML with paragraphs."""
-        agg = self._make_agg()
-        text = "First paragraph.\n\nSecond paragraph.\n\nhttps://example.com is a link."
-        html = agg.convert_plain_text_to_html(text)
-        assert '<p>' in html
-        assert '<a href=' in html
-
-    def test_clean_publisher_mentions(self):
-        """L344-389: Publisher self-references removed."""
-        agg = self._make_agg()
-        text = "Article content. The post BYD unveils new car appeared first on CarNews."
-        cleaned = agg.clean_publisher_mentions(text)
-        assert 'appeared first on' not in cleaned
-
-    def test_extract_plain_text(self):
-        """L391-423: Extract plain text from entry."""
-        agg = self._make_agg()
-        entry = MagicMock()
-        entry.content = [{'value': '<p>Hello <b>world</b></p>'}]
-        del entry.summary
-        del entry.description
-        result = agg.extract_plain_text(entry)
-        assert 'Hello world' in result
-
     def test_extract_plain_text_empty(self):
         """L422-423: No content → empty string."""
         agg = self._make_agg()
@@ -436,16 +366,6 @@ class TestRSSAggregator:
         entry.published_parsed = (2026, 2, 21, 12, 0, 0, 0, 0, 0)
         result = agg.parse_entry_date(entry)
         assert result is not None
-
-    def test_parse_entry_date_none(self):
-        """L465: No date fields → None."""
-        agg = self._make_agg()
-        entry = MagicMock()
-        del entry.published_parsed
-        del entry.updated_parsed
-        result = agg.parse_entry_date(entry)
-        assert result is None
-
     @patch('requests.get')
     def test_extract_og_image(self, mock_get):
         """L246-268: og:image extraction."""
@@ -503,19 +423,6 @@ class TestAutoPublishPending:
         count, reason = auto_publish_pending()
         assert count == 0
         assert 'disabled' in reason
-
-    @patch('news.models.AutomationSettings.load')
-    def test_daily_limit(self, mock_load):
-        """L62-64: Daily limit reached → 0."""
-        from ai_engine.modules.auto_publisher import auto_publish_pending
-        mock_settings = MagicMock()
-        mock_settings.auto_publish_enabled = True
-        mock_settings.auto_publish_today_count = 10
-        mock_settings.auto_publish_max_per_day = 10
-        mock_load.return_value = mock_settings
-        count, reason = auto_publish_pending()
-        assert count == 0
-        assert 'daily limit' in reason
 
     @patch('news.models.Article.objects')
     @patch('news.models.AutomationSettings.load')

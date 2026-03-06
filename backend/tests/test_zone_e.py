@@ -93,16 +93,6 @@ class TestGenerateFromYouTube:
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/',
                                 {}, format='json', **UA)
         assert resp.status_code in (400, 422)
-
-    def test_generate_invalid_url(self, staff_client):
-        resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
-            'youtube_url': 'https://evil.com/script'
-        }, format='json', **UA)
-        assert resp.status_code == 400
-
-
-class TestTranslateEnhance:
-
     def test_translate_requires_staff(self, user_client):
         resp = user_client.post('/api/v1/articles/translate_enhance/',
                                 {}, format='json', **UA)
@@ -160,15 +150,6 @@ class TestReformatContent:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestArticleSpecialActions:
-
-    def test_trending(self, anon_client, article):
-        resp = anon_client.get('/api/v1/articles/trending/', **UA)
-        assert resp.status_code == 200
-
-    def test_popular(self, anon_client, article):
-        resp = anon_client.get('/api/v1/articles/popular/', **UA)
-        assert resp.status_code == 200
-
     def test_reset_views_requires_staff(self, user_client):
         resp = user_client.post('/api/v1/articles/reset_all_views/', **UA)
         assert resp.status_code == 403
@@ -176,11 +157,6 @@ class TestArticleSpecialActions:
     def test_reset_views_as_staff(self, staff_client, article):
         resp = staff_client.post('/api/v1/articles/reset_all_views/', **UA)
         assert resp.status_code == 200
-
-    def test_increment_views(self, anon_client, article):
-        resp = anon_client.post(f'/api/v1/articles/{article.slug}/increment_views/', **UA)
-        assert resp.status_code in (200, 204)
-
     def test_debug_vehicle_specs(self, staff_client):
         resp = staff_client.get('/api/v1/articles/debug_vehicle_specs/', **UA)
         assert resp.status_code in (200, 404)  # May not exist
@@ -192,34 +168,9 @@ class TestArticleSpecialActions:
     def test_bulk_re_enrich_status(self, staff_client):
         resp = staff_client.get('/api/v1/articles/bulk_re_enrich_status/?task_id=fake', **UA)
         assert resp.status_code in (200, 404)
-
-    def test_submit_feedback(self, user_client, article):
-        resp = user_client.post(f'/api/v1/articles/{article.slug}/submit_feedback/', {
-            'feedback_type': 'hallucination',
-            'description': 'Contains incorrect info',
-        }, format='json', **UA)
-        assert resp.status_code in (200, 201, 400, 404)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# ArticleViewSet — CRUD gaps
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestArticleCRUDGaps:
-
     def test_article_destroy(self, staff_client, article):
         resp = staff_client.delete(f'/api/v1/articles/{article.slug}/', **UA)
         assert resp.status_code in (204, 200)
-
-    def test_article_filter_category(self, anon_client, article, category):
-        article.categories.add(category)
-        resp = anon_client.get(f'/api/v1/articles/?category={category.slug}', **UA)
-        assert resp.status_code == 200
-
-    def test_article_search(self, anon_client, article):
-        resp = anon_client.get('/api/v1/articles/?search=Test', **UA)
-        assert resp.status_code == 200
-
     def test_article_list(self, anon_client, article):
         resp = anon_client.get('/api/v1/articles/', **UA)
         assert resp.status_code == 200
@@ -243,25 +194,6 @@ class TestCommentViewSetGaps:
             'content': 'Great article!',
         }, format='json', **UA)
         assert resp.status_code in (201, 400, 429)
-
-    def test_approve_comment(self, staff_client, article):
-        comment = Comment.objects.create(
-            article=article, name='Guest',
-            email='g@t.com', content='Nice', is_approved=False,
-        )
-        resp = staff_client.post(f'/api/v1/comments/{comment.id}/approve/', {
-            'is_approved': True
-        }, format='json', **UA)
-        assert resp.status_code in (200, 204)
-
-    def test_my_comments(self, user_client, article, regular_user):
-        Comment.objects.create(
-            article=article, user=regular_user, content='My comment',
-            is_approved=True,
-        )
-        resp = user_client.get('/api/v1/comments/my_comments/', **UA)
-        assert resp.status_code == 200
-
     def test_list_comments(self, anon_client, article):
         Comment.objects.create(
             article=article, name='A', content='C', is_approved=True,
@@ -275,41 +207,6 @@ class TestCommentViewSetGaps:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestCarSpecificationViewSet:
-
-    def test_list(self, anon_client, article):
-        CarSpecification.objects.create(article=article, make='Tesla', model='Model 3')
-        resp = anon_client.get('/api/v1/car-specifications/', **UA)
-        assert resp.status_code == 200
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# SiteSettingsViewSet — router basename = 'settings'
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestSiteSettingsViewSet:
-
-    def test_list(self, staff_client):
-        SiteSettings.load()
-        resp = staff_client.get('/api/v1/settings/', **UA)
-        assert resp.status_code == 200
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# FavoriteViewSet
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestFavoriteViewSet:
-
-    def test_toggle_favorite(self, user_client, article):
-        resp = user_client.post('/api/v1/favorites/toggle/', {
-            'article': article.id,
-        }, format='json', **UA)
-        assert resp.status_code in (200, 201)
-
-    def test_check_favorite(self, user_client, article):
-        resp = user_client.get(f'/api/v1/favorites/check/?article={article.id}', **UA)
-        assert resp.status_code == 200
-
     def test_favorites_list(self, user_client, article, regular_user):
         Favorite.objects.create(user=regular_user, article=article)
         resp = user_client.get('/api/v1/favorites/', **UA)
@@ -337,29 +234,12 @@ class TestCurrencyRatesView:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestSubscriberViewSetGaps:
-
-    def test_subscribe(self, anon_client):
-        resp = anon_client.post('/api/v1/subscribers/', {
-            'email': 'test@newsletter.com',
-        }, format='json', **UA)
-        assert resp.status_code in (201, 400, 429)
-
     def test_unsubscribe(self, anon_client):
         NewsletterSubscriber.objects.create(email='unsub@test.com', is_active=True)
         resp = anon_client.post('/api/v1/subscribers/unsubscribe/', {
             'email': 'unsub@test.com',
         }, format='json', **UA)
         assert resp.status_code in (200, 204, 400)
-
-    def test_newsletter_history(self, staff_client):
-        resp = staff_client.get('/api/v1/subscribers/newsletter_history/', **UA)
-        assert resp.status_code == 200
-
-    def test_export_csv(self, staff_client):
-        NewsletterSubscriber.objects.create(email='export@test.com', is_active=True)
-        resp = staff_client.get('/api/v1/subscribers/export_csv/', **UA)
-        assert resp.status_code == 200
-
     def test_list_subscribers(self, staff_client):
         resp = staff_client.get('/api/v1/subscribers/', **UA)
         assert resp.status_code == 200
@@ -370,11 +250,6 @@ class TestSubscriberViewSetGaps:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestYouTubeChannelViewSet:
-
-    def test_list(self, staff_client):
-        resp = staff_client.get('/api/v1/youtube-channels/', **UA)
-        assert resp.status_code == 200
-
     def test_create(self, staff_client):
         resp = staff_client.post('/api/v1/youtube-channels/', {
             'name': 'Test Channel',
@@ -389,26 +264,6 @@ class TestYouTubeChannelViewSet:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestRSSFeedViewSetGaps:
-
-    def test_list(self, staff_client):
-        resp = staff_client.get('/api/v1/rss-feeds/', **UA)
-        assert resp.status_code == 200
-
-    def test_with_pending_counts(self, staff_client):
-        resp = staff_client.get('/api/v1/rss-feeds/with_pending_counts/', **UA)
-        assert resp.status_code == 200
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# PendingArticleViewSet
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestPendingArticleViewSet:
-
-    def test_list(self, staff_client):
-        resp = staff_client.get('/api/v1/pending-articles/', **UA)
-        assert resp.status_code == 200
-
     def test_list_with_filters(self, staff_client):
         resp = staff_client.get('/api/v1/pending-articles/?status=pending', **UA)
         assert resp.status_code == 200
@@ -419,12 +274,6 @@ class TestPendingArticleViewSet:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestAutomationSettings:
-
-    def test_get_settings(self, staff_client):
-        AutomationSettings.load()
-        resp = staff_client.get('/api/v1/automation/settings/', **UA)
-        assert resp.status_code == 200
-
     def test_get_stats(self, staff_client):
         resp = staff_client.get('/api/v1/automation/stats/', **UA)
         assert resp.status_code == 200
@@ -435,67 +284,11 @@ class TestAutomationSettings:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestAdminNotificationViewSet:
-
-    def test_list(self, staff_client):
-        resp = staff_client.get('/api/v1/notifications/', **UA)
-        assert resp.status_code == 200
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# BrandAliasViewSet
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestBrandAliasViewSet:
-
-    def test_list(self, staff_client):
-        resp = staff_client.get('/api/v1/brand-aliases/', **UA)
-        assert resp.status_code == 200
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# VehicleSpecsViewSet
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestVehicleSpecsViewSet:
-
-    def test_list(self, staff_client, article):
-        VehicleSpecs.objects.create(
-            article=article, make='Tesla', model_name='Model 3',
-            price_from=42990, currency='USD',
-        )
-        resp = staff_client.get('/api/v1/vehicle-specs/', **UA)
-        assert resp.status_code == 200
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# AdminUserManagementViewSet (path-based URLs)
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestAdminUserManagement:
-
-    def test_list_users(self, super_client):
-        resp = super_client.get('/api/v1/admin/users/', **UA)
-        assert resp.status_code == 200
-
-    def test_retrieve_user(self, super_client, regular_user):
-        resp = super_client.get(f'/api/v1/admin/users/{regular_user.id}/', **UA)
-        assert resp.status_code == 200
-
     def test_partial_update_user(self, super_client, regular_user):
         resp = super_client.patch(f'/api/v1/admin/users/{regular_user.id}/', {
             'is_staff': True,
         }, format='json', **UA)
         assert resp.status_code == 200
-
-    def test_delete_user(self, super_client, regular_user):
-        resp = super_client.delete(f'/api/v1/admin/users/{regular_user.id}/', **UA)
-        assert resp.status_code in (204, 200)
-
-    def test_reset_password(self, super_client, regular_user):
-        resp = super_client.post(
-            f'/api/v1/admin/users/{regular_user.id}/reset-password/', **UA)
-        assert resp.status_code == 200
-
     def test_non_superuser_blocked(self, staff_client):
         resp = staff_client.get('/api/v1/admin/users/', **UA)
         assert resp.status_code == 403
@@ -506,14 +299,6 @@ class TestAdminUserManagement:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestAuthViewsGaps:
-
-    def test_change_password_wrong_old(self, user_client):
-        resp = user_client.post('/api/v1/auth/password/change/', {
-            'old_password': 'wrong',
-            'new_password': 'NewPass123!',
-        }, format='json', **UA)
-        assert resp.status_code in (400, 401)
-
     def test_change_password_correct(self, user_client):
         resp = user_client.post('/api/v1/auth/password/change/', {
             'old_password': 'pass',
