@@ -29,7 +29,7 @@ export default function AdminLayout({
     }
 
     // Check if user is authenticated and is staff
-    const checkAuth = () => {
+    const checkAuth = async () => {
       if (!isAuthenticated()) {
         router.push('/login');
         return;
@@ -40,6 +40,37 @@ export default function AdminLayout({
         router.push('/');
         return;
       }
+
+      // ── Token liveness check ──────────────────────────────────────
+      // Verify the access token is actually valid (catches zombie state
+      // after backend restart / Docker rebuild / deploy).
+      try {
+        const { getApiUrl } = await import('@/lib/api');
+        const accessToken = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('access_token='))
+          ?.split('=')[1];
+
+        if (!accessToken) throw new Error('no token');
+
+        const res = await fetch(`${getApiUrl()}/token/verify/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: accessToken }),
+        });
+
+        if (!res.ok) throw new Error('token invalid');
+      } catch {
+        // Token is invalid/expired — clear zombie state and redirect
+        document.cookie = 'access_token=; path=/; max-age=0';
+        document.cookie = 'refresh_token=; path=/; max-age=0';
+        localStorage.removeItem('user');
+        localStorage.removeItem('access_token');
+        toast.error('Session expired. Please log in again.');
+        router.push('/login');
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────
 
       setAuthorized(true);
     };

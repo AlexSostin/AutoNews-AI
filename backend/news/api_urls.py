@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -150,6 +150,7 @@ urlpatterns = [
     # JWT Auth with rate limiting
     path('token/', RateLimitedTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', RateLimitedTokenRefreshView.as_view(), name='token_refresh'),
+    path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     path('auth/logout/', LogoutView.as_view(), name='auth_logout'),
     
     # 2FA endpoints
