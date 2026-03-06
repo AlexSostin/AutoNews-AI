@@ -27,7 +27,7 @@ from .api_views import (
     AdminActionStatsView, FrontendEventLogViewSet, BackendErrorLogViewSet, HealthSummaryView, NavBadgesView
 )
 from .health import health_check, health_check_detailed, readiness_check
-from .api_views.system_graph import SystemGraphView
+from .api_views.system_graph import SystemGraphView, EmbeddingStatsView
 from .ab_testing_views import (
     ABImpressionView, ABClickView, ABTestsListView,
     ABPickWinnerView, ABAutoPickView
@@ -143,6 +143,7 @@ urlpatterns = [
     path('health/', health_check, name='health_check'),
     path('health/errors-summary/', HealthSummaryView.as_view(), name='health_errors_summary'),
     path('health/graph-data/', SystemGraphView.as_view(), name='system_graph_data'),
+    path('health/embedding-stats/', EmbeddingStatsView.as_view(), name='embedding_stats'),
     path('health/detailed/', health_check_detailed, name='health_check_detailed'),
     path('health/ready/', readiness_check, name='readiness_check'),
     

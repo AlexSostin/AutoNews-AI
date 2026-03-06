@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { AutomationSettings, AutomationStats } from '../types';
 import { ModuleCard, SettingRow, NumberInput, ToggleSwitch } from './ui';
+import { EmbeddingsCard } from './EmbeddingsCard';
+
 
 interface TaskModulesProps {
     settings: AutomationSettings;
@@ -447,28 +449,7 @@ export function TaskModules({
             </div>
 
             {/* 🔍 Article Embeddings */}
-            <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg shadow-md border-2 border-teal-200 p-5 h-full flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-base font-black text-gray-900">🔍 Article Embeddings</h3>
-                    <button
-                        onClick={() => triggerTask('index-articles')}
-                        disabled={triggering === 'index-articles'}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${triggering === 'index-articles'
-                            ? 'bg-gray-100 text-gray-400 cursor-wait'
-                            : 'bg-teal-100 text-teal-700 hover:bg-teal-200 border border-teal-300'
-                            }`}
-                    >
-                        {triggering === 'index-articles' ? '⏳ Indexing...' : '⚡ Index Articles'}
-                    </button>
-                </div>
-                <p className="text-sm text-gray-600 leading-relaxed flex-1">
-                    Vector embeddings power semantic search, ML recommendations, and deduplication.
-                    Indexes all articles not yet embedded — check System Graph for current coverage.
-                </p>
-                <div className="mt-3 pt-3 border-t border-teal-200">
-                    <a href="/admin/system-graph" className="text-xs font-bold text-teal-600 hover:text-teal-800 transition-colors">🌐 View System Graph →</a>
-                </div>
-            </div>
+            <EmbeddingsCard triggering={triggering} triggerTask={triggerTask} />
 
         </div>
     );

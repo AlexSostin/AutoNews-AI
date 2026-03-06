@@ -273,7 +273,11 @@ class SystemGraphView(APIView):
         nodes.append({
             'id': 'embeddings', 'label': 'Embeddings', 'group': 'ml',
             'icon': '🧠', 'count': emb_total,
-            'breakdown': {'coverage': f'{emb_coverage}%'},
+            'breakdown': {
+                'indexed': emb_total,
+                'total': articles_published,
+                'not_indexed': max(0, articles_published - emb_total),
+            },
             'health': 'warning' if emb_coverage < 80 else 'healthy',
         })
         edges.append({'from': 'articles', 'to': 'embeddings', 'label': 'indexed', 'count': emb_total})
@@ -327,4 +331,25 @@ class SystemGraphView(APIView):
             'edges': edges,
             'warnings': warnings,
             'generated_at': now.isoformat(),
+        })
+
+
+class EmbeddingStatsView(APIView):
+    """Lightweight endpoint for polling embedding index progress.
+    GET /api/v1/health/embedding-stats/
+    Returns: {indexed, total, not_indexed, pct}
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from news.models import Article, ArticleEmbedding
+        total = Article.objects.filter(is_published=True, is_deleted=False).count()
+        indexed = ArticleEmbedding.objects.count()
+        not_indexed = max(0, total - indexed)
+        pct = round(indexed / total * 100, 1) if total > 0 else 0
+        return Response({
+            'indexed': indexed,
+            'total': total,
+            'not_indexed': not_indexed,
+            'pct': pct,
         })
