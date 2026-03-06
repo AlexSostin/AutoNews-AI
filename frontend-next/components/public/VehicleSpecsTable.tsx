@@ -79,10 +79,57 @@ function mmToInches(mm: number): string {
     return `${(mm * MM_TO_INCH).toFixed(1)}″`;
 }
 
+function VehicleSpecsTableSkeleton({ vehicleSpecsList }: VehicleSpecsTableProps) {
+    // Neutral metric skeleton rendered during SSR and first client render.
+    // Prevents hydration mismatch by keeping SSR HTML identical to first paint.
+    const vsList = vehicleSpecsList;
+    const multi = vsList.length > 1;
+
+    const skeletonSections = [
+        { title: '⚡ Performance', gradient: 'bg-gradient-to-r from-indigo-600 to-purple-600', rows: 4 },
+        { title: '🔋 EV & Battery', gradient: 'bg-gradient-to-r from-green-600 to-emerald-600', rows: 4 },
+        { title: '📐 Dimensions & Weight', gradient: 'bg-gradient-to-r from-cyan-600 to-teal-600', rows: 5 },
+        { title: '🔧 Technical Details', gradient: 'bg-gradient-to-r from-orange-500 to-amber-500', rows: 3 },
+    ];
+
+    return (
+        <div className="space-y-8">
+            {/* Units toggle skeleton */}
+            <div className="flex items-center justify-between bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl px-5 py-3 shadow-sm">
+                <span className="text-white text-sm font-medium">📐 Units</span>
+                <div className="h-8 w-32 bg-white/20 rounded-lg animate-pulse" />
+            </div>
+            {skeletonSections.map(section => (
+                <div key={section.title} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                    <div className={`px-6 py-4 ${section.gradient}`}>
+                        <h2 className="text-xl font-bold text-white">{section.title}</h2>
+                        {multi && (
+                            <p className="text-white/70 text-sm mt-1">Comparing {vsList.length} trim variants</p>
+                        )}
+                    </div>
+                    <div className="px-6 py-2">
+                        {Array.from({ length: section.rows }).map((_, i) => (
+                            <div key={i} className={`flex justify-between items-center py-2.5 border-b border-gray-100 last:border-0 ${i % 2 === 0 ? '' : 'bg-gray-50/50 -mx-6 px-6'}`}>
+                                <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
+                                <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export default function VehicleSpecsTable({ vehicleSpecsList }: VehicleSpecsTableProps) {
     const { system, setSystem, formatDistance, formatSpeed, ready } = useLocaleUnits();
 
     if (!vehicleSpecsList || vehicleSpecsList.length === 0) return null;
+
+    // SSR guard: render neutral skeleton until locale is determined.
+    // This prevents hydration mismatch (React error #418) caused by
+    // unit system (metric vs imperial) being resolved via useEffect.
+    if (!ready) return <VehicleSpecsTableSkeleton vehicleSpecsList={vehicleSpecsList} />;
 
     const vsList = vehicleSpecsList;
     const multi = vsList.length > 1;

@@ -70,6 +70,11 @@ export default function PriceConverter({ priceUsd, className = '' }: PriceConver
     fetchRates();
   }, []);
 
+  // SSR guard: return null until locale is determined.
+  // This prevents hydration mismatch (React error #418): both SSR and
+  // first client render see null, no conflict.
+  if (!localeReady) return null;
+
   if (!priceUsd || priceUsd <= 0) {
     return null;
   }
