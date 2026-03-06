@@ -15,6 +15,7 @@ import {
     ArrowUpDown,
     Sparkles,
     Tag,
+    Heart,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
@@ -153,6 +154,7 @@ interface RSSNewsItem {
     image_url: string;
     published_at: string | null;
     status: 'new' | 'read' | 'generating' | 'generated' | 'dismissed';
+    is_favorite: boolean;
     pending_article: number | null;
     created_at: string;
     relevance_score: number;
@@ -310,6 +312,20 @@ export default function RSSNewsPage() {
             setNewsItems(prev => prev.filter(item => item.id !== itemId));
         } catch (error) {
             logCaughtError('rss_pending_dismiss', error, { itemId });
+        }
+    };
+
+    const handleToggleFavorite = async (itemId: number) => {
+        try {
+            const response = await api.post(`/rss-news-items/${itemId}/toggle_favorite/`);
+            const { is_favorite } = response.data;
+            setNewsItems(prev => prev.map(item =>
+                item.id === itemId ? { ...item, is_favorite } : item
+            ));
+            toast.success(is_favorite ? '❤️ Saved — kept 60 days as ML signal' : 'Removed from favorites');
+        } catch (error) {
+            logCaughtError('rss_pending_toggle_favorite', error, { itemId });
+            toast.error('Could not update favorite');
         }
     };
 
@@ -819,6 +835,21 @@ export default function RSSNewsPage() {
                                                             <ExternalLink size={14} />
                                                         </a>
                                                     )}
+
+                                                    {/* Heart / Favorite button */}
+                                                    <button
+                                                        onClick={() => handleToggleFavorite(item.id)}
+                                                        className={`flex items-center justify-center p-2 rounded-lg transition-all ${item.is_favorite
+                                                                ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                                                                : 'text-gray-300 hover:bg-red-50 hover:text-red-400'
+                                                            }`}
+                                                        title={item.is_favorite ? 'Remove from favorites (saved 60 days)' : 'Save as interesting — kept 60 days for ML'}
+                                                    >
+                                                        <Heart
+                                                            size={14}
+                                                            className={item.is_favorite ? 'fill-current' : ''}
+                                                        />
+                                                    </button>
 
                                                     {item.status !== 'dismissed' && item.status !== 'generated' && (
                                                         <button

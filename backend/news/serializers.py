@@ -776,10 +776,11 @@ class RSSNewsItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'rss_feed', 'feed_name', 'feed_logo', 'feed_source_type',
             'title', 'content', 'excerpt', 'source_url', 'image_url',
-            'published_at', 'status', 'pending_article',
+            'published_at', 'status', 'is_favorite', 'pending_article',
             'created_at', 'relevance_score', 'relevance_label',
         ]
         read_only_fields = ['created_at']
+
 
 
 class PendingArticleRSSFeedSerializer(serializers.ModelSerializer):

@@ -189,6 +189,11 @@ class RSSNewsItem(models.Model):
     )
     published_at = models.DateTimeField(null=True, blank=True, help_text="Original publication date")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    is_favorite = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Marked as interesting by editor. Excluded from 7-day cleanup (kept 60 days). Used as ML signal."
+    )
     
     # Link to generated article (if any)
     pending_article = models.ForeignKey(

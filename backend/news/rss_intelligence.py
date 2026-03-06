@@ -265,7 +265,7 @@ def get_trending_brands(days: int = 7, min_mentions: int = 2) -> list[dict]:
             continue
         
         prev = previous_counts.get(brand, 0)
-        velocity = round(count / prev, 1) if prev > 0 else float('inf') if count > 0 else 0
+        velocity = round(count / prev, 1) if prev > 0 else None  # None = "new this period"
         
         trending.append({
             'brand': brand,

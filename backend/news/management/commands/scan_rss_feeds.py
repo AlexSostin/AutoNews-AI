@@ -72,14 +72,25 @@ class Command(BaseCommand):
         aggregator = RSSAggregator()
         use_ai = not options['no_ai']  # AI enabled by default
 
-        # --- Auto-cleanup: delete new/read items older than 7 days ---
-        cutoff = timezone.now() - timedelta(days=7)
+        # --- Auto-cleanup: delete new/read items older than 7 days (skip favorites) ---
+        cutoff_7d = timezone.now() - timedelta(days=7)
         deleted_count, _ = RSSNewsItem.objects.filter(
             status__in=['new', 'read'],
-            created_at__lt=cutoff,
+            is_favorite=False,
+            created_at__lt=cutoff_7d,
         ).delete()
         if deleted_count:
             self.stdout.write(self.style.WARNING(f'🗑  Cleaned up {deleted_count} RSS items older than 7 days'))
+
+        # --- Cleanup favorites older than 60 days (they've served as ML signal) ---
+        cutoff_60d = timezone.now() - timedelta(days=60)
+        fav_deleted, _ = RSSNewsItem.objects.filter(
+            is_favorite=True,
+            created_at__lt=cutoff_60d,
+        ).delete()
+        if fav_deleted:
+            self.stdout.write(self.style.WARNING(f'🗑  Cleaned up {fav_deleted} favorite RSS items older than 60 days'))
+
 
         # --- RSS Intelligence: extract brands & models from recent titles ---
         try:

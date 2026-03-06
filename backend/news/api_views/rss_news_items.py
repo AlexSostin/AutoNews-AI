@@ -359,3 +359,14 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             'has_duplicates': len(similar) > 0,
         })
 
+    @action(detail=True, methods=['post'])
+    def toggle_favorite(self, request, pk=None):
+        """Toggle is_favorite on an RSS item. Favorites are kept for 60 days as ML signal."""
+        news_item = self.get_object()
+        news_item.is_favorite = not news_item.is_favorite
+        news_item.save(update_fields=['is_favorite'])
+        return Response({
+            'success': True,
+            'id': news_item.id,
+            'is_favorite': news_item.is_favorite,
+        })
