@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/admin/Sidebar';
 import AdminHeader from '@/components/admin/AdminHeader';
-import { isAdmin, isAuthenticated } from '@/lib/auth'; // Ensure these are exported from lib/auth
+import { IdleWarningModal } from '@/components/admin/IdleWarningModal';
+import { useIdleTimeout } from '@/lib/useIdleTimeout';
+import { isAdmin, isAuthenticated } from '@/lib/auth';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 
 export default function AdminLayout({
   children,
@@ -16,6 +19,7 @@ export default function AdminLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
+  const [showIdleWarning, setShowIdleWarning] = useState(false);
 
   useEffect(() => {
     // Load sidebar state from localStorage
@@ -42,6 +46,45 @@ export default function AdminLayout({
 
     checkAuth();
   }, [router]);
+
+  // ── Idle logout logic ─────────────────────────────────────────────
+  const handleLogout = useCallback(async () => {
+    setShowIdleWarning(false);
+    try {
+      const refreshToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('refresh_token='))
+        ?.split('=')[1];
+      if (refreshToken) {
+        await api.post('/token/blacklist/', { refresh: refreshToken });
+      }
+    } catch { /* ignore — still clear state */ }
+
+    document.cookie = 'access_token=; path=/; max-age=0';
+    document.cookie = 'refresh_token=; path=/; max-age=0';
+    localStorage.removeItem('user');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('admin_last_active');
+
+    toast('🔒 Session expired due to inactivity', { icon: '⏰' });
+    router.push('/login');
+  }, [router]);
+
+  const handleWarn = useCallback(() => {
+    setShowIdleWarning(true);
+  }, []);
+
+  const { extendSession } = useIdleTimeout({
+    enabled: authorized,
+    onWarn: handleWarn,
+    onLogout: handleLogout,
+  });
+
+  const handleStayLoggedIn = useCallback(() => {
+    setShowIdleWarning(false);
+    extendSession();
+  }, [extendSession]);
+  // ─────────────────────────────────────────────────────────────────
 
   const toggleSidebar = () => {
     const newState = !isCollapsed;
@@ -71,6 +114,14 @@ export default function AdminLayout({
           {children}
         </main>
       </div>
+
+      {/* Idle session warning modal */}
+      <IdleWarningModal
+        visible={showIdleWarning}
+        onStay={handleStayLoggedIn}
+        onLogout={handleLogout}
+        countdownSeconds={120}
+      />
     </div>
   );
 }
