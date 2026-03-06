@@ -182,6 +182,8 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
             .order_by('make', 'model')
         )
 
+        hide_verified = request.query_params.get('hide_verified', 'false').lower() == 'true'
+
         groups = []
         for d in dupes:
             specs = (
@@ -190,13 +192,19 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
                 .select_related('article')
                 .order_by('id')
             )
+            # Skip groups that already have a verified master (Variant 3 UX filter)
+            if hide_verified and specs.filter(is_verified=True).exists():
+                continue
+
             records = [self._serialize_spec_for_dedup(s) for s in specs]
-            # Suggest master = record with highest coverage score
-            best = max(records, key=lambda r: r['coverage_score'])
+            # Suggest master = verified record first, then highest coverage score
+            verified = [r for r in records if r['is_verified']]
+            best = verified[0] if verified else max(records, key=lambda r: r['coverage_score'])
             groups.append({
                 'make': d['make'],
                 'model': d['model'],
                 'count': d['count'],
+                'has_verified': bool(verified),
                 'suggested_master_id': best['id'],
                 'records': records,
             })

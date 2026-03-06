@@ -305,32 +305,53 @@ def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
     }
 
     try:
+        # ── Step 1: look up by article (existing behaviour) ──────────────────
         existing = CarSpecification.objects.filter(article=article).first()
-        
+
+        # ── Step 2: if no article-linked spec, look for a make+model master ──
+        # Priority: verified master first, then any existing record for same car
+        if not existing and make and model:
+            master = (
+                CarSpecification.objects.filter(make=make, model=model, is_verified=True)
+                .order_by('-verified_at')
+                .first()
+            ) or (
+                CarSpecification.objects.filter(make=make, model=model)
+                .order_by('-id')
+                .first()
+            )
+            if master and (master.article_id is None or master.article_id == article.id):
+                # Free slot on master — link this article to it, no new record needed
+                if master.article_id != article.id:
+                    master.article = article
+                    master.save(update_fields=['article'])
+                existing = master
+                logger.info(
+                    f'[dedup] Linked article [{article.id}] to existing spec '
+                    f'[{master.id}] {make} {model} — skipping duplicate creation'
+                )
+
         if existing:
-            # MERGE: only overwrite fields where new value is non-empty
+            # MERGE: only overwrite EMPTY fields (never downgrade existing good data)
             updated_fields = []
-            # If make is locked by admin, skip identity fields
             locked_fields = {'make', 'model', 'model_name'} if existing.is_make_locked else set()
             if locked_fields:
                 logger.info(f'🔒 Make locked for [{article.id}] — preserving admin brand assignment')
             for field, new_value in new_data.items():
                 if field in locked_fields:
-                    continue  # Don't overwrite locked fields
+                    continue
                 old_value = getattr(existing, field, '')
-                # Always update identity fields (make, model, model_name)
                 if field in ('make', 'model', 'model_name'):
+                    # Identity fields: update if new value is non-empty and different
                     if new_value and new_value != old_value:
                         setattr(existing, field, new_value)
                         updated_fields.append(field)
                 else:
-                    # For spec fields: only overwrite if new value is non-empty
-                    if new_value:
-                        if new_value != old_value:
-                            setattr(existing, field, new_value)
-                            updated_fields.append(field)
-                    # If new value is empty but old has data — keep old (don't overwrite)
-            
+                    # Spec fields: only fill if currently empty (donor logic)
+                    if new_value and not old_value:
+                        setattr(existing, field, new_value)
+                        updated_fields.append(field)
+
             if updated_fields:
                 existing.save(update_fields=updated_fields)
                 logger.info(f'Merged CarSpecification for [{article.id}] {make} {model} — updated: {", ".join(updated_fields)}')
@@ -338,7 +359,7 @@ def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
                 logger.info(f'No changes for CarSpecification [{article.id}] {make} {model}')
             return existing
         else:
-            # CREATE: use all new data (no existing data to preserve)
+            # CREATE: first time we see this make+model — create a fresh spec
             car_spec = CarSpecification.objects.create(
                 article=article,
                 **new_data,

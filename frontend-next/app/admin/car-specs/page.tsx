@@ -325,14 +325,15 @@ export default function CarSpecsPage() {
     const [dupGroups, setDupGroups] = useState<DuplicateGroup[]>([]);
     const [dupLoading, setDupLoading] = useState(false);
     const [mergingAll, setMergingAll] = useState(false);
+    const [hideVerified, setHideVerified] = useState(true);
 
     useEffect(() => { fetchSpecs(); }, []);
 
     useEffect(() => {
-        if (activeTab === 'duplicates' && dupGroups.length === 0 && !dupLoading) {
-            fetchDuplicates();
+        if (activeTab === 'duplicates') {
+            fetchDuplicates(hideVerified);
         }
-    }, [activeTab]);
+    }, [activeTab, hideVerified]);
 
     const fetchSpecs = async () => {
         try {
@@ -347,10 +348,11 @@ export default function CarSpecsPage() {
         }
     };
 
-    const fetchDuplicates = async () => {
+    const fetchDuplicates = async (hide = hideVerified) => {
         try {
             setDupLoading(true);
-            const response = await api.get('/car-specifications/duplicates/');
+            const params = hide ? '?hide_verified=true' : '';
+            const response = await api.get(`/car-specifications/duplicates/${params}`);
             setDupGroups(response.data.groups || []);
         } catch (error) {
             console.error('Failed to fetch duplicates:', error);
@@ -569,11 +571,21 @@ export default function CarSpecsPage() {
                     {/* Duplicates toolbar */}
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-sm text-gray-500">
-                            {dupLoading ? 'Scanning…' : `${dupGroups.length} group${dupGroups.length !== 1 ? 's' : ''} with 2+ identical car specs`}
+                            {dupLoading ? 'Scanning…' : `${dupGroups.length} group${dupGroups.length !== 1 ? 's' : ''} need${dupGroups.length === 1 ? 's' : ''} review`}
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                             <button
-                                onClick={fetchDuplicates}
+                                onClick={() => setHideVerified(v => !v)}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all ${hideVerified
+                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                title={hideVerified ? 'Showing only unverified groups' : 'Showing all groups including verified'}
+                            >
+                                {hideVerified ? '✅ Hide verified' : '👁 Show all'}
+                            </button>
+                            <button
+                                onClick={() => fetchDuplicates()}
                                 disabled={dupLoading}
                                 className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
                             >
