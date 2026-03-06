@@ -112,8 +112,8 @@ function HighlightedTitle({ title, activeBrand }: { title: string; activeBrand: 
                         <mark
                             key={key++}
                             className={`px-0.5 rounded font-semibold not-italic ${isActive
-                                    ? 'bg-indigo-200 text-indigo-900'
-                                    : 'bg-amber-100 text-amber-800'
+                                ? 'bg-indigo-200 text-indigo-900'
+                                : 'bg-amber-100 text-amber-800'
                                 }`}
                         >
                             {part}
@@ -191,20 +191,46 @@ export default function RSSNewsPage() {
     const [nextPage, setNextPage] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState<number>(0);
 
-    // Brand pill counts — computed from all loaded items
-    const brandCounts = useMemo(() => {
+    // Global brand stats — fetched from API (all items in DB, last 30 days)
+    const [globalBrandStats, setGlobalBrandStats] = useState<[string, number][]>([]);
+    const [loadingStats, setLoadingStats] = useState(false);
+    const [statsScanned, setStatsScanned] = useState<number>(0);
+
+    const fetchGlobalBrandStats = async () => {
+        setLoadingStats(true);
+        try {
+            const res = await api.get('/rss-news-items/trending_brands/', { params: { days: 30, min: 1 } });
+            const brands: Array<{ brand: string; count: number }> = res.data.brands || [];
+            setGlobalBrandStats(brands.map((b: { brand: string; count: number }) => [b.brand, b.count]));
+            setStatsScanned(brands.reduce((s: number, b: { count: number }) => s + b.count, 0));
+        } catch (e) {
+            logCaughtError('rss_trending_brands', e);
+        } finally {
+            setLoadingStats(false);
+        }
+    };
+
+    // Local brand counts from loaded page — for filter matching
+    const localBrandCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         for (const item of newsItems) {
             const brand = extractBrandFromTitle(item.title);
             if (brand) counts[brand] = (counts[brand] ?? 0) + 1;
         }
-        return Object.entries(counts)
-            .sort((a, b) => b[1] - a[1]);
+        return counts;
     }, [newsItems]);
+
+    // Priority: global API stats > local page counts
+    const brandCounts: [string, number][] = globalBrandStats.length > 0
+        ? globalBrandStats
+        : Object.entries(localBrandCounts).sort((a, b) => b[1] - a[1]);
+
 
     useEffect(() => {
         fetchFeeds();
+        fetchGlobalBrandStats(); // Scan all DB items, not just loaded page
     }, []);
+
 
     useEffect(() => {
         fetchNewsItems();
@@ -541,48 +567,75 @@ export default function RSSNewsPage() {
                         </div>
                     ) : (
                         <>
-                            {/* Brand Filter Pills */}
-                            {brandCounts.length > 0 && (
-                                <div className="bg-white rounded-xl shadow-md p-4 mb-4 border border-gray-200">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Tag size={15} className="text-indigo-500" />
-                                        <span className="text-sm font-semibold text-gray-700">Filter by Brand</span>
+                            {/* Brand Filter Pills — powered by global stats from API */}
+                            <div className="bg-white rounded-xl shadow-md p-4 mb-4 border border-gray-200">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Tag size={15} className="text-indigo-500" />
+                                    <span className="text-sm font-semibold text-gray-700">Filter by Brand</span>
+                                    {statsScanned > 0 && (
+                                        <span className="text-xs text-gray-400 ml-1">
+                                            — {statsScanned.toLocaleString()} mentions across all feeds
+                                        </span>
+                                    )}
+                                    <div className="ml-auto flex items-center gap-2">
                                         {brandFilter && (
                                             <button
                                                 onClick={() => setBrandFilter(null)}
-                                                className="ml-auto text-xs text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1"
+                                                className="text-xs text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1"
                                             >
                                                 <XCircle size={13} /> Clear
                                             </button>
                                         )}
+                                        <button
+                                            onClick={fetchGlobalBrandStats}
+                                            disabled={loadingStats}
+                                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all disabled:opacity-60"
+                                            title="Refresh stats from all items in DB"
+                                        >
+                                            {loadingStats
+                                                ? <Loader2 size={12} className="animate-spin" />
+                                                : <ArrowUpDown size={12} />
+                                            }
+                                            {loadingStats ? 'Scanning...' : 'Refresh Stats'}
+                                        </button>
                                     </div>
+                                </div>
+                                {loadingStats && brandCounts.length === 0 ? (
+                                    <div className="flex items-center gap-2 text-sm text-gray-400 py-2">
+                                        <Loader2 size={14} className="animate-spin" />
+                                        Scanning all items for brand mentions...
+                                    </div>
+                                ) : (
                                     <div className="flex flex-wrap gap-2">
                                         {brandCounts.map(([brand, count]) => (
                                             <button
                                                 key={brand}
                                                 onClick={() => setBrandFilter(brandFilter === brand ? null : brand)}
                                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 border ${brandFilter === brand
-                                                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-md scale-105'
-                                                        : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50'
+                                                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-md scale-105'
+                                                    : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50'
                                                     }`}
                                             >
-                                                <span className={`w-1.5 h-1.5 rounded-full ${brandFilter === brand ? 'bg-indigo-200' : 'bg-amber-400'
-                                                    }`} />
+                                                <span className={`w-1.5 h-1.5 rounded-full ${brandFilter === brand ? 'bg-indigo-200' : 'bg-amber-400'}`} />
                                                 {brand}
                                                 <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${brandFilter === brand
-                                                        ? 'bg-indigo-500 text-indigo-100'
-                                                        : 'bg-gray-100 text-gray-500'
+                                                    ? 'bg-indigo-500 text-indigo-100'
+                                                    : 'bg-gray-100 text-gray-500'
                                                     }`}>{count}</span>
                                             </button>
                                         ))}
                                     </div>
-                                    {brandFilter && (
-                                        <p className="mt-2 text-xs text-gray-500">
-                                            Showing {sortedItems.length} of {newsItems.length} items for <strong>{brandFilter}</strong>
-                                        </p>
-                                    )}
-                                </div>
-                            )}
+                                )}
+                                {brandFilter && (
+                                    <p className="mt-2 text-xs text-gray-500">
+                                        Showing {sortedItems.length} of {newsItems.length} loaded items for <strong>{brandFilter}</strong>
+                                        {globalBrandStats.length > 0 && (
+                                            <span className="text-gray-400"> · {(brandCounts.find(([b]) => b === brandFilter)?.[1] ?? 0).toLocaleString()} total in DB</span>
+                                        )}
+                                    </p>
+                                )}
+                            </div>
+
 
                             {/* Toolbar: Bulk Actions + Sort */}
                             <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex items-center justify-between border border-gray-200">
