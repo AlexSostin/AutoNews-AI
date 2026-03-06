@@ -622,8 +622,9 @@ class ArticleEngagementMixin:
     def next_article(self, request, slug=None):
         """Return the single best next article for infinite scroll.
         
-        Priority: same make+model → ML similar → same category → popular.
+        Priority: same make+model → session affinity → ML similar → same category → popular.
         Accepts ?exclude=slug1&exclude=slug2 to avoid repeats across sessions.
+        Accepts ?session_brands=BMW,Toyota&session_categories=electric,suv for session context.
         """
         from news.models import Article, CarSpecification
         from news.serializers import ArticleDetailSerializer as _ArticleSerializer
@@ -631,6 +632,10 @@ class ArticleEngagementMixin:
         article = self.get_object()
         exclude_slugs = set(request.GET.getlist('exclude', []))
         exclude_slugs.add(slug)  # always exclude self
+
+        # Parse session context
+        session_brands = [b.strip() for b in request.GET.get('session_brands', '').split(',') if b.strip()]
+        session_categories = [c.strip() for c in request.GET.get('session_categories', '').split(',') if c.strip()]
 
         # Build base queryset of published, non-deleted articles
         base_qs = Article.objects.filter(
@@ -668,6 +673,30 @@ class ArticleEngagementMixin:
                     return Response({'article': result, 'source': 'same_make'})
         except Exception as e:
             logger.warning(f"[next_article] make/model lookup failed: {e}")
+
+        # --- Priority 2.5: Session affinity (brands/categories user read this session) ---
+        if session_brands:
+            try:
+                session_qs = base_qs.filter(
+                    carspecification__make__in=session_brands
+                ).order_by('-created_at').distinct()
+                result = first_article(session_qs)
+                if result:
+                    logger.info(f"[next_article] Priority 2.5 (session brand) for {slug}")
+                    return Response({'article': result, 'source': 'session_brand'})
+            except Exception as e:
+                logger.debug(f"[next_article] session brand lookup failed: {e}")
+        if session_categories:
+            try:
+                session_qs = base_qs.filter(
+                    categories__slug__in=session_categories
+                ).order_by('-created_at').distinct()
+                result = first_article(session_qs)
+                if result:
+                    logger.info(f"[next_article] Priority 2.5 (session category) for {slug}")
+                    return Response({'article': result, 'source': 'session_category'})
+            except Exception as e:
+                logger.debug(f"[next_article] session category lookup failed: {e}")
 
         # --- Priority 3: ML similar articles ---
         try:

@@ -30,9 +30,24 @@ export default function SmartScrollButton({ activeSlug }: SmartScrollButtonProps
     }, []);
 
     const scrollToArticle = () => {
-        const el = document.querySelector<HTMLElement>(`[data-article-slug="${activeSlug}"]`);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Find which article the user is currently "inside" based on viewport position
+        const articles = document.querySelectorAll<HTMLElement>('[data-article-slug]');
+        const viewportPoint = window.scrollY + window.innerHeight / 3;
+        let target: HTMLElement | null = null;
+        for (const el of articles) {
+            const top = el.offsetTop;
+            const bottom = top + el.offsetHeight;
+            if (top <= viewportPoint && bottom > viewportPoint) {
+                target = el;
+                break;
+            }
+        }
+        // Fallback: use activeSlug element or first article
+        if (!target) {
+            target = document.querySelector<HTMLElement>(`[data-article-slug="${activeSlug}"]`);
+        }
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }

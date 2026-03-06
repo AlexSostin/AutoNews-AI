@@ -211,6 +211,16 @@ def score_pending_article(pending_article) -> int:
         images=pending_article.images,
     )
     
+    # Source trust bonus: safe/green → +1, review/yellow → +0.5, unsafe/red → +0
+    try:
+        if pending_article.rss_feed:
+            safety = pending_article.rss_feed.safety_score
+            trust_bonus = {'safe': 1.0, 'review': 0.5, 'unsafe': 0.0}.get(safety, 0.5)
+            score = min(10, score + int(round(trust_bonus)))
+            logger.info(f"🛡️ Source trust bonus: +{trust_bonus} from '{pending_article.rss_feed.name}' (safety={safety})")
+    except Exception as e:
+        logger.debug(f"Source trust bonus skipped: {e}")
+    
     pending_article.quality_score = score
     pending_article.save(update_fields=['quality_score'])
     
@@ -309,6 +319,9 @@ def extract_features(title: str, content: str, specs: dict = None,
             if flag.lower() in content.lower():
                 red_flags += 1
     features['red_flag_count'] = red_flags
+    
+    # --- Source trust (from RSSFeed safety) ---
+    features['is_safe_source'] = 0.0  # default, overridden by caller if available
     
     return features
 
@@ -560,33 +573,37 @@ def compute_engagement_score(article) -> float:
     Compute engagement score (0.0 - 10.0) for a single article.
     
     Scoring breakdown (weights sum to 1.0):
-      - avg scroll depth:    0.30  (from ReadMetric.max_scroll_depth_pct)
-      - avg dwell time:      0.25  (from ReadMetric.dwell_time_seconds, 5min=100%)
+      - avg scroll depth:    0.25  (from ReadMetric.max_scroll_depth_pct)
+      - avg dwell time:      0.20  (from ReadMetric.dwell_time_seconds, 5min=100%)
+      - completion rate:     0.10  (% of readers who scrolled ≥90%)
       - avg rating:          0.15  (from Rating model, 1-5 → 0-100%)
-      - comment engagement:  0.10  (approved comments, capped at 10 → 100%)
-      - micro-feedback:      0.10  (% of 👍 from ArticleMicroFeedback)
+      - comment engagement:  0.08  (approved comments, capped at 10 → 100%)
+      - micro-feedback:      0.08  (% of 👍 from ArticleMicroFeedback)
+      - favorites:           0.07  (Favorite count, capped at 10 → 100%)
       - link clicks:         0.05  (InternalLinkClick count, capped at 5 → 100%)
-      - penalty (feedback):  -0.05 (negative penalty for factual errors, hallucinations)
+      - penalty (feedback):  -0.03 (negative penalty for factual errors, hallucinations)
     
     Returns float 0.0 - 10.0, rounded to 1 decimal.
     """
     from news.models.interactions import (
         ReadMetric, Rating, Comment, ArticleFeedback, 
-        ArticleMicroFeedback, InternalLinkClick
+        ArticleMicroFeedback, InternalLinkClick, Favorite
     )
     
     components = {}
     
-    # --- 1. Scroll Depth (0-100) → weight 0.30 ---
+    # --- 1. Scroll Depth (0-100) → weight 0.25 ---
     scroll_data = ReadMetric.objects.filter(article=article).aggregate(
         avg_scroll=Avg('max_scroll_depth_pct'),
-        count=Count('id')
+        count=Count('id'),
+        completed=Count('id', filter=Q(max_scroll_depth_pct__gte=90))
     )
     avg_scroll = scroll_data['avg_scroll'] or 0
     read_count = scroll_data['count'] or 0
-    components['scroll'] = min(avg_scroll, 100) * 0.30
+    completed_count = scroll_data['completed'] or 0
+    components['scroll'] = min(avg_scroll, 100) * 0.25
     
-    # --- 2. Dwell Time (0-300s normalized to 0-100) → weight 0.25 ---
+    # --- 2. Dwell Time (0-300s normalized to 0-100) → weight 0.20 ---
     dwell_data = ReadMetric.objects.filter(
         article=article,
         dwell_time_seconds__gt=3  # filter out bots/bounces
@@ -595,7 +612,11 @@ def compute_engagement_score(article) -> float:
     )
     avg_dwell = dwell_data['avg_dwell'] or 0
     dwell_normalized = min(avg_dwell / 300.0, 1.0) * 100  # 5 min = 100%
-    components['dwell'] = dwell_normalized * 0.25
+    components['dwell'] = dwell_normalized * 0.20
+    
+    # --- 2.5. Completion Rate (% who scrolled ≥90%) → weight 0.10 ---
+    completion_rate = (completed_count / max(read_count, 1)) * 100
+    components['completion'] = completion_rate * 0.10
     
     # --- 3. Average Rating (1-5 → 0-100) → weight 0.15 ---
     rating_data = Rating.objects.filter(article=article).aggregate(
@@ -616,7 +637,7 @@ def compute_engagement_score(article) -> float:
         is_approved=True
     ).count()
     comment_normalized = min(comment_count / 10.0, 1.0) * 100  # 10 comments = 100%
-    components['comments'] = comment_normalized * 0.10
+    components['comments'] = comment_normalized * 0.08
     
     # --- 5. Micro-Feedback (% helpful) → weight 0.10 ---
     micro_data = ArticleMicroFeedback.objects.filter(article=article).aggregate(
@@ -627,7 +648,12 @@ def compute_engagement_score(article) -> float:
         helpful_ratio = (micro_data['helpful'] / micro_data['total']) * 100
     else:
         helpful_ratio = 50  # neutral if no feedback
-    components['micro'] = helpful_ratio * 0.10
+    components['micro'] = helpful_ratio * 0.08
+    
+    # --- 5.5. Favorites → weight 0.07 ---
+    favorites_count = Favorite.objects.filter(article=article).count()
+    favorites_normalized = min(favorites_count / 10.0, 1.0) * 100  # 10 favorites = 100%
+    components['favorites'] = favorites_normalized * 0.07
     
     # --- 6. Internal Link Clicks → weight 0.05 ---
     click_count = InternalLinkClick.objects.filter(source_article=article).count()
@@ -640,7 +666,7 @@ def compute_engagement_score(article) -> float:
         category__in=['factual_error', 'hallucination']
     ).count()
     penalty = min(negative_feedback / 3.0, 1.0) * 100  # 3 reports = max penalty
-    components['penalty'] = -penalty * 0.05
+    components['penalty'] = -penalty * 0.03
     
     # --- Compute Total ---
     raw_score = sum(components.values())
@@ -661,6 +687,35 @@ def compute_engagement_score(article) -> float:
     )
     
     return final_score
+
+
+def compute_relevance_score(article) -> float:
+    """
+    Compute relevance score blending engagement with freshness decay.
+    
+    Formula: relevance = engagement_score × freshness_factor
+    
+    freshness_factor decays linearly from 1.0 (published now) to 0.3 (7+ days old).
+    This keeps old high-engagement articles visible but lets fresh content compete.
+    
+    Returns float 0.0 - 10.0.
+    """
+    from django.utils import timezone
+    
+    engagement = article.engagement_score or 0.0
+    
+    # Calculate hours since publication
+    if article.created_at:
+        age = timezone.now() - article.created_at
+        hours_old = age.total_seconds() / 3600
+    else:
+        hours_old = 0
+    
+    # Linear decay over 168 hours (7 days) with 0.3 floor
+    freshness = max(0.3, 1.0 - (hours_old / 168.0))
+    
+    relevance = round(engagement * freshness, 2)
+    return min(10.0, max(0.0, relevance))
 
 
 def compute_engagement_details(article) -> dict:

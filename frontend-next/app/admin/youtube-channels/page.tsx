@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import api, { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
-import GeneratePinModal from '@/components/admin/GeneratePinModal';
+
 
 interface Category {
   id: number;
@@ -85,9 +85,7 @@ export default function YouTubeChannelsPage() {
   const [scanLoading, setScanLoading] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
-  // PIN gate for generation
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pendingVideo, setPendingVideo] = useState<Video | null>(null);
+
 
 
   useEffect(() => {
@@ -263,23 +261,10 @@ export default function YouTubeChannelsPage() {
     }
   };
 
-  // PIN gate: show modal first, generate only after confirmed
+  // Direct generation with simple confirm
   const handleGenerateFromVideo = (video: Video) => {
-    setPendingVideo(video);
-    setShowPinModal(true);
-  };
-
-  const handlePinConfirmed = () => {
-    setShowPinModal(false);
-    if (pendingVideo) {
-      doGenerateFromVideo(pendingVideo);
-      setPendingVideo(null);
-    }
-  };
-
-  const handlePinCancelled = () => {
-    setShowPinModal(false);
-    setPendingVideo(null);
+    if (!confirm(`Generate article from: "${video.title.slice(0, 60)}"?`)) return;
+    doGenerateFromVideo(video);
   };
 
   const handleApproveToDraft = async (pendingId: number, videoId: string) => {
@@ -778,15 +763,7 @@ export default function YouTubeChannelsPage() {
         </div>
       )}
 
-      {/* PIN Confirmation Modal */}
-      {showPinModal && (
-        <GeneratePinModal
-          title="Generate Article"
-          description={pendingVideo ? `Generate article from: "${pendingVideo.title.slice(0, 50)}${pendingVideo.title.length > 50 ? '…' : ''}"` : 'Confirm generation'}
-          onConfirm={handlePinConfirmed}
-          onCancel={handlePinCancelled}
-        />
-      )}
+
     </div>
   );
 }

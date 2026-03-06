@@ -590,6 +590,11 @@ class RSSAggregator:
         
         feed_data = self.fetch_feed(rss_feed.feed_url)
         if not feed_data:
+            # Track fetch failure for health indicator
+            rss_feed.consecutive_failures = (rss_feed.consecutive_failures or 0) + 1
+            rss_feed.last_error = f"Feed fetch failed at {timezone.now().isoformat()}"
+            rss_feed.last_checked = timezone.now()
+            rss_feed.save(update_fields=['consecutive_failures', 'last_error', 'last_checked'])
             return 0
         
         created_count = 0
@@ -670,11 +675,13 @@ class RSSAggregator:
                 logger.error(f"Error processing RSS entry: {e}")
                 continue
         
-        # Update feed tracking
+        # Update feed tracking + health
         rss_feed.last_checked = timezone.now()
         rss_feed.entries_processed += created_count
+        rss_feed.consecutive_failures = 0  # Reset on successful fetch
+        rss_feed.last_error = ''
+        rss_feed.last_successful_fetch = timezone.now()
         rss_feed.save()
         
         logger.info(f"Processed {created_count} new RSS news items from {rss_feed.name}")
         return created_count
-

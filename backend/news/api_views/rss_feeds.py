@@ -15,9 +15,10 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
     Manage RSS feeds for automatic article generation.
     Staff only.
     """
-    queryset = RSSFeed.objects.all()
+    queryset = RSSFeed.objects.all().order_by('name')
     serializer_class = RSSFeedSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Return all feeds — no page limit (typically < 200 feeds)
     
     def get_permissions(self):
         return [IsAuthenticated()]
@@ -106,6 +107,24 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
             'message': message,
             'count': count
         })
+
+    @action(detail=False, methods=['get'])
+    def scan_progress(self, request):
+        """Return current 'Scan All' progress from Redis (poll every 2s from frontend)."""
+        import json
+        try:
+            import redis as redis_lib
+            from django.conf import settings
+            redis_url = getattr(settings, 'REDIS_URL', None) or 'redis://127.0.0.1:6379/1'
+            r = redis_lib.Redis.from_url(redis_url, socket_connect_timeout=1)
+            raw = r.get('rss_scan_progress')
+            if raw:
+                data = json.loads(raw)
+                return Response(data)
+        except Exception:
+            pass
+        # No progress data — either not started or Redis unavailable
+        return Response({'done': 0, 'total': 0, 'percent': 0, 'finished': True, 'current_feed': ''})
 
     @action(detail=True, methods=['post'])
     def check_license(self, request, pk=None):

@@ -675,9 +675,10 @@ class RSSFeedSerializer(serializers.ModelSerializer):
             'logo_url', 'description', 'pending_count',
             'license_status', 'license_details', 'license_checked_at',
             'image_policy', 'safety_score', 'safety_checks',
+            'health', 'last_error', 'consecutive_failures', 'last_successful_fetch',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['last_checked', 'last_entry_date', 'entries_processed', 'license_status', 'license_details', 'license_checked_at', 'safety_score', 'safety_checks', 'created_at', 'updated_at']
+        read_only_fields = ['last_checked', 'last_entry_date', 'entries_processed', 'license_status', 'license_details', 'license_checked_at', 'safety_score', 'safety_checks', 'health', 'last_error', 'consecutive_failures', 'last_successful_fetch', 'created_at', 'updated_at']
     
     def get_pending_count(self, obj):
         return obj.pending_articles.filter(status='pending').count()

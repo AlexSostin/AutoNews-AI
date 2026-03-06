@@ -49,6 +49,10 @@ interface RSSFeed {
     image_policy: 'original' | 'pexels_only' | 'pexels_fallback';
     safety_score: 'safe' | 'review' | 'unsafe';
     safety_checks: Record<string, { passed: boolean; detail: string }>;
+    health: 'healthy' | 'stale' | 'failing';
+    last_error: string;
+    consecutive_failures: number;
+    last_successful_fetch: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -73,6 +77,7 @@ export default function RSSFeedsPage() {
     const [loading, setLoading] = useState(true);
     const [scanning, setScanning] = useState<number | null>(null);
     const [scanningAll, setScanningAll] = useState(false);
+    const [scanProgress, setScanProgress] = useState<{ done: number; total: number; percent: number; current_feed: string; finished: boolean } | null>(null);
     const [checkingLicense, setCheckingLicense] = useState<number | null>(null);
     const [checkingAllLicenses, setCheckingAllLicenses] = useState(false);
     const [feedsBeingChecked, setFeedsBeingChecked] = useState<Set<number>>(new Set());
@@ -86,6 +91,7 @@ export default function RSSFeedsPage() {
     const [filterSafety, setFilterSafety] = useState<string>('all');
     const [filterImagePolicy, setFilterImagePolicy] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedFeeds, setSelectedFeeds] = useState<Set<number>>(new Set());
 
     // Feed URL finder / keyword search
     const [findUrl, setFindUrl] = useState('');
@@ -225,15 +231,46 @@ export default function RSSFeedsPage() {
 
     const handleScanAll = async () => {
         setScanningAll(true);
+        setScanProgress({ done: 0, total: 0, percent: 0, current_feed: '', finished: false });
         try {
             const response = await api.post('/rss-feeds/scan_all/');
-            alert(response.data.message);
-            setTimeout(fetchFeeds, 3000);
+            showToast(response.data.message, 'info');
+
+            // Poll progress every 2 seconds
+            const pollInterval = setInterval(async () => {
+                try {
+                    const prog = await api.get('/rss-feeds/scan_progress/');
+                    const data = prog.data;
+                    setScanProgress(data);
+                    if (data.finished && data.total > 0) {
+                        clearInterval(pollInterval);
+                        setScanningAll(false);
+                        showToast(`✅ Scan complete! Checked ${data.total} feeds.`);
+                        setTimeout(() => {
+                            setScanProgress(null);
+                            fetchFeeds();
+                        }, 3000);
+                    }
+                } catch {
+                    clearInterval(pollInterval);
+                    setScanningAll(false);
+                    setScanProgress(null);
+                }
+            }, 2000);
+
+            // Safety timeout: stop polling after 10 minutes
+            setTimeout(() => {
+                clearInterval(pollInterval);
+                setScanningAll(false);
+                setScanProgress(null);
+                fetchFeeds();
+            }, 600000);
+
         } catch (error: any) {
             console.error('Error scanning all feeds:', error);
-            alert('Failed to start scan');
-        } finally {
+            showToast('Failed to start scan');
             setScanningAll(false);
+            setScanProgress(null);
         }
     };
 
@@ -299,6 +336,39 @@ export default function RSSFeedsPage() {
             alert('Failed to start license check');
             setCheckingAllLicenses(false);
         }
+    };
+
+    // --- Bulk Actions ---
+    const toggleFeedSelection = (id: number) => {
+        setSelectedFeeds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+    const toggleSelectAll = () => {
+        if (selectedFeeds.size === feeds.length) {
+            setSelectedFeeds(new Set());
+        } else {
+            setSelectedFeeds(new Set(feeds.map(f => f.id)));
+        }
+    };
+    const handleBulkEnable = async (enable: boolean) => {
+        for (const id of selectedFeeds) {
+            try { await api.patch(`/rss-feeds/${id}/`, { is_enabled: enable }); } catch { }
+        }
+        setSelectedFeeds(new Set());
+        fetchFeeds();
+        showToast(`${enable ? 'Enabled' : 'Disabled'} ${selectedFeeds.size} feed(s)`);
+    };
+    const handleBulkDelete = async () => {
+        if (!confirm(`Delete ${selectedFeeds.size} selected feed(s)?`)) return;
+        for (const id of selectedFeeds) {
+            try { await api.delete(`/rss-feeds/${id}/`); } catch { }
+        }
+        setSelectedFeeds(new Set());
+        fetchFeeds();
+        showToast(`Deleted ${selectedFeeds.size} feed(s)`);
     };
 
     const handleDiscoverFeeds = async () => {
@@ -398,14 +468,33 @@ export default function RSSFeedsPage() {
                         <Shield className={checkingAllLicenses ? 'animate-pulse' : ''} size={20} />
                         {checkingAllLicenses ? 'Checking...' : 'Check All Licenses'}
                     </button>
-                    <button
-                        onClick={handleScanAll}
-                        disabled={scanningAll}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                        <RefreshCw className={scanningAll ? 'animate-spin' : ''} size={20} />
-                        {scanningAll ? 'Scanning...' : 'Scan All'}
-                    </button>
+                    <div className="flex flex-col gap-1">
+                        <button
+                            onClick={handleScanAll}
+                            disabled={scanningAll}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                        >
+                            <RefreshCw className={scanningAll ? 'animate-spin' : ''} size={20} />
+                            {scanningAll
+                                ? scanProgress && scanProgress.total > 0
+                                    ? `Scanning ${scanProgress.done}/${scanProgress.total}`
+                                    : 'Starting...'
+                                : 'Scan All'}
+                        </button>
+                        {scanProgress && !scanProgress.finished && scanProgress.total > 0 && (
+                            <div className="w-full">
+                                <div className="w-full bg-green-100 rounded-full h-2 overflow-hidden">
+                                    <div
+                                        className="h-2 bg-green-500 rounded-full transition-all duration-500"
+                                        style={{ width: `${scanProgress.percent}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-green-700 mt-0.5 truncate max-w-[200px]" title={scanProgress.current_feed}>
+                                    {scanProgress.percent}% — {scanProgress.current_feed || 'Initializing...'}
+                                </p>
+                            </div>
+                        )}
+                    </div>
                     <Link
                         href="/admin/rss-feeds/new"
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
@@ -701,217 +790,260 @@ export default function RSSFeedsPage() {
                     </div>
                 </div>
             ) : (
-                <div className="grid gap-6">
-                    {feeds
-                        .filter(feed => {
-                            if (filterSource !== 'all' && feed.source_type !== filterSource) return false;
-                            if (filterSafety !== 'all' && feed.safety_score !== filterSafety) return false;
-                            if (filterImagePolicy !== 'all' && feed.image_policy !== filterImagePolicy) return false;
-                            if (searchQuery && !feed.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-                            return true;
-                        })
-                        .sort((a, b) => {
-                            const safetyOrder: Record<string, number> = { unsafe: 0, review: 1, safe: 2 };
-                            const licenseOrder: Record<string, number> = { red: 0, yellow: 1, unchecked: 2, green: 3 };
-                            switch (sortBy) {
-                                case 'safety_asc': return (safetyOrder[a.safety_score] ?? 1) - (safetyOrder[b.safety_score] ?? 1);
-                                case 'safety_desc': return (safetyOrder[b.safety_score] ?? 1) - (safetyOrder[a.safety_score] ?? 1);
-                                case 'license': return (licenseOrder[a.license_status] ?? 2) - (licenseOrder[b.license_status] ?? 2);
-                                case 'entries': return b.entries_processed - a.entries_processed;
-                                case 'recent': return new Date(b.license_checked_at || '1970').getTime() - new Date(a.license_checked_at || '1970').getTime();
-                                default: return a.name.localeCompare(b.name);
-                            }
-                        })
-                        .map((feed) => (
-                            <div
-                                key={feed.id}
-                                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-                            >
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="text-xl font-bold text-gray-900">{feed.name}</h3>
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getSourceTypeBadge(feed.source_type)}`}>
-                                                {feed.source_type}
-                                            </span>
-                                            {feed.is_enabled ? (
-                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                                    Enabled
-                                                </span>
-                                            ) : (
-                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                                                    Disabled
-                                                </span>
-                                            )}
-                                            {/* License Status Badge */}
-                                            {(() => {
-                                                const isBeingChecked = feedsBeingChecked.has(feed.id);
-                                                const badge = getLicenseBadge(isBeingChecked ? 'unchecked' : feed.license_status);
-                                                const BadgeIcon = badge.icon;
-                                                return (
-                                                    <div className="relative group/license">
-                                                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full cursor-help ${badge.color} ${isBeingChecked ? 'animate-pulse' : ''}`}>
-                                                            <BadgeIcon size={12} className={isBeingChecked ? 'animate-spin' : ''} />
-                                                            {isBeingChecked ? 'Checking...' : badge.label}
+                <>
+                    {/* Bulk Toolbar */}
+                    {selectedFeeds.size > 0 && (
+                        <div className="sticky top-0 z-40 bg-indigo-600 text-white rounded-lg p-3 mb-4 flex items-center gap-3 shadow-lg">
+                            <span className="font-semibold">{selectedFeeds.size} selected</span>
+                            <button onClick={() => handleBulkEnable(true)} className="px-3 py-1.5 bg-green-500 rounded text-sm hover:bg-green-600">Enable All</button>
+                            <button onClick={() => handleBulkEnable(false)} className="px-3 py-1.5 bg-yellow-500 rounded text-sm hover:bg-yellow-600">Disable All</button>
+                            <button onClick={handleBulkDelete} className="px-3 py-1.5 bg-red-500 rounded text-sm hover:bg-red-600">Delete Selected</button>
+                            <button onClick={() => setSelectedFeeds(new Set())} className="ml-auto px-3 py-1.5 bg-white/20 rounded text-sm hover:bg-white/30">Clear</button>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-2 mb-3">
+                        <button onClick={toggleSelectAll} className="text-sm text-indigo-600 hover:underline">
+                            {selectedFeeds.size === feeds.length ? 'Deselect All' : 'Select All'}
+                        </button>
+                    </div>
+                    <div className="grid gap-6">
+                        {feeds
+                            .filter(feed => {
+                                if (filterSource !== 'all' && feed.source_type !== filterSource) return false;
+                                if (filterSafety !== 'all' && feed.safety_score !== filterSafety) return false;
+                                if (filterImagePolicy !== 'all' && feed.image_policy !== filterImagePolicy) return false;
+                                if (searchQuery && !feed.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                                return true;
+                            })
+                            .sort((a, b) => {
+                                const safetyOrder: Record<string, number> = { unsafe: 0, review: 1, safe: 2 };
+                                const licenseOrder: Record<string, number> = { red: 0, yellow: 1, unchecked: 2, green: 3 };
+                                switch (sortBy) {
+                                    case 'safety_asc': return (safetyOrder[a.safety_score] ?? 1) - (safetyOrder[b.safety_score] ?? 1);
+                                    case 'safety_desc': return (safetyOrder[b.safety_score] ?? 1) - (safetyOrder[a.safety_score] ?? 1);
+                                    case 'license': return (licenseOrder[a.license_status] ?? 2) - (licenseOrder[b.license_status] ?? 2);
+                                    case 'entries': return b.entries_processed - a.entries_processed;
+                                    case 'recent': return new Date(b.license_checked_at || '1970').getTime() - new Date(a.license_checked_at || '1970').getTime();
+                                    default: return a.name.localeCompare(b.name);
+                                }
+                            })
+                            .map((feed) => (
+                                <div
+                                    key={feed.id}
+                                    className={`bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow ${selectedFeeds.has(feed.id) ? 'ring-2 ring-indigo-500' : ''}`}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-3 flex-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedFeeds.has(feed.id)}
+                                                onChange={() => toggleFeedSelection(feed.id)}
+                                                className="mt-1.5 h-4 w-4 text-indigo-600 rounded border-gray-300"
+                                            />
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h3 className="text-xl font-bold text-gray-900">{feed.name}</h3>
+                                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getSourceTypeBadge(feed.source_type)}`}>
+                                                        {feed.source_type}
+                                                    </span>
+                                                    {feed.is_enabled ? (
+                                                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                                            Enabled
                                                         </span>
-                                                        {feed.license_details && (
-                                                            <div className="absolute z-50 left-0 top-full mt-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/license:opacity-100 group-hover/license:visible transition-all duration-200 whitespace-pre-line">
-                                                                <div className="font-semibold mb-1">License Details</div>
-                                                                {feed.license_details}
-                                                                {feed.license_checked_at && (
-                                                                    <div className="mt-2 text-gray-400 text-[10px]">Checked: {formatDate(feed.license_checked_at)}</div>
+                                                    ) : (
+                                                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                            Disabled
+                                                        </span>
+                                                    )}
+                                                    {/* Health Badge */}
+                                                    {feed.health === 'failing' && (
+                                                        <div className="relative group/health">
+                                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 cursor-help">
+                                                                🔴 Failing
+                                                            </span>
+                                                            {feed.last_error && (
+                                                                <div className="absolute z-50 left-0 top-full mt-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/health:opacity-100 group-hover/health:visible transition-all">
+                                                                    {feed.consecutive_failures} consecutive failures<br />{feed.last_error}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {feed.health === 'stale' && (
+                                                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800" title="No successful fetch in 48+ hours">
+                                                            🟡 Stale
+                                                        </span>
+                                                    )}
+                                                    {/* License Status Badge */}
+                                                    {(() => {
+                                                        const isBeingChecked = feedsBeingChecked.has(feed.id);
+                                                        const badge = getLicenseBadge(isBeingChecked ? 'unchecked' : feed.license_status);
+                                                        const BadgeIcon = badge.icon;
+                                                        return (
+                                                            <div className="relative group/license">
+                                                                <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full cursor-help ${badge.color} ${isBeingChecked ? 'animate-pulse' : ''}`}>
+                                                                    <BadgeIcon size={12} className={isBeingChecked ? 'animate-spin' : ''} />
+                                                                    {isBeingChecked ? 'Checking...' : badge.label}
+                                                                </span>
+                                                                {feed.license_details && (
+                                                                    <div className="absolute z-50 left-0 top-full mt-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/license:opacity-100 group-hover/license:visible transition-all duration-200 whitespace-pre-line">
+                                                                        <div className="font-semibold mb-1">License Details</div>
+                                                                        {feed.license_details}
+                                                                        {feed.license_checked_at && (
+                                                                            <div className="mt-2 text-gray-400 text-[10px]">Checked: {formatDate(feed.license_checked_at)}</div>
+                                                                        )}
+                                                                    </div>
                                                                 )}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
-                                            {/* Safety Score Badge with Check Breakdown */}
-                                            {(() => {
-                                                const safety = feed.safety_score;
-                                                const checks = feed.safety_checks || {};
-                                                const checkEntries = Object.entries(checks).filter(([, v]) => v && typeof v === 'object');
-                                                const passed = checkEntries.filter(([, v]) => v.passed).length;
-                                                const total = checkEntries.length;
-                                                const safetyConfig: Record<string, { label: string; color: string }> = {
-                                                    safe: { label: `✅ ${passed}/${total}`, color: 'bg-emerald-100 text-emerald-700' },
-                                                    review: { label: `🟡 ${passed}/${total}`, color: 'bg-amber-100 text-amber-700' },
-                                                    unsafe: { label: `🔴 ${passed}/${total}`, color: 'bg-red-100 text-red-700' },
-                                                };
-                                                const cfg = safetyConfig[safety] || safetyConfig.review;
-                                                const checkNames: Record<string, string> = {
-                                                    robots_txt: 'Robots.txt',
-                                                    press_portal: 'Press Portal',
-                                                    tos_analysis: 'Terms of Service',
-                                                    image_rights: 'Image Rights',
-                                                };
-                                                return (
-                                                    <div className="relative group/safety">
-                                                        <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full cursor-help ${cfg.color}`}>
-                                                            {total > 0 ? cfg.label : (safety === 'safe' ? '✅ Safe' : safety === 'unsafe' ? '🔴 Unsafe' : '🟡 Review')}
-                                                        </span>
-                                                        {total > 0 && (
-                                                            <div className="absolute z-50 left-0 top-full mt-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/safety:opacity-100 group-hover/safety:visible transition-all duration-200">
-                                                                <div className="font-semibold mb-2">Safety Checks ({passed}/{total} passed)</div>
-                                                                {checkEntries.map(([key, val]) => (
-                                                                    <div key={key} className="flex items-start gap-2 mb-1.5">
-                                                                        <span>{val.passed ? '✅' : '❌'}</span>
-                                                                        <div>
-                                                                            <div className="font-medium">{checkNames[key] || key}</div>
-                                                                            <div className="text-gray-400 text-[10px]">{val.detail}</div>
-                                                                        </div>
+                                                        );
+                                                    })()}
+                                                    {/* Safety Score Badge with Check Breakdown */}
+                                                    {(() => {
+                                                        const safety = feed.safety_score;
+                                                        const checks = feed.safety_checks || {};
+                                                        const checkEntries = Object.entries(checks).filter(([, v]) => v && typeof v === 'object');
+                                                        const passed = checkEntries.filter(([, v]) => v.passed).length;
+                                                        const total = checkEntries.length;
+                                                        const safetyConfig: Record<string, { label: string; color: string }> = {
+                                                            safe: { label: `✅ ${passed}/${total}`, color: 'bg-emerald-100 text-emerald-700' },
+                                                            review: { label: `🟡 ${passed}/${total}`, color: 'bg-amber-100 text-amber-700' },
+                                                            unsafe: { label: `🔴 ${passed}/${total}`, color: 'bg-red-100 text-red-700' },
+                                                        };
+                                                        const cfg = safetyConfig[safety] || safetyConfig.review;
+                                                        const checkNames: Record<string, string> = {
+                                                            robots_txt: 'Robots.txt',
+                                                            press_portal: 'Press Portal',
+                                                            tos_analysis: 'Terms of Service',
+                                                            image_rights: 'Image Rights',
+                                                        };
+                                                        return (
+                                                            <div className="relative group/safety">
+                                                                <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full cursor-help ${cfg.color}`}>
+                                                                    {total > 0 ? cfg.label : (safety === 'safe' ? '✅ Safe' : safety === 'unsafe' ? '🔴 Unsafe' : '🟡 Review')}
+                                                                </span>
+                                                                {total > 0 && (
+                                                                    <div className="absolute z-50 left-0 top-full mt-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/safety:opacity-100 group-hover/safety:visible transition-all duration-200">
+                                                                        <div className="font-semibold mb-2">Safety Checks ({passed}/{total} passed)</div>
+                                                                        {checkEntries.map(([key, val]) => (
+                                                                            <div key={key} className="flex items-start gap-2 mb-1.5">
+                                                                                <span>{val.passed ? '✅' : '❌'}</span>
+                                                                                <div>
+                                                                                    <div className="font-medium">{checkNames[key] || key}</div>
+                                                                                    <div className="text-gray-400 text-[10px]">{val.detail}</div>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
                                                                     </div>
-                                                                ))}
+                                                                )}
                                                             </div>
-                                                        )}
+                                                        );
+                                                    })()}
+                                                    {/* Image Policy Badge */}
+                                                    <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${feed.image_policy === 'original' ? 'bg-blue-100 text-blue-700' :
+                                                        feed.image_policy === 'pexels_only' ? 'bg-purple-100 text-purple-700' :
+                                                            'bg-gray-100 text-gray-600'
+                                                        }`} title={`Image policy: ${feed.image_policy}`}>
+                                                        {feed.image_policy === 'original' ? '📷 Original' :
+                                                            feed.image_policy === 'pexels_only' ? '🖼️ Pexels' :
+                                                                '📷+🖼️ Fallback'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-2 text-sm text-gray-600">
+                                                    <div className="flex items-center gap-2">
+                                                        <Rss size={16} />
+                                                        <a href={feed.feed_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
+                                                            {feed.feed_url}
+                                                        </a>
+                                                        <ExternalLink size={14} />
                                                     </div>
-                                                );
-                                            })()}
-                                            {/* Image Policy Badge */}
-                                            <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${feed.image_policy === 'original' ? 'bg-blue-100 text-blue-700' :
-                                                feed.image_policy === 'pexels_only' ? 'bg-purple-100 text-purple-700' :
-                                                    'bg-gray-100 text-gray-600'
-                                                }`} title={`Image policy: ${feed.image_policy}`}>
-                                                {feed.image_policy === 'original' ? '📷 Original' :
-                                                    feed.image_policy === 'pexels_only' ? '🖼️ Pexels' :
-                                                        '📷+🖼️ Fallback'}
-                                            </span>
-                                        </div>
 
-                                        <div className="space-y-2 text-sm text-gray-600">
-                                            <div className="flex items-center gap-2">
-                                                <Rss size={16} />
-                                                <a href={feed.feed_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
-                                                    {feed.feed_url}
-                                                </a>
-                                                <ExternalLink size={14} />
-                                            </div>
-
-                                            {feed.website_url && (
-                                                <div className="flex items-center gap-2">
-                                                    <ExternalLink size={16} />
-                                                    <a href={feed.website_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
-                                                        {feed.website_url}
-                                                    </a>
-                                                </div>
-                                            )}
-
-                                            <div className="flex items-center gap-2">
-                                                <Clock size={16} />
-                                                <span>Last checked: {formatDate(feed.last_checked)}</span>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <FileText size={16} />
-                                                <span>
-                                                    {feedStats[feed.id] ? (
-                                                        <>
-                                                            {feedStats[feed.id].total_items} items • {feedStats[feed.id].generated_count} articles • {feedStats[feed.id].pending_count_items} pending
-                                                        </>
-                                                    ) : (
-                                                        <>Entries processed: {feed.entries_processed} | Pending: {feed.pending_count}</>
+                                                    {feed.website_url && (
+                                                        <div className="flex items-center gap-2">
+                                                            <ExternalLink size={16} />
+                                                            <a href={feed.website_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
+                                                                {feed.website_url}
+                                                            </a>
+                                                        </div>
                                                     )}
-                                                </span>
+
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock size={16} />
+                                                        <span>Last checked: {formatDate(feed.last_checked)}</span>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText size={16} />
+                                                        <span>
+                                                            {feedStats[feed.id] ? (
+                                                                <>
+                                                                    {feedStats[feed.id].total_items} items • {feedStats[feed.id].generated_count} articles • {feedStats[feed.id].pending_count_items} pending
+                                                                </>
+                                                            ) : (
+                                                                <>Entries processed: {feed.entries_processed} | Pending: {feed.pending_count}</>
+                                                            )}
+                                                        </span>
+                                                    </div>
+
+                                                    {feed.category_name && (
+                                                        <div className="text-sm">
+                                                            <span className="font-semibold">Default Category:</span> {feed.category_name}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            {feed.category_name && (
-                                                <div className="text-sm">
-                                                    <span className="font-semibold">Default Category:</span> {feed.category_name}
-                                                </div>
-                                            )}
+                                            <div className="flex flex-col gap-2 ml-4">
+                                                <button
+                                                    onClick={() => handleScanNow(feed.id)}
+                                                    disabled={scanning === feed.id}
+                                                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm"
+                                                >
+                                                    <RefreshCw className={scanning === feed.id ? 'animate-spin' : ''} size={16} />
+                                                    {scanning === feed.id ? 'Scanning...' : 'Scan Now'}
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleToggleEnabled(feed)}
+                                                    className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${feed.is_enabled
+                                                        ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                                        : 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                        }`}
+                                                >
+                                                    {feed.is_enabled ? <PowerOff size={16} /> : <Power size={16} />}
+                                                    {feed.is_enabled ? 'Disable' : 'Enable'}
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleCheckLicense(feed.id)}
+                                                    disabled={checkingLicense === feed.id}
+                                                    className="flex items-center gap-2 px-3 py-2 bg-amber-100 text-amber-800 rounded hover:bg-amber-200 disabled:opacity-50 text-sm"
+                                                >
+                                                    <Shield className={checkingLicense === feed.id ? 'animate-pulse' : ''} size={16} />
+                                                    {checkingLicense === feed.id ? 'Checking...' : 'Check License'}
+                                                </button>
+
+                                                <Link
+                                                    href={`/admin/rss-feeds/${feed.id}/edit`}
+                                                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 text-sm"
+                                                >
+                                                    <Edit size={16} />
+                                                    Edit
+                                                </Link>
+
+                                                <button
+                                                    onClick={() => handleDelete(feed.id)}
+                                                    className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-800 rounded hover:bg-red-200 text-sm"
+                                                >
+                                                    <Trash2 size={16} />
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-
-                                    <div className="flex flex-col gap-2 ml-4">
-                                        <button
-                                            onClick={() => handleScanNow(feed.id)}
-                                            disabled={scanning === feed.id}
-                                            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm"
-                                        >
-                                            <RefreshCw className={scanning === feed.id ? 'animate-spin' : ''} size={16} />
-                                            {scanning === feed.id ? 'Scanning...' : 'Scan Now'}
-                                        </button>
-
-                                        <button
-                                            onClick={() => handleToggleEnabled(feed)}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${feed.is_enabled
-                                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                                : 'bg-green-100 text-green-800 hover:bg-green-200'
-                                                }`}
-                                        >
-                                            {feed.is_enabled ? <PowerOff size={16} /> : <Power size={16} />}
-                                            {feed.is_enabled ? 'Disable' : 'Enable'}
-                                        </button>
-
-                                        <button
-                                            onClick={() => handleCheckLicense(feed.id)}
-                                            disabled={checkingLicense === feed.id}
-                                            className="flex items-center gap-2 px-3 py-2 bg-amber-100 text-amber-800 rounded hover:bg-amber-200 disabled:opacity-50 text-sm"
-                                        >
-                                            <Shield className={checkingLicense === feed.id ? 'animate-pulse' : ''} size={16} />
-                                            {checkingLicense === feed.id ? 'Checking...' : 'Check License'}
-                                        </button>
-
-                                        <Link
-                                            href={`/admin/rss-feeds/${feed.id}/edit`}
-                                            className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 text-sm"
-                                        >
-                                            <Edit size={16} />
-                                            Edit
-                                        </Link>
-
-                                        <button
-                                            onClick={() => handleDelete(feed.id)}
-                                            className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-800 rounded hover:bg-red-200 text-sm"
-                                        >
-                                            <Trash2 size={16} />
-                                            Delete
-                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                </div>
+                            ))}
+                    </div>
+                </>
             )}
             {/* Toast Notification */}
             {toast && (

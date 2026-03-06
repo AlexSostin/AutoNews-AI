@@ -121,6 +121,35 @@ class RSSFeed(models.Model):
             return 'review'
         return 'review'
     
+    # Health tracking
+    last_error = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text="Last error message from feed fetch"
+    )
+    consecutive_failures = models.IntegerField(
+        default=0,
+        help_text="Number of consecutive fetch failures"
+    )
+    last_successful_fetch = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When this feed was last successfully fetched"
+    )
+    
+    @property
+    def health(self):
+        """Computed health: healthy / stale / failing"""
+        from django.utils import timezone
+        from datetime import timedelta
+        if self.consecutive_failures >= 3:
+            return 'failing'
+        if self.last_successful_fetch:
+            if timezone.now() - self.last_successful_fetch > timedelta(hours=48):
+                return 'stale'
+        elif self.last_checked:
+            if timezone.now() - self.last_checked > timedelta(hours=48):
+                return 'stale'
+        return 'healthy'
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
