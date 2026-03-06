@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters as drf_filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
@@ -20,6 +20,9 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
     queryset = RSSNewsItem.objects.select_related('rss_feed', 'pending_article').all()
     serializer_class = RSSNewsItemSerializer
     permission_classes = [IsAdminUser]
+    filter_backends = [drf_filters.OrderingFilter]
+    ordering_fields = ['relevance_score', 'published_at', 'created_at']
+    ordering = ['-relevance_score', '-created_at']  # default
     
     def get_queryset(self):
         queryset = super().get_queryset()
