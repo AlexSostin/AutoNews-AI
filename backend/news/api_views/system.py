@@ -970,6 +970,8 @@ class FrontendEventLogViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.warning(f"FrontendEventLog resolve_all error: {e}")
             count = 0
+        # Bust nav badge cache so sidebar updates immediately
+        cache.delete('nav_badges_v1')
         return Response({'resolved': count})
 
 
@@ -1021,6 +1023,8 @@ class BackendErrorLogViewSet(viewsets.ModelViewSet):
         count = self.get_queryset().filter(resolved=False).update(
             resolved=True, resolved_at=timezone.now()
         )
+        # Bust nav badge cache so sidebar updates immediately
+        cache.delete('nav_badges_v1')
         return Response({'resolved': count})
 
     @action(detail=False, methods=['post'], url_path='clear-stale')
