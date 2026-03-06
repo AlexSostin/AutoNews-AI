@@ -76,7 +76,7 @@ export default function ArticleCard({ article, priority = false, cardPosition, c
   return (
     <Link href={`/articles/${article.slug}`} className="group" onClick={handleClick}>
       <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 border border-gray-100 h-full flex flex-col">
-        <div className="relative h-48 w-full overflow-hidden">
+        <div className="relative h-48 w-full overflow-hidden bg-gray-100">
           <Image
             src={imageUrl}
             alt={article.title}
