@@ -269,7 +269,7 @@ export default function RSSNewsPage() {
                 if (statusFilter === 'dismissed') params.show_dismissed = 'true';
                 if (activeBrand) params.brand = activeBrand;
                 // Server-side ordering so sort works across all pages
-                params.ordering = sortBy === 'relevance' ? '-relevance_score,-created_at' : '-published_at,-created_at';
+                params.ordering = sortBy === 'relevance' ? '-is_favorite,-created_at' : '-published_at,-created_at';
                 response = await api.get('/rss-news-items/', { params });
             }
 

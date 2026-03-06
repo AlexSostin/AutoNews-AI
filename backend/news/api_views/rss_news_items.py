@@ -21,8 +21,8 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
     serializer_class = RSSNewsItemSerializer
     permission_classes = [IsAdminUser]
     filter_backends = [drf_filters.OrderingFilter]
-    ordering_fields = ['relevance_score', 'published_at', 'created_at']
-    ordering = ['-relevance_score', '-created_at']  # default
+    ordering_fields = ['is_favorite', 'published_at', 'created_at']
+    ordering = ['-is_favorite', '-created_at']  # default: favorites first, then newest
     
     def get_queryset(self):
         queryset = super().get_queryset()
