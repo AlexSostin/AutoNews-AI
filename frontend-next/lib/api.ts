@@ -163,6 +163,15 @@ api.interceptors.response.use(
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return api(originalRequest);
+        } else {
+          // No refresh token at all — clear zombie auth state and redirect to login
+          processQueue(error, null);
+          document.cookie = 'access_token=; path=/; max-age=0';
+          document.cookie = 'refresh_token=; path=/; max-age=0';
+          localStorage.removeItem('user');
+          localStorage.removeItem('access_token');
+          window.location.href = '/login';
+          return Promise.reject(error);
         }
       } catch (refreshError) {
         // Reject the queue
@@ -173,6 +182,7 @@ api.interceptors.response.use(
           document.cookie = 'access_token=; path=/; max-age=0';
           document.cookie = 'refresh_token=; path=/; max-age=0';
           localStorage.removeItem('user');
+          localStorage.removeItem('access_token');
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
