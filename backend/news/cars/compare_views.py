@@ -176,20 +176,35 @@ class CarPickerListView(APIView):
             .order_by('make', 'model_name')
         )
 
+        # Group by slugified make to avoid case-variant duplicates
+        # (e.g. 'Zeekr' and 'ZEEKR' both become slug 'zeekr')
         brands = {}
         for combo in combos:
             make = combo['make']
             model = combo['model_name']
-            if make not in brands:
-                brands[make] = {
-                    'name': make,
-                    'slug': slugify(make),
-                    'models': []
-                }
-            brands[make]['models'].append({
-                'name': model,
-                'slug': slugify(model),
-            })
+            brand_slug = slugify(make)
 
-        result = sorted(brands.values(), key=lambda b: b['name'])
+            if brand_slug not in brands:
+                brands[brand_slug] = {
+                    'name': make,
+                    'slug': brand_slug,
+                    'models': [],
+                    '_model_slugs': set(),  # dedup tracker
+                }
+            model_slug = slugify(model)
+            if model_slug not in brands[brand_slug]['_model_slugs']:
+                brands[brand_slug]['_model_slugs'].add(model_slug)
+                brands[brand_slug]['models'].append({
+                    'name': model,
+                    'slug': model_slug,
+                })
+
+        # Remove internal dedup tracker before returning
+        result = []
+        for b in sorted(brands.values(), key=lambda x: x['name']):
+            result.append({
+                'name': b['name'],
+                'slug': b['slug'],
+                'models': b['models'],
+            })
         return Response(result)
