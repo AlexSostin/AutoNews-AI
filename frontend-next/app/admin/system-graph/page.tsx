@@ -22,6 +22,31 @@ import {
     RefreshCw, Loader2, AlertTriangle, CheckCircle, XCircle, Info, X,
 } from 'lucide-react';
 
+// ── Progress Bar Component ──────────────────────────────────────────
+function ProgressBar({ value, max, color = 'bg-emerald-500', showLabel = true }: {
+    value: number; max: number; color?: string; showLabel?: boolean;
+}) {
+    const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+    const barColor =
+        pct >= 80 ? 'bg-emerald-500' :
+            pct >= 50 ? 'bg-amber-500' :
+                'bg-red-500';
+    return (
+        <div className="w-full">
+            <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-0.5">
+                {showLabel && <span>{value.toLocaleString()} / {max.toLocaleString()}</span>}
+                <span className={pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600'}>{pct}%</span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                    className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
 // ── Types ──────────────────────────────────────────────────────────
 interface GraphNode {
     id: string;
@@ -245,11 +270,21 @@ export default function SystemGraphPage() {
         );
     }
 
+    // ── Computed health score ──────────────────────────────────────
+    const healthScore = graphData ? (() => {
+        const total = graphData.nodes.length;
+        const healthy = graphData.nodes.filter(n => n.health === 'healthy').length;
+        const warning = graphData.nodes.filter(n => n.health === 'warning').length;
+        const error = graphData.nodes.filter(n => n.health === 'error').length;
+        const pct = total > 0 ? Math.round((healthy / total) * 100) : 0;
+        return { pct, healthy, warning, error, total };
+    })() : null;
+
     return (
         <div className="flex flex-col h-[calc(100vh-120px)]">
             {/* Header */}
-            <div className="flex items-center justify-between mb-4 px-1">
-                <div>
+            <div className="flex items-start justify-between mb-4 px-1 gap-4">
+                <div className="flex-1">
                     <h1 className="text-2xl sm:text-3xl font-black text-gray-950 flex items-center gap-3">
                         <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -266,10 +301,36 @@ export default function SystemGraphPage() {
                     <p className="text-sm text-gray-600 mt-1">
                         Interactive entity map · {graphData?.nodes.length || 0} nodes · {graphData?.edges.length || 0} connections
                     </p>
+
+                    {/* ── Health Score Bar ── */}
+                    {healthScore && (
+                        <div className="mt-3 bg-white border border-gray-200 rounded-xl px-4 py-3 max-w-md shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">System Health</span>
+                                <span className={`text-lg font-black ${healthScore.pct >= 80 ? 'text-emerald-600' :
+                                        healthScore.pct >= 50 ? 'text-amber-600' : 'text-red-600'
+                                    }`}>{healthScore.pct}%</span>
+                            </div>
+                            <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-700 ${healthScore.pct >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
+                                            healthScore.pct >= 50 ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
+                                                'bg-gradient-to-r from-red-400 to-red-600'
+                                        }`}
+                                    style={{ width: `${healthScore.pct}%` }}
+                                />
+                            </div>
+                            <div className="flex items-center gap-4 text-[11px] font-semibold">
+                                <span className="flex items-center gap-1 text-emerald-600"><span className="w-2 h-2 rounded-full bg-emerald-500" />{healthScore.healthy} healthy</span>
+                                {healthScore.warning > 0 && <span className="flex items-center gap-1 text-amber-600"><span className="w-2 h-2 rounded-full bg-amber-500" />{healthScore.warning} warning</span>}
+                                {healthScore.error > 0 && <span className="flex items-center gap-1 text-red-600"><span className="w-2 h-2 rounded-full bg-red-500" />{healthScore.error} error</span>}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <button
                     onClick={() => { setLoading(true); loadData(); }}
-                    className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-semibold border border-gray-200 transition flex items-center gap-2"
+                    className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-semibold border border-gray-200 transition flex items-center gap-2 shrink-0"
                 >
                     <RefreshCw className="w-4 h-4" /> Refresh
                 </button>
@@ -355,21 +416,56 @@ export default function SystemGraphPage() {
                         </div>
 
                         {/* Breakdown */}
-                        {Object.keys(selectedNode.breakdown).length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Breakdown</h3>
-                                <div className="space-y-2">
-                                    {Object.entries(selectedNode.breakdown).map(([key, val]) => (
-                                        <div key={key} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
-                                            <span className="text-sm text-gray-600 capitalize font-medium">{key.replace(/_/g, ' ')}</span>
-                                            <span className="text-sm font-bold text-gray-900">
-                                                {typeof val === 'number' ? val.toLocaleString() : val}
-                                            </span>
-                                        </div>
-                                    ))}
+                        {Object.keys(selectedNode.breakdown).length > 0 && (() => {
+                            const bd = selectedNode.breakdown;
+                            const entries = Object.entries(bd);
+
+                            // Try to find a 'total' or max field to use as denominator for bars
+                            const total: number =
+                                typeof bd.total === 'number' ? bd.total :
+                                    typeof bd.count === 'number' ? bd.count :
+                                        selectedNode.count || 0;
+
+                            // Keys that represent sub-counts (can be rendered as bars vs total)
+                            const barKeys = new Set(['healthy', 'stale', 'failing', 'active', 'inactive',
+                                'published', 'draft', 'pending', 'approved', 'indexed', 'linked',
+                                'orphan', 'grouped', 'ungrouped', 'with_image', 'without_image',
+                                'enabled', 'disabled', 'resolved', 'unresolved', 'winners', 'active_tests']);
+
+                            return (
+                                <div>
+                                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Breakdown</h3>
+                                    <div className="space-y-3">
+                                        {entries.map(([key, val]) => {
+                                            const isBar = typeof val === 'number' && total > 0 && barKeys.has(key) && val >= 0;
+                                            const barColor =
+                                                key === 'failing' || key === 'error' || key === 'orphan' || key === 'inactive' || key === 'unresolved' ? 'bg-red-500' :
+                                                    key === 'stale' || key === 'pending' || key === 'ungrouped' || key === 'draft' ? 'bg-amber-500' :
+                                                        'bg-emerald-500';
+
+                                            return (
+                                                <div key={key}>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="text-xs text-gray-600 capitalize font-semibold">{key.replace(/_/g, ' ')}</span>
+                                                        <span className="text-xs font-black text-gray-900">
+                                                            {typeof val === 'number' ? val.toLocaleString() : val}
+                                                        </span>
+                                                    </div>
+                                                    {isBar && (
+                                                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                                                                style={{ width: `${Math.min(100, Math.round((val / total) * 100))}%` }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         {/* Connected edges */}
                         <div className="mt-4">
