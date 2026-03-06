@@ -81,6 +81,25 @@ class Command(BaseCommand):
         if deleted_count:
             self.stdout.write(self.style.WARNING(f'🗑  Cleaned up {deleted_count} RSS items older than 7 days'))
 
+        # --- RSS Intelligence: extract brands & models from recent titles ---
+        try:
+            from news.rss_intelligence import process_rss_intelligence
+            intel = process_rss_intelligence()
+            if intel['brands_created']:
+                self.stdout.write(self.style.SUCCESS(
+                    f'🧠 Intelligence: discovered {len(intel["brands_created"])} new brand(s): '
+                    f'{", ".join(intel["brands_created"])}'
+                ))
+            if intel['models_created']:
+                self.stdout.write(self.style.SUCCESS(
+                    f'🧠 Intelligence: discovered {len(intel["models_created"])} new model(s): '
+                    f'{", ".join(intel["models_created"])}'
+                ))
+            if not intel['brands_created'] and not intel['models_created']:
+                self.stdout.write(f'🧠 Intelligence: scanned {intel["items_scanned"]} items, no new discoveries')
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f'⚠️  Intelligence pass failed: {e}'))
+
         # Connect to Redis for progress tracking (optional — won't break if unavailable)
         redis_client = None
         try:

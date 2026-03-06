@@ -291,3 +291,71 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             'failed': fail_count,
             'results': results,
         })
+
+    # ================================================================
+    # RSS Intelligence Endpoints
+    # ================================================================
+
+    @action(detail=False, methods=['get'])
+    def trending_brands(self, request):
+        """Get trending brands from RSS titles (last N days)."""
+        from ..rss_intelligence import get_trending_brands
+        days = int(request.query_params.get('days', 7))
+        min_mentions = int(request.query_params.get('min', 2))
+        trending = get_trending_brands(days=days, min_mentions=min_mentions)
+        return Response({'success': True, 'days': days, 'brands': trending})
+
+    @action(detail=False, methods=['get'])
+    def trending_topics(self, request):
+        """Get trending topics (EV, SUV, recalls, etc.) from RSS titles."""
+        from ..rss_intelligence import get_trending_topics
+        days = int(request.query_params.get('days', 7))
+        topics = get_trending_topics(days=days)
+        return Response({'success': True, 'days': days, 'topics': topics})
+
+    @action(detail=False, methods=['post'])
+    def run_intelligence(self, request):
+        """Run brand detection + model discovery on RSS items.
+        Creates Brand(is_visible=False) and VehicleSpecs(article=None) entries."""
+        from ..rss_intelligence import process_rss_intelligence
+        dry_run = request.data.get('dry_run', False)
+        days = int(request.data.get('days', 7))
+        
+        cutoff = timezone.now() - timedelta(days=days)
+        queryset = RSSNewsItem.objects.filter(
+            created_at__gte=cutoff,
+            status__in=['new', 'read'],
+        )
+        
+        stats = process_rss_intelligence(queryset=queryset, dry_run=dry_run)
+        return Response({
+            'success': True,
+            'dry_run': dry_run,
+            'items_scanned': stats['items_scanned'],
+            'brands_found': dict(stats['brands_found'].most_common(20)),
+            'brands_created': stats['brands_created'],
+            'models_found': dict(stats['models_found'].most_common(20)),
+            'models_created': stats['models_created'],
+        })
+
+    @action(detail=True, methods=['get'])
+    def check_duplicates(self, request, pk=None):
+        """Check if this RSS item's content is semantically similar to existing articles."""
+        from ..rss_intelligence import check_semantic_duplicates
+        news_item = self.get_object()
+        
+        plain_text = re.sub(r'<[^>]+>', '', news_item.content).strip()
+        if not plain_text:
+            plain_text = news_item.excerpt
+        
+        threshold = float(request.query_params.get('threshold', 0.85))
+        similar = check_semantic_duplicates(plain_text, threshold=threshold)
+        
+        return Response({
+            'success': True,
+            'item_id': news_item.id,
+            'item_title': news_item.title,
+            'similar_articles': similar,
+            'has_duplicates': len(similar) > 0,
+        })
+
