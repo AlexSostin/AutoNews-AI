@@ -188,8 +188,13 @@ export default function AboutPage() {
             <h2 className="text-3xl font-black mb-8 text-center">Meet the Founder</h2>
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
               <div className="flex-shrink-0">
-                <div className="w-28 h-28 rounded-full bg-purple-500 flex items-center justify-center text-5xl font-black text-white shadow-lg">
-                  A
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-purple-400 shadow-xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/alex-sostin.jpg"
+                    alt="Alexander Sostin — Founder of Fresh Motors"
+                    className="w-full h-full object-cover object-top"
+                  />
                 </div>
               </div>
               <div className="flex-1">
