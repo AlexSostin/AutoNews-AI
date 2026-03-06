@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Rss,
     Wand2,
@@ -14,11 +14,122 @@ import {
     Filter,
     ArrowUpDown,
     Sparkles,
+    Tag,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
 import toast from 'react-hot-toast';
 import { sanitizeHtml } from '@/lib/sanitize';
+
+// ----------------------------------------------------------------
+// Known automotive brands (mirrors backend KNOWN_BRANDS)
+// ----------------------------------------------------------------
+const KNOWN_BRANDS: string[] = [
+    // Multi-word first so they match before single-word substrings
+    'li auto', 'lynk & co', 'land rover', 'range rover', 'alfa romeo',
+    'aston martin', 'rolls-royce', 'mercedes-benz', 'im motors', 'rising auto',
+    // Chinese
+    'byd', 'xiaomi', 'xpeng', 'zeekr', 'geely', 'dongfeng', 'nio', 'changan',
+    'gac', 'voyah', 'avatr', 'smart', 'polestar', 'wey', 'tank', 'haval',
+    'ora', 'leapmotor', 'neta', 'jidu', 'deepal', 'denza', 'yangwang',
+    'fangchengbao', 'hyptec', 'onvo', 'firefly', 'hongqi', 'baic', 'arcfox',
+    'gwm', 'chery', 'jetour', 'exeed', 'forthing', 'seres',
+    // European
+    'bmw', 'mercedes', 'audi', 'porsche', 'volkswagen', 'vw', 'volvo',
+    'bentley', 'ferrari', 'lamborghini', 'maserati', 'fiat', 'peugeot',
+    'citroen', 'renault', 'skoda', 'seat', 'cupra', 'mini', 'bugatti',
+    'mclaren', 'lotus', 'jaguar',
+    // Japanese
+    'toyota', 'honda', 'nissan', 'mazda', 'subaru', 'mitsubishi', 'suzuki',
+    'lexus', 'infiniti', 'acura',
+    // Korean
+    'hyundai', 'kia', 'genesis',
+    // American
+    'tesla', 'ford', 'chevrolet', 'gm', 'gmc', 'cadillac', 'chrysler',
+    'dodge', 'jeep', 'ram', 'buick', 'lincoln', 'rivian', 'lucid', 'fisker', 'canoo',
+    // Others
+    'tata', 'mahindra', 'vinfast',
+];
+
+const BRAND_DISPLAY: Record<string, string> = {
+    'byd': 'BYD', 'bmw': 'BMW', 'gm': 'GM', 'gmc': 'GMC', 'gac': 'GAC',
+    'nio': 'NIO', 'vw': 'Volkswagen', 'mercedes-benz': 'Mercedes-Benz',
+    'mercedes': 'Mercedes-Benz', 'rolls-royce': 'Rolls-Royce',
+    'land rover': 'Land Rover', 'range rover': 'Range Rover',
+    'alfa romeo': 'Alfa Romeo', 'aston martin': 'Aston Martin',
+    'li auto': 'Li Auto', 'lynk & co': 'Lynk & Co',
+    'im motors': 'IM Motors', 'rising auto': 'Rising Auto',
+    'zeekr': 'ZEEKR', 'xiaomi': 'XIAOMI', 'xpeng': 'XPENG',
+    'voyah': 'VOYAH', 'avatr': 'AVATR', 'baic': 'BAIC',
+    'tesla': 'Tesla', 'ford': 'Ford', 'chevrolet': 'Chevrolet',
+    'cadillac': 'Cadillac', 'dodge': 'Dodge', 'jeep': 'Jeep',
+    'ram': 'RAM', 'buick': 'Buick', 'lincoln': 'Lincoln',
+    'rivian': 'Rivian', 'lucid': 'Lucid', 'fisker': 'Fisker',
+    'toyota': 'Toyota', 'honda': 'Honda', 'nissan': 'Nissan',
+    'mazda': 'Mazda', 'subaru': 'Subaru', 'suzuki': 'Suzuki',
+    'lexus': 'Lexus', 'infiniti': 'Infiniti', 'acura': 'Acura',
+    'hyundai': 'Hyundai', 'kia': 'Kia', 'genesis': 'Genesis',
+    'audi': 'Audi', 'porsche': 'Porsche', 'volkswagen': 'Volkswagen',
+    'volvo': 'Volvo', 'bentley': 'Bentley', 'ferrari': 'Ferrari',
+    'lamborghini': 'Lamborghini', 'maserati': 'Maserati',
+    'peugeot': 'Peugeot', 'renault': 'Renault', 'skoda': 'Škoda',
+    'cupra': 'CUPRA', 'mini': 'MINI', 'jaguar': 'Jaguar',
+    'tata': 'Tata', 'mahindra': 'Mahindra', 'vinfast': 'VinFast',
+    'haval': 'Haval', 'tank': 'Tank', 'leapmotor': 'Leapmotor',
+    'chery': 'Chery', 'geely': 'Geely', 'dongfeng': 'Dongfeng',
+    'polestar': 'Polestar', 'canoo': 'Canoo',
+};
+
+function extractBrandFromTitle(title: string): string | null {
+    const lower = title.toLowerCase();
+    for (const brand of KNOWN_BRANDS) {
+        const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (new RegExp(`\\b${escaped}\\b`, 'i').test(lower)) {
+            return BRAND_DISPLAY[brand] ?? brand.charAt(0).toUpperCase() + brand.slice(1);
+        }
+    }
+    return null;
+}
+
+// Returns JSX with brand names wrapped in highlight spans
+function HighlightedTitle({ title, activeBrand }: { title: string; activeBrand: string | null }) {
+    const parts: React.ReactNode[] = [];
+    let remaining = title;
+    let key = 0;
+
+    for (const brand of KNOWN_BRANDS) {
+        const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(\\b${escaped}\\b)`, 'gi');
+        const displayName = BRAND_DISPLAY[brand] ?? brand.charAt(0).toUpperCase() + brand.slice(1);
+        const isActive = activeBrand === displayName;
+
+        if (regex.test(remaining)) {
+            const splitResult = remaining.split(new RegExp(`(\\b${escaped}\\b)`, 'gi'));
+            remaining = '';
+            for (const part of splitResult) {
+                if (new RegExp(`^${escaped}$`, 'i').test(part)) {
+                    parts.push(
+                        <mark
+                            key={key++}
+                            className={`px-0.5 rounded font-semibold not-italic ${isActive
+                                    ? 'bg-indigo-200 text-indigo-900'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}
+                        >
+                            {part}
+                        </mark>
+                    );
+                } else {
+                    parts.push(<span key={key++}>{part}</span>);
+                }
+            }
+            break;
+        }
+    }
+
+    if (parts.length === 0) return <>{title}</>;
+    return <>{parts}</>;
+}
 
 interface RSSFeed {
     id: number;
@@ -68,6 +179,7 @@ export default function RSSNewsPage() {
     const [selectedFeed, setSelectedFeed] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('new');
     const [sortBy, setSortBy] = useState<'relevance' | 'date'>('relevance');
+    const [brandFilter, setBrandFilter] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [generatingId, setGeneratingId] = useState<number | null>(null);
@@ -78,6 +190,17 @@ export default function RSSNewsPage() {
     const [expandedItem, setExpandedItem] = useState<number | null>(null);
     const [nextPage, setNextPage] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState<number>(0);
+
+    // Brand pill counts — computed from all loaded items
+    const brandCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const item of newsItems) {
+            const brand = extractBrandFromTitle(item.title);
+            if (brand) counts[brand] = (counts[brand] ?? 0) + 1;
+        }
+        return Object.entries(counts)
+            .sort((a, b) => b[1] - a[1]);
+    }, [newsItems]);
 
     useEffect(() => {
         fetchFeeds();
@@ -254,17 +377,21 @@ export default function RSSNewsPage() {
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    // Sort items by relevance or date
-    const sortedItems = [...newsItems].sort((a, b) => {
-        if (sortBy === 'relevance') {
-            return (b.relevance_score || 0) - (a.relevance_score || 0);
+    // Sort + filter items
+    const sortedItems = useMemo(() => {
+        let items = [...newsItems];
+        if (brandFilter) {
+            items = items.filter(item => extractBrandFromTitle(item.title) === brandFilter);
         }
-        const dateA = new Date(a.published_at || a.created_at).getTime();
-        const dateB = new Date(b.published_at || b.created_at).getTime();
-        return dateB - dateA;
-    });
+        return items.sort((a, b) => {
+            if (sortBy === 'relevance') return (b.relevance_score || 0) - (a.relevance_score || 0);
+            const dateA = new Date(a.published_at || a.created_at).getTime();
+            const dateB = new Date(b.published_at || b.created_at).getTime();
+            return dateB - dateA;
+        });
+    }, [newsItems, brandFilter, sortBy]);
 
-    // Stats
+    // Stats (based on full list, not filtered)
     const highCount = newsItems.filter(i => i.relevance_label === 'high').length;
     const medCount = newsItems.filter(i => i.relevance_label === 'medium').length;
     const lowCount = newsItems.filter(i => i.relevance_label === 'low').length;
@@ -414,19 +541,62 @@ export default function RSSNewsPage() {
                         </div>
                     ) : (
                         <>
+                            {/* Brand Filter Pills */}
+                            {brandCounts.length > 0 && (
+                                <div className="bg-white rounded-xl shadow-md p-4 mb-4 border border-gray-200">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Tag size={15} className="text-indigo-500" />
+                                        <span className="text-sm font-semibold text-gray-700">Filter by Brand</span>
+                                        {brandFilter && (
+                                            <button
+                                                onClick={() => setBrandFilter(null)}
+                                                className="ml-auto text-xs text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1"
+                                            >
+                                                <XCircle size={13} /> Clear
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {brandCounts.map(([brand, count]) => (
+                                            <button
+                                                key={brand}
+                                                onClick={() => setBrandFilter(brandFilter === brand ? null : brand)}
+                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 border ${brandFilter === brand
+                                                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-md scale-105'
+                                                        : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50'
+                                                    }`}
+                                            >
+                                                <span className={`w-1.5 h-1.5 rounded-full ${brandFilter === brand ? 'bg-indigo-200' : 'bg-amber-400'
+                                                    }`} />
+                                                {brand}
+                                                <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${brandFilter === brand
+                                                        ? 'bg-indigo-500 text-indigo-100'
+                                                        : 'bg-gray-100 text-gray-500'
+                                                    }`}>{count}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {brandFilter && (
+                                        <p className="mt-2 text-xs text-gray-500">
+                                            Showing {sortedItems.length} of {newsItems.length} items for <strong>{brandFilter}</strong>
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Toolbar: Bulk Actions + Sort */}
                             <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex items-center justify-between border border-gray-200">
                                 <div className="flex items-center gap-3">
                                     <input
                                         type="checkbox"
-                                        checked={selectedItems.size === newsItems.length && newsItems.length > 0}
+                                        checked={selectedItems.size === sortedItems.length && sortedItems.length > 0}
                                         onChange={toggleSelectAll}
                                         className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
                                     />
                                     <span className="text-sm font-medium text-gray-700">
                                         {selectedItems.size > 0
                                             ? `${selectedItems.size} selected`
-                                            : `${newsItems.length} items`}
+                                            : `${sortedItems.length}${brandFilter ? ` (${newsItems.length} total)` : ''} items`}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -539,12 +709,12 @@ export default function RSSNewsPage() {
                                                     </span>
                                                 </div>
 
-                                                {/* Title */}
+                                                {/* Title with brand highlight */}
                                                 <h3
                                                     className="text-sm font-bold text-gray-900 mb-1.5 cursor-pointer hover:text-indigo-600 transition-colors line-clamp-2 leading-tight"
                                                     onClick={() => setExpandedItem(isExpanded ? null : item.id)}
                                                 >
-                                                    {item.title}
+                                                    <HighlightedTitle title={item.title} activeBrand={brandFilter} />
                                                 </h3>
 
                                                 {/* Excerpt */}
