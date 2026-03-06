@@ -309,8 +309,8 @@ export function TaskModules({
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-base font-black text-gray-900">🧠 ML Content Recommender</h3>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${ml?.trained
-                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                            : 'bg-gray-100 text-gray-500 border border-gray-200'
+                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                        : 'bg-gray-100 text-gray-500 border border-gray-200'
                         }`}>
                         {ml?.trained ? '✅ Trained' : '⏳ Not trained'}
                     </span>
@@ -349,8 +349,8 @@ export function TaskModules({
                         onClick={() => triggerTask('ml-retrain')}
                         disabled={triggering === 'ml-retrain'}
                         className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all ${triggering === 'ml-retrain'
-                                ? 'bg-gray-100 text-gray-400 cursor-wait'
-                                : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
+                            ? 'bg-gray-100 text-gray-400 cursor-wait'
+                            : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
                             }`}
                     >
                         {triggering === 'ml-retrain' ? '⏳ Training...' : '🔄 Retrain Now'}
@@ -407,6 +407,69 @@ export function TaskModules({
                     </p>
                 )}
             </div>
+
+            {/* 🧹 A/B Test Lifecycle */}
+            <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-lg shadow-md border-2 border-rose-200 p-5 h-full flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-black text-gray-900">🧹 A/B Test Lifecycle</h3>
+                    <button
+                        onClick={() => triggerTask('ab-cleanup')}
+                        disabled={triggering === 'ab-cleanup'}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${triggering === 'ab-cleanup'
+                            ? 'bg-gray-100 text-gray-400 cursor-wait'
+                            : 'bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-300'
+                            }`}
+                    >
+                        {triggering === 'ab-cleanup' ? '⏳ Running...' : '🔄 Run Now'}
+                    </button>
+                </div>
+                <div className="space-y-2 flex-1">
+                    <div className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="shrink-0">📅</span>
+                        <span><strong>Day 0-29:</strong> Test runs, data accumulates</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+                        <span className="shrink-0">⚠️</span>
+                        <span><strong>Day 30:</strong> No winner → notification «pick winner in 7 days»</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+                        <span className="shrink-0">🤖</span>
+                        <span><strong>Day 37:</strong> Auto-pick winner by CTR → delete losers</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-200">
+                        <span className="shrink-0">✅</span>
+                        <span><strong>Winner 30d+:</strong> Losers cleaned up automatically</span>
+                    </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-rose-200">
+                    <a href="/admin/ab-testing" className="text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors">🧪 View A/B Tests →</a>
+                </div>
+            </div>
+
+            {/* 🔍 Article Embeddings */}
+            <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg shadow-md border-2 border-teal-200 p-5 h-full flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-black text-gray-900">🔍 Article Embeddings</h3>
+                    <button
+                        onClick={() => triggerTask('index-articles')}
+                        disabled={triggering === 'index-articles'}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${triggering === 'index-articles'
+                            ? 'bg-gray-100 text-gray-400 cursor-wait'
+                            : 'bg-teal-100 text-teal-700 hover:bg-teal-200 border border-teal-300'
+                            }`}
+                    >
+                        {triggering === 'index-articles' ? '⏳ Indexing...' : '⚡ Index Articles'}
+                    </button>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed flex-1">
+                    Vector embeddings power semantic search, ML recommendations, and deduplication.
+                    Indexes all articles not yet embedded — check System Graph for current coverage.
+                </p>
+                <div className="mt-3 pt-3 border-t border-teal-200">
+                    <a href="/admin/system-graph" className="text-xs font-bold text-teal-600 hover:text-teal-800 transition-colors">🌐 View System Graph →</a>
+                </div>
+            </div>
+
         </div>
     );
 }

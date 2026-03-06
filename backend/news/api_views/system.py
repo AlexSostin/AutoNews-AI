@@ -577,6 +577,8 @@ class AutomationTriggerView(APIView):
         'auto-publish': 'auto_publish',
         'score': 'score',
         'deep-specs': 'deep_specs',
+        'ab-cleanup': None,   # no lock needed — fast
+        'index-articles': None,
     }
     
     def post(self, request, task_type):
@@ -628,6 +630,29 @@ class AutomationTriggerView(APIView):
                     logger.error(f'ML retrain failed: {e}')
             threading.Thread(target=_retrain_ml, daemon=True).start()
             return Response({'message': 'ML model retrain triggered', 'status': 'running'})
+
+        elif task_type == 'ab-cleanup':
+            from news.scheduler import run_ab_test_lifecycle
+            def _ab_cleanup():
+                try:
+                    result = run_ab_test_lifecycle()
+                    logger.info(f'[ab-cleanup] {result}')
+                except Exception as e:
+                    logger.error(f'[ab-cleanup] failed: {e}')
+            threading.Thread(target=_ab_cleanup, daemon=True).start()
+            return Response({'message': 'A/B test lifecycle cleanup triggered', 'status': 'running'})
+
+        elif task_type == 'index-articles':
+            def _index():
+                import subprocess, sys
+                manage_py = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'manage.py')
+                try:
+                    subprocess.run([sys.executable, manage_py, 'index_articles'], check=True, timeout=300)
+                    logger.info('[index-articles] completed')
+                except Exception as e:
+                    logger.error(f'[index-articles] failed: {e}')
+            threading.Thread(target=_index, daemon=True).start()
+            return Response({'message': 'Article embeddings indexing triggered', 'status': 'running'})
         
         return Response(
             {'error': f'Unknown task type: {task_type}'},

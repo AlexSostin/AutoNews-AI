@@ -473,6 +473,99 @@ def _schedule_deep_specs_backfill(interval_seconds=None):
     timer.start()
 
 
+
+def run_ab_test_lifecycle():
+    """
+    Daily A/B test lifecycle cleanup.
+
+    Lifecycle:
+      day 0-29:   test runs normally
+      day 30-36:  no winner yet → AdminNotification warning (once per week)
+      day 37+:    still no winner → auto-pick by CTR, delete losers
+      any day 30+: winner exists → delete losers
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from news.models import ArticleTitleVariant, AdminNotification
+
+    now = timezone.now()
+    cutoff_30 = now - timedelta(days=30)
+    cutoff_37 = now - timedelta(days=37)
+
+    deleted_loser_sets = 0
+    warned_articles = 0
+    force_picked = 0
+
+    old_article_ids = (
+        ArticleTitleVariant.objects
+        .filter(created_at__lte=cutoff_30)
+        .values_list('article_id', flat=True)
+        .distinct()
+    )
+
+    for article_id in old_article_ids:
+        variants = list(ArticleTitleVariant.objects.filter(article_id=article_id))
+        if not variants:
+            continue
+
+        winner = next((v for v in variants if v.is_winner), None)
+        oldest = min(v.created_at for v in variants)
+
+        if winner:
+            # Winner exists — clean up losers
+            losers = ArticleTitleVariant.objects.filter(article_id=article_id, is_winner=False)
+            if losers.exists():
+                losers.delete()
+                deleted_loser_sets += 1
+        else:
+            if oldest <= cutoff_37:
+                # 37+ days: force auto-pick then clean up
+                ArticleTitleVariant.check_and_pick_winners()
+                ArticleTitleVariant.objects.filter(article_id=article_id, is_winner=False).delete()
+                force_picked += 1
+            elif oldest <= cutoff_30:
+                # 30-36 days: send one-per-week warning
+                week_ago = now - timedelta(days=7)
+                already_warned = AdminNotification.objects.filter(
+                    link__contains=f'article={article_id}',
+                    created_at__gte=week_ago,
+                ).exists()
+                if not already_warned:
+                    try:
+                        from news.models import Article
+                        title = Article.objects.get(pk=article_id).title[:60]
+                    except Exception:
+                        title = f'Article #{article_id}'
+                    AdminNotification.create_notification(
+                        notification_type='warning',
+                        title='⚠️ A/B Test needs a winner',
+                        message=(
+                            f'"{title}" has an A/B test running 30+ days with no winner. '
+                            f'Auto-cleanup in 7 days — pick a winner now or it will be auto-selected by CTR.'
+                        ),
+                        link=f'/admin/ab-testing?article={article_id}',
+                        priority='high',
+                    )
+                    warned_articles += 1
+
+    logger.info(
+        f'[ab-lifecycle] ✅ Cleaned: {deleted_loser_sets}, '
+        f'Warned: {warned_articles}, Force-picked: {force_picked}'
+    )
+    return {'deleted_loser_sets': deleted_loser_sets, 'warned_articles': warned_articles, 'force_picked': force_picked}
+
+
+def _run_ab_lifecycle_daily():
+    """Scheduler wrapper — runs A/B lifecycle daily."""
+    try:
+        run_ab_test_lifecycle()
+    except Exception as e:
+        _log_scheduler_error('ab_lifecycle', e)
+    timer = threading.Timer(24 * 3600, _run_ab_lifecycle_daily)
+    timer.daemon = True
+    timer.start()
+
+
 def _check_overdue_tasks():
     """
     Startup recovery: check if tasks are overdue and run them immediately.
@@ -614,6 +707,12 @@ def start_scheduler():
     stale_timer = threading.Timer(600, _auto_resolve_stale_errors)
     stale_timer.daemon = True
     stale_timer.start()
+
+    # A/B test lifecycle cleanup — runs once daily, first fire after 5 minutes
+    ab_lifecycle_timer = threading.Timer(5 * 60, _run_ab_lifecycle_daily)
+    ab_lifecycle_timer.daemon = True
+    ab_lifecycle_timer.start()
+    logger.info("[SCHEDULER] 🧹 A/B lifecycle cleanup scheduled (daily)")
 
 
 def _auto_resolve_stale_errors():
