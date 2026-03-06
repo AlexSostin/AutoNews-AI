@@ -34,6 +34,33 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         
+        # Filter by brand name (title search — matches all known variants)
+        brand_param = self.request.query_params.get('brand')
+        if brand_param:
+            from django.db.models import Q
+            from ..auto_tags import KNOWN_BRANDS, BRAND_DISPLAY_NAMES
+            # Collect all variant strings for this brand (display name + key + aliases)
+            brand_lower = brand_param.lower()
+            variants = {brand_lower}
+            for key, display in BRAND_DISPLAY_NAMES.items():
+                if display.lower() == brand_lower or key.lower() == brand_lower:
+                    variants.add(key.lower())
+                    variants.add(display.lower())
+            # Collect KNOWN_BRANDS keys that match
+            for key in KNOWN_BRANDS:
+                if key.lower() == brand_lower or BRAND_DISPLAY_NAMES.get(key, key).lower() == brand_lower:
+                    variants.add(key.lower())
+                    for alias in KNOWN_BRANDS[key]:
+                        variants.add(str(alias).lower())
+            q = Q()
+            for v in variants:
+                q |= Q(title__icontains=v)
+            queryset = queryset.filter(q)
+
+        # Filter by favorites
+        if self.request.query_params.get('favorites') == 'true':
+            queryset = queryset.filter(is_favorite=True)
+
         # By default, exclude dismissed items
         if not self.request.query_params.get('show_dismissed'):
             queryset = queryset.exclude(status='dismissed')

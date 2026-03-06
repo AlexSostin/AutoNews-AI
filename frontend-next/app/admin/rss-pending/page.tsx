@@ -202,9 +202,10 @@ export default function RSSNewsPage() {
         setLoadingStats(true);
         try {
             const res = await api.get('/rss-news-items/trending_brands/', { params: { days: 30, min: 1 } });
-            const brands: Array<{ brand: string; count: number }> = res.data.brands || [];
-            setGlobalBrandStats(brands.map((b: { brand: string; count: number }) => [b.brand, b.count]));
-            setStatsScanned(brands.reduce((s: number, b: { count: number }) => s + b.count, 0));
+            const brands: Array<{ brand: string; display_name?: string; count: number }> = res.data.brands || [];
+            // Use display_name (e.g. 'Toyota') not raw key ('toyota')
+            setGlobalBrandStats(brands.map(b => [b.display_name ?? b.brand, b.count]));
+            setStatsScanned(brands.reduce((s, b) => s + b.count, 0));
         } catch (e) {
             logCaughtError('rss_trending_brands', e);
         } finally {
@@ -233,10 +234,11 @@ export default function RSSNewsPage() {
         fetchGlobalBrandStats(); // Scan all DB items, not just loaded page
     }, []);
 
-
     useEffect(() => {
+        // brandFilter change triggers a new server-side fetch with ?brand= param
         fetchNewsItems();
-    }, [selectedFeed, statusFilter]);
+    }, [selectedFeed, statusFilter, brandFilter]);
+
 
     const fetchFeeds = async () => {
         try {
@@ -248,12 +250,14 @@ export default function RSSNewsPage() {
         }
     };
 
-    const fetchNewsItems = async (loadMore = false) => {
+    const fetchNewsItems = async (loadMore = false, brandOverride?: string | null) => {
         if (loadMore) {
             setLoadingMore(true);
         } else {
             setLoading(true);
         }
+        // Use brandOverride if provided, else current brandFilter state
+        const activeBrand = brandOverride !== undefined ? brandOverride : brandFilter;
         try {
             let response;
             if (loadMore && nextPage) {
@@ -263,6 +267,7 @@ export default function RSSNewsPage() {
                 if (selectedFeed) params.feed = selectedFeed;
                 if (statusFilter) params.status = statusFilter;
                 if (statusFilter === 'dismissed') params.show_dismissed = 'true';
+                if (activeBrand) params.brand = activeBrand;  // server-side brand filter
                 response = await api.get('/rss-news-items/', { params });
             }
 
@@ -419,19 +424,16 @@ export default function RSSNewsPage() {
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    // Sort + filter items
+    // Sort only — brand filtering is now server-side via ?brand= query param
     const sortedItems = useMemo(() => {
-        let items = [...newsItems];
-        if (brandFilter) {
-            items = items.filter(item => extractBrandFromTitle(item.title) === brandFilter);
-        }
-        return items.sort((a, b) => {
+        return [...newsItems].sort((a, b) => {
             if (sortBy === 'relevance') return (b.relevance_score || 0) - (a.relevance_score || 0);
             const dateA = new Date(a.published_at || a.created_at).getTime();
             const dateB = new Date(b.published_at || b.created_at).getTime();
             return dateB - dateA;
         });
-    }, [newsItems, brandFilter, sortBy]);
+    }, [newsItems, sortBy]);
+
 
     // Stats (based on full list, not filtered)
     const highCount = newsItems.filter(i => i.relevance_label === 'high').length;
@@ -840,8 +842,8 @@ export default function RSSNewsPage() {
                                                     <button
                                                         onClick={() => handleToggleFavorite(item.id)}
                                                         className={`flex items-center justify-center p-2 rounded-lg transition-all ${item.is_favorite
-                                                                ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                                                                : 'text-gray-300 hover:bg-red-50 hover:text-red-400'
+                                                            ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                                                            : 'text-gray-300 hover:bg-red-50 hover:text-red-400'
                                                             }`}
                                                         title={item.is_favorite ? 'Remove from favorites (saved 60 days)' : 'Save as interesting — kept 60 days for ML'}
                                                     >
