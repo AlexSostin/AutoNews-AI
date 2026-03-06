@@ -420,6 +420,7 @@ class ArticleEngagementMixin:
     def ab_pick_winner(self, request, slug=None):
         """Pick the winning A/B variant and apply it as the article title."""
         from news.models import ArticleTitleVariant
+        from django.core.cache import cache
         article = self.get_object()
         variant_letter = request.data.get('variant')
         if not variant_letter:
@@ -433,6 +434,8 @@ class ArticleEngagementMixin:
         winner.save(update_fields=['is_winner'])
         article.title = winner.title
         article.save(update_fields=['title'])
+        # Bust bulk cache so frontend re-fetch sees updated is_winner immediately
+        cache.delete('ab_stats_bulk_v1')
         return Response({'success': True, 'new_title': winner.title, 'variant': winner.variant, 'ctr': winner.ctr})
 
     @action(detail=True, methods=['get'], url_path='ab-image', permission_classes=[AllowAny])

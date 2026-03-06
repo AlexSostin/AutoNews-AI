@@ -165,7 +165,24 @@ export default function ABTestingPage() {
             const data = await res.json();
             if (res.ok) {
                 toast.success(`🏆 Winner picked: Variant ${variant}!`);
-                fetchArticlesWithAB();
+                // Optimistically update local state so UI reflects winner immediately
+                // (before the re-fetch completes)
+                setAbTests(prev => {
+                    const test = prev[slug];
+                    if (!test) return prev;
+                    return {
+                        ...prev,
+                        [slug]: {
+                            ...test,
+                            variants: test.variants.map(v => ({
+                                ...v,
+                                is_winner: v.variant === variant,
+                            })),
+                        },
+                    };
+                });
+                // Then re-sync from server (cache is busted on backend)
+                await fetchArticlesWithAB();
             } else {
                 toast.error(data.error || 'Failed to pick winner');
             }
@@ -377,8 +394,8 @@ export default function ABTestingPage() {
                                                 const isLeading = bestVariant?.variant === v.variant && !hasWinner && test.total_impressions >= 30;
                                                 return (
                                                     <div key={v.id} className={`flex items-start gap-4 p-4 rounded-lg border ${v.is_winner ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200'
-                                                            : isLeading ? 'bg-green-50 border-green-200'
-                                                                : 'bg-white border-gray-200'}`}>
+                                                        : isLeading ? 'bg-green-50 border-green-200'
+                                                            : 'bg-white border-gray-200'}`}>
                                                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm border ${getVariantColor(v.variant)}`}>
                                                             {v.variant}
                                                         </span>
