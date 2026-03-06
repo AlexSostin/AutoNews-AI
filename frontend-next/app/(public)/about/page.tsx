@@ -100,7 +100,8 @@ export default function AboutPage() {
                 </p>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   When I&apos;m not doing any of that, I program. I love building things from scratch — which is exactly
-                  how Fresh Motors came to life. I wanted a place that covers the global automotive world honestly
+                  how Fresh Motors came to life. In late 2025 I started building it, and by early 2026 it had grown
+                  into a real platform — covering the global automotive world honestly
                   and in depth: from German engineering to Japanese reliability to the EV revolution coming out of China —
                   all the cars that matter, wherever they come from.
                 </p>
@@ -123,7 +124,7 @@ export default function AboutPage() {
             <h2 className="text-3xl font-black text-gray-900 mb-6">Our Story</h2>
             <div className="prose prose-lg max-w-none text-gray-700">
               <p className="mb-4">
-                Fresh Motors was founded in 2024 by Alex Sostin, an automotive enthusiast with a passion for the entire global car industry. What started as a personal mission to track the rapidly evolving EV market — especially brands overlooked by Western media — has grown into a daily news platform covering cars from every major manufacturer worldwide.
+                Fresh Motors was launched in late 2025 by Alex Sostin, an automotive enthusiast with a passion for the entire global car industry. What started as a personal project at the start of 2026 to track the rapidly evolving EV market — especially brands overlooked by Western media — has grown into a daily news platform covering cars from every major manufacturer worldwide.
               </p>
               <p className="mb-4">
                 We cover everything that moves: from BYD and Zeekr to BMW and Toyota, from supercar launches to budget city EVs. Our particular strength is covering brands that rarely make headlines outside their home markets — Chinese, Korean, and emerging manufacturers reshaping what modern cars look like and cost. Our readers are automotive professionals, enthusiasts, and informed buyers who want facts, not press releases.
