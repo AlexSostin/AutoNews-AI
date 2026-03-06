@@ -160,6 +160,19 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggle }: Side
     return () => clearInterval(interval);
   }, []);
 
+  // Re-fetch error count immediately when landing on /admin/health
+  useEffect(() => {
+    if (pathname === '/admin/health') {
+      const refreshAfterVisit = setTimeout(async () => {
+        try {
+          const { data } = await api.get('/health/errors-summary/');
+          setErrorCount(data.total_unresolved || 0);
+        } catch { /* silent */ }
+      }, 1500); // small delay so user has time to resolve before re-fetch
+      return () => clearTimeout(refreshAfterVisit);
+    }
+  }, [pathname]);
+
   const handleLogout = () => {
     logout();
   };

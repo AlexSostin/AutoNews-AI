@@ -676,7 +676,7 @@ class NavBadgesView(APIView):
             return Response(cached)
 
         from datetime import timedelta
-        from news.models import Comment, PendingArticle, Subscriber
+        from news.models import Comment, Subscriber, RSSNewsItem
         from news.models.interactions import ArticleFeedback
 
         now = timezone.now()
@@ -697,9 +697,9 @@ class NavBadgesView(APIView):
             created_at__gte=week_ago
         ).count()
 
-        # RSS articles waiting to be reviewed / published
-        rss_pending = PendingArticle.objects.filter(
-            status='pending'
+        # Unread RSS news items waiting to be reviewed (raw RSS inbox)
+        rss_pending = RSSNewsItem.objects.filter(
+            status='new'
         ).count()
 
         badges = {
@@ -709,7 +709,7 @@ class NavBadgesView(APIView):
             'rss_pending': rss_pending,
         }
 
-        cache.set(self.CACHE_KEY, badges, 60)
+        cache.set(self.CACHE_KEY, badges, 30)  # 30s cache for more responsive badges
         return Response(badges)
 
 
