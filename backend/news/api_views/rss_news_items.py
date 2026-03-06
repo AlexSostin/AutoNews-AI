@@ -2,6 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
+from django.utils import timezone
+from datetime import timedelta
 from ..models import RSSNewsItem, PendingArticle
 from ..serializers import RSSNewsItemSerializer
 import re
@@ -169,6 +171,17 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             return Response({'error': 'No IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
         count = RSSNewsItem.objects.filter(id__in=ids).update(status='dismissed')
         return Response({'success': True, 'count': count})
+
+    @action(detail=False, methods=['post'])
+    def cleanup_old(self, request):
+        """Delete new/read RSS items older than N days (default 7). Keeps generated/dismissed."""
+        days = int(request.data.get('days', 7))
+        cutoff = timezone.now() - timedelta(days=days)
+        deleted_count, _ = RSSNewsItem.objects.filter(
+            status__in=['new', 'read'],
+            created_at__lt=cutoff,
+        ).delete()
+        return Response({'success': True, 'deleted': deleted_count, 'cutoff_days': days})
 
     @action(detail=False, methods=['post'])
     def bulk_generate(self, request):

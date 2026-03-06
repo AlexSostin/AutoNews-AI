@@ -8,8 +8,10 @@ Usage:
 """
 import json
 import time
+from datetime import timedelta
 from django.core.management.base import BaseCommand
-from news.models import RSSFeed
+from django.utils import timezone
+from news.models import RSSFeed, RSSNewsItem
 from ai_engine.modules.rss_aggregator import RSSAggregator
 
 # Redis key for progress tracking (read by /rss-feeds/scan_progress/ endpoint)
@@ -69,6 +71,15 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         aggregator = RSSAggregator()
         use_ai = not options['no_ai']  # AI enabled by default
+
+        # --- Auto-cleanup: delete new/read items older than 7 days ---
+        cutoff = timezone.now() - timedelta(days=7)
+        deleted_count, _ = RSSNewsItem.objects.filter(
+            status__in=['new', 'read'],
+            created_at__lt=cutoff,
+        ).delete()
+        if deleted_count:
+            self.stdout.write(self.style.WARNING(f'🗑  Cleaned up {deleted_count} RSS items older than 7 days'))
 
         # Connect to Redis for progress tracking (optional — won't break if unavailable)
         redis_client = None
