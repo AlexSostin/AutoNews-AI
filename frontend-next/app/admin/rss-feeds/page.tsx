@@ -22,7 +22,8 @@ import {
     Search,
     Check,
     Globe,
-    X
+    X,
+    Upload
 } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
@@ -468,6 +469,13 @@ export default function RSSFeedsPage() {
                         <Shield className={checkingAllLicenses ? 'animate-pulse' : ''} size={20} />
                         {checkingAllLicenses ? 'Checking...' : 'Check All Licenses'}
                     </button>
+                    <Link
+                        href="/admin/rss-feeds/bulk-import"
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    >
+                        <Upload size={20} />
+                        Bulk Import
+                    </Link>
                     <div className="flex flex-col gap-1">
                         <button
                             onClick={handleScanAll}
