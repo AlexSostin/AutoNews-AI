@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
     Plus, Edit, Trash2, X, ArrowRightLeft, AlertCircle,
     Building2, ChevronDown, ChevronRight, Globe, ExternalLink,
-    Shield, Search, Car, Wrench, Check, Loader2, RefreshCw
+    Shield, Search, Car, Wrench, Check, Loader2, RefreshCw, Wand2
 } from 'lucide-react';
 import api from '@/lib/api';
 import Link from 'next/link';
@@ -90,6 +90,15 @@ export default function BrandIntelligencePage() {
     const [syncResult, setSyncResult] = useState<{
         message: string;
         results: { populated: number; updated: number; aliases_created: number; merged: number; synced: number; log: string[] };
+    } | null>(null);
+
+    // Normalize Makes state
+    const [normalizing, setNormalizing] = useState(false);
+    const [normalizeResult, setNormalizeResult] = useState<{
+        message: string;
+        fixed_vehicle_specs: number;
+        fixed_car_specs: number;
+        changes: string[];
     } | null>(null);
 
     useEffect(() => {
@@ -249,6 +258,22 @@ export default function BrandIntelligencePage() {
         }
     };
 
+    const handleNormalizeMakes = async () => {
+        if (!confirm('Normalize all brand names?\n\nThis will fix case variants like "Zeekr" / "ZEEKR" → canonical form using BRAND_DISPLAY_NAMES.\n\nSafe to run multiple times.')) return;
+        setNormalizing(true);
+        setNormalizeResult(null);
+        try {
+            const res = await api.post('/brand-aliases/normalize-makes/');
+            setNormalizeResult(res.data);
+            fetchTree();
+            fetchAudit();
+        } catch (err: any) {
+            alert(err.response?.data?.detail || 'Normalize failed');
+        } finally {
+            setNormalizing(false);
+        }
+    };
+
     /* ─── Group aliases by canonical ─── */
     const grouped = aliases.reduce((acc, alias) => {
         if (!acc[alias.canonical_name]) acc[alias.canonical_name] = [];
@@ -277,7 +302,7 @@ export default function BrandIntelligencePage() {
             </div>
 
             {/* Sync & Populate Button */}
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex flex-wrap items-center gap-3 mb-6">
                 <button
                     onClick={handleSyncPopulate}
                     disabled={syncing}
@@ -286,8 +311,19 @@ export default function BrandIntelligencePage() {
                     <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
                     {syncing ? 'Syncing...' : '🔄 Sync & Populate'}
                 </button>
+                <button
+                    onClick={handleNormalizeMakes}
+                    disabled={normalizing}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold shadow-sm hover:shadow-md hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <Wand2 size={16} className={normalizing ? 'animate-pulse' : ''} />
+                    {normalizing ? 'Normalizing...' : '✨ Normalize Makes'}
+                </button>
                 {syncResult && (
                     <span className="text-sm text-green-600 font-medium">{syncResult.message}</span>
+                )}
+                {normalizeResult && (
+                    <span className="text-sm text-amber-600 font-medium">{normalizeResult.message}</span>
                 )}
             </div>
 

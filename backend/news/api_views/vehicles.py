@@ -700,6 +700,44 @@ class BrandAliasViewSet(viewsets.ModelViewSet):
             'results': results,
         })
 
+    @action(detail=False, methods=['post'], url_path='normalize-makes', permission_classes=[IsAdminUser])
+    def normalize_makes(self, request):
+        """
+        POST /api/v1/brand-aliases/normalize-makes/
+        Normalize all make names in VehicleSpecs and CarSpecification
+        using BRAND_DISPLAY_NAMES (e.g. 'Zeekr'/'ZEEKR' → canonical form).
+        """
+        from news.models.vehicles import normalize_make
+
+        fixed_vehicle_specs = 0
+        fixed_car_specs = 0
+        changes = []
+
+        # Fix VehicleSpecs
+        for vs in VehicleSpecs.objects.exclude(make=''):
+            normalized = normalize_make(vs.make)
+            if normalized != vs.make:
+                changes.append(f'VehicleSpecs #{vs.id}: "{vs.make}" → "{normalized}"')
+                VehicleSpecs.objects.filter(id=vs.id).update(make=normalized)
+                fixed_vehicle_specs += 1
+
+        # Fix CarSpecification
+        for cs in CarSpecification.objects.exclude(make=''):
+            normalized = normalize_make(cs.make)
+            if normalized != cs.make:
+                changes.append(f'CarSpec #{cs.id}: "{cs.make}" → "{normalized}"')
+                CarSpecification.objects.filter(id=cs.id).update(make=normalized)
+                fixed_car_specs += 1
+
+        total = fixed_vehicle_specs + fixed_car_specs
+        return Response({
+            'success': True,
+            'message': f'Normalized {total} records ({fixed_vehicle_specs} VehicleSpecs, {fixed_car_specs} CarSpecs)',
+            'fixed_vehicle_specs': fixed_vehicle_specs,
+            'fixed_car_specs': fixed_car_specs,
+            'changes': changes[:50],  # cap log at 50 lines
+        })
+
 class VehicleSpecsViewSet(viewsets.ModelViewSet):
     """Admin ViewSet for managing detailed vehicle specifications (multi-trim)."""
     queryset = VehicleSpecs.objects.select_related('article').all()
