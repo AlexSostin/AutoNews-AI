@@ -163,7 +163,7 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
                         {/* --- Articles feed (rating + comments inside each ArticleUnit) --- */}
                         {articles.map((article, index) => (
                             <ArticleUnit
-                                key={article.slug}
+                                key={article.id ?? article.slug}
                                 article={article}
                                 index={index}
                                 onBecameActive={handleBecameActive}

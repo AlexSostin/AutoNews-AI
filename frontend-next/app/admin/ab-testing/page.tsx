@@ -345,7 +345,7 @@ export default function ABTestingPage() {
                         const isReady = test.total_impressions >= 30 && !hasWinner;
 
                         return (
-                            <div key={article.slug} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                            <div key={article.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
                                 <button
                                     onClick={() => setExpandedSlug(isExpanded ? null : article.slug)}
                                     className="w-full text-left p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
