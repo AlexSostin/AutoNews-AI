@@ -34,6 +34,20 @@ interface DuplicateGroup {
     records: CarSpec[];
 }
 
+interface AiPickField {
+    value: string;
+    from_id: number | null;
+    reason: string;
+}
+
+interface AiPickResult {
+    make: string;
+    model: string;
+    suggested_master_id: number;
+    records_reviewed: number;
+    best_fields: Record<string, AiPickField>;
+}
+
 const EMPTY_FORM = {
     make: '',
     model: '',
@@ -65,27 +79,73 @@ function CoverageBar({ score }: { score: number }) {
     );
 }
 
-// ─── Single duplicate group card ─────────────────────────────────────────────
+const FIELD_LABELS: Record<string, string> = {
+    trim: 'Trim', engine: 'Engine', horsepower: 'HP', torque: 'Torque',
+    zero_to_sixty: '0-60', top_speed: 'Top Speed', drivetrain: 'Drivetrain',
+    price: 'Price', release_date: 'Release',
+};
+
+// ─── Single duplicate group card ─────────────────────────────────────────────────
 function DuplicateGroupCard({
     group,
     onMerge,
 }: {
     group: DuplicateGroup;
-    onMerge: (masterId: number, deleteIds: number[]) => Promise<void>;
+    onMerge: (masterId: number, deleteIds: number[], fieldOverrides?: Record<string, string>) => Promise<void>;
 }) {
     const [expanded, setExpanded] = useState(true);
     const [masterId, setMasterId] = useState(group.suggested_master_id);
     const [merging, setMerging] = useState(false);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiResult, setAiResult] = useState<AiPickResult | null>(null);
+    const [aiError, setAiError] = useState<string | null>(null);
 
-    const handleMerge = async () => {
+    const handleMerge = async (fieldOverrides?: Record<string, string>) => {
         const deleteIds = group.records.map(r => r.id).filter(id => id !== masterId);
         if (!deleteIds.length) return;
         setMerging(true);
         try {
-            await onMerge(masterId, deleteIds);
+            await onMerge(masterId, deleteIds, fieldOverrides);
         } finally {
             setMerging(false);
         }
+    };
+
+    const handleAiPick = async () => {
+        setAiLoading(true);
+        setAiResult(null);
+        setAiError(null);
+        try {
+            const ids = group.records.map(r => r.id);
+            const res = await api.post('/car-specifications/ai-pick/', { spec_ids: ids });
+            setAiResult(res.data);
+            if (res.data.suggested_master_id) setMasterId(res.data.suggested_master_id);
+        } catch (err: any) {
+            setAiError(err.response?.data?.message || err.message || 'AI request failed');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    const handleApplyAiAndMerge = async () => {
+        if (!aiResult) return;
+        const overrides: Record<string, string> = {};
+        for (const [field, info] of Object.entries(aiResult.best_fields)) {
+            const v = info.value?.trim();
+            if (v && !['not specified', 'none', 'n/a', ''].includes(v.toLowerCase())) {
+                overrides[field] = v;
+            }
+        }
+        await handleMerge(overrides);
+    };
+
+    const getConfidenceStyle = (reason: string) => {
+        const r = reason.toLowerCase();
+        if (r.includes('error') || r.includes('wrong') || r.includes('reject') || r.includes('incorrect'))
+            return 'text-red-700 bg-red-50 border-red-200';
+        if (r.includes('consistent') || r.includes('both') || r.includes('confirmed') || r.includes('known') || r.includes('correct'))
+            return 'text-green-700 bg-green-50 border-green-200';
+        return 'text-amber-700 bg-amber-50 border-amber-200';
     };
 
     return (
@@ -104,10 +164,20 @@ function DuplicateGroupCard({
                         <span className="ml-2 text-sm text-amber-600 font-semibold">duplicates</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                     <button
-                        onClick={e => { e.stopPropagation(); handleMerge(); }}
-                        disabled={merging}
+                        onClick={handleAiPick}
+                        disabled={aiLoading || merging}
+                        className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg font-bold text-sm hover:bg-violet-700 transition-colors disabled:opacity-50"
+                        title="Ask Gemini AI to pick the best value for each field"
+                    >
+                        {aiLoading
+                            ? <><span className="inline-block animate-spin">⟳</span> Asking AI…</>
+                            : <>✨ AI Pick</>}
+                    </button>
+                    <button
+                        onClick={() => handleMerge()}
+                        disabled={merging || aiLoading}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
                     >
                         <GitMerge size={15} />
@@ -117,18 +187,68 @@ function DuplicateGroupCard({
                 </div>
             </div>
 
+            {/* AI error */}
+            {aiError && (
+                <div className="mx-5 mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 font-medium">
+                    ⚠️ AI error: {aiError}
+                </div>
+            )}
+
+            {/* AI Preview Panel */}
+            {aiResult && (
+                <div className="mx-5 mb-4 border border-violet-200 rounded-xl overflow-hidden">
+                    <div className="bg-violet-50 px-4 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg">✨</span>
+                            <div>
+                                <span className="font-black text-violet-900 text-sm">Gemini AI Analysis</span>
+                                <span className="ml-2 text-xs text-violet-400">{aiResult.records_reviewed} records reviewed</span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleApplyAiAndMerge}
+                            disabled={merging}
+                            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg font-bold text-sm hover:bg-violet-700 transition-colors disabled:opacity-50"
+                        >
+                            <GitMerge size={14} />
+                            {merging ? 'Applying…' : 'Apply & Merge'}
+                        </button>
+                    </div>
+                    <div className="divide-y divide-violet-100">
+                        {Object.entries(aiResult.best_fields).map(([field, info]) => (
+                            <div key={field} className="px-4 py-2.5 grid grid-cols-[80px_1fr_2fr] gap-3 items-start">
+                                <span className="text-xs font-bold text-gray-400 uppercase pt-0.5">
+                                    {FIELD_LABELS[field] || field}
+                                </span>
+                                <div>
+                                    <span className="font-semibold text-gray-900 text-sm">
+                                        {info.value || <span className="text-gray-400 italic text-xs">empty</span>}
+                                    </span>
+                                    {info.from_id && (
+                                        <span className="ml-1.5 text-xs text-gray-400">← #{info.from_id}</span>
+                                    )}
+                                </div>
+                                <span className={`text-xs px-2 py-0.5 rounded border font-medium leading-snug ${getConfidenceStyle(info.reason)}`}>
+                                    {info.reason}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Records */}
             {expanded && (
                 <div className="border-t border-gray-100 divide-y divide-gray-100">
                     {group.records.map(rec => {
                         const isMaster = rec.id === masterId;
                         const isSuggested = rec.id === group.suggested_master_id;
+                        const isAiSuggested = aiResult?.suggested_master_id === rec.id;
                         return (
                             <div
                                 key={rec.id}
                                 className={`px-5 py-4 flex items-start gap-4 transition-colors ${isMaster ? 'bg-indigo-50/60' : 'hover:bg-gray-50'}`}
                             >
-                                {/* Radio — choose master */}
                                 <button
                                     onClick={() => setMasterId(rec.id)}
                                     className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isMaster ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300 hover:border-indigo-400'}`}
@@ -137,7 +257,6 @@ function DuplicateGroupCard({
                                     {isMaster && <div className="w-2 h-2 rounded-full bg-white" />}
                                 </button>
 
-                                {/* Spec data */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex flex-wrap items-center gap-2 mb-2">
                                         {isMaster && (
@@ -145,7 +264,12 @@ function DuplicateGroupCard({
                                                 <Star size={10} /> MASTER
                                             </span>
                                         )}
-                                        {isSuggested && !isMaster && (
+                                        {isAiSuggested && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-100 text-violet-700 rounded text-xs font-bold">
+                                                ✨ AI Pick
+                                            </span>
+                                        )}
+                                        {isSuggested && !isMaster && !isAiSuggested && (
                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">
                                                 ★ Suggested
                                             </span>
@@ -178,6 +302,7 @@ function DuplicateGroupCard({
         </div>
     );
 }
+
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function CarSpecsPage() {
@@ -234,11 +359,13 @@ export default function CarSpecsPage() {
         }
     };
 
-    const handleMergeGroup = async (masterId: number, deleteIds: number[]) => {
+    const handleMergeGroup = async (masterId: number, deleteIds: number[], fieldOverrides?: Record<string, string>) => {
+        // If AI provided field overrides, PATCH the master first to write best values
+        if (fieldOverrides && Object.keys(fieldOverrides).length > 0) {
+            await api.patch(`/car-specifications/${masterId}/`, fieldOverrides);
+        }
         await api.post('/car-specifications/merge/', { master_id: masterId, delete_ids: deleteIds });
-        // Remove merged group from list
         setDupGroups(prev => prev.filter(g => !g.records.some(r => r.id === masterId)));
-        // Also refresh main specs list quietly
         fetchSpecs();
     };
 

@@ -130,9 +130,17 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
     SPEC_FIELDS = ['trim', 'engine', 'horsepower', 'torque',
                    'zero_to_sixty', 'top_speed', 'drivetrain', 'price', 'release_date']
 
+    _EMPTY_VALUES = frozenset({
+        '', 'not specified', 'none', 'n/a', 'unknown', '-', '—', 'not available',
+    })
+
+    def _is_real_value(self, val):
+        """Return True only if val contains meaningful data (not placeholder strings)."""
+        return str(val or '').strip().lower() not in self._EMPTY_VALUES
+
     def _coverage_score(self, spec):
-        """Count how many spec fields are non-empty."""
-        return sum(1 for f in self.SPEC_FIELDS if getattr(spec, f, ''))
+        """Count how many spec fields have real (non-placeholder) values."""
+        return sum(1 for f in self.SPEC_FIELDS if self._is_real_value(getattr(spec, f, '')))
 
     def _serialize_spec_for_dedup(self, spec):
         """Lightweight serialization for the duplicates response."""
@@ -257,6 +265,131 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
             'fields_filled': updated_fields,
             'master': serializer.data,
         })
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], url_path='ai-pick')
+    def ai_pick(self, request):
+        """
+        POST /api/v1/car-specifications/ai-pick/
+        Body: { "spec_ids": [9, 35, 98] }
+
+        Calls Gemini to review all spec records in the group and return the best
+        value for each field with reasoning. Does NOT mutate any data.
+
+        Response:
+        {
+            "make": "BYD",
+            "model": "Leopard 5",
+            "suggested_master_id": 9,
+            "best_fields": {
+                "engine": { "value": "PHEV / 31.8 kWh / AWD", "from_id": 9, "reason": "Consistent across 2 sources" },
+                "horsepower": { "value": "677 HP", "from_id": 9, "reason": "55 HP in #98 is likely OCR error" },
+                ...
+            }
+        }
+        """
+        spec_ids = request.data.get('spec_ids', [])
+        if not spec_ids or len(spec_ids) < 2:
+            return Response({'error': 'spec_ids must contain at least 2 IDs'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        specs = list(
+            CarSpecification.objects.filter(id__in=spec_ids).select_related('article')
+        )
+        if len(specs) < 2:
+            return Response({'error': 'Not enough specs found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # ── Build prompt ──────────────────────────────────────────────────────
+        field_labels = {
+            'trim': 'Trim/Version', 'engine': 'Engine', 'horsepower': 'Horsepower',
+            'torque': 'Torque', 'zero_to_sixty': '0-60 mph / 0-100 km/h time',
+            'top_speed': 'Top Speed', 'drivetrain': 'Drivetrain (AWD/FWD/RWD/4WD)',
+            'price': 'Price', 'release_date': 'Release Date',
+        }
+
+        car_name = f"{specs[0].make} {specs[0].model}".strip()
+
+        records_text = ''
+        for spec in specs:
+            records_text += f'\n--- Record ID #{spec.id} (Article: "{(spec.article.title if spec.article else "N/A")[:80]}") ---\n'
+            for f, label in field_labels.items():
+                val = getattr(spec, f, '') or ''
+                records_text += f'  {label}: {val or "(empty)"}\n'
+
+        prompt = f"""You are a car specification expert. I have {len(specs)} duplicate database records for the {car_name}.
+
+Your job: for each spec field, pick the MOST ACCURATE value from these records.
+
+RECORDS:
+{records_text}
+
+RULES:
+1. Pick the value that is FACTUALLY most accurate for this specific car model
+2. If a value looks like an extraction error (e.g. HP that is far off from the model's known specs), reject it and flag it
+3. If values differ per trim/variant (e.g. different power levels), prefer the most common or base configuration
+4. If a value is "Not specified", "None", or empty — it is meaningless, prefer any real value instead
+5. ALL output field values must be in English
+6. Return ONLY valid JSON, no prose, no markdown fences
+
+Return this exact JSON structure:
+{{
+  "suggested_master_id": <int: ID of the record that overall has the best data>,
+  "best_fields": {{
+    "trim":         {{ "value": "...", "from_id": <int or null>, "reason": "..." }},
+    "engine":       {{ "value": "...", "from_id": <int or null>, "reason": "..." }},
+    "horsepower":   {{ "value": "...", "from_id": <int or null>, "reason": "..." }},
+    "torque":       {{ "value": "...", "from_id": <int or null>, "reason": "..." }},
+    "zero_to_sixty":{{ "value": "...", "from_id": <int or null>, "reason": "..." }},
+    "top_speed":    {{ "value": "...", "from_id": <int or null>, "reason": "..." }},
+    "drivetrain":   {{ "value": "...", "from_id": <int or null>, "reason": "..." }},
+    "price":        {{ "value": "...", "from_id": <int or null>, "reason": "..." }},
+    "release_date": {{ "value": "...", "from_id": <int or null>, "reason": "..." }}
+  }}
+}}
+
+For "from_id": use the record ID the value came from, or null if the value is synthesized/chosen as empty.
+"""
+
+        try:
+            from ai_engine.modules.ai_provider import get_ai_provider
+            provider = get_ai_provider('gemini')
+            result = provider.generate_completion(
+                prompt,
+                system_prompt='You are a precise automotive data expert. Return only valid JSON.',
+                temperature=0.1,
+                max_tokens=2000,
+            )
+
+            # Strip markdown code fences if present
+            cleaned = result.strip()
+            cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+            cleaned = re.sub(r'\s*```$', '', cleaned)
+            parsed = json.loads(cleaned.strip())
+
+            # Validate structure
+            if 'best_fields' not in parsed:
+                raise ValueError('Missing best_fields in Gemini response')
+
+            return Response({
+                'success': True,
+                'make': specs[0].make,
+                'model': specs[0].model,
+                'suggested_master_id': parsed.get('suggested_master_id', specs[0].id),
+                'best_fields': parsed['best_fields'],
+                'records_reviewed': len(specs),
+            })
+
+        except json.JSONDecodeError as e:
+            logger.error(f'ai-pick JSON parse error for {car_name}: {e}')
+            return Response({
+                'success': False,
+                'message': 'AI returned invalid JSON. Try again.',
+            }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except Exception as e:
+            logger.error(f'ai-pick failed for {car_name}: {e}')
+            return Response({
+                'success': False,
+                'message': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class BrandAliasViewSet(viewsets.ModelViewSet):
