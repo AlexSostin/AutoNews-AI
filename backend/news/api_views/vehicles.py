@@ -252,16 +252,26 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
         # Delete the duplicates
         deleted_count = CarSpecification.objects.filter(id__in=delete_ids).delete()[0]
 
+        # Auto-verify master — human reviewed and confirmed the merge
+        from django.utils import timezone
+        master.is_verified = True
+        master.verified_at = timezone.now()
+        save_fields = ['is_verified', 'verified_at']
+        if updated_fields:
+            save_fields.extend(updated_fields)
+        master.save(update_fields=save_fields)
+
         logger.info(
             f'Merged CarSpec: master={master_id} '
             f'absorbed {deleted_count} duplicate(s) for {master.make} {master.model}. '
-            f'Fields filled from donors: {updated_fields or "none"}'
+            f'Fields filled from donors: {updated_fields or "none"}. '
+            f'Master auto-verified.'
         )
 
         serializer = self.get_serializer(master)
         return Response({
             'success': True,
-            'message': f'Merged {deleted_count} duplicate(s) into master — {master.make} {master.model}',
+            'message': f'Merged {deleted_count} duplicate(s) into master — {master.make} {master.model} ✓ verified',
             'fields_filled': updated_fields,
             'master': serializer.data,
         })

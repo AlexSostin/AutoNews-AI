@@ -179,7 +179,7 @@ class TestDuplicatesEndpoint:
 class TestMergeEndpoint:
 
     def test_merge_deletes_duplicates(self, authenticated_client):
-        """After merge, delete_ids records are gone."""
+        """After merge, delete_ids records are gone and master is auto-verified."""
         master = _spec('AITO', 'M8', horsepower='272 HP', engine='EV/80kWh', drivetrain='RWD')
         donor1 = _spec('AITO', 'M8', horsepower='305 HP', engine='electric motors')
         donor2 = _spec('AITO', 'M8', horsepower='', engine='')
@@ -192,6 +192,10 @@ class TestMergeEndpoint:
         assert res.status_code == 200
         assert not CarSpecification.objects.filter(id__in=[donor1.id, donor2.id]).exists()
         assert CarSpecification.objects.filter(id=master.id).exists()
+        # Master should be auto-verified after merge
+        master.refresh_from_db()
+        assert master.is_verified is True
+        assert master.verified_at is not None
 
     def test_merge_fills_empty_fields_from_donor(self, authenticated_client):
         """Empty master fields are filled from the best donor."""
