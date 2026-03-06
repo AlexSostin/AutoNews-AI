@@ -62,6 +62,10 @@ export default function ClientHomepage() {
             {/* Hero Section */}
             <Hero articles={articles} settings={settings} />
 
+            {/* SEO: visually-hidden H1 — Hero's visual title is an H1 inside Hero,
+                this ensures the homepage always has an H1 even if Hero is empty */}
+            <h1 className="sr-only">Fresh Motors — Automotive News, Reviews &amp; Car Specs</h1>
+
             {/* Top Leaderboard Ad */}
             <div className="container mx-auto px-4 py-8 flex justify-center">
                 <AdBanner position="header" />
@@ -124,7 +128,7 @@ export default function ClientHomepage() {
                                 >
                                     <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center text-lg group-hover:from-purple-200 group-hover:to-indigo-200 transition-all overflow-hidden flex-shrink-0">
                                         {brand.image ? (
-                                            <img src={fixImageUrl(brand.image)} alt="" className="w-full h-full object-cover rounded-lg" />
+                                            <img src={fixImageUrl(brand.image)} alt={`${brand.name} logo`} className="w-full h-full object-cover rounded-lg" />
                                         ) : (
                                             <span>🚗</span>
                                         )}

@@ -43,7 +43,7 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
       return 'http://localhost:8000';
     };
     const mediaUrl = getMediaUrl();
-    
+
     if (img.image_url) return img.image_url.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
     if (img.image.startsWith('http')) return img.image.replace('http://backend:8000', mediaUrl).replace('http://localhost:8000', mediaUrl);
     return `${mediaUrl}${img.image}`;
@@ -54,7 +54,7 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
       {/* Gallery Grid */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-8">
         <h3 className="text-2xl font-bold text-gray-900 mb-4">📸 Image Gallery</h3>
-        
+
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {images.map((img, index) => (
             <div
@@ -136,7 +136,7 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
                 sizes="90vw"
               />
             </div>
-            
+
             {images[currentIndex].caption && (
               <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-4 text-center">
                 <p className="text-lg">{images[currentIndex].caption}</p>
@@ -156,13 +156,12 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
                   e.stopPropagation();
                   setCurrentIndex(index);
                 }}
-                className={`relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 ${
-                  index === currentIndex ? 'border-white' : 'border-transparent opacity-50'
-                } hover:opacity-100 transition-all`}
+                className={`relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 ${index === currentIndex ? 'border-white' : 'border-transparent opacity-50'
+                  } hover:opacity-100 transition-all`}
               >
                 <Image
                   src={getImageUrl(img)}
-                  alt=""
+                  alt={img.caption ? `Thumbnail: ${img.caption}` : `Gallery photo ${index + 1}`}
                   fill
                   className="object-cover"
                   sizes="64px"
