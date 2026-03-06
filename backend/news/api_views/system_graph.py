@@ -36,15 +36,15 @@ class SystemGraphView(APIView):
         # ── Sources ──────────────────────────────────────────────
         rss_feeds = RSSFeed.objects.all()
         rss_total = rss_feeds.count()
-        rss_active = rss_feeds.filter(is_active=True).count()
+        rss_active = rss_feeds.filter(is_enabled=True).count()
         now = timezone.now()
         cutoff_48h = now - timedelta(hours=48)
 
-        # Health: count feeds by computed status
+        # Health: count feeds by computed status (health is a @property)
         healthy = 0
         stale = 0
         failing = 0
-        for feed in rss_feeds.filter(is_active=True):
+        for feed in rss_feeds.filter(is_enabled=True):
             h = feed.health
             if h == 'failing':
                 failing += 1
@@ -85,7 +85,7 @@ class SystemGraphView(APIView):
 
         # YouTube Channels
         yt_total = YouTubeChannel.objects.count()
-        yt_active = YouTubeChannel.objects.filter(is_active=True).count()
+        yt_active = YouTubeChannel.objects.filter(is_enabled=True).count()
         nodes.append({
             'id': 'youtube', 'label': 'YouTube', 'group': 'sources',
             'icon': '▶️', 'count': yt_total,
