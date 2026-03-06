@@ -125,6 +125,140 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
                 'message': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    # ─── Deduplication helpers ───────────────────────────────────────────────
+
+    SPEC_FIELDS = ['trim', 'engine', 'horsepower', 'torque',
+                   'zero_to_sixty', 'top_speed', 'drivetrain', 'price', 'release_date']
+
+    def _coverage_score(self, spec):
+        """Count how many spec fields are non-empty."""
+        return sum(1 for f in self.SPEC_FIELDS if getattr(spec, f, ''))
+
+    def _serialize_spec_for_dedup(self, spec):
+        """Lightweight serialization for the duplicates response."""
+        return {
+            'id': spec.id,
+            'article': spec.article_id,
+            'article_title': spec.article.title if spec.article else '',
+            'make': spec.make,
+            'model': spec.model,
+            'trim': spec.trim,
+            'engine': spec.engine,
+            'horsepower': spec.horsepower,
+            'torque': spec.torque,
+            'zero_to_sixty': spec.zero_to_sixty,
+            'top_speed': spec.top_speed,
+            'drivetrain': spec.drivetrain,
+            'price': spec.price,
+            'release_date': spec.release_date,
+            'is_verified': spec.is_verified,
+            'coverage_score': self._coverage_score(spec),
+        }
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated], url_path='duplicates')
+    def duplicates(self, request):
+        """
+        GET /api/v1/car-specifications/duplicates/
+        Return groups of CarSpecification records sharing the same make+model
+        with 2+ entries. Each group includes coverage scores and suggested master.
+        """
+        from django.db.models import Count
+
+        # Find make+model combos with 2+ specs
+        dupes = (
+            CarSpecification.objects
+            .exclude(make='').exclude(make='Not specified')
+            .values('make', 'model')
+            .annotate(count=Count('id'))
+            .filter(count__gte=2)
+            .order_by('make', 'model')
+        )
+
+        groups = []
+        for d in dupes:
+            specs = (
+                CarSpecification.objects
+                .filter(make=d['make'], model=d['model'])
+                .select_related('article')
+                .order_by('id')
+            )
+            records = [self._serialize_spec_for_dedup(s) for s in specs]
+            # Suggest master = record with highest coverage score
+            best = max(records, key=lambda r: r['coverage_score'])
+            groups.append({
+                'make': d['make'],
+                'model': d['model'],
+                'count': d['count'],
+                'suggested_master_id': best['id'],
+                'records': records,
+            })
+
+        return Response({
+            'total_groups': len(groups),
+            'groups': groups,
+        })
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], url_path='merge')
+    def merge(self, request):
+        """
+        POST /api/v1/car-specifications/merge/
+        Body: { "master_id": int, "delete_ids": [int, ...] }
+
+        Takes master record. For each field in SPEC_FIELDS: if master is empty
+        and any of the deleted records has a value, fill master from the one with
+        highest coverage (best data wins). Then deletes the specified records.
+        """
+        master_id = request.data.get('master_id')
+        delete_ids = request.data.get('delete_ids', [])
+
+        if not master_id:
+            return Response({'error': 'master_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not delete_ids:
+            return Response({'error': 'delete_ids must be a non-empty list'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            master = CarSpecification.objects.select_related('article').get(id=master_id)
+        except CarSpecification.DoesNotExist:
+            return Response({'error': f'Master spec {master_id} not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        others = list(CarSpecification.objects.filter(id__in=delete_ids).select_related('article'))
+        if not others:
+            return Response({'error': 'No valid delete_ids found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Merge: fill empty fields on master from the best source
+        # Sort others by coverage score desc so we pick the richest donor first
+        others_sorted = sorted(others, key=self._coverage_score, reverse=True)
+        updated_fields = []
+        for field in self.SPEC_FIELDS:
+            if not getattr(master, field, ''):
+                for donor in others_sorted:
+                    donor_val = getattr(donor, field, '')
+                    if donor_val:
+                        setattr(master, field, donor_val)
+                        updated_fields.append(field)
+                        break  # stop at first non-empty donor
+
+        if updated_fields:
+            master.save(update_fields=updated_fields)
+
+        # Delete the duplicates
+        deleted_count = CarSpecification.objects.filter(id__in=delete_ids).delete()[0]
+
+        logger.info(
+            f'Merged CarSpec: master={master_id} '
+            f'absorbed {deleted_count} duplicate(s) for {master.make} {master.model}. '
+            f'Fields filled from donors: {updated_fields or "none"}'
+        )
+
+        serializer = self.get_serializer(master)
+        return Response({
+            'success': True,
+            'message': f'Merged {deleted_count} duplicate(s) into master — {master.make} {master.model}',
+            'fields_filled': updated_fields,
+            'master': serializer.data,
+        })
+
+
 class BrandAliasViewSet(viewsets.ModelViewSet):
     """Admin ViewSet for managing brand aliases (name normalizations)."""
     queryset = BrandAlias.objects.all()
