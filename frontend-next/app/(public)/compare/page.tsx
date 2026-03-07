@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -138,6 +138,28 @@ function CarPicker({
 }) {
     const [search, setSearch] = useState('');
     const [open, setOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Close on click outside
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setOpen(false);
+                setSearch('');
+            }
+        };
+        // Close on Escape
+        const keyHandler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { setOpen(false); setSearch(''); }
+        };
+        document.addEventListener('mousedown', handler);
+        document.addEventListener('keydown', keyHandler);
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            document.removeEventListener('keydown', keyHandler);
+        };
+    }, [open]);
 
     const filtered = useMemo(() => {
         if (!search) return brands;
@@ -157,7 +179,7 @@ function CarPicker({
     const displayText = selectedModel ? `${selectedBrand?.name} ${selectedModel.name}` : 'Select a car...';
 
     return (
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
             <label className="block text-sm font-extrabold text-indigo-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                 {label}
@@ -170,11 +192,12 @@ function CarPicker({
                     }`}
             >
                 <span className="truncate">{displayText}</span>
-                <ChevronDown size={18} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown size={18} className={`transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
             </button>
 
             {open && (
-                <div className="absolute z-50 mt-2 w-full bg-white rounded-xl shadow-2xl border border-gray-200 max-h-80 overflow-hidden">
+                /* z-[200] keeps dropdown above sticky header (typically z-40–z-50) */
+                <div className="absolute z-[200] mt-2 w-full bg-white rounded-xl shadow-2xl border border-gray-200 max-h-80 overflow-hidden">
                     <div className="p-3 border-b border-gray-100 sticky top-0 bg-white">
                         <div className="relative">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -228,6 +251,7 @@ function CarPicker({
 }
 
 // ---------- Main Compare Content ----------
+
 function CompareContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
