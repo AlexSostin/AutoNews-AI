@@ -1,8 +1,14 @@
 """
-Hybrid Vector Search Engine using FAISS + PostgreSQL
-- FAISS: Fast in-memory similarity search
+Hybrid Vector Search Engine using FAISS + BM25 + PostgreSQL
+
+Architecture:
+- FAISS:      Fast in-memory semantic (vector) search
+- BM25:       Fast in-memory keyword search (no API calls, free)
 - PostgreSQL: Persistent storage for embeddings
-- Auto-rebuilds FAISS from PostgreSQL on startup
+- Hybrid:     Reciprocal Rank Fusion (RRF) merges both results
+
+RRF formula: score = 1/(rank_bm25 + 60) + 1/(rank_vector + 60)
+k=60 is the standard constant — dampens the effect of very high ranks.
 """
 
 import os
@@ -16,19 +22,93 @@ from langchain_core.documents import Document
 import faiss
 
 
+class BM25Index:
+    """
+    Lightweight in-memory BM25 keyword index.
+    Built from article texts — no API calls, fully local.
+    """
+
+    def __init__(self):
+        self._bm25 = None
+        self._doc_ids: List[int] = []   # article_id at each position
+        self._doc_titles: List[str] = []
+
+    def _tokenize(self, text: str) -> List[str]:
+        """Simple whitespace + lowercase tokenizer."""
+        import re
+        text = text.lower()
+        return re.findall(r'[\w]+', text)
+
+    def build(self, docs: List[Dict]):
+        """
+        Build the BM25 index from a list of dicts:
+            {'article_id': int, 'title': str, 'text': str}
+        """
+        try:
+            from rank_bm25 import BM25Okapi
+        except ImportError:
+            print("⚠️ rank-bm25 not installed — BM25 disabled. Run: pip install rank-bm25")
+            return
+
+        if not docs:
+            self._bm25 = None
+            self._doc_ids = []
+            self._doc_titles = []
+            return
+
+        tokenized = [self._tokenize(d['text']) for d in docs]
+        self._bm25 = BM25Okapi(tokenized)
+        self._doc_ids = [d['article_id'] for d in docs]
+        self._doc_titles = [d.get('title', '') for d in docs]
+        print(f"✓ BM25 index built with {len(docs)} documents")
+
+    def search(self, query: str, k: int = 20) -> List[Dict]:
+        """
+        Keyword search. Returns list of {article_id, title, bm25_score, rank}.
+        """
+        if self._bm25 is None or not self._doc_ids:
+            return []
+
+        tokens = self._tokenize(query)
+        scores = self._bm25.get_scores(tokens)
+
+        # Pair with doc info and sort
+        paired = [
+            (score, self._doc_ids[i], self._doc_titles[i])
+            for i, score in enumerate(scores)
+        ]
+        paired.sort(key=lambda x: x[0], reverse=True)
+
+        results = []
+        for rank, (score, article_id, title) in enumerate(paired[:k]):
+            results.append({
+                'article_id': article_id,
+                'title': title,
+                'bm25_score': float(score),
+                'rank': rank + 1,
+            })
+        return results
+
+    @property
+    def is_ready(self) -> bool:
+        return self._bm25 is not None
+
+
+
 class VectorSearchEngine:
     """
-    Hybrid vector search: FAISS (speed) + PostgreSQL (persistence)
+    Hybrid vector search: FAISS (semantic) + BM25 (keyword) + PostgreSQL (persistence)
     """
-    
+
     def __init__(self):
         """Initialize the hybrid vector search engine"""
         self.embedding_model = self._get_embedding_model()
         self.vector_store = None
+        self.bm25 = BM25Index()
         self.index_path = Path("data/vector_db/faiss_index")
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Try to load from disk first (faster), then from database
+
+        # Try to load FAISS from disk first (faster), then from database
         if (self.index_path / "index.faiss").exists():
             self._load_index_from_disk()
         else:
@@ -59,26 +139,26 @@ class VectorSearchEngine:
             self._rebuild_from_database()
     
     def _rebuild_from_database(self):
-        """Rebuild FAISS index from PostgreSQL (on first startup or corruption)"""
+        """Rebuild FAISS + BM25 indexes from PostgreSQL (on first startup or corruption)"""
         try:
-            # Import here to avoid circular dependency
             from news.models import ArticleEmbedding
-            
+
             embeddings = ArticleEmbedding.objects.select_related('article').all()
             count = embeddings.count()
-            
+
             if count == 0:
                 print("ℹ️ No embeddings in database, starting with empty index")
                 self.vector_store = None
                 return
-            
-            print(f"🔄 Rebuilding FAISS index from {count} database embeddings...")
-            
+
+            print(f"🔄 Rebuilding FAISS + BM25 indexes from {count} database embeddings...")
+
             documents = []
+            bm25_docs = []
             for emb in embeddings:
                 article = emb.article
                 text = f"{article.title}\n\n{article.summary or ''}\n\n{article.content}"
-                
+
                 doc = Document(
                     page_content=text,
                     metadata={
@@ -89,15 +169,14 @@ class VectorSearchEngine:
                     }
                 )
                 documents.append(doc)
-            
+                bm25_docs.append({'article_id': article.id, 'title': article.title, 'text': text})
+
             if documents:
-                self.vector_store = FAISS.from_documents(
-                    documents,
-                    self.embedding_model
-                )
+                self.vector_store = FAISS.from_documents(documents, self.embedding_model)
                 self._save_index_to_disk()
-                print(f"✅ Rebuilt FAISS index with {len(documents)} articles")
-            
+                self.bm25.build(bm25_docs)
+                print(f"✅ Rebuilt FAISS + BM25 indexes with {len(documents)} articles")
+
         except Exception as e:
             print(f"❌ Failed to rebuild from database: {e}")
             import traceback
@@ -154,217 +233,242 @@ class VectorSearchEngine:
         except Exception as e:
             print(f"⚠️ Failed to remove from database: {e}")
     
-    def index_article(self, article_id: int, title: str, content: str, 
+    def index_article(self, article_id: int, title: str, content: str,
                      summary: str = "", metadata: Optional[Dict] = None):
         """
-        Index a single article (saves to both FAISS and PostgreSQL)
-        
-        Args:
-            article_id: Article database ID
-            title: Article title
-            content: Article content
-            summary: Article summary
-            metadata: Additional metadata
+        Index a single article into FAISS + BM25 + PostgreSQL.
         """
-        # Combine text for better semantic understanding
         text_to_index = f"{title}\n\n{summary}\n\n{content}"
-        
-        # Generate embedding
         embedding = self.embedding_model.embed_query(text_to_index)
-        
-        # Save to PostgreSQL (persistent)
         self._save_to_database(article_id, embedding, text_to_index)
-        
-        # Prepare metadata
+
         doc_metadata = {
             "article_id": article_id,
             "title": title,
             "summary": summary,
             **(metadata or {})
         }
-        
-        # Create document
-        document = Document(
-            page_content=text_to_index,
-            metadata=doc_metadata
-        )
-        
-        # Add to FAISS (fast search)
+        document = Document(page_content=text_to_index, metadata=doc_metadata)
+
         if self.vector_store is None:
-            self.vector_store = FAISS.from_documents(
-                [document],
-                self.embedding_model
-            )
+            self.vector_store = FAISS.from_documents([document], self.embedding_model)
         else:
             self.vector_store.add_documents([document])
-        
-        # Save FAISS to disk
+
         self._save_index_to_disk()
-        
+
+        # Rebuild BM25 from all current docs (cheap, instant)
+        self._rebuild_bm25_from_faiss()
         return True
     
     def index_articles_bulk(self, articles: List[Dict]):
         """
-        Index multiple articles at once (more efficient)
-        
-        Args:
-            articles: List of dicts with keys: id, title, content, summary, metadata
+        Index multiple articles at once — more efficient than one-by-one.
+        Articles: List of dicts with keys: id, title, content, summary, metadata
         """
         documents = []
-        
+        bm25_docs = []
+
         for article in articles:
             text_to_index = f"{article['title']}\n\n{article.get('summary', '')}\n\n{article['content']}"
-            
-            # Generate embedding
             embedding = self.embedding_model.embed_query(text_to_index)
-            
-            # Save to PostgreSQL
             self._save_to_database(article['id'], embedding, text_to_index)
-            
+
             doc_metadata = {
                 "article_id": article['id'],
                 "title": article['title'],
                 "summary": article.get('summary', ''),
                 **article.get('metadata', {})
             }
-            
-            documents.append(Document(
-                page_content=text_to_index,
-                metadata=doc_metadata
-            ))
-        
+            documents.append(Document(page_content=text_to_index, metadata=doc_metadata))
+            bm25_docs.append({'article_id': article['id'], 'title': article['title'], 'text': text_to_index})
+
         if not documents:
             return False
-        
-        # Create or update FAISS index
+
         if self.vector_store is None:
-            self.vector_store = FAISS.from_documents(
-                documents,
-                self.embedding_model
-            )
+            self.vector_store = FAISS.from_documents(documents, self.embedding_model)
         else:
             self.vector_store.add_documents(documents)
-        
+
         self._save_index_to_disk()
-        print(f"✓ Indexed {len(documents)} articles")
+        self._rebuild_bm25_from_faiss()
+        print(f"✓ Indexed {len(documents)} articles (FAISS + BM25)")
         return True
     
     def remove_article(self, article_id: int):
-        """
-        Remove article from both FAISS and PostgreSQL
-        
-        Args:
-            article_id: Article ID to remove
-        """
-        # Remove from PostgreSQL
+        """Remove article from FAISS, BM25, and PostgreSQL."""
         self._remove_from_database(article_id)
-        
-        # Remove from FAISS (requires rebuild)
+
         if self.vector_store is None:
             return True
-        
+
         # Get all documents except the one to delete
-        all_docs = []
-        for doc_id, doc in self.vector_store.docstore._dict.items():
-            if doc.metadata.get("article_id") != article_id:
-                all_docs.append(doc)
-        
+        all_docs = [
+            doc for doc in self.vector_store.docstore._dict.values()
+            if doc.metadata.get("article_id") != article_id
+        ]
+
         if not all_docs:
             self.vector_store = None
+            self.bm25 = BM25Index()
             return True
-        
-        # Rebuild FAISS index
-        self.vector_store = FAISS.from_documents(
-            all_docs,
-            self.embedding_model
-        )
+
+        self.vector_store = FAISS.from_documents(all_docs, self.embedding_model)
         self._save_index_to_disk()
-        
-        print(f"✓ Removed article {article_id} from index")
+        self._rebuild_bm25_from_faiss()
+        print(f"✓ Removed article {article_id} from FAISS + BM25")
         return True
     
+    # ─────────────────────────────────────────────────────────────
+    # Search methods
+    # ─────────────────────────────────────────────────────────────
+
+    def _rebuild_bm25_from_faiss(self):
+        """Sync BM25 index from current FAISS docstore (fast, local)."""
+        if self.vector_store is None:
+            self.bm25 = BM25Index()
+            return
+        bm25_docs = [
+            {
+                'article_id': doc.metadata.get('article_id'),
+                'title': doc.metadata.get('title', ''),
+                'text': doc.page_content,
+            }
+            for doc in self.vector_store.docstore._dict.values()
+        ]
+        self.bm25.build(bm25_docs)
+
     def search(self, query: str, k: int = 5, filter_metadata: Optional[Dict] = None) -> List[Dict]:
         """
-        Semantic search for articles
-        
-        Args:
-            query: Search query
-            k: Number of results to return
-            filter_metadata: Optional metadata filters
-        
-        Returns:
-            List of matching articles with scores
+        Pure semantic (FAISS vector) search.
+        Prefer hybrid_search() for better relevance.
         """
         if self.vector_store is None:
             return []
-        
+
         try:
-            results = self.vector_store.similarity_search_with_score(
-                query,
-                k=k
-            )
-            
-            formatted_results = []
+            results = self.vector_store.similarity_search_with_score(query, k=k)
+            formatted = []
             for doc, score in results:
                 result = {
                     "article_id": doc.metadata.get("article_id"),
                     "title": doc.metadata.get("title"),
                     "summary": doc.metadata.get("summary"),
                     "score": float(score),
-                    "metadata": doc.metadata
+                    "metadata": doc.metadata,
                 }
-                
                 if filter_metadata:
                     if all(doc.metadata.get(k) == v for k, v in filter_metadata.items()):
-                        formatted_results.append(result)
+                        formatted.append(result)
                 else:
-                    formatted_results.append(result)
-            
-            return formatted_results
-        
+                    formatted.append(result)
+            return formatted
         except Exception as e:
             print(f"❌ Search error: {e}")
             return []
-    
-    def find_similar_articles(self, article_id: int, k: int = 5) -> List[Dict]:
+
+    def hybrid_search(self, query: str, k: int = 5, filter_metadata: Optional[Dict] = None) -> List[Dict]:
         """
-        Find articles similar to a given article
-        
-        Args:
-            article_id: ID of the article to find similar ones for
-            k: Number of similar articles to return
-        
-        Returns:
-            List of similar articles
+        Hybrid BM25 + Vector search using Reciprocal Rank Fusion (RRF).
+
+        RRF formula: score = 1/(rank_bm25 + 60) + 1/(rank_vector + 60)
+        k=60 dampens high-rank differences — standard IR constant.
+
+        Falls back to pure vector search if BM25 not ready.
         """
         if self.vector_store is None:
             return []
-        
+
+        # ── Step 1: BM25 keyword search ──
+        bm25_results = self.bm25.search(query, k=k * 4) if self.bm25.is_ready else []
+        bm25_rank: Dict[int, int] = {r['article_id']: r['rank'] for r in bm25_results}
+
+        # ── Step 2: FAISS vector search ──
         try:
-            # Find the article in the index
+            vector_hits = self.vector_store.similarity_search_with_score(query, k=k * 4)
+        except Exception as e:
+            print(f"❌ Vector search error: {e}")
+            vector_hits = []
+
+        vector_rank: Dict[int, int] = {}
+        vector_meta: Dict[int, Dict] = {}
+        for rank, (doc, score) in enumerate(vector_hits, start=1):
+            aid = doc.metadata.get('article_id')
+            if aid:
+                vector_rank[aid] = rank
+                vector_meta[aid] = doc.metadata
+
+        # ── Step 3: RRF fusion ──
+        all_ids = set(bm25_rank.keys()) | set(vector_rank.keys())
+        RRF_K = 60  # standard constant
+
+        scored = []
+        for aid in all_ids:
+            rrf = 0.0
+            if aid in bm25_rank:
+                rrf += 1.0 / (bm25_rank[aid] + RRF_K)
+            if aid in vector_rank:
+                rrf += 1.0 / (vector_rank[aid] + RRF_K)
+
+            meta = vector_meta.get(aid, {})
+            result = {
+                'article_id': aid,
+                'title': meta.get('title', bm25_results[bm25_rank[aid] - 1]['title'] if aid in bm25_rank else ''),
+                'summary': meta.get('summary', ''),
+                'score': round(rrf, 6),
+                'bm25_rank': bm25_rank.get(aid),
+                'vector_rank': vector_rank.get(aid),
+                'metadata': meta,
+            }
+
+            if filter_metadata:
+                if all(meta.get(fk) == fv for fk, fv in filter_metadata.items()):
+                    scored.append(result)
+            else:
+                scored.append(result)
+
+        scored.sort(key=lambda x: x['score'], reverse=True)
+        return scored[:k]
+    
+    def find_similar_articles(self, article_id: int, k: int = 5) -> List[Dict]:
+        """Find articles similar to a given article (vector only)."""
+        if self.vector_store is None:
+            return []
+        try:
             all_docs = self.vector_store.docstore._dict
-            target_doc = None
-            
-            for doc_id, doc in all_docs.items():
-                if doc.metadata.get("article_id") == article_id:
-                    target_doc = doc
-                    break
-            
+            target_doc = next(
+                (doc for doc in all_docs.values() if doc.metadata.get('article_id') == article_id),
+                None
+            )
             if not target_doc:
                 print(f"⚠️ Article {article_id} not found in index")
                 return []
-            
-            # Use the article's content as query
-            query = target_doc.page_content
-            results = self.search(query, k=k+1)
-            
-            # Remove the article itself from results
-            similar = [r for r in results if r["article_id"] != article_id][:k]
-            
-            return similar
-        
+            results = self.search(target_doc.page_content, k=k + 1)
+            return [r for r in results if r['article_id'] != article_id][:k]
         except Exception as e:
             print(f"❌ Error finding similar articles: {e}")
+            return []
+
+    def find_similar_articles_hybrid(self, article_id: int, k: int = 5) -> List[Dict]:
+        """Find similar articles using hybrid BM25 + vector search."""
+        if self.vector_store is None:
+            return []
+        try:
+            all_docs = self.vector_store.docstore._dict
+            target_doc = next(
+                (doc for doc in all_docs.values() if doc.metadata.get('article_id') == article_id),
+                None
+            )
+            if not target_doc:
+                print(f"⚠️ Article {article_id} not found in index")
+                return []
+            # Use title + first 500 chars of content as query for better BM25 hits
+            query = target_doc.page_content[:500]
+            results = self.hybrid_search(query, k=k + 1)
+            return [r for r in results if r['article_id'] != article_id][:k]
+        except Exception as e:
+            print(f"❌ Error finding similar articles (hybrid): {e}")
             return []
     
     def get_stats(self) -> Dict:
