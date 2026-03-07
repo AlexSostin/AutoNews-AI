@@ -194,13 +194,27 @@ class RSSNewsItem(models.Model):
         db_index=True,
         help_text="Marked as interesting by editor. Excluded from 7-day cleanup (kept 60 days). Used as ML signal."
     )
-    
+
+    # Intelligence fields (populated during RSS scan)
+    llm_score = models.SmallIntegerField(
+        null=True, blank=True, db_index=True,
+        help_text="Groq relevance score 0-100. Null = not yet scored."
+    )
+    llm_score_reason = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text="Short reason from LLM scorer (e.g. 'BYD battery reveal')."
+    )
+    source_count = models.PositiveSmallIntegerField(
+        default=1, db_index=True,
+        help_text="Number of different RSS sources covering the same story. ≥3 = hot topic."
+    )
+
     # Link to generated article (if any)
     pending_article = models.ForeignKey(
         'PendingArticle', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='source_news_item'
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
