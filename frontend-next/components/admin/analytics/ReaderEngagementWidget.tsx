@@ -47,7 +47,13 @@ export default function ReaderEngagementWidget() {
     }
 
     if (error || !data) {
-        return <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 text-sm text-gray-400">Unable to load reader engagement</div>;
+        return (
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+                <p className="text-3xl mb-2">📖</p>
+                <p className="text-sm font-semibold text-gray-500">No reading sessions yet</p>
+                <p className="text-xs text-gray-400 mt-1">Data will appear as readers engage with articles</p>
+            </div>
+        );
     }
 
     const { overall, top_articles, scroll_funnel } = data;

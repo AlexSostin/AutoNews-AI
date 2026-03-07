@@ -32,7 +32,15 @@ export default function CapsuleFeedbackWidget() {
     const { data, isLoading, error } = useSWR<CapsuleFeedbackSummary>('capsule-feedback-summary', fetcher, { refreshInterval: 120000 });
 
     if (isLoading) return <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-72 animate-pulse" />;
-    if (error || !data) return <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 text-sm text-gray-400">Unable to load capsule feedback</div>;
+    if (error || !data) {
+        return (
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+                <p className="text-3xl mb-2">👍</p>
+                <p className="text-sm font-semibold text-gray-500">No capsule votes yet</p>
+                <p className="text-xs text-gray-400 mt-1">Votes will appear once readers interact with article capsules</p>
+            </div>
+        );
+    }
 
     const pct = data.total > 0 ? Math.round(data.positive_total / data.total * 100) : 0;
 

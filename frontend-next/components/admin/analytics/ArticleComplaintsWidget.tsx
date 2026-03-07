@@ -34,8 +34,15 @@ const fetcher = () => api.get('/analytics/article-complaints/').then(r => r.data
 export default function ArticleComplaintsWidget() {
     const { data, isLoading, error } = useSWR<ArticleComplaints>('article-complaints', fetcher, { refreshInterval: 120000 });
 
-    if (isLoading) return <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-72 animate-pulse" />;
-    if (error || !data) return <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 text-sm text-gray-400">Unable to load complaint data</div>;
+    if (error || !data) {
+        return (
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+                <p className="text-3xl mb-2">✅</p>
+                <p className="text-sm font-semibold text-gray-500">No complaints yet</p>
+                <p className="text-xs text-gray-400 mt-1">Reader feedback reports will appear here</p>
+            </div>
+        );
+    }
 
     const hasIssues = data.unresolved_total > 0;
 

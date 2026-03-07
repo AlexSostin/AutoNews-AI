@@ -46,7 +46,19 @@ export default function AIEnrichmentStats() {
         );
     }
 
-    if (!aiStats) return null;
+    if (!aiStats) {
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {[0, 1].map(i => (
+                    <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+                        <p className="text-3xl mb-2">🤖</p>
+                        <p className="text-sm font-semibold text-gray-500">AI pipeline data unavailable</p>
+                        <p className="text-xs text-gray-400 mt-1">Stats will appear once articles are generated</p>
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     const getEnrichmentPercent = (count: number) => {
         if (!aiStats.enrichment.total_articles) return 0;
