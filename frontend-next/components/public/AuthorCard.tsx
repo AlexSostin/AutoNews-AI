@@ -1,8 +1,10 @@
 /**
  * AuthorCard — Editorial signature displayed at the bottom of every article.
- * Shows editor photo, name, title, and a short tagline.
+ * Shows editor photo (or initials fallback), name, title, and a short tagline.
  * Includes JSON-LD structured data for Google's E-E-A-T signals.
  */
+
+'use client';
 
 import Image from 'next/image';
 
@@ -18,8 +20,9 @@ const DEFAULT_AUTHOR = {
     name: 'Alexander Sostin',
     title: 'CEO & Editor-in-Chief',
     bio: 'Automotive journalist and entrepreneur. Covering the global EV market, emerging Chinese brands, and the future of mobility.',
-    photoUrl: '/images/author-alexander.jpg',  // place photo here
+    photoUrl: '/alex-sostin.jpg',
 };
+
 
 export default function AuthorCard({
     name = DEFAULT_AUTHOR.name,

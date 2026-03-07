@@ -92,7 +92,7 @@ export default function AboutPage() {
                 <div className="mb-1">
                   <span className="text-2xl font-black text-white">Alexander Sostin</span>
                 </div>
-                <p className="text-purple-300 text-sm mb-5">29 · Rishon LeZion, Israel · Founder &amp; Editor</p>
+                <p className="text-purple-300 text-sm mb-5">Rishon LeZion, Israel · Founder &amp; Editor-in-Chief</p>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   I&apos;ve always been obsessed with cars — the engineering, the design, the way they keep evolving.
                   Every car on the planet tells a story about the people who built it and the market it was built for.
