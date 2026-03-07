@@ -151,7 +151,9 @@ class TestDuplicatesEndpoint:
         _spec('Zeekr', '7X', horsepower='', engine='', drivetrain='')
         res = authenticated_client.get('/api/v1/car-specifications/duplicates/')
         groups = res.json()['groups']
-        zeekr = next(g for g in groups if g['make'] == 'Zeekr')
+        # Note: normalize_make() converts 'Zeekr' → 'ZEEKR' on save()
+        zeekr = next((g for g in groups if g['make'] == 'ZEEKR'), None)
+        assert zeekr is not None, f"No duplicate group for ZEEKR found in: {[g['make'] for g in groups]}"
         for rec in zeekr['records']:
             assert 'coverage_score' in rec
 
