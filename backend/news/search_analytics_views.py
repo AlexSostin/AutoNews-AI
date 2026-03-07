@@ -1048,3 +1048,115 @@ class AnalyticsExtraStatsAPIView(APIView):
             'errors': errors_data,
         })
 
+
+
+class ReaderEngagementView(APIView):
+    """
+    Reader quality metrics from ReadMetric.
+    GET /api/v1/analytics/reader-engagement/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Avg, Count, Q
+        from news.models.interactions import ReadMetric
+
+        sessions = ReadMetric.objects.all()
+        total = sessions.count()
+
+        if total == 0:
+            return Response({
+                'top_articles': [],
+                'scroll_funnel': {'25': 0, '50': 0, '75': 0, '100': 0},
+                'overall': {'avg_dwell_seconds': 0, 'avg_scroll_depth': 0,
+                             'bounce_rate_pct': 0, 'total_sessions': 0},
+            })
+
+        top_articles_qs = (
+            ReadMetric.objects
+            .values('article__id', 'article__title', 'article__slug')
+            .annotate(avg_dwell=Avg('dwell_time_seconds'), avg_scroll=Avg('max_scroll_depth_pct'), session_count=Count('id'))
+            .order_by('-avg_dwell')[:10]
+        )
+        top_articles = [{
+            'article_id': r['article__id'], 'title': r['article__title'], 'slug': r['article__slug'],
+            'avg_dwell_seconds': round(r['avg_dwell'] or 0, 1),
+            'avg_scroll_depth': round(r['avg_scroll'] or 0, 1),
+            'session_count': r['session_count'],
+        } for r in top_articles_qs]
+
+        funnel = {str(m): round(sessions.filter(max_scroll_depth_pct__gte=m).count() / total * 100, 1) for m in [25, 50, 75, 100]}
+
+        agg = sessions.aggregate(avg_dwell=Avg('dwell_time_seconds'), avg_scroll=Avg('max_scroll_depth_pct'))
+        bounces = sessions.filter(dwell_time_seconds__lt=10, max_scroll_depth_pct__lt=25).count()
+
+        return Response({
+            'top_articles': top_articles,
+            'scroll_funnel': funnel,
+            'overall': {
+                'avg_dwell_seconds': round(agg['avg_dwell'] or 0, 1),
+                'avg_scroll_depth': round(agg['avg_scroll'] or 0, 1),
+                'bounce_rate_pct': round(bounces / total * 100, 1),
+                'total_sessions': total,
+            },
+        })
+
+
+class CapsuleFeedbackSummaryView(APIView):
+    """
+    Summary of capsule feedback votes from ArticleCapsuleFeedback.
+    GET /api/v1/analytics/capsule-feedback-summary/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Count
+        from news.models.interactions import ArticleCapsuleFeedback
+
+        total = ArticleCapsuleFeedback.objects.count()
+        positive_total = ArticleCapsuleFeedback.objects.filter(is_positive=True).count()
+        negative_total = ArticleCapsuleFeedback.objects.filter(is_positive=False).count()
+
+        by_type = [{'type': r['feedback_type'], 'is_positive': r['is_positive'], 'count': r['count']}
+                   for r in ArticleCapsuleFeedback.objects.values('feedback_type', 'is_positive').annotate(count=Count('id')).order_by('-count')]
+
+        def top_articles_for(is_pos):
+            return [{'article_id': r['article__id'], 'title': r['article__title'], 'slug': r['article__slug'], 'votes': r['votes']}
+                    for r in ArticleCapsuleFeedback.objects.filter(is_positive=is_pos)
+                    .values('article__id', 'article__title', 'article__slug').annotate(votes=Count('id')).order_by('-votes')[:5]]
+
+        return Response({
+            'total': total, 'positive_total': positive_total, 'negative_total': negative_total,
+            'by_type': by_type,
+            'top_positive_articles': top_articles_for(True),
+            'top_negative_articles': top_articles_for(False),
+        })
+
+
+class ArticleComplaintsView(APIView):
+    """
+    Articles with user-reported problems from ArticleFeedback.
+    GET /api/v1/analytics/article-complaints/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Count, Q
+        from news.models.interactions import ArticleFeedback  # type: ignore
+
+        total = ArticleFeedback.objects.count()
+        unresolved = ArticleFeedback.objects.filter(is_resolved=False).count()
+
+        most_complained = [{'article_id': r['article__id'], 'title': r['article__title'], 'slug': r['article__slug'],
+                             'total_reports': r['total_reports'], 'unresolved_reports': r['unresolved_reports']}
+                           for r in ArticleFeedback.objects.values('article__id', 'article__title', 'article__slug')
+                           .annotate(total_reports=Count('id'), unresolved_reports=Count('id', filter=Q(is_resolved=False)))
+                           .order_by('-total_reports')[:10]]
+
+        by_category = [{'category': r['category'], 'count': r['count']}
+                       for r in ArticleFeedback.objects.values('category').annotate(count=Count('id')).order_by('-count')]
+
+        return Response({
+            'total': total, 'unresolved_total': unresolved, 'resolved_total': total - unresolved,
+            'most_complained': most_complained, 'by_category': by_category,
+        })

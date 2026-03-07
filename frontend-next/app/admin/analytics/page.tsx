@@ -1,17 +1,29 @@
 'use client';
 
 import OverallStats from '@/components/admin/analytics/OverallStats';
+import ReaderEngagementWidget from '@/components/admin/analytics/ReaderEngagementWidget';
+import CapsuleFeedbackWidget from '@/components/admin/analytics/CapsuleFeedbackWidget';
+import ArticleComplaintsWidget from '@/components/admin/analytics/ArticleComplaintsWidget';
+import EngagementDistribution from '@/components/admin/analytics/EngagementDistribution';
+import TopArticlesTable from '@/components/admin/analytics/TopArticlesTable';
+import PopularModels from '@/components/admin/analytics/PopularModels';
+import MLHealthWidget from '@/components/admin/analytics/MLHealthWidget';
 import AIEnrichmentStats from '@/components/admin/analytics/AIEnrichmentStats';
 import AITopTags from '@/components/admin/analytics/AITopTags';
 import AIGenerationQuality from '@/components/admin/analytics/AIGenerationQuality';
-import PopularModels from '@/components/admin/analytics/PopularModels';
 import AIProviderPerformance from '@/components/admin/analytics/AIProviderPerformance';
 import GSCDashboard from '@/components/admin/analytics/GSCDashboard';
-import EngagementDistribution from '@/components/admin/analytics/EngagementDistribution';
-import TopArticlesTable from '@/components/admin/analytics/TopArticlesTable';
 import ABTestsSection from '@/components/admin/analytics/ABTestsSection';
-import MLHealthWidget from '@/components/admin/analytics/MLHealthWidget';
 import ExtraStatsWidgets from '@/components/admin/analytics/ExtraStatsWidgets';
+
+function SectionHeader({ emoji, title, subtitle, color }: { emoji: string; title: string; subtitle?: string; color: string }) {
+  return (
+    <h2 className={`text-xl font-bold text-gray-900 border-l-4 ${color} pl-4`}>
+      {emoji} {title}
+      {subtitle && <span className="text-sm font-normal text-gray-400 ml-2">{subtitle}</span>}
+    </h2>
+  );
+}
 
 export default function AnalyticsPage() {
   return (
@@ -19,30 +31,29 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-black text-gray-950">📊 Analytics Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">Real-time stats, AI insights, and Google Search performance</p>
+        <p className="text-gray-500 text-sm mt-1">Real-time stats, reader engagement, AI insights & SEO performance</p>
       </div>
 
-      {/* ═══════ Section 1: Site Overview ═══════ */}
+      {/* ═══ 1. Site Overview — headline numbers ═══ */}
       <section>
         <OverallStats />
       </section>
 
-      {/* ═══════ Section 1.5: Platform Overview ═══════ */}
+      {/* ═══ 2. Reader Quality — most valuable data ═══ */}
       <section className="space-y-6">
-        <h2 className="text-xl font-bold text-gray-900 border-l-4 border-purple-600 pl-4">
-          🔍 Platform Overview
-          <span className="text-sm font-normal text-gray-400 ml-2">
-            Subscribers, RSS feeds & system health
-          </span>
-        </h2>
-        <ExtraStatsWidgets />
+        <SectionHeader emoji="📖" title="Reader Quality" subtitle="Dwell time, scroll depth & feedback from real sessions" color="border-emerald-500" />
+        {/* Full-width reader engagement (dwell + funnel + top articles) */}
+        <ReaderEngagementWidget />
+        {/* Two smaller widgets side by side */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <CapsuleFeedbackWidget />
+          <ArticleComplaintsWidget />
+        </div>
       </section>
 
-      {/* ═══════ Section 2: Content & Engagement ═══════ */}
+      {/* ═══ 3. Content & Engagement — publication & views ═══ */}
       <section className="space-y-6">
-        <h2 className="text-xl font-bold text-gray-900 border-l-4 border-green-600 pl-4">
-          📈 Content & Engagement
-        </h2>
+        <SectionHeader emoji="📈" title="Content & Engagement" color="border-blue-500" />
         <EngagementDistribution />
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <TopArticlesTable />
@@ -50,43 +61,37 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* ═══════ Section 3: ML Model Health ═══════ */}
+      {/* ═══ 4. ML Model Health ═══ */}
       <section className="space-y-6">
-        <h2 className="text-xl font-bold text-gray-900 border-l-4 border-cyan-600 pl-4">
-          🧠 ML Model Health
-          <span className="text-sm font-normal text-gray-400 ml-2">
-            Maturity level and per-feature scores
-          </span>
-        </h2>
+        <SectionHeader emoji="🧠" title="ML Model Health" subtitle="Maturity level and per-feature scores" color="border-cyan-500" />
         <MLHealthWidget />
       </section>
 
-      {/* ═══════ Section 4: AI Pipeline Health ═══════ */}
+      {/* ═══ 5. AI Pipeline — enrichment & generation quality ═══ */}
       <section className="space-y-6">
-        <h2 className="text-xl font-bold text-gray-900 border-l-4 border-violet-600 pl-4">
-          🤖 AI Pipeline Health
-          <span className="text-sm font-normal text-gray-400 ml-2">
-            How well AI enriches your content
-          </span>
-        </h2>
+        <SectionHeader emoji="🤖" title="AI Pipeline Health" subtitle="How well AI enriches your content" color="border-violet-600" />
         <AIEnrichmentStats />
         <AITopTags />
-      </section>
-
-      {/* ═══════ Section 4: AI Generation Quality ═══════ */}
-      <section>
         <AIGenerationQuality />
+        <AIProviderPerformance />
       </section>
 
-      {/* ═══════ Section 5: AI Provider & SEO ═══════ */}
+      {/* ═══ 6. SEO — Google Search Console ═══ */}
       <section className="space-y-6">
-        <AIProviderPerformance />
+        <SectionHeader emoji="🔍" title="SEO — Google Search Console" color="border-amber-500" />
         <GSCDashboard />
       </section>
 
-      {/* ═══════ Section 6: A/B Tests ═══════ */}
-      <section>
+      {/* ═══ 7. A/B Tests ═══ */}
+      <section className="space-y-6">
+        <SectionHeader emoji="🧪" title="A/B Tests" subtitle="Title & image variant performance" color="border-pink-500" />
         <ABTestsSection />
+      </section>
+
+      {/* ═══ 8. Platform Overview — system health, RSS, subscribers ═══ */}
+      <section className="space-y-6">
+        <SectionHeader emoji="⚙️" title="Platform Overview" subtitle="Subscribers, RSS feeds & system health" color="border-gray-400" />
+        <ExtraStatsWidgets />
       </section>
     </div>
   );
