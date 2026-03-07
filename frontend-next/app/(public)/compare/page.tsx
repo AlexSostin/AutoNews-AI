@@ -454,19 +454,25 @@ function CompareContent() {
                                             const v2 = data.car2[row.key];
                                             if ((v1 == null || v1 === '') && (v2 == null || v2 === '')) return null;
 
+                                            const winner = data.winners[row.key];
+                                            const car1wins = winner === 'car1';
+                                            const car2wins = winner === 'car2';
+
                                             return (
                                                 <div key={row.key} className="grid grid-cols-[1fr_auto_1fr] items-center">
-                                                    <div className={`px-5 py-3 text-sm text-right ${getWinnerClass(row.key, 'car1')}`}>
-                                                        {formatVal(v1, row)}
+                                                    {/* Car 1 value — trophy on the RIGHT of the value */}
+                                                    <div className={`px-5 py-3 text-sm text-right flex items-center justify-end gap-1 ${getWinnerClass(row.key, 'car1')}`}>
+                                                        <span>{formatVal(v1, row)}</span>
+                                                        {car1wins && <Trophy size={13} className="text-emerald-500 flex-shrink-0" />}
                                                     </div>
-                                                    <div className="px-3 py-3 text-xs font-bold text-gray-700 text-center whitespace-nowrap min-w-[100px] sm:min-w-[140px]">
+                                                    {/* Center label — no trophy here */}
+                                                    <div className="px-3 py-3 text-xs font-bold text-gray-700 text-center whitespace-nowrap w-[120px] sm:w-[150px]">
                                                         {row.label}
-                                                        {data.winners[row.key] && data.winners[row.key] !== 'tie' && (
-                                                            <Trophy size={12} className="inline ml-1 text-emerald-500 mb-0.5" />
-                                                        )}
                                                     </div>
-                                                    <div className={`px-5 py-3 text-sm text-left ${getWinnerClass(row.key, 'car2')}`}>
-                                                        {formatVal(v2, row)}
+                                                    {/* Car 2 value — trophy on the LEFT of the value */}
+                                                    <div className={`px-5 py-3 text-sm text-left flex items-center gap-1 ${getWinnerClass(row.key, 'car2')}`}>
+                                                        {car2wins && <Trophy size={13} className="text-emerald-500 flex-shrink-0" />}
+                                                        <span>{formatVal(v2, row)}</span>
                                                     </div>
                                                 </div>
                                             );
