@@ -619,17 +619,30 @@ class CarPickerListView(APIView):
     @method_decorator(cache_page(600, key_prefix='cars_picker'))  # Cache for 10 minutes
     def get(self, request):
         from .models import VehicleSpecs
-        
-        # Get all unique make/model combinations
+        from django.db.models import Q
+
+        # Only show cars that:
+        # 1. Have a published article (real review, not RSS noise)
+        # 2. Have at least some real numeric spec data
+        real_specs_filter = (
+            Q(power_hp__isnull=False) |
+            Q(battery_kwh__isnull=False) |
+            Q(range_wltp__isnull=False) |
+            Q(range_km__isnull=False) |
+            Q(price_usd_from__isnull=False)
+        )
+
         combos = (
             VehicleSpecs.objects
+            .filter(article__is_published=True)
+            .filter(real_specs_filter)
             .exclude(make='')
             .exclude(model_name='')
             .values('make', 'model_name')
             .distinct()
             .order_by('make', 'model_name')
         )
-        
+
         brands = {}
         for combo in combos:
             make = combo['make']
@@ -644,7 +657,7 @@ class CarPickerListView(APIView):
                 'name': model,
                 'slug': slugify(model),
             })
-        
+
         result = sorted(brands.values(), key=lambda b: b['name'])
         return Response(result)
 
