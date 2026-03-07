@@ -35,10 +35,10 @@ def _retry_ai_call(func, *args, max_retries=3, **kwargs):
 
 def score_item_with_llm(title: str, excerpt: str) -> tuple[int, str]:
     """
-    Score an RSS news item 0-100 using gpt-4o-mini.
+    Score an RSS news item 0-100 using Groq (llama-3.3-70b-versatile).
 
+    Uses the existing Groq client from ai_provider — no extra API keys.
     Returns (score, reason). Falls back to keyword scoring on any error.
-    Cost: ~$0.0001 per item with gpt-4o-mini.
     """
     SCORER_PROMPT = """You score news articles for an EV/hybrid automotive news site focused on Chinese brands (BYD, XPENG, NIO, Zeekr, Li Auto, AITO, Xiaomi Auto, Geely, SAIC).
 
@@ -55,21 +55,19 @@ Respond ONLY with valid JSON, nothing else: {{"score": 85, "reason": "BYD batter
 
     try:
         import json
-        import os
-        import openai
+        from ai_engine.modules.ai_provider import groq_client, GROQ_MODEL
 
-        client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY', ''))
-        if not client.api_key:
-            raise ValueError('OPENAI_API_KEY not set')
+        if not groq_client:
+            raise ValueError('Groq client not configured (GROQ_API_KEY missing)')
 
         prompt = SCORER_PROMPT.format(
             title=title[:200],
             excerpt=(excerpt or '')[:400],
         )
-        response = client.chat.completions.create(
-            model='gpt-4o-mini',
+        response = groq_client.chat.completions.create(
+            model=GROQ_MODEL,
             messages=[{'role': 'user', 'content': prompt}],
-            max_tokens=60,
+            max_tokens=80,
             temperature=0,
         )
         raw = response.choices[0].message.content.strip()
@@ -80,7 +78,7 @@ Respond ONLY with valid JSON, nothing else: {{"score": 85, "reason": "BYD batter
         data = json.loads(raw)
         score = max(0, min(100, int(data.get('score', 50))))
         reason = str(data.get('reason', ''))[:200]
-        logger.debug(f'LLM score {score} for: {title[:50]}')
+        logger.debug(f'Groq score {score} for: {title[:50]}')
         return score, reason
     except Exception as e:
         logger.debug(f'LLM scorer fallback (keyword) — {e}')
