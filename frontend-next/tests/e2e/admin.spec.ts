@@ -136,7 +136,37 @@ test.describe('Admin Panel', () => {
         // Actual heading is "Categories"
         await expect(page.locator('h1').filter({ hasText: 'Categories' })).toBeVisible({ timeout: 15000 });
     });
+
+    test('RSS Feeds: Loads page and shows feed list', async ({ page, context }) => {
+        await loginAsAdmin(page, context);
+        await page.goto('/admin/rss-feeds');
+
+        // Page should load (not 500) and show a heading or feed rows
+        await expect(page.locator('h1, h2').first()).toBeVisible({ timeout: 15000 });
+        // Should have at least one feed row, or an "Add Feed" button
+        const hasFeeds = await page.locator('table tr, [data-testid="feed-row"]').count() > 0;
+        const hasAddButton = await page.getByText('Add Feed', { exact: false }).isVisible().catch(() => false);
+        expect(hasFeeds || hasAddButton, 'RSS Feeds page should show feed list or Add Feed button').toBeTruthy();
+    });
+
+    test('Analytics: No JS TypeError crashes after load', async ({ page, context }) => {
+        const jsErrors: string[] = [];
+        page.on('pageerror', err => jsErrors.push(err.message));
+
+        await loginAsAdmin(page, context);
+        await page.goto('/admin/analytics');
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(5000); // Wait for all async widgets to settle
+
+        const typeErrors = jsErrors.filter(e =>
+            e.includes('TypeError') ||
+            e.includes('Cannot read properties') ||
+            e.includes('is not a function')
+        );
+        expect(typeErrors, `TypeError crashes on /admin/analytics: ${typeErrors.join(' | ')}`).toHaveLength(0);
+    });
 });
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helper: Extract token from cookies
