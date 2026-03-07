@@ -21,6 +21,7 @@ import ArticleFeedbackCapsules from '@/components/public/ArticleFeedbackCapsules
 import CommentSection from '@/components/public/CommentSection';
 import FeedbackButton from '@/components/public/FeedbackButton';
 import { Calendar, User, Rss, ExternalLink, Youtube, Tag } from 'lucide-react';
+import AuthorCard from '@/components/public/AuthorCard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -251,6 +252,10 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 )}
 
                 <ShareButtons url={fullUrl} title={article.title} />
+
+                {/* Author signature */}
+                <AuthorCard />
+
 
                 {article.tag_names?.length > 0 && (
                     <div className="bg-white rounded-xl shadow-md p-6">
