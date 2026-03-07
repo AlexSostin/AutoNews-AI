@@ -221,11 +221,46 @@ def _clean_banned_phrases(html: str) -> str:
 
     # 4. Clean up empty paragraphs left behind
     html = re.sub(r'<p>\s*</p>', '', html)
-    
+
+    # 5. Strip spec-table lines where value is 'Not specified in web context'
+    #    Pattern: '▸ FIELD: Not specified in web context' (plain text lines inside <p> or bare)
+    _not_specified_rx = re.compile(
+        r'(?m)^[ \t]*(?:▸\s*|•\s*)?[A-Z0-9 /()]+:\s*Not specified in web context\s*$\n?',
+        re.IGNORECASE,
+    )
+    cleaned_spec = _not_specified_rx.sub('', html)
+    if cleaned_spec != html:
+        print("  🧹 Spec-table cleaner: removed 'Not specified in web context' lines")
+        html = cleaned_spec
+    # Also remove inside <li> or <p> tags
+    html = re.sub(
+        r'<(?:li|p)>[^<]*Not specified in web context[^<]*</(?:li|p)>',
+        '', html, flags=re.IGNORECASE,
+    )
+
+    # 6. Currency normalisation:
+    #    a) RMB → CNY
+    html = re.sub(r'\bRMB\b', 'CNY', html)
+    #    b) If CNY price present but no USD approximation, add one
+    def _inject_usd(m):
+        amount_str = m.group(1).replace(',', '')
+        try:
+            cny = float(amount_str)
+            usd = round(cny / 7.25 / 1000) * 1000  # rough 1 USD ≈ 7.25 CNY
+            usd_str = f'${usd:,.0f}'
+            return f"{m.group(0)} (approx. {usd_str})"
+        except ValueError:
+            return m.group(0)
+    # Only inject if '(approx.' not already present next to the price
+    html = re.sub(
+        r'CNY\s+([\d,]+(?:\.\d+)?)(?!\s*(?:\(approx|\s*–|\s*to|\s*/|\s*\~))',
+        _inject_usd, html,
+    )
+
     cleaned = original_len - len(html)
     if cleaned > 0:
         print(f"  🧹 Post-processing: removed {cleaned} chars of filler")
-    
+
     return html
 
 
@@ -743,6 +778,7 @@ CRITICAL REQUIREMENTS:
    - Do NOT include country-specific warranty terms, servicing plans, or dealer networks
    - Write for a GLOBAL car enthusiast audience
    - If the source is from one country (e.g. an Australian review), extract the universal car facts and skip the local market commentary
+   - NEVER mention internal manufacturer codenames (e.g. "2316", "2318", "SG3", "BN7") — these are factory/project codes with zero value to readers. The car has a real name; use that.
 
 ⚠️ CRITICAL MODEL ACCURACY WARNING:
 - CAREFULLY verify the EXACT car model from the video title and transcript
@@ -793,20 +829,23 @@ BANNED TONE — DO NOT write like a clickbait blog:
 - Write with CONFIDENCE and AUTHORITY, not hype. Let the specs speak for themselves.
 
 PROS & CONS RULES:
-- ONLY list things that are KNOWN and REAL.
+- ONLY list things that are KNOWN and REAL about the vehicle itself.
+- A PRO must describe a real attribute of the vehicle (performance, feature, design, value).
+  ❌ NOT a Pro: launch date, brand announcement, scheduled event, press conference
+  ❌ NOT a Pro: "Launch scheduled for August 16" — that is a news item, not a vehicle attribute
+  ❌ NOT a Pro: "Brand has committed to..." — that is a PR statement
+  ✅ PRO examples: "500 hp AWD system", "80% charge in 15 minutes", "550-litre cargo space"
 - Cons must describe REAL WEAKNESSES of the product/technology itself:
   ✅ "No Apple CarPlay — a dealbreaker for many"
   ✅ "Heavy 2.5-ton curb weight hurts handling"
   ✅ "Interior plastics feel cheap for the price point"
+  ✅ "Manual rear seat folding — rivals offer power-fold at this price"
   ❌ "Currently in research phase" — NOT a con (it's the product's stage, not a flaw)
   ❌ "No commercial availability" — NOT a con
   ❌ "Further details not yet public" — NOT a con (it's missing info)
   ❌ "Limited charging infrastructure" — NOT a con of the CAR itself
   ❌ "Specs are unknown" or "pricing unavailable" — NOT a con, it's missing data
   ❌ "No international availability confirmed" — NOT a con unless competitors ARE available globally
-  ❌ "Specific performance metrics... are not yet public" — NOT a con
-  ❌ "Detailed battery specifications... have not been released" — NOT a con
-  ❌ "Not yet been officially announced" — NOT a con
   ❌ ANY con that mentions specs/details being "not available", "not released", "not detailed", or "not public" — DELETE IT
 - If you cannot find 3 real Cons → list only what you have.
   2 genuine Cons > 4 filler Cons. NEVER pad the list.
