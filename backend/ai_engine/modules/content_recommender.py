@@ -1326,14 +1326,33 @@ def get_ml_health_report():
         features['recommendations'] = {
             'score': round(rec_score),
             'status': '🟢' if rec_score >= 70 else '🟡' if rec_score >= 40 else '🔴',
-            'details': f'{model_articles} articles in TF-IDF model',
+            'details': f'{model_articles} articles indexed in TF-IDF model',
+        }
+    elif model_trained and model_articles > 0:
+        # Model trained but fewer than 50 articles — partially useful
+        rec_score = max(10, round((model_articles / 50) * 40))
+        features['recommendations'] = {
+            'score': rec_score,
+            'status': '🟡',
+            'details': f'{model_articles} articles in model — needs {50 - model_articles} more for reliable recommendations',
         }
     else:
-        features['recommendations'] = {
-            'score': max(5, round((model_articles / 50) * 30)),
-            'status': '🔴',
-            'details': f'Need ≥50 articles for good recommendations ({model_articles} now)',
-        }
+        # Model not trained yet — use total published articles as potential indicator
+        if total_articles >= 50:
+            # Articles exist but not indexed → medium score, actionable
+            rec_score = max(20, round((total_articles / 500) * 60))
+            features['recommendations'] = {
+                'score': rec_score,
+                'status': '🟡',
+                'details': f'{total_articles} articles available but not yet indexed — run "Train ML model" to activate',
+            }
+        else:
+            rec_score = max(5, round((total_articles / 50) * 30))
+            features['recommendations'] = {
+                'score': rec_score,
+                'status': '🔴',
+                'details': f'Need ≥50 articles for recommendations ({total_articles} published now)',
+            }
     
     # 2. Tag Prediction
     tag_score = min(100, (total_tags / 100) * 50 + (model_articles / 200) * 50)

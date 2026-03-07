@@ -147,20 +147,40 @@ class AnalyticsOverviewAPIView(APIView):
     GET /api/v1/analytics/overview/
     """
     permission_classes = [IsAuthenticated]
-    
+
+    @staticmethod
+    def _get_total_views_from_redis(db_total: int) -> int:
+        """
+        Try to get total views from live Redis counters.
+        If Redis is unavailable or has 0 keys, fall back to DB sum.
+        """
+        try:
+            from django_redis import get_redis_connection
+            redis_conn = get_redis_connection("default")
+            keys = redis_conn.keys("article_views:*")
+            if not keys:
+                return db_total  # Redis cold / empty → use DB
+            redis_total = sum(int(redis_conn.get(k) or 0) for k in keys)
+            # Use Redis if it's higher (source of truth for live counts)
+            return max(db_total, redis_total)
+        except Exception:
+            return db_total  # Redis unavailable → fall back silently
+
     def get(self, request):
         # Total counts
         published_articles = Article.objects.filter(is_published=True, is_deleted=False)
         total_articles = published_articles.count()
-        total_views = published_articles.aggregate(Sum('views'))['views__sum'] or 0
+        db_total_views = published_articles.aggregate(Sum('views'))['views__sum'] or 0
+        # Use Redis live counters when available (fixes "0 views" after Redis restart)
+        total_views = self._get_total_views_from_redis(db_total_views)
         total_comments = Comment.objects.filter(is_approved=True).count()
         total_subscribers = Subscriber.objects.filter(is_active=True).count()
-        
+
         # Growth comparison (last 30 days vs previous 30 days)
         now = timezone.now()
         last_30_days = now - timedelta(days=30)
         prev_30_days = now - timedelta(days=60)
-        
+
         # 1. Articles Growth
         articles_last_30 = Article.objects.filter(created_at__gte=last_30_days, is_published=True).count()
         articles_prev_30 = Article.objects.filter(created_at__gte=prev_30_days, created_at__lt=last_30_days, is_published=True).count()
@@ -196,7 +216,7 @@ class AnalyticsOverviewAPIView(APIView):
             subs_growth = round(((subs_last_30 - subs_prev_30) / subs_prev_30) * 100, 1)
         elif subs_last_30 > 0:
             subs_growth = 100.0
-        
+
         return Response({
             'total_articles': total_articles,
             'total_views': total_views,
