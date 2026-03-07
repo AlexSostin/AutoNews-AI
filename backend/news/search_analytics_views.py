@@ -13,47 +13,92 @@ from news.serializers import ArticleListSerializer
 
 class SearchAPIView(APIView):
     """
-    Smart search with filters
+    Smart search with hybrid BM25 + vector ranking.
     GET /api/v1/search/?q=term&category=slug&tags=tag1,tag2&sort=newest|popular|relevant
+
+    When `q` is provided:
+      1. Tries hybrid_search() (BM25 + FAISS via RRF) — best relevance.
+      2. Falls back to ORM icontains if vector engine not ready.
+    When no `q`: returns articles filtered/sorted by category, tags, sort.
     """
     permission_classes = [AllowAny]
-    
+
     def get(self, request):
         query = request.GET.get('q', '').strip()
         category_slug = request.GET.get('category', '').strip()
         tags_str = request.GET.get('tags', '').strip()
         sort = request.GET.get('sort', 'relevant').strip()
-        
-        # Start with published articles
-        articles = Article.objects.filter(is_published=True, is_deleted=False)
-        
-        # Fulltext search on title, content, summary
+        page_size = 12
+        page = int(request.GET.get('page', 1))
+
         if query:
-            articles = articles.filter(
+            # ── Hybrid search path ──────────────────────────────────
+            article_ids_ordered = self._hybrid_article_ids(query)
+
+            if article_ids_ordered:
+                # Fetch matching articles, preserving RRF order
+                articles_qs = Article.objects.filter(
+                    id__in=article_ids_ordered,
+                    is_published=True,
+                    is_deleted=False,
+                )
+
+                # Optional filters
+                if category_slug:
+                    articles_qs = articles_qs.filter(categories__slug=category_slug)
+                if tags_str:
+                    tag_slugs = [t.strip() for t in tags_str.split(',') if t.strip()]
+                    if tag_slugs:
+                        articles_qs = articles_qs.filter(tags__slug__in=tag_slugs).distinct()
+
+                # Materialise and re-sort by RRF rank
+                articles_map = {a.id: a for a in articles_qs}
+                articles_ordered = [
+                    articles_map[aid]
+                    for aid in article_ids_ordered
+                    if aid in articles_map
+                ]
+
+                total = len(articles_ordered)
+                start = (page - 1) * page_size
+                articles_page = articles_ordered[start:start + page_size]
+
+                serializer = ArticleListSerializer(
+                    articles_page, many=True, context={'request': request}
+                )
+                return Response({
+                    'results': serializer.data,
+                    'total': total,
+                    'page': page,
+                    'page_size': page_size,
+                    'total_pages': (total + page_size - 1) // page_size,
+                    'search_mode': 'hybrid',
+                })
+
+            # ── Fallback: ORM icontains ──────────────────────────────
+            articles = Article.objects.filter(is_published=True, is_deleted=False).filter(
                 Q(title__icontains=query) |
                 Q(content__icontains=query) |
                 Q(summary__icontains=query) |
                 Q(meta_keywords__icontains=query)
             )
-        
-        # Filter by category
+        else:
+            articles = Article.objects.filter(is_published=True, is_deleted=False)
+
+        # ── Non-hybrid path: filters + sorting ──────────────────────
         if category_slug:
             articles = articles.filter(categories__slug=category_slug)
-        
-        # Filter by tags
         if tags_str:
             tag_slugs = [t.strip() for t in tags_str.split(',') if t.strip()]
             if tag_slugs:
                 articles = articles.filter(tags__slug__in=tag_slugs).distinct()
-        
-        # Sorting
+
         if sort == 'newest':
             articles = articles.order_by('-created_at')
         elif sort == 'popular':
             articles = articles.order_by('-views', '-created_at')
-        else:  # relevant - default
+        else:  # relevant
             if query:
-                # Relevance scoring: title match (3pts) > summary (2pts) > tags/keywords (1pt)
                 articles = articles.annotate(
                     relevance=Case(
                         When(title__icontains=query, then=Value(3)),
@@ -65,25 +110,35 @@ class SearchAPIView(APIView):
                 ).order_by('-relevance', '-views', '-created_at').distinct()
             else:
                 articles = articles.order_by('-created_at')
-        
-        # Pagination
-        page_size = 12
-        page = int(request.GET.get('page', 1))
-        start = (page - 1) * page_size
-        end = start + page_size
-        
+
         total = articles.count()
-        articles_page = articles[start:end]
-        
+        start = (page - 1) * page_size
+        articles_page = articles[start:start + page_size]
+
         serializer = ArticleListSerializer(articles_page, many=True, context={'request': request})
-        
         return Response({
             'results': serializer.data,
             'total': total,
             'page': page,
             'page_size': page_size,
-            'total_pages': (total + page_size - 1) // page_size
+            'total_pages': (total + page_size - 1) // page_size,
+            'search_mode': 'orm',
         })
+
+    def _hybrid_article_ids(self, query: str) -> list:
+        """
+        Run hybrid_search and return article IDs ordered by RRF score.
+        Returns empty list if engine not available or no embeddings indexed.
+        """
+        try:
+            from ai_engine.modules.vector_search import get_vector_engine
+            engine = get_vector_engine()
+            results = engine.hybrid_search(query, k=50)
+            return [r['article_id'] for r in results if r.get('article_id')]
+        except Exception:
+            return []
+
+
 
 
 class AnalyticsOverviewAPIView(APIView):
