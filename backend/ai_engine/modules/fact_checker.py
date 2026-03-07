@@ -1,5 +1,6 @@
 import logging
 import json
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -106,50 +107,152 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
         return article_html
 
 
+def _extract_car_info_from_html(article_html: str) -> dict:
+    """
+    Try to extract make/model/trim from the article HTML title or heading.
+    Returns dict with 'make', 'model', 'trim' or empty dict.
+    """
+    # Try <h1> or <h2> first
+    heading_match = re.search(r'<h[12][^>]*>([^<]+)</h[12]>', article_html, re.I)
+    title_text = heading_match.group(1) if heading_match else ''
+
+    if not title_text:
+        # Try first 200 chars of plain text
+        plain = re.sub(r'<[^>]+>', ' ', article_html[:500])
+        title_text = plain.strip()[:200]
+
+    # Pattern: "2025 BYD TANG L DM P AWD" or similar
+    m = re.match(
+        r'(?:20\d{2}\s+)?(\S+)\s+(.+?)(?:\s+(?:Review|Walk-?around|Overview|Specs|Comparison|Test|–|:))',
+        title_text, re.I
+    )
+    if not m:
+        m = re.match(r'(?:20\d{2}\s+)?(\S+)\s+(.+)', title_text, re.I)
+
+    if m:
+        return {'make': m.group(1).strip(), 'model': m.group(2).strip()[:40]}
+    return {}
+
+
+def _build_enriched_context(article_html: str, web_context: str) -> str:
+    """
+    Enrich the web context by performing targeted searches for the car
+    mentioned in the article. Appends results to existing web_context.
+    """
+    car_info = _extract_car_info_from_html(article_html)
+    if not car_info.get('make'):
+        return web_context
+
+    make = car_info['make']
+    model = car_info['model']
+
+    try:
+        from ai_engine.modules.searcher import search_car_details
+        extra_context = search_car_details(make, model)
+        if extra_context and len(extra_context) > 100:
+            return (
+                web_context
+                + "\n\n--- ADDITIONAL WEB SEARCH RESULTS ---\n"
+                + extra_context[:8000]
+            )
+    except Exception as e:
+        logger.warning(f"Enriched context search failed: {e}")
+
+    return web_context
+
+
 def auto_resolve_fact_check(article_html: str, web_context: str, provider: str = 'gemini') -> dict:
     """
-    Attempts to automatically fix hallucinated claims in the article:
-    - Replaces wrong numbers with correct ones from web context
-    - Removes claims not supported by any source
-    Returns: { 'content': fixed_html, 'fixed': [...], 'removed': [...] }
+    Attempts to automatically fix hallucinated claims in the article.
+
+    Strategy (3 tiers — best practice 2026):
+    - Tier 1 REPLACE: if correct value found in web context → swap inline
+    - Tier 2 CAVEAT:  if claim not in web but plausible → keep with footnote
+    - Tier 3 REMOVE:  ONLY if web context directly contradicts the article
+
+    Returns: {
+        'content': fixed_html,
+        'replaced': [{'claim': '...', 'correct': '...', 'source': '...'}],
+        'caveated': [{'claim': '...', 'note': '...'}],
+        'removed':  [{'claim': '...', 'reason': '...'}],
+    }
     """
     if not web_context or len(web_context.strip()) < 50:
-        return {'content': article_html, 'fixed': [], 'removed': [], 'error': 'No web context available'}
+        return {'content': article_html, 'replaced': [], 'caveated': [], 'removed': [],
+                'error': 'No web context available'}
 
     try:
         from ai_engine.modules.ai_provider import get_ai_provider
     except ImportError:
         from modules.ai_provider import get_ai_provider
 
+    # Step 1: Enrich context with targeted search
+    enriched_context = _build_enriched_context(article_html, web_context)
+
     ai = get_ai_provider(provider)
 
-    prompt = f"""
-You are an expert automotive editor. Your task is to fix factual errors in the article below.
+    prompt = f"""You are an expert automotive editor. Your task is to CORRECT factual errors in the ARTICLE below using ONLY the WEB CONTEXT as ground truth.
 
-WEB CONTEXT (Ground Truth — use ONLY these values to correct the article):
-{wrap_untrusted(web_context, 'WEB_CONTEXT')}
+WEB CONTEXT (Ground Truth — contains verified data from official sources and automotive press):
+{wrap_untrusted(enriched_context, 'WEB_CONTEXT')}
 
 ARTICLE TO FIX:
 {wrap_untrusted(article_html, 'ARTICLE')}
 {ANTI_INJECTION_NOTICE}
 
-Instructions:
-1. Find numerical claims in the article that are NOT supported by the web context.
-2. If a correct value IS available in the web context → replace the wrong value with the correct one.
-3. If a claim is completely unsupported and no correct value exists → remove the entire sentence containing that claim.
-4. Do NOT fabricate new numbers. Only use values from the web context.
-5. Remove the entire <div class="ai-editor-note ai-fact-check-block"...> warning block from the output.
-6. Return a JSON object:
+## CRITICAL RULES — READ CAREFULLY:
+
+### Rule 1: NEVER DELETE NUMBERS WITHOUT REPLACING THEM
+An article with vague text like "a formidable output" or "a battery pack" is WORSE than one with
+an unverified "544 hp" or "35.6 kWh". Readers need specific numbers. Your job is to REPLACE wrong
+numbers with correct ones, NOT to strip all specifics.
+
+### Rule 2: Three-Tier Correction Strategy
+For EACH numerical claim in the article, apply one of these tiers:
+
+**TIER 1 — REPLACE** (best outcome):
+If the WEB CONTEXT contains the correct value → replace the wrong number with the correct one.
+Example: Article says "544 hp" but web context says "505 kW (687 hp)" → replace with "505 kW (687 hp)".
+
+**TIER 2 — KEEP WITH CAVEAT** (acceptable):
+If the claim is NOT in the web context but is plausible (could be from the video source) → KEEP the
+original number but add an inline note. Format: append " (per manufacturer)" or " (unverified)" after the number.
+Example: "35.6 kWh battery pack" → "35.6 kWh battery pack (per manufacturer)"
+
+**TIER 3 — REMOVE** (last resort, use sparingly):
+ONLY if the web context DIRECTLY CONTRADICTS the number (web says X, article says Y and they are
+incompatible) → remove the specific wrong number and replace with the correct one from context.
+If no correct value exists in context, use Tier 2 instead.
+
+### Rule 3: Preserve ALL article structure
+- Keep all <p>, <h2>, <h3>, <ul>, <li> tags exactly as they are
+- Do NOT rewrite sentences — only change the specific numbers/values
+- Do NOT add new paragraphs, sections, or content
+- Remove the <div class="ai-editor-note ai-fact-check-block"...> warning block from the output
+
+### Rule 4: Return structured JSON
 {{
-    "fixed_html": "<the corrected article HTML without the warning block>",
-    "fixed": ["Changed 65 kWh battery to 40 kWh (from web context)", ...],
-    "removed": ["Removed claim about 5.2s 0-100 km/h — not in web context", ...]
+    "fixed_html": "<the corrected article HTML — complete, with warning block removed>",
+    "replaced": [
+        {{"claim": "544 hp", "correct": "505 kW (687 hp)", "source": "web context"}}
+    ],
+    "caveated": [
+        {{"claim": "35.6 kWh battery", "note": "per manufacturer"}}
+    ],
+    "removed": [
+        {{"claim": "$31,500 USD", "reason": "web context states RMB 400,000-600,000 (~$55,000-$82,000)"}}
+    ]
 }}
 
-Return ONLY valid JSON. No markdown fences.
+Return ONLY valid JSON. No markdown fences, no extra text.
 """
 
-    system_prompt = "You are a precise automotive fact-correcting editor. Output only valid JSON."
+    system_prompt = (
+        "You are a precise automotive fact-correcting editor. "
+        "You NEVER delete numbers without replacing them. "
+        "You prefer keeping unverified specifics over vague text. "
+        "Output only valid JSON."
+    )
 
     try:
         response = ai.generate_completion(
@@ -162,16 +265,45 @@ Return ONLY valid JSON. No markdown fences.
         clean_json = response.strip()
         if clean_json.startswith("```json"):
             clean_json = clean_json[7:]
+        if clean_json.startswith("```"):
+            clean_json = clean_json[3:]
         if clean_json.endswith("```"):
             clean_json = clean_json[:-3]
 
         result = json.loads(clean_json.strip())
+
+        fixed_html = result.get('fixed_html', article_html)
+
+        # Sanity check: if fixed_html is dramatically shorter (>40% loss), it means
+        # the LLM still stripped too aggressively — fall back to original
+        original_text_len = len(re.sub(r'<[^>]+>', '', article_html))
+        fixed_text_len = len(re.sub(r'<[^>]+>', '', fixed_html))
+        if original_text_len > 200 and fixed_text_len < original_text_len * 0.6:
+            logger.warning(
+                f"Auto-resolve stripped too much content: {original_text_len} → {fixed_text_len} chars. "
+                f"Falling back to original with caveats only."
+            )
+            # Fall back: just remove the warning block from original
+            fallback_html = re.sub(
+                r'<div\s+class="ai-editor-note[^"]*"[^>]*>.*?</div>',
+                '', article_html, flags=re.DOTALL
+            )
+            return {
+                'content': fallback_html,
+                'replaced': [],
+                'caveated': [],
+                'removed': [],
+                'warning': 'LLM stripped too much content — kept original with warning block removed',
+            }
+
         return {
-            'content': result.get('fixed_html', article_html),
-            'fixed': result.get('fixed', []),
+            'content': fixed_html,
+            'replaced': result.get('replaced', []),
+            'caveated': result.get('caveated', []),
             'removed': result.get('removed', []),
         }
 
     except Exception as e:
         logger.error(f"Auto-resolve failed: {e}")
-        return {'content': article_html, 'fixed': [], 'removed': [], 'error': str(e)}
+        return {'content': article_html, 'replaced': [], 'caveated': [], 'removed': [],
+                'error': str(e)}

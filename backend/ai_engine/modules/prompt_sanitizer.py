@@ -25,7 +25,7 @@ _INJECTION_PATTERNS = [
 
     # Role hijacking
     re.compile(r'you\s+are\s+now\s+(?:a|an)\s+', re.I),
-    re.compile(r'act\s+as\s+(?:if\s+)?(?:you\s+(?:are|were)\s+)?(?:a|an)\s+', re.I),
+    re.compile(r'(?:^|(?<=[\n.!?]))\s*act\s+as\s+(?:if\s+)?(?:you\s+(?:are|were)\s+)?(?:a|an)\s+', re.I | re.MULTILINE),
     re.compile(r'pretend\s+(?:to\s+be|you\s+are)\s+', re.I),
     re.compile(r'from\s+now\s+on,?\s+you\s+(are|will|must|should)\s+', re.I),
 

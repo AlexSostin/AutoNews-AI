@@ -453,14 +453,16 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             isAutoResolving={autoResolving}
             onAutoResolve={async () => {
               if (!articleId || autoResolving) return;
-              if (!confirm('🔧 Auto-Resolve Fact-Check?\n\nAI will:\n• Re-fetch web sources for this car\n• Replace wrong numbers with correct ones\n• Remove unverified claims\n\nThe article will be updated automatically.')) return;
+              if (!confirm('🔧 Auto-Resolve Fact-Check?\n\nAI will:\n• Re-fetch web sources for this car\n• Replace wrong numbers with correct ones from web\n• Keep unverified numbers with a caveat note\n• Remove ONLY directly contradicted claims\n\nThe article will be updated automatically.')) return;
               setAutoResolving(true);
               try {
                 const { data } = await api.post(`/articles/${articleSlug || articleId}/auto-resolve-fact-check/`, { provider: 'gemini' });
                 if (data.success) {
-                  const fixed = data.fixed?.length || 0;
+                  const replaced = data.replaced?.length || 0;
+                  const caveated = data.caveated?.length || 0;
                   const removed = data.removed?.length || 0;
-                  alert(`✅ Done!\n\nFixed: ${fixed} claims\nRemoved: ${removed} unverified claims\n\nPage will reload to show updated content.`);
+                  const warning = data.warning ? `\n\n⚠️ ${data.warning}` : '';
+                  alert(`✅ Done!\n\nReplaced: ${replaced} claims with correct values\nCaveated: ${caveated} claims (kept with note)\nRemoved: ${removed} contradicted claims${warning}\n\nPage will reload to show updated content.`);
                   window.location.reload();
                 } else {
                   alert(`❌ ${data.message || 'Auto-resolve failed'}`);

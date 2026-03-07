@@ -197,9 +197,15 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
 
         return Response({
             'success': True,
-            'fixed': result.get('fixed', []),
+            'replaced': result.get('replaced', []),
+            'caveated': result.get('caveated', []),
             'removed': result.get('removed', []),
-            'message': f"Fixed {len(result.get('fixed', []))} claims, removed {len(result.get('removed', []))} unsupported claims."
+            'warning': result.get('warning', ''),
+            'message': (
+                f"Replaced {len(result.get('replaced', []))} claims, "
+                f"added caveats to {len(result.get('caveated', []))}, "
+                f"removed {len(result.get('removed', []))} contradicted claims."
+            )
         })
 
     @action(detail=False, methods=['post'])
