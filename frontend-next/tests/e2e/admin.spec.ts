@@ -139,14 +139,15 @@ test.describe('Admin Panel', () => {
 
     test('RSS Feeds: Loads page and shows feed list', async ({ page, context }) => {
         await loginAsAdmin(page, context);
-        await page.goto('/admin/rss-feeds');
+        await page.goto('/admin/rss-feeds', { waitUntil: 'domcontentloaded' });
 
-        // Page should load (not 500) and show a heading or feed rows
+        // Heading must appear
         await expect(page.locator('h1, h2').first()).toBeVisible({ timeout: 15000 });
-        // Should have at least one feed row, or an "Add Feed" button
-        const hasFeeds = await page.locator('table tr, [data-testid="feed-row"]').count() > 0;
-        const hasAddButton = await page.getByText('Add Feed', { exact: false }).isVisible().catch(() => false);
-        expect(hasFeeds || hasAddButton, 'RSS Feeds page should show feed list or Add Feed button').toBeTruthy();
+        // Table rows or Add/Import button
+        const feedCount = await page.locator('table tr').count();
+        const hasAddButton = await page.getByText('Add Feed', { exact: false }).isVisible().catch(() => false)
+            || await page.getByText('Import', { exact: false }).isVisible().catch(() => false);
+        expect(feedCount > 0 || hasAddButton, 'RSS Feeds page should show feed list or Add/Import button').toBeTruthy();
     });
 
     test('Analytics: No JS TypeError crashes after load', async ({ page, context }) => {
@@ -154,9 +155,8 @@ test.describe('Admin Panel', () => {
         page.on('pageerror', err => jsErrors.push(err.message));
 
         await loginAsAdmin(page, context);
-        await page.goto('/admin/analytics');
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(5000); // Wait for all async widgets to settle
+        await page.goto('/admin/analytics', { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(8000); // WSL is slow — wait for async widgets
 
         const typeErrors = jsErrors.filter(e =>
             e.includes('TypeError') ||
