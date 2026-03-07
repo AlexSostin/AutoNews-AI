@@ -33,6 +33,78 @@ def _retry_ai_call(func, *args, max_retries=3, **kwargs):
     raise last_error
 
 
+def score_item_with_llm(title: str, excerpt: str) -> tuple[int, str]:
+    """
+    Score an RSS news item 0-100 using gpt-4o-mini.
+
+    Returns (score, reason). Falls back to keyword scoring on any error.
+    Cost: ~$0.0001 per item with gpt-4o-mini.
+    """
+    SCORER_PROMPT = """You score news articles for an EV/hybrid automotive news site focused on Chinese brands (BYD, XPENG, NIO, Zeekr, Li Auto, AITO, Xiaomi Auto, Geely, SAIC).
+
+Score 0-100 based on:
+- New EV model reveal, battery tech, or charging announcement? (+40)
+- Explicitly mentions BYD/XPENG/NIO/Zeekr/Li Auto/AITO/Xiaomi/Geely/SAIC? (+20)
+- Real product or technology news (not HR/earnings/PR fluff)? (+20)
+- Published in last 48 hours? (+20)
+
+Title: {title}
+Excerpt: {excerpt}
+
+Respond ONLY with valid JSON, nothing else: {{"score": 85, "reason": "BYD battery tech reveal"}}"""
+
+    try:
+        import json
+        import os
+        import openai
+
+        client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY', ''))
+        if not client.api_key:
+            raise ValueError('OPENAI_API_KEY not set')
+
+        prompt = SCORER_PROMPT.format(
+            title=title[:200],
+            excerpt=(excerpt or '')[:400],
+        )
+        response = client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[{'role': 'user', 'content': prompt}],
+            max_tokens=60,
+            temperature=0,
+        )
+        raw = response.choices[0].message.content.strip()
+        # Strip markdown code fences if model wrapped JSON
+        raw = raw.strip('`').strip()
+        if raw.startswith('json'):
+            raw = raw[4:].strip()
+        data = json.loads(raw)
+        score = max(0, min(100, int(data.get('score', 50))))
+        reason = str(data.get('reason', ''))[:200]
+        logger.debug(f'LLM score {score} for: {title[:50]}')
+        return score, reason
+    except Exception as e:
+        logger.debug(f'LLM scorer fallback (keyword) — {e}')
+        # Keyword fallback: fast, free, always works
+        text = f'{title} {excerpt}'.lower()
+        score = 0
+        reason = 'keyword-fallback'
+        EV_BRANDS = {'byd', 'xpeng', 'nio', 'zeekr', 'li auto', 'aito', 'xiaomi', 'geely', 'saic', 'chery', 'ora', 'wey', 'haval'}
+        EV_TECH = {'battery', 'ev', 'electric', 'charging', 'range', 'phev', 'hybrid', 'kw', 'kwh'}
+        brand_hits = sum(1 for b in EV_BRANDS if b in text)
+        tech_hits = sum(1 for t in EV_TECH if t in text)
+        if brand_hits >= 2:
+            score += 40
+        elif brand_hits == 1:
+            score += 30
+        if tech_hits >= 2:
+            score += 20
+        elif tech_hits == 1:
+            score += 10
+        if any(w in text for w in ('launch', 'reveal', 'unveil', 'debut', 'new model', 'announced')):
+            score += 20
+        return min(score, 100), reason
+
+
 class RSSAggregator:
     """
     Handles RSS feed fetching, parsing, and deduplication.
@@ -93,92 +165,100 @@ class RSSAggregator:
         """
         return SequenceMatcher(None, title1.lower(), title2.lower()).ratio()
     
-    def is_duplicate(self, title: str, content: str, source_url: str = '', days_back: int = 30) -> bool:
+    def is_duplicate(self, title: str, content: str, source_url: str = '',
+                      days_back: int = 30) -> tuple[bool, int | None]:
         """
         Check if article is a duplicate based on title similarity, content hash,
         or source URL. Checks RSSNewsItem, PendingArticle AND published Article tables.
-        
+
         Args:
             title: Article title
             content: Article content
             source_url: Original source URL
             days_back: Number of days to check for duplicates
-            
+
         Returns:
-            True if duplicate found, False otherwise
+            (is_duplicate, matched_rss_item_id)
+            matched_rss_item_id is set when a near-duplicate RSSNewsItem found
+            (used to bump source_count on the matched item).
         """
         from news.models import RSSNewsItem
-        
+
         content_hash = self.calculate_content_hash(content)
-        
+
         # 0. Check content hash and source URL in RSSNewsItem
         if RSSNewsItem.objects.filter(content_hash=content_hash).exists():
-            logger.info(f"Duplicate found by content hash (news item): {title[:50]}")
-            return True
+            logger.info(f'Duplicate found by content hash (news item): {title[:50]}')
+            return True, None
         if source_url and RSSNewsItem.objects.filter(source_url=source_url).exists():
-            logger.info(f"Duplicate found by source URL (news item): {title[:50]}")
-            return True
-        
+            logger.info(f'Duplicate found by source URL (news item): {title[:50]}')
+            return True, None
+
         # 1. Check content hash in PendingArticle (exact content match)
         if PendingArticle.objects.filter(content_hash=content_hash).exists():
-            logger.info(f"Duplicate found by content hash (pending): {title[:50]}")
-            return True
-        
+            logger.info(f'Duplicate found by content hash (pending): {title[:50]}')
+            return True, None
+
         # 2. Check source URL in both tables
         if source_url:
             if PendingArticle.objects.filter(source_url=source_url).exists():
-                logger.info(f"Duplicate found by source URL (pending): {title[:50]}")
-                return True
-            # Article model may not have source_url field
+                logger.info(f'Duplicate found by source URL (pending): {title[:50]}')
+                return True, None
             try:
                 if Article.objects.filter(source_url=source_url, is_deleted=False).exists():
-                    logger.info(f"Duplicate found by source URL (published): {title[:50]}")
-                    return True
+                    logger.info(f'Duplicate found by source URL (published): {title[:50]}')
+                    return True, None
             except Exception:
-                pass  # Article model doesn't have source_url field
-        
-        # 3. Check title similarity in recent RSSNewsItems
+                pass
+
+        # 3. Check title similarity in recent RSSNewsItems — returns matched id for source_count
         cutoff_date = timezone.now() - timedelta(days=days_back)
         recent_news_items = RSSNewsItem.objects.filter(
             created_at__gte=cutoff_date
-        ).values_list('title', flat=True)
-        
-        for existing_title in recent_news_items:
-            similarity = self.calculate_title_similarity(title, existing_title)
+        ).values('id', 'title')
+
+        for item in recent_news_items:
+            similarity = self.calculate_title_similarity(title, item['title'])
             if similarity >= self.SIMILARITY_THRESHOLD:
-                logger.info(f"Duplicate found by title similarity (news item, {similarity:.2%}): {title[:50]}")
-                return True
-        
+                logger.info(
+                    f'Duplicate found by title similarity (news item, {similarity:.2%}): {title[:50]}'
+                )
+                return True, item['id']  # return id so caller can bump source_count
+
         # 4. Check title similarity in recent PendingArticles
         recent_pending = PendingArticle.objects.filter(
             created_at__gte=cutoff_date
         ).values_list('title', flat=True)
-        
+
         for existing_title in recent_pending:
             similarity = self.calculate_title_similarity(title, existing_title)
             if similarity >= self.SIMILARITY_THRESHOLD:
-                logger.info(f"Duplicate found by title similarity (pending, {similarity:.2%}): {title[:50]}")
-                return True
-        
+                logger.info(
+                    f'Duplicate found by title similarity (pending, {similarity:.2%}): {title[:50]}'
+                )
+                return True, None
+
         # 5. Check title similarity in published Articles
         recent_articles = Article.objects.filter(
             created_at__gte=cutoff_date,
             is_deleted=False
         ).values_list('title', flat=True)
-        
+
         for existing_title in recent_articles:
             similarity = self.calculate_title_similarity(title, existing_title)
             if similarity >= self.SIMILARITY_THRESHOLD:
-                logger.info(f"Duplicate found by title similarity (published, {similarity:.2%}): {title[:50]}")
-                return True
-    
+                logger.info(
+                    f'Duplicate found by title similarity (published, {similarity:.2%}): {title[:50]}'
+                )
+                return True, None
+
         # 6. ML content similarity — catches same-topic articles with different titles
         try:
             from ai_engine.modules.content_recommender import is_available, _load_model, _clean_text
             if is_available() and content and len(content) > 100:
                 model = _load_model()
                 if model:
-                    query_text = _clean_text(f"{title} {content[:2000]}")
+                    query_text = _clean_text(f'{title} {content[:2000]}')
                     query_vec = model['vectorizer'].transform([query_text])
                     from sklearn.metrics.pairwise import cosine_similarity
                     similarities = cosine_similarity(query_vec, model['tfidf_matrix']).flatten()
@@ -186,12 +266,32 @@ class RSSAggregator:
                     if max_sim > 0.65:
                         best_idx = int(similarities.argmax())
                         similar_id = model['article_ids'][best_idx]
-                        logger.info(f"Duplicate found by ML content similarity ({max_sim:.2%}, article {similar_id}): {title[:50]}")
-                        return True
+                        logger.info(
+                            f'Duplicate found by ML content similarity '
+                            f'({max_sim:.2%}, article {similar_id}): {title[:50]}'
+                        )
+                        return True, None
         except Exception as e:
-            logger.debug(f"ML content similarity check skipped: {e}")
-        
-        return False
+            logger.debug(f'ML content similarity check skipped: {e}')
+
+        # 7. Gemini embedding similarity against published ArticleEmbeddings
+        try:
+            from news.rss_intelligence import check_semantic_duplicates
+            similar = check_semantic_duplicates(
+                f'{title} {content[:500]}',
+                threshold=0.87,
+                max_results=1,
+            )
+            if similar:
+                logger.info(
+                    f'Duplicate found by Gemini embedding (sim={similar[0]["similarity"]}, '
+                    f'article {similar[0]["article_id"]}): {title[:50]}'
+                )
+                return True, None
+        except Exception as e:
+            logger.debug(f'Gemini embedding dedup skipped: {e}')
+
+        return False, None
     
     def extract_images(self, entry: Dict) -> List[str]:
         """
@@ -619,39 +719,51 @@ class RSSAggregator:
                     continue
                 
                 # Check for duplicates (checks RSSNewsItem, PendingArticle AND Article)
-                if self.is_duplicate(title, plain_text, source_url=source_url):
-                    logger.debug(f"Skipping duplicate: {title[:50]}")
+                is_dup, matched_rss_id = self.is_duplicate(title, plain_text, source_url=source_url)
+                if is_dup:
+                    # If same story already in RSSNewsItem, bump its source_count
+                    if matched_rss_id:
+                        from django.db.models import F
+                        RSSNewsItem.objects.filter(pk=matched_rss_id).update(
+                            source_count=F('source_count') + 1
+                        )
+                        logger.debug(f'Bumped source_count for item #{matched_rss_id}: {title[:50]}')
+                    else:
+                        logger.debug(f'Skipping duplicate: {title[:50]}')
                     continue
-                
+
                 # Extract images
                 images = self.extract_images(entry)
-                
+
                 # Fallback 1: Scrape og:image from article source page
                 if not images and source_url:
                     og_image = self.extract_og_image(source_url)
                     if og_image:
                         images = [og_image]
                         logger.info(f'Added og:image for: {title[:50]}')
-                
+
                 # Fallback 2: RSS feed logo
                 if not images and rss_feed.logo_url:
                     images = [rss_feed.logo_url]
                     logger.info(f'Using RSS feed logo as fallback for: {title[:50]}')
-                
+
                 featured_image = images[0] if images else ''
-                
+
                 # Calculate content hash (use plain text)
                 content_hash = self.calculate_content_hash(plain_text)
-                
+
                 # Get publication date
                 pub_date = self.parse_entry_date(entry)
-                
+
                 # Defensive truncation to prevent varchar overflow
                 title = title[:500] if title else ''
                 source_url = source_url[:2000] if source_url else ''
                 featured_image = featured_image[:1000] if featured_image else ''
-                
-                # Create RSSNewsItem (raw, no AI processing)
+
+                # LLM scoring — gpt-4o-mini, ~$0.0001/item, fallback to keyword scorer
+                llm_score, llm_reason = score_item_with_llm(title, plain_text[:400])
+
+                # Create RSSNewsItem with intelligence fields
                 RSSNewsItem.objects.create(
                     rss_feed=rss_feed,
                     title=title,
@@ -661,10 +773,12 @@ class RSSAggregator:
                     image_url=featured_image,
                     content_hash=content_hash,
                     published_at=pub_date,
-                    status='new'
+                    status='new',
+                    llm_score=llm_score,
+                    llm_score_reason=llm_reason,
                 )
-                logger.info(f"Saved RSS news item: {title[:50]}")
-                
+                logger.info(f'Saved RSS news item (score={llm_score}): {title[:50]}')
+
                 created_count += 1
                 
                 # Update last_entry_date if this entry is newer

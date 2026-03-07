@@ -759,6 +759,9 @@ class RSSNewsItemSerializer(serializers.ModelSerializer):
         return min(score, 100)
     
     def get_relevance_score(self, obj):
+        # Prefer LLM score from DB (populated by gpt-4o-mini during scanning)
+        if obj.llm_score is not None:
+            return obj.llm_score
         if not hasattr(obj, '_relevance_score'):
             obj._relevance_score = self._compute_score(obj)
         return obj._relevance_score
@@ -778,6 +781,7 @@ class RSSNewsItemSerializer(serializers.ModelSerializer):
             'title', 'content', 'excerpt', 'source_url', 'image_url',
             'published_at', 'status', 'is_favorite', 'pending_article',
             'created_at', 'relevance_score', 'relevance_label',
+            'llm_score', 'llm_score_reason', 'source_count',
         ]
         read_only_fields = ['created_at']
 

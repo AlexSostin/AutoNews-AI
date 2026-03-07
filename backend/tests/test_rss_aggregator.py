@@ -177,8 +177,8 @@ class TestIsDuplicate:
     """Tests for is_duplicate() — deduplication logic."""
 
     def test_no_duplicate_found(self, aggregator):
-        result = aggregator.is_duplicate("Completely unique title XYZ", "unique content here")
-        assert result is False
+        is_dup, _ = aggregator.is_duplicate("Completely unique title XYZ", "unique content here")
+        assert is_dup is False
 
     def test_title_similarity_match(self, aggregator):
         """If a very similar title exists in Article table, it's a duplicate."""
@@ -190,11 +190,11 @@ class TestIsDuplicate:
             is_published=True,
         )
         # Very similar title should be caught
-        result = aggregator.is_duplicate(
+        is_dup, _ = aggregator.is_duplicate(
             "2025 BMW X5 M60i Full Review and Test Drive",
             "Different content entirely"
         )
-        assert result is True
+        assert is_dup is True
 
 
 @pytest.mark.django_db

@@ -159,6 +159,9 @@ interface RSSNewsItem {
     created_at: string;
     relevance_score: number;
     relevance_label: 'high' | 'medium' | 'low';
+    llm_score: number | null;       // gpt-4o-mini score stored in DB
+    llm_score_reason: string;       // short reason phrase
+    source_count: number;           // how many feeds covered this story
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
@@ -780,6 +783,18 @@ export default function RSSNewsPage() {
                                                     <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-orange-50 text-orange-600 border border-orange-200 truncate max-w-[120px]">
                                                         {item.feed_name}
                                                     </span>
+                                                    {/* 🔥 Hot Story badge — shown when 3+ sources cover the same story */}
+                                                    {(item.source_count ?? 1) >= 3 && (
+                                                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-50 text-red-600 border border-red-200 flex items-center gap-0.5">
+                                                            🔥 Hot · {item.source_count} sources
+                                                        </span>
+                                                    )}
+                                                    {/* LLM score reason pill */}
+                                                    {item.llm_score_reason && item.llm_score_reason !== 'keyword-fallback' && (
+                                                        <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 truncate max-w-[140px]" title={item.llm_score_reason}>
+                                                            ✦ {item.llm_score_reason}
+                                                        </span>
+                                                    )}
                                                 </div>
 
                                                 {/* Title with brand highlight */}
