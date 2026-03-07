@@ -573,13 +573,13 @@ class ArticleEngagementMixin:
             try:
                 from ai_engine.modules.vector_search import get_vector_engine
                 engine = get_vector_engine()
-                similar = engine.find_similar_articles(article.id, k=15)
+                similar = engine.find_similar_articles_hybrid(article.id, k=15)
                 for s in similar:
                     aid = s['article_id']
                     if aid not in result_ids and aid != article.id:
                         result_ids.append(aid)
             except Exception as e:
-                logger.warning(f"Vector search fallback failed for {article.id}: {e}")
+                logger.warning(f"Hybrid vector search fallback failed for {article.id}: {e}")
         if len(result_ids) < 6:
             try:
                 car_spec = CarSpecification.objects.filter(article=article).first()
