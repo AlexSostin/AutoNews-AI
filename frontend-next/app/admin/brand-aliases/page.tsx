@@ -27,6 +27,8 @@ interface BrandNode {
     logo_url: string;
     description: string;
     is_parent?: boolean;
+    article_count?: number;
+    has_content?: boolean;
     children?: BrandNode[];
 }
 
@@ -60,6 +62,9 @@ const countryFlags: Record<string, string> = {
     'UK': '🇬🇧',
     'France': '🇫🇷',
     'Italy': '🇮🇹',
+    'Spain': '🇪🇸',
+    'Czech Republic': '🇨🇿',
+    'Vietnam': '🇻🇳',
 };
 
 /* ─── Main Page ─────────────────────────────────────────────── */
@@ -70,6 +75,7 @@ export default function BrandIntelligencePage() {
     const [tree, setTree] = useState<BrandTreeResponse | null>(null);
     const [treeLoading, setTreeLoading] = useState(true);
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
+    const [showAllBrands, setShowAllBrands] = useState(false);
 
     // Aliases state
     const [aliases, setAliases] = useState<BrandAlias[]>([]);
@@ -403,12 +409,39 @@ export default function BrandIntelligencePage() {
             {/* ═════ TAB 1: Ownership Tree ═════ */}
             {activeTab === 'tree' && (
                 <div className="space-y-3">
+                    {/* Filter Toggle */}
+                    <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-3">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowAllBrands(false)}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${!showAllBrands
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                    }`}
+                            >
+                                With Content ({tree?.tree.filter(b => b.has_content).length ?? 0})
+                            </button>
+                            <button
+                                onClick={() => setShowAllBrands(true)}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${showAllBrands
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                    }`}
+                            >
+                                All Brands ({tree?.tree.length ?? 0})
+                            </button>
+                        </div>
+                        <span className="text-xs text-gray-400 hidden sm:inline">
+                            {showAllBrands ? 'Showing all registered brands' : 'Showing brands with articles'}
+                        </span>
+                    </div>
+
                     {treeLoading ? (
                         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
                             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto" />
                             <p className="text-gray-500 mt-4 text-sm">Loading brand tree...</p>
                         </div>
-                    ) : tree?.tree.map(brand => (
+                    ) : tree?.tree.filter(brand => showAllBrands || brand.has_content).map(brand => (
                         <div key={brand.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                             {/* Brand Row */}
                             <div
@@ -431,6 +464,11 @@ export default function BrandIntelligencePage() {
                                     {brand.is_parent && (
                                         <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold shrink-0">
                                             Group · {brand.children?.length} brand{(brand.children?.length || 0) !== 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                    {(brand.article_count ?? 0) > 0 && (
+                                        <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold shrink-0">
+                                            {brand.article_count} article{(brand.article_count ?? 0) !== 1 ? 's' : ''}
                                         </span>
                                     )}
                                 </div>

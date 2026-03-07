@@ -434,6 +434,25 @@ class BrandAliasViewSet(viewsets.ModelViewSet):
         tree = []
         for brand in top_brands:
             children = brand.sub_brands.all().order_by('name')
+            article_count = brand.get_article_count()
+            # A parent has_content if it or any child has articles
+            child_list = []
+            children_have_content = False
+            for c in children:
+                c_count = c.get_article_count()
+                if c_count > 0:
+                    children_have_content = True
+                child_list.append({
+                    'id': c.id,
+                    'name': c.name,
+                    'slug': c.slug,
+                    'country': c.country,
+                    'website': c.website,
+                    'logo_url': c.logo_url,
+                    'description': c.description,
+                    'article_count': c_count,
+                    'has_content': c_count > 0,
+                })
             brand_data = {
                 'id': brand.id,
                 'name': brand.name,
@@ -442,19 +461,10 @@ class BrandAliasViewSet(viewsets.ModelViewSet):
                 'website': brand.website,
                 'logo_url': brand.logo_url,
                 'description': brand.description,
-                'is_parent': children.exists(),
-                'children': [
-                    {
-                        'id': c.id,
-                        'name': c.name,
-                        'slug': c.slug,
-                        'country': c.country,
-                        'website': c.website,
-                        'logo_url': c.logo_url,
-                        'description': c.description,
-                    }
-                    for c in children
-                ],
+                'is_parent': len(child_list) > 0,
+                'article_count': article_count,
+                'has_content': article_count > 0 or children_have_content,
+                'children': child_list,
             }
             tree.append(brand_data)
 
