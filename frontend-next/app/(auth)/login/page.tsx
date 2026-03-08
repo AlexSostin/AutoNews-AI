@@ -259,6 +259,29 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {/* ── Passkey (admin shortcut) ── */}
+              {passkeySupported && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePasskeyLogin}
+                    disabled={isPasskeyLoading}
+                    className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-violet-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-500/30"
+                  >
+                    <Fingerprint size={20} className={isPasskeyLoading ? 'animate-pulse' : ''} />
+                    {isPasskeyLoading ? 'Waiting for biometric...' : 'Sign in with Passkey'}
+                  </button>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="px-3 bg-white text-gray-400">or sign in with password</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div>
                 <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
                   Username
