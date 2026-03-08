@@ -23,9 +23,13 @@ interface TagSelectorProps {
     formData: {
         category_ids: number[];
         tags: number[];
-        [key: string]: any;
+        [key: string]: unknown;
     };
-    setFormData: React.Dispatch<React.SetStateAction<any>>;
+    setFormData: React.Dispatch<React.SetStateAction<{
+        category_ids: number[];
+        tags: number[];
+        [key: string]: unknown;
+    }>>;
     handleTagToggle: (tagId: number) => void;
 }
 
@@ -142,16 +146,17 @@ export function TagSelector({
                                             const res = await api.post('/tags/', { name });
                                             const newTag = res.data;
                                             setTags((prev: Tag[]) => [...prev, newTag]);
-                                            setFormData((prev: any) => ({ ...prev, tags: [...prev.tags, newTag.id] }));
+                                            setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), newTag.id] }));
                                             setTagSearch('');
-                                        } catch (err: any) {
-                                            alert(`Failed to create tag: ${err.response?.data?.name?.[0] || err.message}`);
+                                        } catch (err: unknown) {
+                                            const e = err as { response?: { data?: { name?: string[] } }; message?: string };
+                                            alert(`Failed to create tag: ${e.response?.data?.name?.[0] || e.message}`);
                                         }
                                     }}
                                     className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors whitespace-nowrap"
                                 >
                                     <Plus className="w-3 h-3" />
-                                    Create "{tagSearch.length > 15 ? tagSearch.slice(0, 15) + '…' : tagSearch}"
+                                    Create &quot;{tagSearch.length > 15 ? tagSearch.slice(0, 15) + '…' : tagSearch}&quot;
                                 </button>
                             )}
                             {tagSearch && (
@@ -258,17 +263,18 @@ export function TagSelector({
                                                             const name = newTagName.trim();
                                                             if (!name) return;
                                                             try {
-                                                                const payload: any = { name };
+                                                                const payload: { name: string; group?: number } = { name };
                                                                 const groupId = groupTags[0]?.group;
                                                                 if (groupId) payload.group = groupId;
                                                                 const res = await api.post('/tags/', payload);
-                                                                const created = res.data;
+                                                                const created = res.data as Tag;
                                                                 setTags((prev: Tag[]) => [...prev, created]);
-                                                                setFormData((prev: any) => ({ ...prev, tags: [...prev.tags, created.id] }));
+                                                                setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), created.id] }));
                                                                 setNewTagName('');
                                                                 setAddingTagGroup(null);
-                                                            } catch (err: any) {
-                                                                alert(`Failed: ${err.response?.data?.name?.[0] || err.response?.data?.detail || err.message}`);
+                                                            } catch (err: unknown) {
+                                                                const e = err as { response?: { data?: { name?: string[]; detail?: string } }; message?: string };
+                                                                alert(`Failed: ${e.response?.data?.name?.[0] || e.response?.data?.detail || e.message}`);
                                                             }
                                                         } else if (e.key === 'Escape') {
                                                             setAddingTagGroup(null);
@@ -285,17 +291,18 @@ export function TagSelector({
                                                         const name = newTagName.trim();
                                                         if (!name) return;
                                                         try {
-                                                            const payload: any = { name };
+                                                            const payload: { name: string; group?: number } = { name };
                                                             const groupId = groupTags[0]?.group;
                                                             if (groupId) payload.group = groupId;
                                                             const res = await api.post('/tags/', payload);
-                                                            const created = res.data;
+                                                            const created = res.data as Tag;
                                                             setTags((prev: Tag[]) => [...prev, created]);
-                                                            setFormData((prev: any) => ({ ...prev, tags: [...prev.tags, created.id] }));
+                                                            setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), created.id] }));
                                                             setNewTagName('');
                                                             setAddingTagGroup(null);
-                                                        } catch (err: any) {
-                                                            alert(`Failed: ${err.response?.data?.name?.[0] || err.response?.data?.detail || err.message}`);
+                                                        } catch (err: unknown) {
+                                                            const e = err as { response?: { data?: { name?: string[]; detail?: string } }; message?: string };
+                                                            alert(`Failed: ${e.response?.data?.name?.[0] || e.response?.data?.detail || e.message}`);
                                                         }
                                                     }}
                                                     className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors"
