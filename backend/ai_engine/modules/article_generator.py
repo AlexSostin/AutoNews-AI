@@ -159,6 +159,17 @@ _BANNED_INLINE_REPLACEMENTS = [
     (re.compile(r'is here to shake up', re.I), 'targets'),
     (re.compile(r'forget (?:everything you knew about |about )?(?:range )?anxiety,?\s*', re.I), ''),
     (re.compile(r',?\s*folks\b', re.I), ''),
+    # Round 4: BYD Sealion article filler (2026-03-08)
+    (re.compile(r'in the burgeoning .{3,30} market', re.I), 'in this market segment'),
+    (re.compile(r'a significant contender', re.I), 'a strong option'),
+    (re.compile(r'aiming to blend .{3,40},', re.I), 'combining'),
+    (re.compile(r'without the premium price tag', re.I), 'at a lower cost'),
+    (re.compile(r'brisk acceleration', re.I), 'quick acceleration'),
+    (re.compile(r'reduces? range anxiety', re.I), 'provides sufficient range'),
+    (re.compile(r'a compelling (?:option|choice|proposition|package)', re.I), 'a strong choice'),
+    (re.compile(r'a key player in', re.I), 'an important model in'),
+    (re.compile(r'further enhancing its credentials', re.I), 'additionally'),
+    (re.compile(r'contribut(?:ing|es?) to (?:a|the) (?:modern|premium) (?:and (?:premium|modern) )?appearance', re.I), 'adds to the design'),
 ]
 
 
@@ -671,6 +682,16 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     except Exception as e:
         print(f"⚠️ Could not load few-shot examples: {e}")
     
+    # Load correction memory (learning loop from past fact-check fixes)
+    correction_block = ""
+    try:
+        from ai_engine.modules.correction_memory import get_correction_examples
+        correction_block = get_correction_examples(n=15)
+        if correction_block:
+            print(f"  📝 Loaded correction memory into prompt")
+    except Exception as e:
+        print(f"⚠️ Could not load correction memory: {e}")
+    
     prompt = f"""
 {entity_anchor}
 {web_data_section}
@@ -934,6 +955,8 @@ ALT_TEXT_3: [descriptive alt text for detail/tech image]
 </div>
 
 {few_shot_block}
+
+{correction_block}
 
 Analysis Data:
 {analysis_data}

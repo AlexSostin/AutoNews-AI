@@ -1,5 +1,6 @@
 import logging
 import json
+import os
 import re
 
 logger = logging.getLogger(__name__)
@@ -214,10 +215,11 @@ For EACH numerical claim in the article, apply one of these tiers:
 If the WEB CONTEXT contains the correct value → replace the wrong number with the correct one.
 Example: Article says "544 hp" but web context says "505 kW (687 hp)" → replace with "505 kW (687 hp)".
 
-**TIER 2 — KEEP WITH CAVEAT** (acceptable):
+**TIER 2 — KEEP AS-IS** (acceptable):
 If the claim is NOT in the web context but is plausible (could be from the video source) → KEEP the
-original number but add an inline note. Format: append " (per manufacturer)" or " (unverified)" after the number.
-Example: "35.6 kWh battery pack" → "35.6 kWh battery pack (per manufacturer)"
+original number EXACTLY AS-IS with NO inline annotation. Do NOT append "(unverified)" or "(per manufacturer)".
+Instead, add the claim to the "caveated" array in your JSON response for editorial tracking.
+Example: "35.6 kWh battery pack" → keep as "35.6 kWh battery pack" (no changes to text)
 
 **TIER 3 — REMOVE** (last resort, use sparingly):
 ONLY if the web context DIRECTLY CONTRADICTS the number (web says X, article says Y and they are
@@ -274,6 +276,9 @@ Return ONLY valid JSON. No markdown fences, no extra text.
 
         fixed_html = result.get('fixed_html', article_html)
 
+        # Strip any remaining inline (unverified)/(per manufacturer) tags the LLM might add
+        fixed_html = re.sub(r'\s*\((?:unverified|per manufacturer|not independently verified)\)', '', fixed_html)
+
         # Sanity check: if fixed_html is dramatically shorter (>40% loss), it means
         # the LLM still stripped too aggressively — fall back to original
         original_text_len = len(re.sub(r'<[^>]+>', '', article_html))
@@ -296,11 +301,26 @@ Return ONLY valid JSON. No markdown fences, no extra text.
                 'warning': 'LLM stripped too much content — kept original with warning block removed',
             }
 
+        # Save corrections to persistent memory (learning loop)
+        replaced = result.get('replaced', [])
+        caveated = result.get('caveated', [])
+        removed = result.get('removed', [])
+
+        if replaced or removed:
+            try:
+                from ai_engine.modules.correction_memory import record_corrections
+                # Extract article title from HTML
+                title_match = re.search(r'<h[12][^>]*>([^<]+)</h[12]>', fixed_html)
+                title = title_match.group(1) if title_match else 'Unknown Article'
+                record_corrections(title, replaced, caveated, removed)
+            except Exception as mem_err:
+                logger.warning(f"Correction memory save failed: {mem_err}")
+
         return {
             'content': fixed_html,
-            'replaced': result.get('replaced', []),
-            'caveated': result.get('caveated', []),
-            'removed': result.get('removed', []),
+            'replaced': replaced,
+            'caveated': caveated,
+            'removed': removed,
         }
 
     except Exception as e:
