@@ -262,9 +262,10 @@ class PasskeyVerifyPendingView(APIView):
     Called after password login when requires_passkey=True was returned.
     Flow:
       1. User enters username+password → backend stores JWT in session, returns requires_passkey=True
-      2. GET /auth/passkey/verify-pending/ → returns auth options (challenge)
+      2. GET /auth/passkey/verify-pending/?token=<pending_token> → returns auth options (challenge)
       3. Browser asks for biometric
-      4. POST /auth/passkey/verify-pending/ → verifies assertion → returns JWT from session
+      4. POST /auth/passkey/verify-pending/ {pending_token, ...assertion} → verifies + returns JWT
+    Uses Django cache (Redis) — no session cookies needed (stateless, cross-origin safe).
     """
     permission_classes = [AllowAny]
 
@@ -272,37 +273,47 @@ class PasskeyVerifyPendingView(APIView):
         """Return authentication options for pending passkey verification."""
         import webauthn
         from webauthn.helpers.structs import UserVerificationRequirement
+        from django.core.cache import cache
         import json as _json
 
-        if not request.session.get('passkey_pending_access'):
-            return Response({'detail': 'No pending login. Please login first.'}, status=status.HTTP_400_BAD_REQUEST)
+        pending_token = request.GET.get('token', '')
+        cache_key = f'passkey_pending:{pending_token}'
+        pending = cache.get(cache_key)
+        if not pending:
+            return Response({'detail': 'No pending login or token expired. Please login again.'}, status=status.HTTP_400_BAD_REQUEST)
 
         options = webauthn.generate_authentication_options(
             rp_id=_get_rp_id(),
             user_verification=UserVerificationRequirement.PREFERRED,
         )
-        request.session['webauthn_auth_challenge'] = _b64url_encode(options.challenge)
-        request.session.modified = True
+        challenge_b64 = _b64url_encode(options.challenge)
+        # Store challenge alongside pending tokens, keyed by same token
+        pending['challenge'] = challenge_b64
+        cache.set(cache_key, pending, timeout=120)
         return Response(_json.loads(webauthn.options_to_json(options)))
 
     def post(self, request):
         """Verify biometric assertion and return pending JWT tokens."""
         import webauthn
+        from django.core.cache import cache
         from datetime import datetime, timezone
 
-        # Must have pending tokens in session
-        pending_access = request.session.get('passkey_pending_access')
-        pending_refresh = request.session.get('passkey_pending_refresh')
-        if not pending_access:
-            return Response({'detail': 'No pending login session. Please login again.'}, status=status.HTTP_400_BAD_REQUEST)
+        pending_token = request.data.get('pending_token', '')
+        cache_key = f'passkey_pending:{pending_token}'
+        pending = cache.get(cache_key)
+        if not pending:
+            return Response({'detail': 'No pending login or token expired. Please login again.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        challenge_b64 = request.session.get('webauthn_auth_challenge')
+        challenge_b64 = pending.get('challenge')
         if not challenge_b64:
-            return Response({'detail': 'No passkey challenge. Call GET first.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'No passkey challenge found. Call GET first.'}, status=status.HTTP_400_BAD_REQUEST)
 
         challenge = _b64url_decode(challenge_b64)
 
-        raw_id_b64 = request.data.get('rawId') or request.data.get('id', '')
+        # Remove pending_token from assertion data before passing to webauthn
+        assertion_data = {k: v for k, v in request.data.items() if k != 'pending_token'}
+
+        raw_id_b64 = assertion_data.get('rawId') or assertion_data.get('id', '')
         try:
             raw_id_bytes = _b64url_decode(raw_id_b64)
         except Exception:
@@ -315,7 +326,7 @@ class PasskeyVerifyPendingView(APIView):
 
         try:
             verification = webauthn.verify_authentication_response(
-                credential=request.data,
+                credential=assertion_data,
                 expected_challenge=challenge,
                 expected_rp_id=_get_rp_id(),
                 expected_origin=_get_origin(),
@@ -332,15 +343,12 @@ class PasskeyVerifyPendingView(APIView):
         cred.last_used = datetime.now(timezone.utc)
         cred.save(update_fields=['sign_count', 'last_used'])
 
-        # Clear session data
-        del request.session['webauthn_auth_challenge']
-        del request.session['passkey_pending_access']
-        del request.session['passkey_pending_refresh']
-        request.session.modified = True
+        # Invalidate one-time token
+        cache.delete(cache_key)
 
         logger.info(f'🔑 Passkey verified post-login: user={cred.user.username} device="{cred.device_name}"')
 
         return Response({
-            'access': pending_access,
-            'refresh': pending_refresh,
+            'access': pending['access'],
+            'refresh': pending['refresh'],
         })

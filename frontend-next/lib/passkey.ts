@@ -113,27 +113,30 @@ export async function loginWithPasskey(): Promise<{ access: string; refresh: str
 
 // ─── Verify passkey after password login (pending tokens) ─────────────────────
 // Called when backend returns requires_passkey=true after username+password login.
-// Backend already validated credentials and stored JWT in session — we just
-// need the biometric to release it.
+// Backend stored JWT in cache under a one-time pending_token. We pass it in
+// each request so no session cookie is needed (cross-origin safe).
 
-export async function verifyPendingPasskey(): Promise<{ access: string; refresh: string }> {
-    // Step 1: get challenge from backend (it checks session for pending tokens)
-    const challengeRes = await fetch(`${API()}/auth/passkey/verify-pending/`, {
+export async function verifyPendingPasskey(pendingToken: string): Promise<{ access: string; refresh: string }> {
+    // Step 1: get challenge, passing pending_token as query param (no session cookie needed)
+    const challengeRes = await fetch(`${API()}/auth/passkey/verify-pending/?token=${encodeURIComponent(pendingToken)}`, {
         method: 'GET',
         credentials: 'include',
     });
-    if (!challengeRes.ok) throw new Error('Could not start passkey verification');
+    if (!challengeRes.ok) {
+        const err = await challengeRes.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail || 'Could not start passkey verification');
+    }
     const options = await challengeRes.json();
 
     // Step 2: browser asks for biometric
     const assertion = await startAuthentication({ optionsJSON: options });
 
-    // Step 3: backend verifies and returns the previously-held JWT
+    // Step 3: backend verifies and returns the cache-stored JWT
     const verifyRes = await fetch(`${API()}/auth/passkey/verify-pending/`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(assertion),
+        body: JSON.stringify({ ...assertion, pending_token: pendingToken }),
     });
 
     if (!verifyRes.ok) {

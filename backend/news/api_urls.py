@@ -74,15 +74,22 @@ class RateLimitedTokenObtainPairView(TokenObtainPairView):
                             }, status=200)
 
                         if has_passkeys:
-                            # Passkey required — store pending tokens in session for retrieval after biometric
-                            import json as _json
+                            # Passkey required — store pending tokens in cache (not session!)
+                            # Sessions use cookies which may not transfer cross-origin (SameSite=Lax).
+                            # Cache + one-time token in response body is stateless/2025 best practice.
+                            import secrets
+                            from django.core.cache import cache
                             tokens = response.data  # {'access': ..., 'refresh': ...}
-                            request.session['passkey_pending_access'] = tokens.get('access')
-                            request.session['passkey_pending_refresh'] = tokens.get('refresh')
-                            request.session.modified = True
+                            pending_token = secrets.token_urlsafe(32)
+                            cache.set(
+                                f'passkey_pending:{pending_token}',
+                                {'access': tokens.get('access'), 'refresh': tokens.get('refresh')},
+                                timeout=120,  # 2 minutes to complete biometric
+                            )
                             logger.info(f"🔑 Login requires Passkey: user={user.username} ip={ip}")
                             return Response({
                                 'requires_passkey': True,
+                                'pending_token': pending_token,
                                 'message': 'Please verify with your passkey.',
                             }, status=200)
 

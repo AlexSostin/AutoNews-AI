@@ -23,7 +23,9 @@ export default function LoginPage() {
 
   // 2FA state — store credentials for step 2 (backend needs username+password+totp_code)
   const [requires2FA, setRequires2FA] = useState(false);
+  // Passkey step — store one-time token from backend for biometric verification
   const [requiresPasskey, setRequiresPasskey] = useState(false); // step between password and 2FA
+  const [pendingPasskeyToken, setPendingPasskeyToken] = useState(''); // one-time cache key from backend
   const [pending2FACredentials, setPending2FACredentials] = useState({ username: '', password: '' });
   const [googleUserId, setGoogleUserId] = useState(''); // set when 2FA triggered from Google OAuth
   const [totpCode, setTotpCode] = useState('');
@@ -83,7 +85,7 @@ export default function LoginPage() {
     setIsPasskeyLoading(true);
     setError('');
     try {
-      const { access } = await verifyPendingPasskey();
+      const { access } = await verifyPendingPasskey(pendingPasskeyToken);
       const { getCurrentUser } = await import('@/lib/auth');
       const userData = await getCurrentUser(access);
       if (userData) localStorage.setItem('user', JSON.stringify(userData));
@@ -113,8 +115,9 @@ export default function LoginPage() {
       await login(formData);
       onLoginSuccess();
     } catch (err: unknown) {
-      // Passkey required — backend validated password, stored JWT, needs biometric
+      // Passkey required — backend validated password, stored JWT in cache, needs biometric
       if (err instanceof PasskeyRequiredError) {
+        setPendingPasskeyToken(err.pendingToken);
         setRequiresPasskey(true);
         setIsLoading(false);
         return;
