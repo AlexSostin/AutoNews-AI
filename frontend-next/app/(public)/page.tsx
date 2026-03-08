@@ -128,7 +128,7 @@ export default async function Home() {
           "url": "https://www.freshmotors.net",
           "logo": "https://www.freshmotors.net/logo.png",
           "description": "AI-powered automotive news and vehicle reviews",
-          "sameAs": [],
+          "sameAs": ["https://x.com/fresh_m0tors", "https://www.reddit.com/r/freshmotors/"],
           "contactPoint": { "@type": "ContactPoint", "contactType": "customer service", "url": "https://www.freshmotors.net/contact" }
         }} />
 

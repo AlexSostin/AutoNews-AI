@@ -38,7 +38,7 @@ async function getGAId() {
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://freshmotors.net'),
+  metadataBase: new URL('https://www.freshmotors.net'),
   title: "Fresh Motors - Latest Automotive News & Reviews",
   description: "Your source for the latest automotive news, car reviews, and industry insights.",
   icons: {
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Fresh Motors - Latest Automotive News & Reviews",
     description: "Your source for the latest automotive news, car reviews, and industry insights.",
-    url: 'https://freshmotors.net',
+    url: 'https://www.freshmotors.net',
     siteName: 'Fresh Motors',
     images: [
       {

@@ -22,6 +22,7 @@ import CommentSection from '@/components/public/CommentSection';
 import FeedbackButton from '@/components/public/FeedbackButton';
 import { Calendar, User, Rss, ExternalLink, Youtube, Tag } from 'lucide-react';
 import AuthorCard from '@/components/public/AuthorCard';
+import JsonLd from '@/components/public/JsonLd';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -116,6 +117,36 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 categoryName={article.categories?.[0]?.name}
             />
 
+            {/* NewsArticle JSON-LD for SEO rich results */}
+            <JsonLd data={{
+                "@context": "https://schema.org",
+                "@type": "NewsArticle",
+                "headline": article.title,
+                "description": article.summary || '',
+                "datePublished": article.created_at,
+                "dateModified": article.updated_at || article.created_at,
+                "image": fixUrl(article.image),
+                "url": fullUrl,
+                "author": {
+                    "@type": "Organization",
+                    "name": "Fresh Motors",
+                    "url": "https://www.freshmotors.net"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "Fresh Motors",
+                    "url": "https://www.freshmotors.net",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://www.freshmotors.net/logo.png"
+                    }
+                },
+                "mainEntityOfPage": {
+                    "@type": "WebPage",
+                    "@id": fullUrl
+                }
+            }} />
+
             {/* Divider between articles */}
             {index > 0 && (
                 <div className="flex items-center gap-4 my-6">
@@ -185,11 +216,11 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 </div>
 
                 <div className="flex items-start justify-between gap-4">
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 flex-1 leading-tight">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 flex-1 leading-tight">
                         <Link href={`/articles/${article.slug}`} className="hover:text-indigo-700 transition-colors">
                             {article.title}
                         </Link>
-                    </h2>
+                    </h1>
                     <FavoriteButton articleId={article.id} initialIsFavorited={article.is_favorited} size="lg" />
                 </div>
 

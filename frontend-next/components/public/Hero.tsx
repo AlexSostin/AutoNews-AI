@@ -125,9 +125,9 @@ export default function Hero({ articles, settings }: HeroProps) {
             <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-gray-900 text-white py-24 relative overflow-hidden min-h-[500px] flex items-center">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="container mx-auto px-4 text-center relative z-10">
-                    <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 drop-shadow-lg animate-fade-in">
+                    <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 drop-shadow-lg animate-fade-in">
                         {settings?.hero_title || 'Welcome to Fresh Motors'}
-                    </h1>
+                    </h2>
                     <p className="text-lg sm:text-xl md:text-2xl mb-10 text-white/90 max-w-3xl mx-auto leading-relaxed">
                         {settings?.hero_subtitle || 'Your premier source for automotive news, reviews, and insights'}
                     </p>
@@ -189,9 +189,9 @@ export default function Hero({ articles, settings }: HeroProps) {
                                 </span>
                             </div>
 
-                            <h1 className="text-lg sm:text-3xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-tight drop-shadow-2xl line-clamp-2">
+                            <h2 className="text-lg sm:text-3xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-tight drop-shadow-2xl line-clamp-2">
                                 {article.title}
-                            </h1>
+                            </h2>
 
                             <p className="hidden md:block text-lg md:text-xl text-gray-200 mb-8 line-clamp-2 md:line-clamp-3 max-w-2xl leading-relaxed">
                                 {article.summary}
