@@ -58,7 +58,9 @@ class TestRSSAggregatorDuplicate:
     def test_no_duplicate_empty_db(self):
         from ai_engine.modules.rss_aggregator import RSSAggregator
         agg = RSSAggregator()
-        assert agg.is_duplicate('Unique Article Title', 'Some content') is False
+        is_dup, matched_id = agg.is_duplicate('Unique Article Title', 'Some content')
+        assert is_dup is False
+        assert matched_id is None
 
     def test_duplicate_by_title(self):
         from ai_engine.modules.rss_aggregator import RSSAggregator
@@ -69,7 +71,8 @@ class TestRSSAggregatorDuplicate:
         )
         agg = RSSAggregator()
         # Very similar title should flag duplicate
-        assert agg.is_duplicate('Tesla Model 3 Review 2026', 'Different content') is True
+        is_dup, matched_id = agg.is_duplicate('Tesla Model 3 Review 2026', 'Different content')
+        assert is_dup is True
 
 
 class TestRSSAggregatorContent:

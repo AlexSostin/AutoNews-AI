@@ -175,3 +175,4 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
     );
 });
 
+GallerySection.displayName = 'GallerySection';

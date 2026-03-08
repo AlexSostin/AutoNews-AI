@@ -6,6 +6,7 @@ import Pagination from '@/components/public/Pagination';
 import { ArticleGridSkeleton } from '@/components/public/Skeletons';
 import { TrendingUp } from 'lucide-react';
 import { usePageAnalytics } from '@/hooks/usePageAnalytics';
+import { Article } from '@/types';
 
 // Runtime API URL detection for client components
 const getApiUrl = () => {
@@ -18,7 +19,7 @@ const getApiUrl = () => {
 };
 
 export default function TrendingPage() {
-  const [articles, setArticles] = useState<any[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);

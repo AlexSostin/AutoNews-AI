@@ -179,7 +179,7 @@ export default function TermsPage() {
                 <section className="mb-10">
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Disclaimer of Warranties</h2>
                   <p className="text-gray-700 mb-4">
-                    Our website and content are provided on an "AS IS" and "AS AVAILABLE" basis. We make no
+                    Our website and content are provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. We make no
                     warranties or representations about the accuracy, reliability, completeness, or timeliness
                     of the content.
                   </p>
@@ -209,7 +209,7 @@ export default function TermsPage() {
                   <h2 className="text-2xl font-black text-gray-900 mb-4">Indemnification</h2>
                   <p className="text-gray-700">
                     You agree to indemnify, defend, and hold harmless Fresh Motors and its affiliates from any claims,
-                    liabilities, damages, losses, and expenses (including reasonable attorneys' fees) arising out
+                    liabilities, damages, losses, and expenses (including reasonable attorneys&apos; fees) arising out
                     of or in any way connected with your access to or use of our website or your violation of
                     these Terms.
                   </p>
@@ -221,7 +221,7 @@ export default function TermsPage() {
                   <p className="text-gray-700">
                     We reserve the right to modify or replace these Terms at any time at our sole discretion.
                     If we make material changes, we will provide notice by posting the updated Terms on this
-                    page with a new "Last Updated" date. Your continued use of the website after any changes
+                    page with a new &quot;Last Updated&quot; date. Your continued use of the website after any changes
                     constitutes acceptance of the new Terms.
                   </p>
                 </section>

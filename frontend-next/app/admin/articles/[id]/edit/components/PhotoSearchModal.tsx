@@ -1,5 +1,15 @@
 import { Loader2, Search, X, Download } from 'lucide-react';
 
+interface PhotoResult {
+    url: string;
+    thumbnail: string;
+    title: string;
+    source: string;
+    width: number;
+    height: number;
+    license: 'editorial' | 'cc' | 'unknown';
+}
+
 interface PhotoSearchModalProps {
     photoSearchOpen: boolean;
     setPhotoSearchOpen: (open: boolean) => void;
@@ -8,7 +18,7 @@ interface PhotoSearchModalProps {
     setPhotoSearchQuery: (query: string) => void;
     searchPhotosCustom: () => void;
     photoSearchLoading: boolean;
-    photoSearchResults: any[];
+    photoSearchResults: PhotoResult[];
     savingPhoto: string | null;
     selectPhoto: (url: string) => void;
 }
