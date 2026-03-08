@@ -38,13 +38,13 @@ from .api_views.two_factor import (
 )
 from .api_views.webauthn_views import (
     PasskeyRegisterBeginView, PasskeyRegisterCompleteView,
-    PasskeyAuthenticateView, PasskeyListView,
+    PasskeyAuthenticateView, PasskeyListView, PasskeyVerifyPendingView,
 )
 
 
 # Rate-limited token views for security
 class RateLimitedTokenObtainPairView(TokenObtainPairView):
-    """Token view with rate limiting + login activity logging + 2FA check"""
+    """Token view with rate limiting + login activity logging + 2FA + Passkey check"""
     @method_decorator(ratelimit(key='ip', rate='5/15m', method='POST', block=True))
     def post(self, request, *args, **kwargs):
         ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', 'unknown'))
@@ -54,25 +54,42 @@ class RateLimitedTokenObtainPairView(TokenObtainPairView):
         try:
             response = super().post(request, *args, **kwargs)
             if response.status_code == 200:
-                # Check if user has 2FA enabled — only for is_staff users
+                # Check if user has 2FA or Passkeys — only for is_staff users
                 try:
                     from django.contrib.auth.models import User
-                    from news.models import TOTPDevice
+                    from news.models import TOTPDevice, WebAuthnCredential
                     user = User.objects.get(username__iexact=username)
-                    # 2FA is only required for staff/admin accounts, not regular users
+                    # 2FA / Passkey only required for staff/admin accounts
                     if user.is_staff:
                         has_2fa = TOTPDevice.objects.filter(user=user, is_confirmed=True).exists()
-                        logger.info(f"🔐 2FA check: user={user.username} is_staff=True has_2fa={has_2fa}")
+                        has_passkeys = WebAuthnCredential.objects.filter(user=user).exists()
+                        logger.info(f"🔐 Auth check: user={user.username} is_staff=True has_2fa={has_2fa} has_passkeys={has_passkeys}")
+
                         if has_2fa:
+                            # TOTP 2FA takes priority — passkey button also shown in 2FA step
                             logger.info(f"🔐 Login requires 2FA: user={user.username} ip={ip}")
                             return Response({
                                 'requires_2fa': True,
                                 'message': 'Please provide your 2FA code.',
                             }, status=200)
+
+                        if has_passkeys:
+                            # Passkey required — store pending tokens in session for retrieval after biometric
+                            import json as _json
+                            tokens = response.data  # {'access': ..., 'refresh': ...}
+                            request.session['passkey_pending_access'] = tokens.get('access')
+                            request.session['passkey_pending_refresh'] = tokens.get('refresh')
+                            request.session.modified = True
+                            logger.info(f"🔑 Login requires Passkey: user={user.username} ip={ip}")
+                            return Response({
+                                'requires_passkey': True,
+                                'message': 'Please verify with your passkey.',
+                            }, status=200)
+
                 except User.DoesNotExist:
-                    logger.warning(f"⚠️ 2FA check: user not found username={username}")
+                    logger.warning(f"⚠️ Auth check: user not found username={username}")
                 except Exception as e:
-                    logger.error(f"❌ 2FA check ERROR: {type(e).__name__}: {e}")
+                    logger.error(f"❌ Auth check ERROR: {type(e).__name__}: {e}")
                 logger.info(f"🔑 Login SUCCESS: user={username} ip={ip}")
             return response
         except Exception as e:
@@ -170,6 +187,7 @@ urlpatterns = [
     path('auth/passkey/register/begin/', PasskeyRegisterBeginView.as_view(), name='passkey_register_begin'),
     path('auth/passkey/register/complete/', PasskeyRegisterCompleteView.as_view(), name='passkey_register_complete'),
     path('auth/passkey/authenticate/', PasskeyAuthenticateView.as_view(), name='passkey_authenticate'),
+    path('auth/passkey/verify-pending/', PasskeyVerifyPendingView.as_view(), name='passkey_verify_pending'),
     path('auth/passkey/credentials/', PasskeyListView.as_view(), name='passkey_list'),
     path('auth/passkey/credentials/<int:pk>/', PasskeyListView.as_view(), name='passkey_delete'),
 

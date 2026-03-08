@@ -18,6 +18,14 @@ export class TwoFARequiredError extends Error {
   }
 }
 
+// Special error class to signal that Passkey verification is required
+export class PasskeyRequiredError extends Error {
+  constructor() {
+    super('Passkey required');
+    this.name = 'PasskeyRequiredError';
+  }
+}
+
 export const login = async (credentials: LoginCredentials): Promise<AuthTokens> => {
   const response = await api.post('/token/', credentials);
   const data = response.data;
@@ -25,6 +33,11 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
   // If backend requires 2FA — throw special error for the login page to handle
   if (data.requires_2fa) {
     throw new TwoFARequiredError();
+  }
+
+  // If backend requires Passkey — throw special error
+  if (data.requires_passkey) {
+    throw new PasskeyRequiredError();
   }
 
   const { access, refresh } = data;

@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { Eye, EyeOff, Smartphone, ShieldCheck, Fingerprint } from 'lucide-react';
 import '../register/register-password.css';
 import { useRouter } from 'next/navigation';
-import { login, login2FA, loginGoogle2FA, TwoFARequiredError } from '@/lib/auth';
-import { loginWithPasskey, browserSupportsWebAuthn } from '@/lib/passkey';
+import { login, login2FA, loginGoogle2FA, TwoFARequiredError, PasskeyRequiredError } from '@/lib/auth';
+import { verifyPendingPasskey, browserSupportsWebAuthn } from '@/lib/passkey';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
@@ -23,6 +23,7 @@ export default function LoginPage() {
 
   // 2FA state — store credentials for step 2 (backend needs username+password+totp_code)
   const [requires2FA, setRequires2FA] = useState(false);
+  const [requiresPasskey, setRequiresPasskey] = useState(false); // step between password and 2FA
   const [pending2FACredentials, setPending2FACredentials] = useState({ username: '', password: '' });
   const [googleUserId, setGoogleUserId] = useState(''); // set when 2FA triggered from Google OAuth
   const [totpCode, setTotpCode] = useState('');
@@ -78,29 +79,24 @@ export default function LoginPage() {
     setTimeout(() => { window.location.href = '/'; }, 500);
   };
 
-  const handlePasskeyLogin = async () => {
+  const handlePasskeyVerify = async () => {
     setIsPasskeyLoading(true);
     setError('');
     try {
-      const { access } = await loginWithPasskey();
-      // Fetch user data like regular login
+      const { access } = await verifyPendingPasskey();
       const { getCurrentUser } = await import('@/lib/auth');
       const userData = await getCurrentUser(access);
-      if (userData) {
-        localStorage.setItem('user', JSON.stringify(userData));
-      }
+      if (userData) localStorage.setItem('user', JSON.stringify(userData));
       toast.success('Welcome back! 🔑', {
-        duration: 3000,
-        position: 'top-center',
+        duration: 3000, position: 'top-center',
         style: { background: '#6366f1', color: '#fff', fontWeight: 'bold', fontSize: '16px', padding: '16px 24px', borderRadius: '12px' },
         icon: '👍',
       });
       setTimeout(() => { window.location.href = '/'; }, 500);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Passkey login failed';
+      const msg = err instanceof Error ? err.message : 'Passkey verification failed';
       if (!msg.includes('AbortError') && !msg.includes('NotAllowedError')) {
-        toast.error(msg);
-        setError(msg);
+        toast.error(msg); setError(msg);
       }
     } finally {
       setIsPasskeyLoading(false);
@@ -117,6 +113,12 @@ export default function LoginPage() {
       await login(formData);
       onLoginSuccess();
     } catch (err: unknown) {
+      // Passkey required — backend validated password, stored JWT, needs biometric
+      if (err instanceof PasskeyRequiredError) {
+        setRequiresPasskey(true);
+        setIsLoading(false);
+        return;
+      }
       // 2FA required — save credentials so step 2 can re-authenticate
       if (err instanceof TwoFARequiredError) {
         setPending2FACredentials({ username: formData.username, password: formData.password });
@@ -194,25 +196,6 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Passkey option — only visible to staff who reached 2FA step */}
-              {passkeySupported && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handlePasskeyLogin}
-                    disabled={isPasskeyLoading}
-                    className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-violet-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-500/30"
-                  >
-                    <Fingerprint size={20} className={isPasskeyLoading ? 'animate-pulse' : ''} />
-                    {isPasskeyLoading ? 'Waiting for biometric...' : 'Sign in with Passkey instead'}
-                  </button>
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-                    <div className="relative flex justify-center text-xs"><span className="px-3 bg-white text-gray-400">or enter 6-digit code</span></div>
-                  </div>
-                </>
-              )}
-
               <div className="flex justify-center">
                 <input
                   ref={totpInputRef}
@@ -245,6 +228,38 @@ export default function LoginPage() {
                 ← Back to login
               </button>
             </form>
+          ) : requiresPasskey ? (
+            /* ── STEP 1.5: Passkey verification (after password, before JWT) ── */
+            <div className="space-y-6">
+              <div className="text-center space-y-2">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-violet-100 mb-2">
+                  <Fingerprint className="text-violet-600" size={28} />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Verify with Passkey</h2>
+                <p className="text-gray-500 text-sm">
+                  Tap the button and confirm with your fingerprint or Face ID
+                </p>
+              </div>
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">{error}</div>
+              )}
+              <button
+                type="button"
+                onClick={handlePasskeyVerify}
+                disabled={isPasskeyLoading}
+                className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:from-violet-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-violet-500/30 text-base"
+              >
+                <Fingerprint size={22} className={isPasskeyLoading ? 'animate-pulse' : ''} />
+                {isPasskeyLoading ? 'Waiting for biometric...' : 'Tap to confirm with fingerprint'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRequiresPasskey(false); setError(''); }}
+                className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                ← Back to login
+              </button>
+            </div>
           ) : (
             /* ── STEP 1: username + password ── */
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -259,28 +274,6 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* ── Passkey (admin shortcut) ── */}
-              {passkeySupported && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handlePasskeyLogin}
-                    disabled={isPasskeyLoading}
-                    className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-violet-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-500/30"
-                  >
-                    <Fingerprint size={20} className={isPasskeyLoading ? 'animate-pulse' : ''} />
-                    {isPasskeyLoading ? 'Waiting for biometric...' : 'Sign in with Passkey'}
-                  </button>
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200" />
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                      <span className="px-3 bg-white text-gray-400">or sign in with password</span>
-                    </div>
-                  </div>
-                </>
-              )}
 
               <div>
                 <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">

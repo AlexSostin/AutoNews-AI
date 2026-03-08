@@ -111,6 +111,41 @@ export async function loginWithPasskey(): Promise<{ access: string; refresh: str
     return tokens;
 }
 
+// ─── Verify passkey after password login (pending tokens) ─────────────────────
+// Called when backend returns requires_passkey=true after username+password login.
+// Backend already validated credentials and stored JWT in session — we just
+// need the biometric to release it.
+
+export async function verifyPendingPasskey(): Promise<{ access: string; refresh: string }> {
+    // Step 1: get challenge from backend (it checks session for pending tokens)
+    const challengeRes = await fetch(`${API()}/auth/passkey/verify-pending/`, {
+        method: 'GET',
+        credentials: 'include',
+    });
+    if (!challengeRes.ok) throw new Error('Could not start passkey verification');
+    const options = await challengeRes.json();
+
+    // Step 2: browser asks for biometric
+    const assertion = await startAuthentication({ optionsJSON: options });
+
+    // Step 3: backend verifies and returns the previously-held JWT
+    const verifyRes = await fetch(`${API()}/auth/passkey/verify-pending/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assertion),
+    });
+
+    if (!verifyRes.ok) {
+        const err = await verifyRes.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail || 'Passkey verification failed');
+    }
+
+    const tokens = await verifyRes.json() as { access: string; refresh: string };
+    _setCookieAndStorage(tokens.access, tokens.refresh);
+    return tokens;
+}
+
 // ─── List passkeys ─────────────────────────────────────────────────────────────
 
 export interface PasskeyCredential {
