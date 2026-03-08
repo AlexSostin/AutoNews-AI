@@ -128,8 +128,8 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 "image": fixUrl(article.image),
                 "url": fullUrl,
                 "author": {
-                    "@type": "Organization",
-                    "name": "Fresh Motors",
+                    "@type": "Person",
+                    "name": article.author_name || "Alexander Sostin",
                     "url": "https://www.freshmotors.net"
                 },
                 "publisher": {

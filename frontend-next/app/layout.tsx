@@ -40,7 +40,7 @@ async function getGAId() {
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.freshmotors.net'),
   title: "Fresh Motors - Latest Automotive News & Reviews",
-  description: "Your source for the latest automotive news, car reviews, and industry insights.",
+  description: "Expert automotive news, in-depth car reviews, and EV insights. Real specs, real opinions — from journalists who drive the cars.",
   icons: {
     icon: [
       { url: '/logo.png', sizes: 'any' },
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Fresh Motors - Latest Automotive News & Reviews",
-    description: "Your source for the latest automotive news, car reviews, and industry insights.",
+    description: "Expert automotive news, in-depth car reviews, and EV insights. Real specs, real opinions — from journalists who drive the cars.",
     url: 'https://www.freshmotors.net',
     siteName: 'Fresh Motors',
     images: [
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: "Fresh Motors - Latest Automotive News & Reviews",
-    description: "Your source for the latest automotive news, car reviews, and industry insights.",
+    description: "Expert automotive news, in-depth car reviews, and EV insights. Real specs, real opinions — from journalists who drive the cars.",
     images: ['/og-image.png'],
   },
 };
