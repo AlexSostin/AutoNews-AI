@@ -16,31 +16,23 @@ export interface Tag {
     group_name?: string;
 }
 
-interface TagSelectorProps {
+interface TagSelectorProps<T extends { category_ids: number[]; tags: number[] }> {
     categories: Category[];
     tags: Tag[];
     setTags: React.Dispatch<React.SetStateAction<Tag[]>>;
-    formData: {
-        category_ids: number[];
-        tags: number[];
-        [key: string]: unknown;
-    };
-    setFormData: React.Dispatch<React.SetStateAction<{
-        category_ids: number[];
-        tags: number[];
-        [key: string]: unknown;
-    }>>;
+    formData: T;
+    setFormData: React.Dispatch<React.SetStateAction<T>>;
     handleTagToggle: (tagId: number) => void;
 }
 
-export function TagSelector({
+export function TagSelector<T extends { category_ids: number[]; tags: number[] }>({
     categories,
     tags,
     setTags,
     formData,
     setFormData,
-    handleTagToggle
-}: TagSelectorProps) {
+    handleTagToggle,
+}: TagSelectorProps<T>) {
     const [tagSearch, setTagSearch] = useState('');
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
     const [letterFilter, setLetterFilter] = useState<Record<string, string | null>>({});
@@ -99,7 +91,7 @@ export function TagSelector({
                                     const ids = formData.category_ids.includes(cat.id)
                                         ? formData.category_ids.filter((id: number) => id !== cat.id)
                                         : [...formData.category_ids, cat.id];
-                                    setFormData({ ...formData, category_ids: ids });
+                                    setFormData((prev) => ({ ...prev, category_ids: ids }) as T);
                                 }}
                                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ${formData.category_ids.includes(cat.id)
                                     ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
@@ -146,7 +138,7 @@ export function TagSelector({
                                             const res = await api.post('/tags/', { name });
                                             const newTag = res.data;
                                             setTags((prev: Tag[]) => [...prev, newTag]);
-                                            setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), newTag.id] }));
+                                            setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), newTag.id] }) as T);
                                             setTagSearch('');
                                         } catch (err: unknown) {
                                             const e = err as { response?: { data?: { name?: string[] } }; message?: string };
@@ -269,7 +261,7 @@ export function TagSelector({
                                                                 const res = await api.post('/tags/', payload);
                                                                 const created = res.data as Tag;
                                                                 setTags((prev: Tag[]) => [...prev, created]);
-                                                                setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), created.id] }));
+                                                                setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), created.id] }) as T);
                                                                 setNewTagName('');
                                                                 setAddingTagGroup(null);
                                                             } catch (err: unknown) {
@@ -297,7 +289,7 @@ export function TagSelector({
                                                             const res = await api.post('/tags/', payload);
                                                             const created = res.data as Tag;
                                                             setTags((prev: Tag[]) => [...prev, created]);
-                                                            setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), created.id] }));
+                                                            setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), created.id] }) as T);
                                                             setNewTagName('');
                                                             setAddingTagGroup(null);
                                                         } catch (err: unknown) {
