@@ -36,6 +36,10 @@ from .api_views.two_factor import (
     TwoFactorSetupView, TwoFactorConfirmView, TwoFactorVerifyView,
     TwoFactorGoogleVerifyView, TwoFactorDisableView, TwoFactorStatusView
 )
+from .api_views.webauthn_views import (
+    PasskeyRegisterBeginView, PasskeyRegisterCompleteView,
+    PasskeyAuthenticateView, PasskeyListView,
+)
 
 
 # Rate-limited token views for security
@@ -161,6 +165,14 @@ urlpatterns = [
     path('auth/2fa/google-verify/', TwoFactorGoogleVerifyView.as_view(), name='2fa_google_verify'),
     path('auth/2fa/disable/', TwoFactorDisableView.as_view(), name='2fa_disable'),
     path('auth/2fa/status/', TwoFactorStatusView.as_view(), name='2fa_status'),
+
+    # WebAuthn / Passkey endpoints
+    path('auth/passkey/register/begin/', PasskeyRegisterBeginView.as_view(), name='passkey_register_begin'),
+    path('auth/passkey/register/complete/', PasskeyRegisterCompleteView.as_view(), name='passkey_register_complete'),
+    path('auth/passkey/authenticate/', PasskeyAuthenticateView.as_view(), name='passkey_authenticate'),
+    path('auth/passkey/credentials/', PasskeyListView.as_view(), name='passkey_list'),
+    path('auth/passkey/credentials/<int:pk>/', PasskeyListView.as_view(), name='passkey_delete'),
+
     
     # User auth endpoints
     path('auth/user/', CurrentUserView.as_view(), name='current_user'),

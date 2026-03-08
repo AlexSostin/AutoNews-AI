@@ -374,3 +374,137 @@ Regular users should never see the 2FA screen.
 ```
 
 Affected files: `UserTable.tsx`, `UserRoleBadge.tsx`, and any admin component.
+
+---
+
+## JWT Token Blacklist 404 on Idle Logout (March 2026)
+
+**Symptom**: `API 404 Not Found: /token/blacklist/` in frontend error log. Appears when admin session expires after idle timeout.
+
+**Root cause**: Frontend admin `layout.tsx` calls `POST /token/blacklist/` (standard SimpleJWT endpoint name) on idle logout. But we only registered the view at `/auth/logout/`. The standard name was never added.
+
+**Consequence**: Idle logout only cleaned up client-side tokens. The refresh token remained valid on the server → could be reused.
+
+**Fix** (`news/api_urls.py`):
+
+```python
+path('token/blacklist/', LogoutView.as_view(), name='token_blacklist'),  # ← add this
+path('auth/logout/', LogoutView.as_view(), name='auth_logout'),           # keep for BC
+```
+
+**Lesson**: SimpleJWT clients (including our own frontend) expect `/token/blacklist/` by convention. Always register this alias when implementing a custom logout view.
+
+---
+
+## Car Specification Duplicates (by-design, not a bug)
+
+**Symptom**: Admin `/admin/car-specs` shows 2-3 records for the same car (e.g. ZEEKR 7X) with conflicting HP/price data.
+
+**Root cause**: `save_specs_for_article()` uses `article` as the unique key (1 article = 1 spec). When 3 different articles are published about the same car model, 3 `CarSpecification` records are created. This is correct by design — each spec belongs to its article.
+
+**Solution**: Use the built-in dedup tool in `/admin/car-specs` → "Duplicates" tab.
+
+- `GET /car-specifications/duplicates/` — finds groups with same `make+model` and 2+ entries
+- `POST /car-specifications/merge/` — merges best fields from donors into master, deletes others
+- `POST /car-specifications/ai-pick/` — Gemini reviews all records, picks best value per field with reasoning
+- Coverage score (0–9 filled fields) auto-selects the richest record as master
+- Admin can override master selection per group, then merge individually or all at once
+
+---
+
+## Coverage Score Bug: "Not specified" Counted as Real Data
+
+**Symptom**: Wrong record auto-selected as master in the Duplicates tab. E.g. a record with HP=55 and Price="Not specified" gets score 9/9 and is chosen as master over HP=677.
+
+**Root cause**: `_coverage_score()` checked `if getattr(spec, f, '')` — which is truthy for any non-empty string, including `"Not specified"`, `"None"`, `"N/A"` etc.
+
+**Fix** (`news/api_views/vehicles.py`):
+
+```python
+_EMPTY_VALUES = frozenset({
+    '', 'not specified', 'none', 'n/a', 'unknown', '-', '—', 'not available',
+})
+
+def _is_real_value(self, val):
+    return str(val or '').strip().lower() not in self._EMPTY_VALUES
+
+def _coverage_score(self, spec):
+    return sum(1 for f in self.SPEC_FIELDS if self._is_real_value(getattr(spec, f, '')))
+```
+
+**Lesson**: Always normalize placeholder strings before counting "filled" fields. Use a frozenset for O(1) lookup.
+
+---
+
+## React Duplicate Key Warning (article.slug as key)
+
+**Symptom**: Browser console shows:
+
+```
+Encountered two children with the same key, `2026-byd-song-pro-dm-i`.
+Keys should be unique so that components maintain their identity across updates.
+```
+
+**Root cause**: `key={article.slug}` used in a list. Slug is NOT guaranteed unique in the DB for articles — two articles about the same car model can get the same slug.
+
+**Fix**: Always use `article.id` as the React key for article lists:
+
+```tsx
+// WRONG — slug can duplicate
+{articles.map(article => <div key={article.slug}>...)}
+
+// CORRECT — id is always unique
+{articles.map(article => <div key={article.id}>...)}
+
+// SAFE FALLBACK — id with slug as backup
+{articles.map(article => <ArticleUnit key={article.id ?? article.slug} .../>)}
+```
+
+**Safe to use slug as key**: `brand.slug`, `category.slug` — these have DB-level unique constraints.
+
+**Fixed in**:
+
+- `admin/ab-testing/page.tsx` — `key={article.id}`
+- `InfiniteArticleScroll.tsx` — `key={article.id ?? article.slug}`
+
+**Audit rule**: Before using any field as a React `key`, verify it has a unique DB constraint. If in doubt, use `id`.
+
+---
+
+## `[FILTERED]generator` in Article Text (March 2026)
+
+**Symptom**: Auto-resolved articles contain `[FILTERED]generator` or `[FILTERED]power source` where legitimate article text like "engine can act as a generator" was sanitized.
+
+**Root cause**: `prompt_sanitizer.py` line 28 regex `act\s+as\s+(?:if\s+)?(?:you\s+(?:are|were)\s+)?(?:a|an)\s+` catches "Act as a helpful AI" (injection) but also "act as a generator" (article prose).
+
+**Fix** (`prompt_sanitizer.py`):
+
+```python
+# BEFORE — catches "act as a" anywhere
+re.compile(r'act\s+as\s+(?:if\s+)?(?:you\s+(?:are|were)\s+)?(?:a|an)\s+', re.I),
+
+# AFTER — only at sentence start (after . ! ? \n or ^)
+re.compile(r'(?:^|(?<=[\n.!?]))\s*act\s+as\s+...', re.I | re.MULTILINE),
+```
+
+**Lesson**: Prompt injection sanitizer regexes must use **sentence-boundary anchoring** to avoid false positives in article content.
+
+---
+
+## Auto-Resolve Deleting All Numbers (March 2026)
+
+**Symptom**: Clicking 🔧 Auto-Resolve strips ALL specific numbers: "544 hp" → "a formidable output", "$31,500" → "a price point".
+
+**Root cause**: `auto_resolve_fact_check()` prompt said "remove the entire sentence containing that claim". LLM interpreted this as "remove ALL sentences with ANY numbers".
+
+**Fix**: 3-tier prompt rewrite in `fact_checker.py`:
+
+1. **REPLACE**: wrong number → correct from web context
+2. **CAVEAT**: unverified → keep with "(per manufacturer)" note  
+3. **REMOVE**: ONLY when web directly contradicts
+
+Plus **40% content-loss safety guard** — if LLM strips >40%, falls back to original.
+
+**Key prompt line**: "NEVER delete numbers without replacing them."
+
+**Files changed**: `fact_checker.py`, `prompt_sanitizer.py`, `youtube.py`, `article_enrichment.py`, `edit/page.tsx`.

@@ -67,6 +67,7 @@ pytest-django==4.7.0
 django-ratelimit==4.1.0
 django-axes==8.3.1
 pyotp==2.9.0
+py_webauthn>=2.2.0
 qrcode==8.2
 googlesearch-python
 duckduckgo-search>=7.0.0
@@ -76,7 +77,6 @@ google-auth-oauthlib==1.2.0
 markdown==3.7
 sendgrid==6.11.0
 feedparser==6.0.11
-beautifulsoup4==4.14.3
 
 # Vector Database & Semantic Search
 # Using FAISS instead of ChromaDB (no C++ compiler needed)

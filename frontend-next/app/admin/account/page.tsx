@@ -20,6 +20,9 @@ import {
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { authenticatedFetch } from '@/lib/authenticatedFetch';
+import dynamic from 'next/dynamic';
+
+const PasskeyManager = dynamic(() => import('@/components/admin/PasskeyManager'), { ssr: false });
 
 interface UserProfile {
   username: string;
@@ -448,8 +451,8 @@ export default function AccountSettingsPage() {
             <p className="text-gray-500 text-sm">Protect your account with Google Authenticator</p>
           </div>
           <span className={`px-3 py-1 rounded-full text-sm font-semibold ${twoFAEnabled
-              ? 'bg-green-100 text-green-700'
-              : 'bg-gray-100 text-gray-500'
+            ? 'bg-green-100 text-green-700'
+            : 'bg-gray-100 text-gray-500'
             }`}>
             {twoFAEnabled ? '✅ Enabled' : 'Disabled'}
           </span>
@@ -458,8 +461,8 @@ export default function AccountSettingsPage() {
         {/* 2FA Messages */}
         {twoFAMessage && (
           <div className={`mb-4 p-4 rounded-lg flex items-center gap-2 ${twoFAMessage.type === 'success'
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-800 border border-red-200'
             }`}>
             {twoFAMessage.type === 'success' ? <Check size={18} /> : <AlertTriangle size={18} />}
             {twoFAMessage.text}
@@ -644,6 +647,19 @@ export default function AccountSettingsPage() {
             )}
           </div>
         )}
+      </div>
+      {/* ──────────────── Passkeys (Passwordless) ──────────────── */}
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="bg-indigo-100 p-3 rounded-lg">
+            <span className="text-2xl">🔑</span>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Passkeys</h2>
+            <p className="text-gray-500 text-sm">Login with fingerprint or Face ID — no password needed</p>
+          </div>
+        </div>
+        <PasskeyManager />
       </div>
 
     </div>

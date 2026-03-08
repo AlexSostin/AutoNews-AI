@@ -1450,3 +1450,37 @@ class TOTPDevice(models.Model):
         hashed = [hashlib.sha256(c.encode()).hexdigest() for c in codes]
         return codes, hashed
 
+
+class WebAuthnCredential(models.Model):
+    """
+    Stores a WebAuthn / Passkey credential for a user.
+    One user can have multiple passkeys (different devices).
+
+    credential_id  — bytes, unique per device
+    public_key     — COSE-encoded public key bytes
+    sign_count     — monotonic counter against replay attacks
+    transports     — ['internal', 'hybrid'] etc.
+    device_name    — user-friendly label ("iPhone 15", "Pixel 8")
+    """
+    from django.contrib.auth.models import User as _User
+
+    user = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='webauthn_credentials',
+    )
+    credential_id = models.BinaryField(unique=True)
+    public_key    = models.BinaryField()
+    sign_count    = models.PositiveBigIntegerField(default=0)
+    transports    = models.JSONField(default=list, blank=True)
+    device_name   = models.CharField(max_length=100, default='Passkey')
+    created_at    = models.DateTimeField(auto_now_add=True)
+    last_used     = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'WebAuthn Credential'
+        verbose_name_plural = 'WebAuthn Credentials'
+
+    def __str__(self):
+        return f'{self.user.username} — {self.device_name} ({self.created_at:%Y-%m-%d})'

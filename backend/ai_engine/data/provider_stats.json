@@ -886,6 +886,46 @@
       "total_time": 44.3,
       "spec_fields_filled": 8,
       "timestamp": "2026-03-05T14:48:26.415252"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 36.9,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-06T14:03:35.302875"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 75.8,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-06T14:04:14.266622"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 90.0,
+      "total_time": 43.3,
+      "spec_fields_filled": 9,
+      "timestamp": "2026-03-07T09:17:47.283127"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 90.0,
+      "total_time": 47.5,
+      "spec_fields_filled": 9,
+      "timestamp": "2026-03-07T10:08:40.813168"
     }
   ]
 }

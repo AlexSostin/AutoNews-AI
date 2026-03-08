@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Eye, EyeOff, Smartphone, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Smartphone, ShieldCheck, Fingerprint } from 'lucide-react';
 import '../register/register-password.css';
 import { useRouter } from 'next/navigation';
 import { login, login2FA, loginGoogle2FA, TwoFARequiredError } from '@/lib/auth';
+import { loginWithPasskey, browserSupportsWebAuthn } from '@/lib/passkey';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
@@ -17,6 +18,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(false);
 
   // 2FA state — store credentials for step 2 (backend needs username+password+totp_code)
   const [requires2FA, setRequires2FA] = useState(false);
@@ -35,6 +38,7 @@ export default function LoginPage() {
   useEffect(() => {
     const token = document.cookie.split(';').find(c => c.trim().startsWith('access_token='));
     if (token) router.replace('/');
+    setPasskeySupported(browserSupportsWebAuthn());
   }, [router]);
 
   // Check for registration success message
@@ -72,6 +76,35 @@ export default function LoginPage() {
       toast.success('Login successful!');
     }
     setTimeout(() => { window.location.href = '/'; }, 500);
+  };
+
+  const handlePasskeyLogin = async () => {
+    setIsPasskeyLoading(true);
+    setError('');
+    try {
+      const { access } = await loginWithPasskey();
+      // Fetch user data like regular login
+      const { getCurrentUser } = await import('@/lib/auth');
+      const userData = await getCurrentUser(access);
+      if (userData) {
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+      toast.success('Welcome back! 🔑', {
+        duration: 3000,
+        position: 'top-center',
+        style: { background: '#6366f1', color: '#fff', fontWeight: 'bold', fontSize: '16px', padding: '16px 24px', borderRadius: '12px' },
+        icon: '👍',
+      });
+      setTimeout(() => { window.location.href = '/'; }, 500);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Passkey login failed';
+      if (!msg.includes('AbortError') && !msg.includes('NotAllowedError')) {
+        toast.error(msg);
+        setError(msg);
+      }
+    } finally {
+      setIsPasskeyLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -196,6 +229,29 @@ export default function LoginPage() {
           ) : (
             /* ── STEP 1: username + password ── */
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Passkey sign-in button */}
+              {passkeySupported && !requires2FA && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePasskeyLogin}
+                    disabled={isPasskeyLoading}
+                    className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3 rounded-xl font-semibold hover:from-indigo-700 hover:to-violet-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-500/30"
+                  >
+                    <Fingerprint size={20} className={isPasskeyLoading ? 'animate-pulse' : ''} />
+                    {isPasskeyLoading ? 'Waiting for biometric...' : 'Sign in with Passkey'}
+                  </button>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="px-3 bg-white text-gray-400">or sign in with password</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {success && (
                 <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
                   {success}

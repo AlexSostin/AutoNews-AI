@@ -284,6 +284,54 @@ Protected modules: `analyzer.py`, `article_generator.py` (3 functions), `fact_ch
 2. Wrap external data: `wrap_untrusted(external_text, 'LABEL_NAME')`
 3. Add `{ANTI_INJECTION_NOTICE}` after the wrapped block
 
+## Fact-Check Auto-Resolve System (added 2026-03-07)
+
+The system verifies generated article claims against web sources and auto-corrects errors.
+
+### Architecture
+
+```
+article_generator.py → run_fact_check()     ← injects ⚠️ warning banner if issues found
+                                               ↑ used for BOTH YouTube AND RSS articles
+                     → auto_resolve_fact_check() ← triggered by admin 🔧 button
+                                               ↑ uses enriched web context + 3-tier prompt
+```
+
+### 3-Tier Correction Strategy
+
+| Tier | Action | When | Example |
+|---|---|---|---|
+| 1 REPLACE | Swap value | Web context has correct number | `1,389 km → 950 km` |
+| 2 CAVEAT | Keep + footnote | Not in web but plausible | `35.6 kWh → 35.6 kWh (per manufacturer)` |
+| 3 REMOVE | Delete value | Web CONTRADICTS the claim | Only when web says X, article says Y |
+
+### Safety Features
+
+- **Content-loss guard**: If LLM strips >40% of article text, falls back to original with warning block removed
+- **Enriched context**: `_build_enriched_context()` extracts make/model from `<h2>` and runs targeted `search_car_details()` for more accurate data
+- **Explicit prompt rule**: "NEVER delete numbers without replacing them — vague text is worse than unverified specifics"
+
+### Key Files
+
+| File | Function |
+|---|---|
+| `ai_engine/modules/fact_checker.py` | `run_fact_check()`, `auto_resolve_fact_check()`, `_build_enriched_context()` |
+| `ai_engine/modules/prompt_sanitizer.py` | `sanitize_for_prompt()`, `wrap_untrusted()`, `ANTI_INJECTION_NOTICE` |
+| `ai_engine/modules/searcher.py` | `search_car_details()`, `get_web_context()` — used for enriched context |
+| `news/api_views/youtube.py` | `auto_resolve_fact_check` action (PendingArticle) |
+| `news/api_views/mixins/article_enrichment.py` | `auto_resolve_fact_check` action (published Article) |
+
+### API Response Format
+
+```json
+{
+  "success": true,
+  "replaced": [{"claim": "1,389 km", "correct": "950 km", "source": "web context"}],
+  "caveated": [{"claim": "35.6 kWh battery", "note": "per manufacturer"}],
+  "removed":  [{"claim": "$31,500", "reason": "web states 400,000 yuan"}],
+  "warning": ""
+}
+
 ## Security Hardening (Full Audit, March 2026)
 
 ### Phase 1: XSS + Dependencies
