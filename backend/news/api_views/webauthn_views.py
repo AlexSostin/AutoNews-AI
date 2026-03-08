@@ -94,7 +94,10 @@ class PasskeyRegisterBeginView(APIView):
         request.session['webauthn_register_challenge'] = _b64url_encode(options.challenge)
         request.session.modified = True
 
-        return Response(webauthn.options_to_json(options))
+        # options_to_json() returns a JSON string — parse it first so DRF
+        # doesn't double-serialize it into a quoted string.
+        import json as _json
+        return Response(_json.loads(webauthn.options_to_json(options)))
 
 
 # ─── 2. Register Complete ─────────────────────────────────────────────────────
@@ -168,7 +171,8 @@ class PasskeyAuthenticateView(APIView):
         )
         request.session['webauthn_auth_challenge'] = _b64url_encode(options.challenge)
         request.session.modified = True
-        return Response(webauthn.options_to_json(options))
+        import json as _json
+        return Response(_json.loads(webauthn.options_to_json(options)))
 
     def post(self, request):
         import webauthn  # lazy
