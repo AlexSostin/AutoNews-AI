@@ -5,6 +5,7 @@ Sub-modules merged:
   - quality_scorer:      heuristic 1-10 scoring for pending articles
   - ml_quality_scorer:   Gradient Boosted Trees predicting engagement
   - engagement_scorer:   reader-signal based engagement score (0-10)
+  - ai_detection:        detects AI-generated content patterns
 
 Score range: 1-10
 Threshold for auto-publish is configurable in AutomationSettings (default: 7)
@@ -23,8 +24,236 @@ logger = logging.getLogger('news')
 
 
 # ══════════════════════════════════════════════════════════════════
-#  Heuristic Quality Scorer
+#  AI Detection Checks — identifies AI-generated content patterns
 # ══════════════════════════════════════════════════════════════════
+
+# Source leak phrases (indicate content was generated from video/transcript)
+_SOURCE_LEAK_PHRASES = [
+    'transcript', 'provided text', 'video source', 'source video',
+    'based on the video', 'from the video', 'in the video',
+    'the narrator', 'the host mentions', 'the presenter',
+    'this video', 'the video showcases', 'the video provides',
+    'this is a walk-around', 'this is a walkaround',
+    'as mentioned in the video', 'according to the transcript',
+    'the footage shows', 'in the clip',
+]
+
+# AI filler phrases (typical of LLM-generated automotive content)
+_AI_FILLER_PHRASES = [
+    'a compelling proposition', 'a compelling package',
+    'for the discerning', 'commanding road presence',
+    'commanding presence', 'effectively eliminates range anxiety',
+    'in the evolving landscape', 'isn\'t just another',
+    'isn\'t merely another', 'this isn\'t your typical',
+    'this is where things get interesting',
+    'setting a new benchmark', 'making waves',
+    'hold on to your hats', 'buckle up',
+    'jaw-dropping', 'mind-blowing', 'game-changing', 'game-changer',
+    'nothing short of phenomenal', 'a testament to',
+    'central to its identity', 'prioritizing comfort',
+    'generous dimensions', 'a prime example',
+    'is here to shake up', 'dropping bombshells',
+    'eye-watering', 'it\'s clear that',
+    'remain to be seen', 'only time will tell',
+    'it remains to be seen', 'are still emerging',
+]
+
+
+def ai_detection_checks(content: str, summary: str = '') -> dict:
+    """
+    Run AI-detection checks on article content and summary.
+
+    Returns dict with:
+      - score: 0-100 (higher = more human-like)
+      - checks: dict of individual check results
+      - issues: list of detected problems
+      - recommendation: 'publish' | 'review' | 'reject'
+    """
+    plain_text = re.sub(r'<[^>]+>', '', content) if content else ''
+    words = plain_text.split()
+    word_count = len(words)
+
+    if word_count < 50:
+        return {
+            'score': 0,
+            'checks': {},
+            'issues': ['Content too short for analysis'],
+            'recommendation': 'reject',
+        }
+
+    checks = {}
+    issues = []
+    score = 100  # Start perfect, subtract for issues
+
+    # ── 1. Source Leak Detection (max -25 points) ──────────────────
+    content_lower = (content + ' ' + (summary or '')).lower()
+    leak_count = sum(1 for phrase in _SOURCE_LEAK_PHRASES
+                     if phrase in content_lower)
+    checks['source_leaks'] = {
+        'count': leak_count,
+        'penalty': min(leak_count * 10, 25),
+        'status': '✅' if leak_count == 0 else '❌',
+    }
+    if leak_count > 0:
+        score -= min(leak_count * 10, 25)
+        issues.append(f'{leak_count} source leak phrases (transcript/video refs)')
+
+    # ── 2. AI Filler Phrase Count (max -20 points) ─────────────────
+    filler_count = sum(1 for phrase in _AI_FILLER_PHRASES
+                       if phrase in content_lower)
+    checks['ai_filler'] = {
+        'count': filler_count,
+        'penalty': min(filler_count * 4, 20),
+        'status': '✅' if filler_count <= 1 else '⚠️' if filler_count <= 3 else '❌',
+    }
+    if filler_count > 1:
+        score -= min(filler_count * 4, 20)
+        issues.append(f'{filler_count} AI filler phrases detected')
+
+    # ── 3. Vocabulary Diversity / TTR (max -15 points) ─────────────
+    # Type-Token Ratio: unique words / total words
+    # Use a sliding window of 100 words for fair comparison across lengths
+    if word_count >= 100:
+        # Average TTR over sliding windows
+        window_size = 100
+        ttrs = []
+        lower_words = [w.lower().strip('.,!?;:()[]"\'') for w in words]
+        for i in range(0, len(lower_words) - window_size + 1, 50):
+            window = lower_words[i:i + window_size]
+            ttrs.append(len(set(window)) / len(window))
+        avg_ttr = np.mean(ttrs) if ttrs else 0.5
+    else:
+        lower_words = [w.lower().strip('.,!?;:()[]"\'') for w in words]
+        avg_ttr = len(set(lower_words)) / len(lower_words) if lower_words else 0.5
+
+    vocab_penalty = 0
+    if avg_ttr < 0.45:
+        vocab_penalty = 15  # Very repetitive vocabulary
+    elif avg_ttr < 0.55:
+        vocab_penalty = 8   # Somewhat repetitive
+    elif avg_ttr < 0.60:
+        vocab_penalty = 3   # Slightly below human average
+
+    checks['vocabulary_diversity'] = {
+        'ttr': round(float(avg_ttr), 3),
+        'penalty': vocab_penalty,
+        'status': '✅' if avg_ttr >= 0.60 else '⚠️' if avg_ttr >= 0.50 else '❌',
+        'note': 'Human: 0.60-0.80, AI: 0.45-0.55',
+    }
+    if vocab_penalty > 0:
+        score -= vocab_penalty
+        issues.append(f'Low vocabulary diversity (TTR={avg_ttr:.2f})')
+
+    # ── 4. Sentence Length Variance (max -15 points) ───────────────
+    # Human writers mix short punchy sentences with long detailed ones
+    sentences = [s.strip() for s in re.split(r'[.!?]+', plain_text) if len(s.strip()) > 5]
+    if len(sentences) >= 5:
+        sent_lengths = [len(s.split()) for s in sentences]
+        sent_std = float(np.std(sent_lengths))
+        sent_mean = float(np.mean(sent_lengths))
+
+        variance_penalty = 0
+        if sent_std < 4:
+            variance_penalty = 15  # Very uniform = robotic
+        elif sent_std < 6:
+            variance_penalty = 8   # Somewhat uniform
+        elif sent_std < 8:
+            variance_penalty = 3   # Slightly below natural
+
+        checks['sentence_variance'] = {
+            'std': round(sent_std, 2),
+            'mean_length': round(sent_mean, 1),
+            'sentence_count': len(sentences),
+            'penalty': variance_penalty,
+            'status': '✅' if sent_std >= 8 else '⚠️' if sent_std >= 5 else '❌',
+            'note': 'Human: std>8, AI: std<5',
+        }
+        if variance_penalty > 0:
+            score -= variance_penalty
+            issues.append(f'Uniform sentence lengths (std={sent_std:.1f})')
+    else:
+        checks['sentence_variance'] = {
+            'std': 0, 'penalty': 0, 'status': '⚠️',
+            'note': 'Not enough sentences to analyze',
+        }
+
+    # ── 5. Spec Repetition (max -15 points) ────────────────────────
+    # Numbers/specs repeated in 4+ separate paragraphs = AI pattern
+    spec_re = re.compile(r'(\d[\d,.]*\s*(?:km|hp|kW|Nm|mm|kWh|mph|kg|seconds?|s)\b)',
+                         re.IGNORECASE)
+    body_blocks = re.findall(r'<(?:p|li)>(.*?)</(?:p|li)>', content, re.DOTALL)
+    if body_blocks:
+        from collections import Counter
+        spec_counts = Counter()
+        for block in body_blocks:
+            specs_in_block = set(spec_re.findall(block))
+            for spec in specs_in_block:
+                spec_counts[spec.strip().lower()] += 1
+
+        overused = {s: c for s, c in spec_counts.items() if c >= 4}
+        rep_penalty = min(len(overused) * 5, 15)
+
+        checks['spec_repetition'] = {
+            'overused_specs': dict(list(overused.items())[:5]),
+            'penalty': rep_penalty,
+            'status': '✅' if not overused else '❌',
+        }
+        if overused:
+            score -= rep_penalty
+            issues.append(f'{len(overused)} specs repeated 4+ times')
+    else:
+        checks['spec_repetition'] = {'penalty': 0, 'status': '✅'}
+
+    # ── 6. Summary Quality (max -10 points) ────────────────────────
+    summary_penalty = 0
+    if summary:
+        summary_lower = summary.lower()
+        summary_has_leaks = any(p in summary_lower for p in _SOURCE_LEAK_PHRASES)
+        summary_has_html = bool(re.search(r'<[a-z]', summary, re.I))
+        summary_too_short = len(summary) < 50
+
+        if summary_has_leaks:
+            summary_penalty += 5
+            issues.append('Summary contains source leak phrases')
+        if summary_has_html:
+            summary_penalty += 3
+            issues.append('Summary contains HTML tags')
+        if summary_too_short:
+            summary_penalty += 2
+            issues.append(f'Summary too short ({len(summary)} chars)')
+
+    checks['summary_quality'] = {
+        'penalty': summary_penalty,
+        'length': len(summary) if summary else 0,
+        'status': '✅' if summary_penalty == 0 else '❌',
+    }
+    score -= summary_penalty
+
+    # ── Final Score & Recommendation ───────────────────────────────
+    final_score = max(0, min(100, score))
+
+    if final_score >= 70:
+        recommendation = 'publish'
+    elif final_score >= 50:
+        recommendation = 'review'
+    else:
+        recommendation = 'reject'
+
+    result = {
+        'score': final_score,
+        'checks': checks,
+        'issues': issues,
+        'recommendation': recommendation,
+    }
+
+    logger.info(
+        f"🔍 AI Detection: {final_score}/100 ({recommendation}) — "
+        f"{len(issues)} issues: {', '.join(issues[:3]) if issues else 'none'}"
+    )
+
+    return result
+
+
 
 def calculate_quality_score(title: str, content: str, specs: dict = None,
                             tags: list = None, featured_image: str = '',
@@ -130,6 +359,12 @@ def calculate_quality_score(title: str, content: str, specs: dict = None,
             unique_ratio = len(set(s.strip().lower() for s in sentences if s.strip())) / len(sentences)
             if unique_ratio < 0.5:
                 red_flags.append('repetitive content')
+        
+        # AI source leak check (transcript/video references)
+        content_lower = content.lower()
+        leak_count = sum(1 for p in _SOURCE_LEAK_PHRASES if p in content_lower)
+        if leak_count > 0:
+            red_flags.append(f'AI source leaks ({leak_count})')
     
     if not red_flags:
         score += 1
@@ -319,6 +554,30 @@ def extract_features(title: str, content: str, specs: dict = None,
             if flag.lower() in content.lower():
                 red_flags += 1
     features['red_flag_count'] = red_flags
+    
+    # --- AI Detection Features ---
+    content_lower = content.lower() if content else ''
+    features['ai_source_leak_count'] = sum(1 for p in _SOURCE_LEAK_PHRASES if p in content_lower)
+    features['ai_filler_count'] = sum(1 for p in _AI_FILLER_PHRASES if p in content_lower)
+    
+    # Vocabulary diversity (sliding window TTR)
+    if word_count >= 100:
+        lower_words_ml = [w.lower().strip('.,!?;:()[]"\'') for w in words]
+        ttrs_ml = []
+        for i in range(0, len(lower_words_ml) - 100 + 1, 50):
+            window = lower_words_ml[i:i + 100]
+            ttrs_ml.append(len(set(window)) / 100)
+        features['vocabulary_ttr'] = float(np.mean(ttrs_ml)) if ttrs_ml else 0.5
+    else:
+        features['vocabulary_ttr'] = 0.5
+    
+    # Sentence length variance
+    plain_ml = re.sub(r'<[^>]+>', '', content) if content else ''
+    sents_ml = [s.strip() for s in re.split(r'[.!?]+', plain_ml) if len(s.strip()) > 5]
+    if len(sents_ml) >= 5:
+        features['sentence_length_std'] = float(np.std([len(s.split()) for s in sents_ml]))
+    else:
+        features['sentence_length_std'] = 0.0
     
     # --- Source trust (from RSSFeed safety) ---
     features['is_safe_source'] = 0.0  # default, overridden by caller if available

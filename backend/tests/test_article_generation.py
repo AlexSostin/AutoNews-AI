@@ -18,7 +18,10 @@ class TestArticlePublishing:
             slug='test-category'
         )
     
-    def test_publish_article_basic(self):
+    @patch('ai_engine.modules.scoring.ai_detection_checks', return_value={
+        'score': 100, 'recommendation': 'pass', 'issues': []
+    })
+    def test_publish_article_basic(self, mock_gate):
         """Test basic article publishing"""
         from ai_engine.modules.publisher import publish_article
         
@@ -45,7 +48,8 @@ class TestArticlePublishing:
             content='<p>Content</p>',
             summary='Summary',
             category_name='Test Category',
-            tag_names=['EV', 'Electric']
+            tag_names=['EV', 'Electric'],
+            is_published=False  # skip quality gate
         )
         
         tags = article.tags.all()
@@ -53,3 +57,26 @@ class TestArticlePublishing:
         tag_names = [t.name for t in tags]
         assert 'EV' in tag_names
         assert 'Electric' in tag_names
+    
+    @patch('ai_engine.modules.scoring.ai_detection_checks', return_value={
+        'score': 30, 'recommendation': 'reject', 'issues': ['AI filler detected']
+    })
+    def test_quality_gate_rejects_low_quality(self, mock_gate):
+        """Quality Gate should draft articles with low scores"""
+        from ai_engine.modules.publisher import publish_article
+        
+        article = publish_article(
+            title='Bad Quality Article',
+            content='<p>Low quality content</p>',
+            summary='Bad summary',
+            category_name='Test Category',
+        )
+        
+        assert article is not None
+        # Quality Gate should have marked it as draft
+        article.refresh_from_db()
+        assert article.is_published is False
+        # Gate result stored in generation_metadata
+        gate = article.generation_metadata.get('quality_gate', {})
+        assert gate.get('score') == 30
+        assert gate.get('recommendation') == 'reject'

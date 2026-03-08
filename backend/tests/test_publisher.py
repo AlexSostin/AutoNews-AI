@@ -180,7 +180,10 @@ class TestAddSpecBasedTags:
 
 @pytest.mark.django_db
 class TestPublishArticle:
-    def test_creates_article_with_required_fields(self):
+    @patch('ai_engine.modules.scoring.ai_detection_checks', return_value={
+        'score': 100, 'recommendation': 'pass', 'issues': []
+    })
+    def test_creates_article_with_required_fields(self, mock_gate):
         from ai_engine.modules.publisher import publish_article
 
         article = publish_article(

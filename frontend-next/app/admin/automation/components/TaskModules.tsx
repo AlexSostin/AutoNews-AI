@@ -284,6 +284,102 @@ export function TaskModules({
                 </p>
             </ModuleCard>
 
+            {/* 📱 Telegram Publishing */}
+            <div className="bg-gradient-to-br from-sky-50 to-blue-50 rounded-lg shadow-md border-2 border-sky-200 p-5 h-full flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-base font-black text-gray-900">📱 Telegram Publishing</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${settings.telegram_enabled
+                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                : 'bg-gray-100 text-gray-500 border border-gray-200'
+                            }`}>
+                            {settings.telegram_enabled ? '✅ AUTO' : '⏸️ OFF'}
+                        </span>
+                    </div>
+                    <ToggleSwitch
+                        checked={settings.telegram_enabled}
+                        onChange={(v) => updateSetting('telegram_enabled', v)}
+                    />
+                </div>
+
+                {/* Channel & stats */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-white/70 rounded-lg px-3 py-2 border border-sky-100">
+                        <p className="text-xs text-gray-500 font-medium">Channel</p>
+                        <p className="text-sm font-bold text-sky-700 truncate">{settings.telegram_channel_id || '@freshmotors_news'}</p>
+                    </div>
+                    <div className="bg-white/70 rounded-lg px-3 py-2 border border-sky-100">
+                        <p className="text-xs text-gray-500 font-medium">Today</p>
+                        <p className="text-lg font-black text-sky-700">{settings.telegram_today_count || 0}</p>
+                    </div>
+                </div>
+
+                {/* Last post */}
+                {settings.telegram_last_run && (
+                    <div className="text-xs text-gray-500 mb-2">
+                        Last posted: <span className="font-semibold text-gray-700">{formatTimeAgo(settings.telegram_last_run)}</span>
+                        {settings.telegram_last_status && (
+                            <span className="ml-1 text-gray-400">— {settings.telegram_last_status.substring(0, 60)}</span>
+                        )}
+                    </div>
+                )}
+
+                {/* Settings */}
+                <SettingRow label="Attach image">
+                    <ToggleSwitch
+                        checked={settings.telegram_post_with_image}
+                        onChange={(v) => updateSetting('telegram_post_with_image', v)}
+                    />
+                </SettingRow>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-3 pt-3 border-t border-sky-200">
+                    <button
+                        onClick={() => triggerTask('telegram-test')}
+                        disabled={triggering === 'telegram-test'}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${triggering === 'telegram-test'
+                                ? 'bg-gray-100 text-gray-400 cursor-wait'
+                                : 'bg-sky-100 text-sky-700 hover:bg-sky-200 border border-sky-300'
+                            }`}
+                    >
+                        {triggering === 'telegram-test' ? '⏳ Sending...' : '🧪 Send Test'}
+                    </button>
+                    <button
+                        onClick={() => triggerTask('telegram-send')}
+                        disabled={triggering === 'telegram-send'}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${triggering === 'telegram-send'
+                                ? 'bg-gray-100 text-gray-400 cursor-wait'
+                                : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-300'
+                            }`}
+                    >
+                        {triggering === 'telegram-send' ? '⏳ Posting...' : '📤 Send Latest'}
+                    </button>
+                </div>
+
+                {/* Recent posts */}
+                {stats?.recent_social_posts && stats.recent_social_posts.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-sky-200">
+                        <p className="text-xs font-bold text-gray-700 mb-2">Recent posts</p>
+                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
+                            {stats.recent_social_posts.filter(p => p.platform === 'telegram').slice(0, 5).map((post) => (
+                                <div key={post.id} className="flex items-center gap-2 text-xs bg-white/60 rounded-lg px-2.5 py-1.5 border border-sky-100">
+                                    <span className={
+                                        post.status === 'sent' ? 'text-emerald-600' :
+                                            post.status === 'failed' ? 'text-red-600' :
+                                                post.status === 'pending' ? 'text-amber-600' :
+                                                    'text-gray-400'
+                                    }>
+                                        {post.status === 'sent' ? '✅' : post.status === 'failed' ? '❌' : post.status === 'pending' ? '⏳' : '⏩'}
+                                    </span>
+                                    <span className="truncate flex-1 text-gray-700 font-medium">{post.article_title}</span>
+                                    <span className="text-gray-400 whitespace-nowrap">{formatTimeAgo(post.posted_at || post.created_at)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* Quality Scoring */}
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-5 h-full flex flex-col">
                 <div className="flex items-center justify-between mb-3">

@@ -24,7 +24,10 @@ pytestmark = pytest.mark.django_db
 
 class TestPublishArticle:
 
-    def test_basic_publish(self):
+    @patch('ai_engine.modules.scoring.ai_detection_checks', return_value={
+        'score': 100, 'recommendation': 'pass', 'issues': []
+    })
+    def test_basic_publish(self, mock_gate):
         from ai_engine.modules.publisher import publish_article
         article = publish_article(
             title='2026 BYD Seal Review',

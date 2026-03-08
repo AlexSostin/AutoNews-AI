@@ -859,6 +859,27 @@ class AutomationSettings(models.Model):
         default=0, help_text="VehicleSpecs cards created today"
     )
     
+    # === Telegram Publishing ===
+    telegram_enabled = models.BooleanField(
+        default=False, help_text="Auto-post new articles to Telegram channel"
+    )
+    telegram_channel_id = models.CharField(
+        max_length=100, blank=True, default='@freshmotors_news',
+        help_text="Telegram channel username or numeric chat_id"
+    )
+    telegram_last_run = models.DateTimeField(
+        null=True, blank=True, help_text="When last Telegram post was sent"
+    )
+    telegram_last_status = models.CharField(
+        max_length=500, blank=True, default='', help_text="Last post result"
+    )
+    telegram_today_count = models.IntegerField(
+        default=0, help_text="Posts sent today"
+    )
+    telegram_post_with_image = models.BooleanField(
+        default=True, help_text="Try to attach article image to Telegram post"
+    )
+    
     # === Task Locks (prevent concurrent execution) ===
     rss_lock = models.BooleanField(default=False)
     rss_lock_at = models.DateTimeField(null=True, blank=True)
@@ -897,6 +918,8 @@ class AutomationSettings(models.Model):
             modules.append('YouTube')
         if self.auto_publish_enabled:
             modules.append('Auto-Publish')
+        if self.telegram_enabled:
+            modules.append('Telegram')
         active = ', '.join(modules) if modules else 'All OFF'
         return f"Automation Settings ({active})"
     
@@ -919,11 +942,13 @@ class AutomationSettings(models.Model):
             self.youtube_articles_today = 0
             self.auto_image_today_count = 0
             self.google_indexing_today_count = 0
+            self.telegram_today_count = 0
             self.counters_reset_date = today
             self.save(update_fields=[
                 'auto_publish_today_count',
                 'rss_articles_today', 'youtube_articles_today',
                 'auto_image_today_count', 'google_indexing_today_count',
+                'telegram_today_count',
                 'counters_reset_date'
             ])
     
@@ -1025,6 +1050,53 @@ class AutoPublishLog(models.Model):
     
     def __str__(self):
         return f"{self.decision}: {self.article_title[:50]}"
+
+
+class SocialPost(models.Model):
+    """Tracks social media posts (Telegram, Twitter, etc.) for audit trail and queue.
+    
+    Created when an article is published. Status tracks the post lifecycle:
+    - pending: queued for posting (manual approval mode)
+    - sent: successfully posted
+    - failed: post attempt failed
+    - skipped: skipped (auto-post disabled, etc.)
+    """
+    PLATFORM_CHOICES = [
+        ('telegram', 'Telegram'),
+        ('twitter', 'Twitter/X'),
+        ('reddit', 'Reddit'),
+    ]
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('failed', 'Failed'),
+        ('skipped', 'Skipped'),
+    ]
+    
+    article = models.ForeignKey('news.Article', on_delete=models.CASCADE, related_name='social_posts')
+    platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    message_text = models.TextField(blank=True, help_text="Formatted post text")
+    external_id = models.CharField(max_length=100, blank=True, default='', help_text="Telegram message_id, tweet_id, etc.")
+    channel_id = models.CharField(max_length=100, blank=True, default='', help_text="Target channel/account")
+    error_message = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    posted_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Social Post'
+        verbose_name_plural = 'Social Posts'
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['platform', 'status']),
+        ]
+    
+    def __str__(self):
+        icon = {'telegram': '📱', 'twitter': '🐦', 'reddit': '🔴'}.get(self.platform, '📡')
+        status_icon = {'sent': '✅', 'failed': '❌', 'pending': '⏳', 'skipped': '⏩'}.get(self.status, '❓')
+        title = self.article.title[:40] if self.article_id else '?'
+        return f"{icon}{status_icon} {title}"
 
 class TagLearningLog(models.Model):
     """Stores title_keywords → final_tags mappings for tag suggestion learning.

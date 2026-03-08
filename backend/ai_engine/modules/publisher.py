@@ -63,6 +63,10 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
             summary = ' '.join(s for s in sentences if phrase not in s.lower())
             summary_lower = summary.lower()
 
+    # Strip any HTML tags that leaked into summary (bug fix)
+    summary = re.sub(r'<[^>]+>', '', summary).strip()
+    summary = re.sub(r'\s+', ' ', summary)
+
     # Trim summary to 300 chars
     if len(summary) > 300:
         summary = summary[:297] + "..."
@@ -283,6 +287,80 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
             print(f"  ⚠️  Failed to save specs: {e}")
     
     print(f"✅ Article published successfully! ID: {article.id}")
+    
+    # ── AI Quality Gate: check for AI-sounding content ──────────────
+    if is_published:
+        try:
+            from ai_engine.modules.scoring import ai_detection_checks
+            gate = ai_detection_checks(content, summary)
+            gate_score = gate['score']
+            recommendation = gate['recommendation']
+            
+            if recommendation == 'reject':
+                article.is_published = False
+                article.save(update_fields=['is_published'])
+                print(f"  🚫 Quality Gate: DRAFT (score: {gate_score}/100, issues: {', '.join(gate['issues'][:3])})")
+            elif recommendation == 'review':
+                print(f"  ⚠️ Quality Gate: REVIEW needed (score: {gate_score}/100, issues: {', '.join(gate['issues'][:3])})")
+            else:
+                print(f"  ✅ Quality Gate: PASSED (score: {gate_score}/100)")
+            
+            # Store gate result in generation_metadata for dashboard
+            if article.generation_metadata is None:
+                article.generation_metadata = {}
+            article.generation_metadata['quality_gate'] = {
+                'score': gate_score,
+                'recommendation': recommendation,
+                'issues': gate['issues'],
+            }
+            article.save(update_fields=['generation_metadata'])
+        except Exception as e:
+            print(f"  ⚠️ Quality Gate check failed: {e}")
+    
+    # ── Telegram Auto-Post: send to @freshmotors_news ───────────────
+    if is_published:
+        try:
+            from ai_engine.modules.telegram_publisher import send_to_channel, format_telegram_post
+            from news.models import SocialPost, AutomationSettings as AS
+            from django.utils import timezone as tz
+            from django.db.models import F as F_expr
+
+            result = send_to_channel(article)
+            if result.get('ok'):
+                msg_id = result.get('result', {}).get('message_id', '?')
+                print(f"  📱 Telegram: posted to channel (msg_id={msg_id})")
+                # Create SocialPost audit record
+                try:
+                    SocialPost.objects.create(
+                        article=article, platform='telegram', status='sent',
+                        message_text=format_telegram_post(article),
+                        external_id=str(msg_id),
+                        channel_id='@freshmotors_news',
+                        posted_at=tz.now(),
+                    )
+                    AS.objects.filter(pk=1).update(
+                        telegram_last_run=tz.now(),
+                        telegram_last_status=f'✅ Auto: {article.title[:50]}',
+                        telegram_today_count=F_expr('telegram_today_count') + 1,
+                    )
+                except Exception as sp_err:
+                    print(f"  ⚠️ SocialPost record failed: {sp_err}")
+            elif result.get('reason') == 'auto_post_disabled':
+                pass  # Silent — auto-post just not enabled
+            else:
+                desc = result.get('description', 'Unknown')
+                print(f"  ⚠️ Telegram post failed: {desc}")
+                try:
+                    SocialPost.objects.create(
+                        article=article, platform='telegram', status='failed',
+                        message_text=format_telegram_post(article),
+                        error_message=desc,
+                        channel_id='@freshmotors_news',
+                    )
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"  ⚠️ Telegram post skipped: {e}")
     
     # Auto-submit to Google Indexing API for instant indexing
     if is_published:

@@ -701,3 +701,18 @@ AXES_ENABLED = True  # Always enabled — lightweight and important
 WEBAUTHN_RP_ID = os.getenv('WEBAUTHN_RP_ID', 'localhost')
 WEBAUTHN_ORIGIN = os.getenv('WEBAUTHN_ORIGIN', 'http://localhost:3000')
 WEBAUTHN_RP_NAME = os.getenv('WEBAUTHN_RP_NAME', 'FreshMotors Admin')
+
+# ================================================
+# TELEGRAM AUTO-PUBLISHING
+# ================================================
+# Bot token from @BotFather (FreshMotors Test_Bot1)
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+# Channel username (e.g. @freshmotors_news) or numeric chat_id
+TELEGRAM_CHANNEL_ID = os.getenv('TELEGRAM_CHANNEL_ID', '@freshmotors_news')
+# Admin user ID for error notifications
+TELEGRAM_ADMIN_ID = os.getenv('TELEGRAM_ADMIN_ID', '496099589')
+# Auto-post new articles to Telegram (set to 'true' to enable)
+TELEGRAM_AUTO_POST = os.getenv('TELEGRAM_AUTO_POST', 'false').lower() == 'true'
+
+# Site URL for article links in Telegram posts
+SITE_URL = os.getenv('SITE_URL', 'https://www.freshmotors.net')

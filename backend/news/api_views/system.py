@@ -532,6 +532,24 @@ class AutomationStatsView(APIView):
             except Exception:
                 pass
         
+        # === Social Posts (Telegram, etc.) — last 10 ===
+        from news.models import SocialPost
+        recent_social = SocialPost.objects.select_related('article').order_by('-created_at')[:10]
+        social_posts_data = [
+            {
+                'id': sp.id,
+                'article_id': sp.article_id,
+                'article_title': sp.article.title[:80] if sp.article else '?',
+                'platform': sp.platform,
+                'status': sp.status,
+                'external_id': sp.external_id,
+                'error_message': sp.error_message[:200] if sp.error_message else '',
+                'posted_at': sp.posted_at,
+                'created_at': sp.created_at,
+            }
+            for sp in recent_social
+        ]
+        
         return Response({
             'pending_total': pending_total,
             'pending_high_quality': pending_high_quality,
@@ -560,6 +578,8 @@ class AutomationStatsView(APIView):
             'ml_model': ml_info,
             # Enrichment
             'enrichment_report': enrichment_report,
+            # Social posts
+            'recent_social_posts': social_posts_data,
             # Legacy
             'recent_auto_published': [
                 {
@@ -584,6 +604,8 @@ class AutomationTriggerView(APIView):
         'deep-specs': 'deep_specs',
         'ab-cleanup': None,   # no lock needed — fast
         'index-articles': None,
+        'telegram-test': None,
+        'telegram-send': None,
     }
     
     def post(self, request, task_type):
@@ -658,6 +680,79 @@ class AutomationTriggerView(APIView):
                     logger.error(f'[index-articles] failed: {e}')
             threading.Thread(target=_index, daemon=True).start()
             return Response({'message': 'Article embeddings indexing triggered', 'status': 'running'})
+        
+        elif task_type == 'telegram-test':
+            try:
+                from ai_engine.modules.telegram_publisher import send_test_message
+                result = send_test_message(
+                    "🧪 <b>FreshMotors Bot Test</b>\n\n"
+                    "✅ Bot is connected and working!\n"
+                    "📡 Channel: @freshmotors_news\n"
+                    "🤖 Auto-publishing is ready."
+                )
+                if result.get('ok'):
+                    msg_id = result.get('result', {}).get('message_id', '?')
+                    return Response({'message': f'Test message sent (msg_id={msg_id})', 'status': 'ok'})
+                else:
+                    return Response(
+                        {'error': result.get('description', 'Unknown'), 'status': 'failed'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            except Exception as e:
+                return Response(
+                    {'error': str(e), 'status': 'failed'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
+        elif task_type == 'telegram-send':
+            # Send latest published article to Telegram
+            article_id = request.data.get('article_id')
+            try:
+                if article_id:
+                    article = Article.objects.get(id=article_id)
+                else:
+                    article = Article.objects.filter(
+                        is_published=True, is_deleted=False
+                    ).order_by('-created_at').first()
+                if not article:
+                    return Response({'error': 'No published articles found'}, status=status.HTTP_404_NOT_FOUND)
+                
+                from ai_engine.modules.telegram_publisher import send_to_channel
+                from news.models import SocialPost, AutomationSettings as AS
+                result = send_to_channel(article, force=True)
+                
+                # Create SocialPost record
+                if result.get('ok'):
+                    msg_id = str(result.get('result', {}).get('message_id', ''))
+                    SocialPost.objects.create(
+                        article=article, platform='telegram', status='sent',
+                        message_text=article.title[:200],
+                        external_id=msg_id, channel_id='@freshmotors_news',
+                        posted_at=timezone.now(),
+                    )
+                    # Update automation stats
+                    from django.db.models import F as F_expr
+                    AS.objects.filter(pk=1).update(
+                        telegram_last_run=timezone.now(),
+                        telegram_last_status=f'Sent: {article.title[:50]}',
+                        telegram_today_count=F_expr('telegram_today_count') + 1,
+                    )
+                    return Response({'message': f'Posted: {article.title[:50]}', 'msg_id': msg_id, 'status': 'ok'})
+                else:
+                    SocialPost.objects.create(
+                        article=article, platform='telegram', status='failed',
+                        message_text=article.title[:200],
+                        error_message=result.get('description', 'Unknown'),
+                        channel_id='@freshmotors_news',
+                    )
+                    return Response(
+                        {'error': result.get('description', 'Unknown'), 'status': 'failed'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            except Article.DoesNotExist:
+                return Response({'error': f'Article {article_id} not found'}, status=status.HTTP_404_NOT_FOUND)
+            except Exception as e:
+                return Response({'error': str(e), 'status': 'failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response(
             {'error': f'Unknown task type: {task_type}'},

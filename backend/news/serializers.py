@@ -995,6 +995,9 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             'deep_specs_enabled', 'deep_specs_interval_hours',
             'deep_specs_max_per_cycle', 'deep_specs_last_run', 'deep_specs_last_status',
             'deep_specs_today_count',
+            # Telegram Publishing
+            'telegram_enabled', 'telegram_channel_id', 'telegram_post_with_image',
+            'telegram_last_run', 'telegram_last_status', 'telegram_today_count',
             # Task locks
             'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock', 'deep_specs_lock',
         ]
@@ -1005,6 +1008,7 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             'auto_image_last_run', 'auto_image_last_status', 'auto_image_today_count',
             'google_indexing_last_run', 'google_indexing_last_status', 'google_indexing_today_count',
             'deep_specs_last_run', 'deep_specs_last_status', 'deep_specs_today_count',
+            'telegram_last_run', 'telegram_last_status', 'telegram_today_count',
             'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock', 'deep_specs_lock',
         ]
 

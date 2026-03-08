@@ -2,6 +2,7 @@
 Integration tests for Search API
 """
 import pytest
+from unittest.mock import patch
 from django.urls import reverse
 from news.models import Article, Category, Tag
 
@@ -46,8 +47,9 @@ class TestSearchAPI:
         self.article1.tags.add(ev_tag)
         self.article2.tags.add(ev_tag, luxury_tag)
     
-    def test_search_by_title(self, api_client):
-        """Test search by article title"""
+    @patch('news.search_analytics_views.SearchAPIView._hybrid_article_ids', return_value=[])
+    def test_search_by_title(self, mock_hybrid, api_client):
+        """Test search by article title (ORM fallback)"""
         response = api_client.get('/api/v1/search/', {'q': 'Tesla'})
         
         assert response.status_code == 200
@@ -55,15 +57,17 @@ class TestSearchAPI:
         titles = [r['title'] for r in response.data['results']]
         assert any('Tesla' in title for title in titles)
     
-    def test_search_by_content(self, api_client):
-        """Test search by article content"""
+    @patch('news.search_analytics_views.SearchAPIView._hybrid_article_ids', return_value=[])
+    def test_search_by_content(self, mock_hybrid, api_client):
+        """Test search by article content (ORM fallback)"""
         response = api_client.get('/api/v1/search/', {'q': 'luxury'})
         
         assert response.status_code == 200
         assert response.data['total'] >= 1
     
-    def test_search_by_keywords(self, api_client):
-        """Test search by meta keywords"""
+    @patch('news.search_analytics_views.SearchAPIView._hybrid_article_ids', return_value=[])
+    def test_search_by_keywords(self, mock_hybrid, api_client):
+        """Test search by meta keywords (ORM fallback)"""
         response = api_client.get('/api/v1/search/', {'q': 'Model 3'})
         
         assert response.status_code == 200

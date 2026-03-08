@@ -41,6 +41,13 @@ export interface AutomationSettings {
     auto_publish_lock: boolean;
     score_lock: boolean;
     deep_specs_lock: boolean;
+    // Telegram
+    telegram_enabled: boolean;
+    telegram_channel_id: string;
+    telegram_post_with_image: boolean;
+    telegram_last_run: string | null;
+    telegram_last_status: string;
+    telegram_today_count: number;
 }
 
 export interface DecisionEntry {
@@ -104,4 +111,17 @@ export interface AutomationStats {
         duration_seconds: number;
         mode: string;
     } | null;
+    recent_social_posts?: SocialPostEntry[];
+}
+
+export interface SocialPostEntry {
+    id: number;
+    article_id: number;
+    article_title: string;
+    platform: string;
+    status: string;
+    external_id: string;
+    error_message: string;
+    posted_at: string | null;
+    created_at: string;
 }
