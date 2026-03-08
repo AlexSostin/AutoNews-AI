@@ -5,10 +5,13 @@
  * API endpoints (all at /api/v1/):
  *   POST  auth/passkey/register/begin/     → registration options
  *   POST  auth/passkey/register/complete/  → verify & save
- *   GET   auth/passkey/authenticate/       → authentication options
+ *   GET   auth/passkey/authenticate/       → authentication options (challenge)
  *   POST  auth/passkey/authenticate/       → verify & return JWT
  *   GET   auth/passkey/credentials/        → list credentials
  *   DELETE auth/passkey/credentials/<pk>/  → delete credential
+ *
+ * NOTE: No CSRF headers needed — these endpoints use JWT Bearer auth,
+ *       which is not vulnerable to CSRF attacks.
  */
 
 import {
@@ -22,7 +25,7 @@ export { browserSupportsWebAuthn };
 
 const API = () => getApiUrl();
 
-// ─── Token helpers (same as auth.ts) ──────────────────────────────────────────
+// ─── Token helpers ─────────────────────────────────────────────────────────────
 
 function _setCookieAndStorage(access: string, refresh: string) {
     const isSecure = window.location.protocol === 'https:';
@@ -45,11 +48,13 @@ export async function registerPasskey(deviceName = 'My Passkey'): Promise<{ devi
         headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
-            'X-CSRFToken': _getCSRF(),
         },
         credentials: 'include',
     });
-    if (!beginRes.ok) throw new Error('Failed to start registration');
+    if (!beginRes.ok) {
+        const err = await beginRes.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail || 'Failed to start registration');
+    }
     const options = await beginRes.json();
 
     // Step 2: browser calls Touch ID / Face ID / platform authenticator
@@ -61,7 +66,6 @@ export async function registerPasskey(deviceName = 'My Passkey'): Promise<{ devi
         headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
-            'X-CSRFToken': _getCSRF(),
         },
         credentials: 'include',
         body: JSON.stringify({ ...credential, device_name: deviceName }),
@@ -69,7 +73,7 @@ export async function registerPasskey(deviceName = 'My Passkey'): Promise<{ devi
 
     if (!completeRes.ok) {
         const err = await completeRes.json().catch(() => ({}));
-        throw new Error(err.detail || 'Registration failed');
+        throw new Error((err as { detail?: string }).detail || 'Registration failed');
     }
 
     return completeRes.json();
@@ -82,7 +86,6 @@ export async function loginWithPasskey(): Promise<{ access: string; refresh: str
     const authOptionsRes = await fetch(`${API()}/auth/passkey/authenticate/`, {
         method: 'GET',
         credentials: 'include',
-        headers: { 'X-CSRFToken': _getCSRF() },
     });
     if (!authOptionsRes.ok) throw new Error('Could not start passkey login');
     const options = await authOptionsRes.json();
@@ -94,16 +97,13 @@ export async function loginWithPasskey(): Promise<{ access: string; refresh: str
     const verifyRes = await fetch(`${API()}/auth/passkey/authenticate/`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': _getCSRF(),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(assertion),
     });
 
     if (!verifyRes.ok) {
         const err = await verifyRes.json().catch(() => ({}));
-        throw new Error(err.detail || 'Passkey authentication failed');
+        throw new Error((err as { detail?: string }).detail || 'Passkey authentication failed');
     }
 
     const tokens = await verifyRes.json() as { access: string; refresh: string };
@@ -139,18 +139,7 @@ export async function deletePasskey(pk: number): Promise<void> {
     const accessToken = localStorage.getItem('access_token');
     await fetch(`${API()}/auth/passkey/credentials/${pk}/`, {
         method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'X-CSRFToken': _getCSRF(),
-        },
+        headers: { 'Authorization': `Bearer ${accessToken ?? ''}` },
         credentials: 'include',
     });
-}
-
-// ─── CSRF helper ───────────────────────────────────────────────────────────────
-
-function _getCSRF(): string {
-    if (typeof document === 'undefined') return '';
-    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
-    return cookie ? cookie.split('=')[1].trim() : '';
 }
