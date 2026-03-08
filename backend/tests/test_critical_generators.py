@@ -232,7 +232,8 @@ class TestRSSAggregator:
 
     # --- is_duplicate ---
     def test_not_duplicate(self, agg):
-        assert agg.is_duplicate('Unique Title XYZ', 'Unique content') is False
+        is_dup, _ = agg.is_duplicate('Unique Title XYZ', 'Unique content')
+        assert is_dup is False
 
     def test_duplicate_by_url(self, agg, feed):
         RSSNewsItem.objects.create(
@@ -242,10 +243,11 @@ class TestRSSAggregator:
             content='Content',
             status='new',
         )
-        assert agg.is_duplicate(
+        is_dup, _ = agg.is_duplicate(
             'Different Title', 'Content',
             source_url='https://test.com/article-1'
-        ) is True
+        )
+        assert is_dup is True
 
     def test_duplicate_by_title_similarity(self, agg, feed):
         RSSNewsItem.objects.create(
@@ -255,9 +257,10 @@ class TestRSSAggregator:
             content='Content',
             status='new',
         )
-        assert agg.is_duplicate(
+        is_dup, _ = agg.is_duplicate(
             '2026 BMW iX3 Electric SUV Full Review', 'Different content'
-        ) is True
+        )
+        assert is_dup is True
 
     # --- extract_images ---
     def test_extract_images_media_content(self, agg):

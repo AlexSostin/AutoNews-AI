@@ -101,10 +101,11 @@ test.describe('Analytics Dashboard', () => {
 
         await page.getByText('A/B Tests', { exact: false }).first().scrollIntoViewIfNeeded().catch(() => { });
 
-        // Should show "X tests loaded" or "TOTAL TESTS"
-        const hasTotalTests = await page.getByText('TOTAL TESTS', { exact: false }).isVisible({ timeout: 10000 }).catch(() => false);
+        // Should show count cards (Total Tests / TOTAL TESTS via CSS uppercase) or empty state
+        const hasTotalTests = await page.locator('text=/total tests/i').first().isVisible({ timeout: 10000 }).catch(() => false);
         const hasTestsLoaded = await page.getByText('tests loaded', { exact: false }).isVisible({ timeout: 8000 }).catch(() => false);
-        expect(hasTotalTests || hasTestsLoaded, 'A/B Tests section should display a test count').toBeTruthy();
+        const hasEmptyState = await page.getByText('No A/B tests found', { exact: false }).isVisible({ timeout: 8000 }).catch(() => false);
+        expect(hasTotalTests || hasTestsLoaded || hasEmptyState, 'A/B Tests section should display a test count or empty state').toBeTruthy();
     });
 
     test('AI Pipeline section renders (real or empty state)', async ({ page, context }) => {

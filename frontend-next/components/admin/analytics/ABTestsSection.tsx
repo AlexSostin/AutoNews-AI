@@ -33,7 +33,46 @@ export default function ABTestsSection() {
         );
     }
 
-    if (!abRes || !abRes.tests || abRes.tests.length === 0) return null;
+    if (!abRes || !abRes.tests || abRes.tests.length === 0) {
+        // Render zero-state so E2E / DOM can still detect the section
+        const zeroCount = abRes?.count ?? 0;
+        const zeroActive = abRes?.active_count ?? 0;
+        const zeroWinners = abRes?.winners_count ?? 0;
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-emerald-100 p-2.5 rounded-lg"><FlaskConical className="text-emerald-600" size={20} /></div>
+                            <div>
+                                <p className="text-2xl font-black text-gray-900">{zeroCount}</p>
+                                <p className="text-xs text-gray-400 uppercase tracking-wider">Total Tests</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-amber-100 p-2.5 rounded-lg"><Eye className="text-amber-600" size={20} /></div>
+                            <div>
+                                <p className="text-2xl font-black text-gray-900">{zeroActive}</p>
+                                <p className="text-xs text-gray-400 uppercase tracking-wider">Active</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-purple-100 p-2.5 rounded-lg"><Trophy className="text-purple-600" size={20} /></div>
+                            <div>
+                                <p className="text-2xl font-black text-gray-900">{zeroWinners}</p>
+                                <p className="text-xs text-gray-400 uppercase tracking-wider">Winners Picked</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p className="text-sm text-gray-400 text-center py-4">No A/B tests found. Run bulk_enrich to generate title variants.</p>
+            </div>
+        );
+    }
 
     const abTests = abRes.tests;
     const abItemsPerPage = 10;

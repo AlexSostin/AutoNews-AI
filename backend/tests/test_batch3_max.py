@@ -293,7 +293,8 @@ class TestRSSAggregator:
         RSSNewsItem.objects.create(
             rss_feed=feed, title='Existing', content_hash=hash_val
         )
-        assert agg.is_duplicate('New Title', content) is True
+        is_dup, _ = agg.is_duplicate('New Title', content)
+        assert is_dup is True
 
     def test_is_duplicate_by_source_url(self):
         """L118-120: Source URL match → True."""
@@ -304,8 +305,9 @@ class TestRSSAggregator:
             rss_feed=feed, title='Existing',
             source_url='https://example.com/article-1',
         )
-        assert agg.is_duplicate('Different Title', 'different content',
-                                source_url='https://example.com/article-1') is True
+        is_dup, _ = agg.is_duplicate('Different Title', 'different content',
+                                source_url='https://example.com/article-1')
+        assert is_dup is True
 
     def test_is_duplicate_by_title_similarity(self):
         """L146-150: Title similarity ≥ 0.80 → True."""
@@ -315,18 +317,20 @@ class TestRSSAggregator:
         RSSNewsItem.objects.create(
             rss_feed=feed, title='2026 BYD Seal Premium Electric Sedan Review',
         )
-        assert agg.is_duplicate(
+        is_dup, _ = agg.is_duplicate(
             '2026 BYD Seal Premium Electric Sedan Reviews',
             'completely different content'
-        ) is True
+        )
+        assert is_dup is True
 
     def test_is_duplicate_false(self):
         """L175: No match → False."""
         agg = self._make_agg()
-        assert agg.is_duplicate(
+        is_dup, _ = agg.is_duplicate(
             'Completely Unique Title That Does Not Exist',
             'Completely unique content'
-        ) is False
+        )
+        assert is_dup is False
     def test_extract_images_enclosure(self):
         """L207-210: enclosure image → extracted."""
         agg = self._make_agg()
