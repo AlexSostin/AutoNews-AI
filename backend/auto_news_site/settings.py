@@ -688,3 +688,16 @@ AXES_RESET_ON_SUCCESS = True  # Reset counter on successful login
 AXES_LOCKOUT_CALLABLE = None  # Use default 403 response
 AXES_VERBOSE = DEBUG  # Log attempts only in debug mode
 AXES_ENABLED = True  # Always enabled — lightweight and important
+
+# ================================================
+# WEBAUTHN / PASSKEY
+# ================================================
+# On Railway / production set these env vars:
+#   WEBAUTHN_RP_ID     = freshmotors.ru          (domain only, no https://)
+#   WEBAUTHN_ORIGIN    = https://freshmotors.ru   (full origin, no trailing slash)
+#   WEBAUTHN_RP_NAME   = FreshMotors Admin         (display name)
+# On localhost no env vars needed — defaults work fine.
+
+WEBAUTHN_RP_ID = os.getenv('WEBAUTHN_RP_ID', 'localhost')
+WEBAUTHN_ORIGIN = os.getenv('WEBAUTHN_ORIGIN', 'http://localhost:3000')
+WEBAUTHN_RP_NAME = os.getenv('WEBAUTHN_RP_NAME', 'FreshMotors Admin')
