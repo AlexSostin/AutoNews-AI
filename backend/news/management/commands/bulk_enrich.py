@@ -8,11 +8,6 @@ import time
 from django.core.management.base import BaseCommand
 from news.models import Article, Tag, VehicleSpecs, ArticleTitleVariant, CarSpecification
 
-ENRICHMENT_META_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-    'ai_engine', 'models', 'enrichment_meta.json'
-)
-
 
 class Command(BaseCommand):
     help = 'Bulk re-enrich published articles (Deep Specs, A/B Titles, Smart Auto-Tags)'
@@ -195,9 +190,10 @@ class Command(BaseCommand):
             except Exception as ml_err:
                 self.stdout.write(self.style.WARNING(f'   ⚠️ ML retrain failed (non-fatal): {ml_err}'))
 
-        # Save enrichment report metadata for dashboard
+        # Save enrichment report to DB (survives Railway/Docker redeploys)
         if not dry_run:
             from datetime import datetime
+            from news.models import AutomationSettings
             report = {
                 'last_run': datetime.utcnow().isoformat(),
                 'articles_processed': success,
@@ -209,9 +205,9 @@ class Command(BaseCommand):
                 'mode': mode if not ids_str else f'ids({ids_str[:50]})',
             }
             try:
-                os.makedirs(os.path.dirname(ENRICHMENT_META_PATH), exist_ok=True)
-                with open(ENRICHMENT_META_PATH, 'w') as f:
-                    json.dump(report, f, indent=2)
-                self.stdout.write(f'   💾 Report saved to {ENRICHMENT_META_PATH}')
+                settings_obj = AutomationSettings.load()
+                settings_obj.enrichment_report = report
+                settings_obj.save(update_fields=['enrichment_report'])
+                self.stdout.write(f'   💾 Report saved to database (AutomationSettings)')
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'   ⚠️ Could not save report: {e}'))
+                self.stdout.write(self.style.WARNING(f'   ⚠️ Could not save report to DB: {e}'))

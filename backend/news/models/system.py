@@ -873,6 +873,13 @@ class AutomationSettings(models.Model):
     
     LOCK_STALE_MINUTES = 10  # Release lock if older than this
     
+    # === Bulk Enrichment Report ===
+    # Stored in DB so it survives Railway/Docker redeploys (unlike filesystem)
+    enrichment_report = models.JSONField(
+        null=True, blank=True,
+        help_text="Last bulk_enrich run summary: last_run, articles_processed, tags_created, etc."
+    )
+
     # === Counters reset tracking ===
     counters_reset_date = models.DateField(
         null=True, blank=True, help_text="Last date counters were reset"

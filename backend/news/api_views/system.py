@@ -513,20 +513,24 @@ class AutomationStatsView(APIView):
         except Exception:
             pass
         
-        # === Enrichment Report ===
-        enrichment_report = None
-        try:
-            import json as _json
-            # system.py is in backend/news/api_views/ → need 4x dirname to reach backend/
-            meta_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-                'ai_engine', 'models', 'enrichment_meta.json'
-            )
-            if os.path.exists(meta_path):
-                with open(meta_path) as f:
-                    enrichment_report = _json.load(f)
-        except Exception:
-            pass
+        # === Enrichment Report — read from DB (filesystem is ephemeral on Railway) ===
+        enrichment_report = settings.enrichment_report  # JSONField, None if never run
+        # Fallback: try filesystem for backward compat with older runs
+        if enrichment_report is None:
+            try:
+                import json as _json
+                meta_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+                    'ai_engine', 'models', 'enrichment_meta.json'
+                )
+                if os.path.exists(meta_path):
+                    with open(meta_path) as f:
+                        enrichment_report = _json.load(f)
+                    # Migrate to DB for future persistence
+                    settings.enrichment_report = enrichment_report
+                    settings.save(update_fields=['enrichment_report'])
+            except Exception:
+                pass
         
         return Response({
             'pending_total': pending_total,

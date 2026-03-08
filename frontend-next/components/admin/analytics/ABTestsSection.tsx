@@ -46,12 +46,12 @@ export default function ABTestsSection() {
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="flex items-center gap-2 w-full text-left group"
             >
-                <h2 className="text-xl font-bold text-gray-900 border-l-4 border-emerald-500 pl-4 mt-12 flex-1">
+                <h2 className="text-xl font-bold text-gray-900 border-l-4 border-emerald-500 pl-4 flex-1">
                     🧪 A/B Title Tests <span className="text-sm font-normal text-gray-400">({abTests.length} tests loaded)</span>
                 </h2>
                 <ChevronDown
                     size={20}
-                    className={`text-gray-400 mt-12 transition-transform duration-200 group-hover:text-gray-600 ${isExpanded ? 'rotate-180' : ''}`}
+                    className={`text-gray-400 transition-transform duration-200 group-hover:text-gray-600 ${isExpanded ? 'rotate-180' : ''}`}
                 />
             </button>
 
