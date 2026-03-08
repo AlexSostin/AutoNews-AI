@@ -99,8 +99,8 @@ export default async function BrandPage({ params }: { params: Promise<{ brand: s
                         '@context': 'https://schema.org',
                         '@type': 'BreadcrumbList',
                         itemListElement: [
-                            { '@type': 'ListItem', position: 1, name: 'Cars', item: 'https://freshmotors.net/cars' },
-                            { '@type': 'ListItem', position: 2, name: data.brand, item: `https://freshmotors.net/cars/${brandSlug}` },
+                            { '@type': 'ListItem', position: 1, name: 'Cars', item: 'https://www.freshmotors.net/cars' },
+                            { '@type': 'ListItem', position: 2, name: data.brand, item: `https://www.freshmotors.net/cars/${brandSlug}` },
                         ],
                     }),
                 }}

@@ -48,7 +48,21 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     if not summary or len(summary.strip()) < 20 or summary.strip().rstrip(':') in ('Pros', 'Cons', 'Summary', 'Review', 'Verdict'):
         # Extract first paragraph from content
         summary = extract_summary(content)
-    
+
+    # Clean AI artifact words from summary (these leak into meta descriptions)
+    _ai_leak_phrases = [
+        'transcript', 'provided text', 'video source', 'source video',
+        'based on the video', 'from the video', 'in the video',
+        'the narrator', 'the host mentions', 'the presenter',
+    ]
+    summary_lower = summary.lower()
+    for phrase in _ai_leak_phrases:
+        if phrase in summary_lower:
+            # Remove sentence containing the phrase
+            sentences = re.split(r'(?<=[.!?])\s+', summary)
+            summary = ' '.join(s for s in sentences if phrase not in s.lower())
+            summary_lower = summary.lower()
+
     # Trim summary to 300 chars
     if len(summary) > 300:
         summary = summary[:297] + "..."

@@ -69,10 +69,26 @@ async function getCategories() {
     }
 }
 
+async function getBrands() {
+    try {
+        const res = await fetchWithTimeout(
+            `${PRODUCTION_API_URL}/cars/brands/`,
+            FETCH_TIMEOUT
+        );
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : (data.brands || []);
+    } catch {
+        console.error('Sitemap: Failed to fetch brands');
+        return [];
+    }
+}
+
 export async function GET() {
-    const [articles, categories] = await Promise.all([
+    const [articles, categories, brands] = await Promise.all([
         getAllArticles(),
         getCategories(),
+        getBrands(),
     ]);
 
     const staticPages = [
@@ -106,6 +122,19 @@ export async function GET() {
     <lastmod>${new Date().toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
+  </url>`).join('')}
+  <url>
+    <loc>${SITE_URL}/cars</loc>
+    <lastmod>${new Date().toISOString()}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  ${brands.map((brand: any) => `
+  <url>
+    <loc>${SITE_URL}/cars/${brand.slug}</loc>
+    <lastmod>${new Date().toISOString()}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>`).join('')}
 </urlset>`;
 

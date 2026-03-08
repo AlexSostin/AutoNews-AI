@@ -10,6 +10,18 @@ import { isAdmin, isAuthenticated } from '@/lib/auth';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 
+// Block search engine indexing on all admin pages
+const NOINDEX_META = typeof document !== 'undefined' ? (() => {
+  const existing = document.querySelector('meta[name="robots"]');
+  if (!existing) {
+    const meta = document.createElement('meta');
+    meta.name = 'robots';
+    meta.content = 'noindex, nofollow';
+    document.head.appendChild(meta);
+  }
+  return true;
+})() : false;
+
 export default function AdminLayout({
   children,
 }: {

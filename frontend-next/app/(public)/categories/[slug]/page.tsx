@@ -3,7 +3,7 @@ import Link from 'next/link';
 import ArticleCard from '@/components/public/ArticleCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Article, Category } from '@/types';
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 
 // Production API URL
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
@@ -56,6 +56,29 @@ async function getArticlesByCategory(categorySlug: string, page = 1) {
   } catch {
     return { results: [], count: 0, next: null, previous: null };
   }
+}
+
+const SITE_URL = 'https://www.freshmotors.net';
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const category = await getCategory(slug);
+
+  if (!category) {
+    return { title: 'Category - Fresh Motors' };
+  }
+
+  return {
+    title: `${category.name} — Automotive News & Reviews | Fresh Motors`,
+    description: category.description || `Read the latest ${category.name} articles, reviews, and news on Fresh Motors.`,
+    alternates: { canonical: `/categories/${slug}` },
+    openGraph: {
+      title: `${category.name} — Fresh Motors`,
+      description: category.description || `Latest ${category.name} automotive articles.`,
+      url: `${SITE_URL}/categories/${slug}`,
+      type: 'website',
+    },
+  };
 }
 
 export default async function CategoryPage({

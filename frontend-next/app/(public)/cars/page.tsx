@@ -101,7 +101,7 @@ export default async function CarsPage() {
                         '@type': 'CollectionPage',
                         name: 'Car Catalog — Fresh Motors',
                         description: 'Browse all car brands and models with detailed specifications.',
-                        url: 'https://freshmotors.net/cars',
+                        url: 'https://www.freshmotors.net/cars',
                         numberOfItems: brands.length,
                     }),
                 }}

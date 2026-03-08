@@ -147,6 +147,26 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 }
             }} />
 
+            {/* BreadcrumbList JSON-LD for Google breadcrumb display */}
+            <JsonLd data={{
+                "@context": "https://schema.org",
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.freshmotors.net" },
+                    ...(article.categories?.[0] ? [{
+                        "@type": "ListItem" as const,
+                        "position": 2,
+                        "name": article.categories[0].name,
+                        "item": `https://www.freshmotors.net/categories/${article.categories[0].slug}`
+                    }] : []),
+                    {
+                        "@type": "ListItem",
+                        "position": article.categories?.[0] ? 3 : 2,
+                        "name": article.title
+                    }
+                ]
+            }} />
+
             {/* Divider between articles */}
             {index > 0 && (
                 <div className="flex items-center gap-4 my-6">
