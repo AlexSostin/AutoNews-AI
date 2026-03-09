@@ -926,6 +926,66 @@
       "total_time": 47.5,
       "spec_fields_filled": 9,
       "timestamp": "2026-03-07T10:08:40.813168"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 33.0,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-08T19:03:49.907855"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 44.9,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-08T19:04:01.687055"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 39.1,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-08T19:04:40.780578"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Byd",
+      "quality_score": 0,
+      "spec_coverage": 70.0,
+      "total_time": 51.2,
+      "spec_fields_filled": 7,
+      "timestamp": "2026-03-08T19:04:41.155568"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Gwm (Great Wall Motor)",
+      "quality_score": 0,
+      "spec_coverage": 40.0,
+      "total_time": 42.1,
+      "spec_fields_filled": 4,
+      "timestamp": "2026-03-08T19:05:23.242508"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "make": "Gwm (Great Wall Motor)",
+      "quality_score": 0,
+      "spec_coverage": 50.0,
+      "total_time": 44.6,
+      "spec_fields_filled": 5,
+      "timestamp": "2026-03-08T19:05:25.432110"
     }
   ]
 }

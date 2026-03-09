@@ -328,10 +328,72 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         except Exception as _ce:
             print(f"⚠️ Competitor lookup failed (non-fatal): {_ce}")
 
+        # 2.96 INTERNAL SPEC VERIFICATION — check our own DB for verified specs
+        internal_specs_context = ""
+        try:
+            from news.models.vehicles import VehicleSpecs
+            _make = specs.get('make', '')
+            _model = specs.get('model', '')
+            if _make and _model and _make != 'Not specified':
+                existing = VehicleSpecs.objects.filter(
+                    make__iexact=_make,
+                    model_name__icontains=_model,
+                ).order_by('-updated_at').first()
+                if existing:
+                    parts = []
+                    parts.append(f"Make: {existing.make}")
+                    parts.append(f"Model: {existing.model_name}")
+                    if existing.trim_name:
+                        parts.append(f"Trim: {existing.trim_name}")
+                    if existing.model_year:
+                        parts.append(f"Year: {existing.model_year}")
+                    if existing.power_hp:
+                        parts.append(f"Power: {existing.power_hp} hp")
+                    if existing.power_kw:
+                        parts.append(f"Power: {existing.power_kw} kW")
+                    if existing.torque_nm:
+                        parts.append(f"Torque: {existing.torque_nm} Nm")
+                    if existing.battery_kwh:
+                        parts.append(f"Battery: {existing.battery_kwh} kWh")
+                    range_val = existing.range_wltp or existing.range_cltc or existing.range_epa or existing.range_km
+                    if range_val:
+                        parts.append(f"Range: {range_val} km")
+                    if existing.acceleration_0_100:
+                        parts.append(f"0-100: {existing.acceleration_0_100}s")
+                    if existing.price_usd_from:
+                        parts.append(f"Price: from ${existing.price_usd_from:,}")
+                    if existing.fuel_type:
+                        parts.append(f"Fuel Type: {existing.fuel_type}")
+                    if existing.body_type:
+                        parts.append(f"Body Type: {existing.body_type}")
+                    if existing.drivetrain:
+                        parts.append(f"Drivetrain: {existing.drivetrain}")
+                    if len(parts) > 4:  # Only inject if we have meaningful data
+                        internal_specs_context = (
+                            "\n═══ VERIFIED SPECS FROM OUR DATABASE (HIGH PRIORITY) ═══\n"
+                            "We already have this car in our database with VERIFIED specs.\n"
+                            "Use these as GROUND TRUTH — they override web search data:\n"
+                            + "\n".join(f"  ▸ {p}" for p in parts)
+                            + "\n\nIf your article contradicts these numbers, YOUR article is WRONG.\n"
+                            "═══════════════════════════════════════════════\n"
+                        )
+                        print(f"✅ Internal DB match: {existing.make} {existing.model_name} — injecting verified specs")
+                    else:
+                        print(f"ℹ️ Internal DB match found but sparse data ({len(parts)} fields)")
+                else:
+                    print(f"ℹ️ No existing VehicleSpecs for {_make} {_model}")
+        except Exception as _vs_e:
+            print(f"⚠️ Internal spec verification failed (non-fatal): {_vs_e}")
+
+        # Append internal specs to web_context so the generator sees them
+        enriched_web_context = web_context
+        if internal_specs_context:
+            enriched_web_context = (internal_specs_context + "\n" + web_context) if web_context else internal_specs_context
+
         # Pass web context + competitor context to generator
         article_html = generate_article(
             analysis, provider=provider,
-            web_context=web_context,
+            web_context=enriched_web_context,
             source_title=video_title,
             competitor_context=competitor_context or None,
         )

@@ -137,8 +137,10 @@ def _extract_car_info_from_html(article_html: str) -> dict:
 
 def _build_enriched_context(article_html: str, web_context: str) -> str:
     """
-    Enrich the web context by performing targeted searches for the car
-    mentioned in the article. Appends results to existing web_context.
+    Enrich the web context by:
+    1. Looking up verified specs from our own VehicleSpecs database
+    2. Performing targeted web searches for the car
+    Appends results to existing web_context.
     """
     car_info = _extract_car_info_from_html(article_html)
     if not car_info.get('make'):
@@ -147,6 +149,42 @@ def _build_enriched_context(article_html: str, web_context: str) -> str:
     make = car_info['make']
     model = car_info['model']
 
+    # Phase 1: Check our own VehicleSpecs database for verified data
+    try:
+        from news.models.vehicles import VehicleSpecs
+        existing = VehicleSpecs.objects.filter(
+            make__iexact=make,
+            model_name__icontains=model.split()[0] if model else '',
+        ).order_by('-updated_at').first()
+        if existing:
+            db_parts = []
+            if existing.power_hp:
+                db_parts.append(f"Power: {existing.power_hp} hp")
+            if existing.power_kw:
+                db_parts.append(f"Power: {existing.power_kw} kW")
+            if existing.battery_kwh:
+                db_parts.append(f"Battery: {existing.battery_kwh} kWh")
+            range_val = existing.range_wltp or existing.range_cltc or existing.range_epa or existing.range_km
+            if range_val:
+                db_parts.append(f"Range: {range_val} km")
+            if existing.acceleration_0_100:
+                db_parts.append(f"0-100: {existing.acceleration_0_100}s")
+            if existing.price_usd_from:
+                db_parts.append(f"Price: from ${existing.price_usd_from:,}")
+            if existing.torque_nm:
+                db_parts.append(f"Torque: {existing.torque_nm} Nm")
+            if db_parts:
+                web_context = (
+                    web_context
+                    + f"\n\n--- VERIFIED SPECS FROM INTERNAL DATABASE ({make} {existing.model_name}) ---\n"
+                    + "\n".join(db_parts)
+                    + "\nThese are our verified specs. Use them to cross-check the article.\n"
+                )
+                logger.info(f"Fact-checker: injected {len(db_parts)} verified specs from DB")
+    except Exception as e:
+        logger.debug(f"Fact-checker DB lookup failed (non-fatal): {e}")
+
+    # Phase 2: Additional web search
     try:
         from ai_engine.modules.searcher import search_car_details
         extra_context = search_car_details(make, model)

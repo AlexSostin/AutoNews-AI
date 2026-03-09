@@ -4,6 +4,9 @@ Correction Memory — persistent learning loop for AI article generation.
 Stores past fact-check corrections so the article generator can learn from
 previous mistakes and avoid repeating them.
 
+Storage: Django cache (Redis) — survives Railway deploys.
+Key: 'correction_memory' → JSON list of correction entries.
+
 Usage:
     # After auto_resolve:
     record_corrections('BYD Sealion 06', replaced=[...], caveated=[...], removed=[...])
@@ -13,39 +16,38 @@ Usage:
     # → inserts "DO NOT repeat these past mistakes:" into the generation prompt
 """
 import json
-import os
 import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Store corrections next to other AI data files
-MEMORY_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
-MEMORY_FILE = os.path.join(MEMORY_DIR, 'correction_memory.json')
-MAX_ENTRIES = 200  # Keep last 200 corrections to avoid file bloat
+CACHE_KEY = 'correction_memory'
+MAX_ENTRIES = 200  # Keep last 200 corrections
 
 
 def _load_memory() -> list:
-    """Load correction memory from disk."""
-    if not os.path.exists(MEMORY_FILE):
-        return []
+    """Load correction memory from Django cache (Redis)."""
     try:
-        with open(MEMORY_FILE, 'r') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+        from django.core.cache import cache
+        data = cache.get(CACHE_KEY)
+        if data is None:
+            return []
+        if isinstance(data, str):
+            return json.loads(data)
+        return data
+    except Exception as e:
         logger.warning(f"Correction memory load failed: {e}")
         return []
 
 
 def _save_memory(entries: list):
-    """Save correction memory to disk, trimming to MAX_ENTRIES."""
-    os.makedirs(MEMORY_DIR, exist_ok=True)
-    # Keep only the most recent entries
+    """Save correction memory to Django cache (Redis), trimming to MAX_ENTRIES."""
     trimmed = entries[-MAX_ENTRIES:]
     try:
-        with open(MEMORY_FILE, 'w') as f:
-            json.dump(trimmed, f, indent=2, ensure_ascii=False)
-    except IOError as e:
+        from django.core.cache import cache
+        # Store for 365 days (effectively permanent in Redis)
+        cache.set(CACHE_KEY, json.dumps(trimmed, ensure_ascii=False), timeout=365 * 86400)
+    except Exception as e:
         logger.error(f"Correction memory save failed: {e}")
 
 
@@ -146,7 +148,7 @@ def get_memory_stats() -> dict:
     """Get stats about correction memory (for dashboard/debugging)."""
     entries = _load_memory()
     if not entries:
-        return {'total_entries': 0, 'total_corrections': 0}
+        return {'total_entries': 0, 'total_corrections': 0, 'storage': 'redis'}
 
     total_corrections = sum(len(e.get('corrections', [])) for e in entries)
     return {
@@ -154,4 +156,5 @@ def get_memory_stats() -> dict:
         'total_corrections': total_corrections,
         'oldest': entries[0].get('timestamp', ''),
         'newest': entries[-1].get('timestamp', ''),
+        'storage': 'redis',
     }

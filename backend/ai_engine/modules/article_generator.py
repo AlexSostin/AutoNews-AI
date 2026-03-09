@@ -723,6 +723,13 @@ CRITICAL REQUIREMENTS:
    ❌ "2026 BYD TANG 1240: A PHEV SUV Starting at $26,000" (what is 1240?)
    Example: "2025 BYD Seal 06 GT: A Powerful Electric Hatchback for $25,000"
 
+   ⚠️ MODEL NAME CONSISTENCY — CRITICAL:
+   - The model name in your title MUST match the model in the Verdict and throughout the article.
+   - "BYD SONG" and "BYD SONG Plus" are DIFFERENT vehicles. Do NOT mix them.
+   - "Zeekr 7X" and "Zeekr 007" are DIFFERENT vehicles. Do NOT confuse model numbers.
+   - If the source says "SONG DM-i" — write "SONG DM-i" everywhere, NOT "Song Plus DM-i" in the verdict.
+   - BEFORE submitting: verify the EXACT model name appears identically in title, opening, specs block, and verdict.
+
 2. **Engaging Opening** — write like a journalist, not a spec sheet:
    ✅ "BYD's latest plug-in hybrid SUV undercuts most competitors by $10,000 — and matches their range"
    ✅ "The Zeekr 7X brings 421 hp and 600 km of range to a segment dominated by Tesla"
@@ -915,6 +922,15 @@ Required Structure (OMIT any section where you have NO data):
   - Sports car / GT with under 200 HP → VERIFY
   - Any car with 0-100 under 5s but under 300 HP → VERIFY
   - EREV with only one HP figure → it might be the generator, NOT the traction motor
+
+  ⚠️ PHEV / DM-i / DM-p POWER RULES:
+  - For BYD DM-i: the ICE engine is a GENERATOR (typically 81-115 kW / 110-154 HP)
+  - The TRACTION motor drives the wheels (typically 145-200 kW / 194-268 HP)
+  - TOTAL SYSTEM OUTPUT ≈ traction motor power (NOT engine + motor combined for DM-i)
+  - For DM-p: engine + motor CAN combine (AWD) — total is higher (e.g. 260-350 kW)
+  - If you calculate "337 HP" for a DM-i sedan by adding engine + motor → WRONG
+  - DM-i sedans/SUVs typically: 139-197 HP system output. 300+ HP is DM-p territory.
+  - Cross-check: if source says "145 kW motor + 102 kW engine" on DM-i → system output is ~145 kW (194 HP), NOT 247 kW
   ═══════════════════════════════════════════════
 
 - <h2>Design & Interior</h2> — Styling, materials, space.

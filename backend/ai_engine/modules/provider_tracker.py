@@ -1,40 +1,44 @@
 """
 Provider Performance Tracker — records & recommends AI providers per brand.
 
-Stores generation quality metrics per provider×brand in a JSON file.
-No database migration required.
+Storage: Django cache (Redis) — survives Railway deploys.
+Key: 'provider_stats' → JSON dict with records list.
 """
 import json
-import os
 import logging
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-# Data file location
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
-STATS_FILE = os.path.join(DATA_DIR, 'provider_stats.json')
+CACHE_KEY = 'provider_stats'
+MAX_RECORDS = 500
 
 
 def _load_stats() -> dict:
-    """Load provider stats from JSON file."""
-    if not os.path.exists(STATS_FILE):
-        return {'records': []}
+    """Load provider stats from Django cache (Redis)."""
     try:
-        with open(STATS_FILE, 'r') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+        from django.core.cache import cache
+        data = cache.get(CACHE_KEY)
+        if data is None:
+            return {'records': []}
+        if isinstance(data, str):
+            return json.loads(data)
+        return data
+    except Exception as e:
         logger.warning(f"[PROVIDER-TRACKER] Failed to load stats: {e}")
         return {'records': []}
 
 
 def _save_stats(data: dict):
-    """Save provider stats to JSON file."""
-    os.makedirs(DATA_DIR, exist_ok=True)
+    """Save provider stats to Django cache (Redis)."""
     try:
-        with open(STATS_FILE, 'w') as f:
-            json.dump(data, f, indent=2, default=str)
-    except IOError as e:
+        from django.core.cache import cache
+        # Keep only last MAX_RECORDS
+        if len(data.get('records', [])) > MAX_RECORDS:
+            data['records'] = data['records'][-MAX_RECORDS:]
+        # Store for 365 days (effectively permanent)
+        cache.set(CACHE_KEY, json.dumps(data, default=str), timeout=365 * 86400)
+    except Exception as e:
         logger.warning(f"[PROVIDER-TRACKER] Failed to save stats: {e}")
 
 
@@ -59,7 +63,7 @@ def record_generation(provider: str, make: str, quality_score: int = 0,
     
     record = {
         'provider': provider,
-        'model': model or provider,  # e.g. 'gemini-2.5-flash-lite'
+        'model': model or provider,
         'make': make.strip().title() if make else 'Unknown',
         'quality_score': quality_score,
         'spec_coverage': round(spec_coverage, 1),
@@ -69,11 +73,6 @@ def record_generation(provider: str, make: str, quality_score: int = 0,
     }
     
     data['records'].append(record)
-    
-    # Keep only last 500 records to prevent file bloat
-    if len(data['records']) > 500:
-        data['records'] = data['records'][-500:]
-    
     _save_stats(data)
     logger.info(f"[PROVIDER-TRACKER] Recorded: {model or provider} × {make} — "
                 f"quality={quality_score}, coverage={spec_coverage:.0f}%")
@@ -149,17 +148,15 @@ def get_provider_summary() -> dict:
     records = data.get('records', [])
     
     if not records:
-        return {'providers': {}, 'by_brand': {}, 'total_records': 0}
+        return {'providers': {}, 'by_brand': {}, 'total_records': 0, 'storage': 'redis'}
     
     # Overall per-provider (key = model name or provider name)
     providers = defaultdict(lambda: {'quality': [], 'coverage': [], 'time': [], 'count': 0})
     by_brand = defaultdict(lambda: defaultdict(lambda: {'quality': [], 'count': 0}))
-    # Also track which provider-family each key belongs to (for coloring on frontend)
     key_to_provider = {}
     
     for r in records:
         p = r.get('provider', 'gemini')
-        # Use model as display key if available, else fall back to provider
         model = r.get('model', '') or p
         make = r.get('make', 'Unknown')
         
@@ -167,7 +164,7 @@ def get_provider_summary() -> dict:
         providers[model]['coverage'].append(r.get('spec_coverage', 0))
         providers[model]['time'].append(r.get('total_time', 0))
         providers[model]['count'] += 1
-        key_to_provider[model] = p  # track family
+        key_to_provider[model] = p
         
         by_brand[make][model]['quality'].append(r.get('quality_score', 0))
         by_brand[make][model]['count'] += 1
@@ -180,7 +177,7 @@ def get_provider_summary() -> dict:
             'avg_coverage': round(sum(stats['coverage']) / len(stats['coverage']), 1) if stats['coverage'] else 0,
             'avg_time': round(sum(stats['time']) / len(stats['time']), 1) if stats['time'] else 0,
             'count': stats['count'],
-            'provider': key_to_provider.get(model_key, model_key),  # family: 'gemini' or 'groq'
+            'provider': key_to_provider.get(model_key, model_key),
         }
     
     # Top brands with per-model comparison
@@ -197,4 +194,5 @@ def get_provider_summary() -> dict:
         'providers': result_providers,
         'by_brand': result_brands,
         'total_records': len(records),
+        'storage': 'redis',
     }
