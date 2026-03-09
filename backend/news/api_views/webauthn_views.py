@@ -45,16 +45,23 @@ def _get_rp_name() -> str:
 def _get_allowed_origins() -> list[str]:
     """
     Returns list of allowed WebAuthn origins.
-    Reads WEBAUTHN_ALLOWED_ORIGINS (comma-separated) first,
-    falls back to WEBAUTHN_ORIGIN for backwards compatibility.
-    Example Railway value: https://www.freshmotors.net,https://freshmotors.net
+    Reads WEBAUTHN_ORIGIN and automatically adds the www/non-www counterpart.
+    Example: WEBAUTHN_ORIGIN=https://www.freshmotors.net
+             → ['https://www.freshmotors.net', 'https://freshmotors.net']
+    No extra env vars needed — works out of the box in production.
     """
-    allowed = getattr(settings, 'WEBAUTHN_ALLOWED_ORIGINS', '')
-    if allowed:
-        return [o.strip() for o in allowed.split(',') if o.strip()]
-    # Fallback to single WEBAUTHN_ORIGIN
     origin = getattr(settings, 'WEBAUTHN_ORIGIN', 'http://localhost:3000')
-    return [origin]
+    origins = [origin]
+
+    # Auto-add www ↔ non-www counterpart for production HTTPS domains
+    if origin.startswith('https://www.'):
+        counterpart = origin.replace('https://www.', 'https://', 1)
+        origins.append(counterpart)
+    elif origin.startswith('https://') and 'localhost' not in origin:
+        counterpart = origin.replace('https://', 'https://www.', 1)
+        origins.append(counterpart)
+
+    return origins
 
 def _b64url_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b'=').decode()

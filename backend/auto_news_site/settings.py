@@ -683,7 +683,7 @@ AUTHENTICATION_BACKENDS = [
 
 AXES_FAILURE_LIMIT = 5  # Lock after 5 failed attempts
 AXES_COOLOFF_TIME = 0.5  # 30 minutes lockout (in hours)
-AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP = True  # Don't lock whole IP behind NAT
+AXES_LOCKOUT_PARAMETERS = ['username', 'ip_address']  # Don't lock whole IP behind NAT
 AXES_RESET_ON_SUCCESS = True  # Reset counter on successful login
 AXES_LOCKOUT_CALLABLE = None  # Use default 403 response
 AXES_VERBOSE = DEBUG  # Log attempts only in debug mode
