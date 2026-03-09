@@ -265,6 +265,15 @@ def auto_publish_pending():
                 
                 published_count += 1
                 logger.info(f"[AUTO-PUBLISHER] ✅ Published: {article.title[:60]} (quality: {pending.quality_score}/10)")
+
+                # Notify admin via Telegram (non-blocking)
+                if not as_draft:
+                    try:
+                        import threading as _thr
+                        from ai_engine.modules.notify_admin import notify_article_published as _notify
+                        _thr.Thread(target=_notify, args=(article, True), daemon=True).start()
+                    except Exception:
+                        pass  # Never break publish flow for notification errors
             else:
                 # publish_article() returned None — count as failure
                 pending.auto_publish_attempts += 1
