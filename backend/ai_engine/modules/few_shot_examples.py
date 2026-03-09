@@ -279,7 +279,7 @@ EXAMPLE_PHEV_FLAGSHIP = """
 
 <ul>
 <li>Starting price: approximately $22,500</li>
-<li>2025 variants in China: RMB 168,800 – 225,800 (~$23,400 – $31,300)</li>
+<li>2025 variants in China: CNY 168,800 – 225,800 (~$23,400 – $31,300)</li>
 <li>2026 model is now current in China</li>
 </ul>
 

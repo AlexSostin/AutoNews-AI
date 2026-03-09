@@ -33,6 +33,12 @@ TRUSTED_DOMAINS = [
     # EV spec databases — structured data with HP, kW, battery, range
     'ev-database.org', 'evspecifications.com', 'ev-database.uk',
     'zero-emission.org', 'pushevs.com',
+    # Chinese market sources — essential for BYD/NIO/Zeekr/SEALION etc.
+    'gasgoo.com', 'd1ev.com', 'en.d1ev.com',
+    'gizmochina.com', 'paultan.org', 'caradvice.com.au',
+    'thedriven.io', 'newatlas.com', 'techcrunch.com',
+    'chinaev.com', 'evadoption.com', 'bydevnews.com',
+    'bydeurope.com', 'bydnews.com',
 ]
 
 # Skip these domains entirely — no useful specs data
@@ -234,6 +240,24 @@ DIRECT_SEARCH_SITES = [
         'url_template': 'https://electrek.co/?s={query}',
         'article_selectors': ['h2 a', 'h3 a', '.post-title a'],
     },
+    {
+        'name': 'Car News China',
+        'domain': 'carnewschina.com',
+        'url_template': 'https://carnewschina.com/?s={query}',
+        'article_selectors': ['h2 a', 'h3 a', '.entry-title a', 'article h2 a'],
+    },
+    {
+        'name': 'Gasgoo',
+        'domain': 'gasgoo.com',
+        'url_template': 'https://autonews.gasgoo.com/search?keyword={query}',
+        'article_selectors': ['h2 a', 'h3 a', '.news-title a', '.article-title a'],
+    },
+    {
+        'name': 'Gizmochina',
+        'domain': 'gizmochina.com',
+        'url_template': 'https://gizmochina.com/?s={query}',
+        'article_selectors': ['h2 a', 'h3 a', '.entry-title a'],
+    },
 ]
 
 
@@ -304,19 +328,40 @@ def search_car_details(make, model, year=None):
     Searches for car details and reviews on the web.
     Returns structured text with key info found, including scraped page content.
     Uses DuckDuckGo as primary (reliable), Google as fallback.
-    Runs THREE diverse searches for comprehensive coverage.
+    Runs diverse searches for comprehensive coverage, with China-specific queries
+    for brands like BYD, NIO, Zeekr, Xpeng, SEALION, etc.
     """
     year_str = str(year) if year else ''
-    
-    # Construct THREE diverse queries for better coverage
-    # Query 1: General review with 'car' keyword to avoid brand ambiguity
-    #         (e.g., "Xiaomi" alone returns phone results)
+
+    # Chinese brands that need China-specific queries
+    CHINESE_BRANDS = {
+        'byd', 'nio', 'xpeng', 'zeekr', 'geely', 'changan', 'chery',
+        'gac', 'dongfeng', 'haval', 'aito', 'huawei', 'li auto', 'lixiang',
+        'avatr', 'deepal', 'denza', 'yangwang', 'fang cheng bao', 'sealion',
+        'seal', 'atto', 'han', 'tang', 'song', 'qin', 'dolphin', 'seagull',
+        ' океан', 'neta', 'leapmotor', 'voyah', 'hozon',
+    }
+    is_chinese_brand = any(
+        cb in (make or '').lower() or cb in (model or '').lower()
+        for cb in CHINESE_BRANDS
+    )
+
+    # Base queries
     queries = [
         f"{year_str} {make} {model} car review specifications price".strip(),
         f"{make} {model} electric car specs horsepower kW battery range".strip(),
         f"{make} {model} car hp torque 0-60 interior review".strip(),
     ]
-    
+
+    # Add China-specific queries for Chinese brands
+    if is_chinese_brand:
+        queries.append(
+            f"{year_str} {make} {model} CNY price specs site:carnewschina.com OR site:cnevpost.com OR site:gasgoo.com".strip()
+        )
+        queries.append(
+            f"{make} {model} China market price CNY specs launch".strip()
+        )
+
     print(f"🌐 Searching web for: {make} {model} {year_str}...")
     for i, q in enumerate(queries, 1):
         print(f"  🔍 Query {i}: {q}")
