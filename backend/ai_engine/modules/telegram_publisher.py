@@ -299,7 +299,7 @@ def check_and_alert_no_posts(hours: int = 24) -> bool:
         # Articles created in the last N hours
         recent_count = Article.objects.filter(
             created_at__gte=since,
-            published=True,
+            is_published=True,
         ).count()
 
         if recent_count == 0:
