@@ -321,6 +321,130 @@ class SystemGraphView(APIView):
         if err_total > 0:
             warnings.append({'level': 'error' if err_total > 10 else 'warning', 'message': f'{err_total} unresolved errors ({be_errors} backend, {fe_errors} frontend)'})
 
+        # ── Telegram / Social ─────────────────────────────────────
+        try:
+            from news.models import SocialPost
+            sp_data = SocialPost.objects.aggregate(
+                total=Count('id'),
+                sent=Count('id', filter=Q(status='sent')),
+                failed=Count('id', filter=Q(status='failed')),
+                pending=Count('id', filter=Q(status='pending')),
+            )
+            # Check if bot is configured
+            import os
+            tg_token_set = bool(os.environ.get('TELEGRAM_BOT_TOKEN', ''))
+            tg_channel_set = bool(os.environ.get('TELEGRAM_CHANNEL_ID', ''))
+            tg_admin_set = bool(os.environ.get('TELEGRAM_ADMIN_ID', ''))
+            tg_configured = tg_token_set and tg_channel_set
+
+            nodes.append({
+                'id': 'telegram', 'label': 'Telegram Bot', 'group': 'social',
+                'icon': '📱', 'count': sp_data['total'],
+                'breakdown': {
+                    'sent': sp_data['sent'],
+                    'failed': sp_data['failed'],
+                    'pending': sp_data['pending'],
+                    'token': '✅ set' if tg_token_set else '❌ missing',
+                    'channel': '✅ set' if tg_channel_set else '❌ missing',
+                    'admin_id': '✅ set' if tg_admin_set else '⚠️ missing (no alerts)',
+                },
+                'health': 'error' if not tg_configured else (
+                    'warning' if sp_data['failed'] > 0 else 'healthy'
+                ),
+            })
+            edges.append({'from': 'articles', 'to': 'telegram', 'label': 'posts to', 'count': sp_data['sent']})
+
+            if not tg_configured:
+                warnings.append({'level': 'error', 'message': 'Telegram bot is not configured (missing TOKEN or CHANNEL_ID)'})
+            elif sp_data['failed'] > 0:
+                warnings.append({'level': 'warning', 'message': f'{sp_data["failed"]} Telegram posts failed'})
+            if not tg_admin_set:
+                warnings.append({'level': 'info', 'message': 'TELEGRAM_ADMIN_ID not set — admin alerts disabled'})
+        except Exception:
+            pass
+
+        # ── AI Pipeline ──────────────────────────────────────────
+        try:
+            from news.models import AutomationSettings
+            auto_settings = AutomationSettings.load()
+
+            # Auto-publish health
+            ap_enabled = auto_settings.auto_publish_enabled
+            ap_today = auto_settings.auto_publish_today_count
+            ap_max = auto_settings.auto_publish_max_per_day
+
+            # Fact-check warnings on published articles
+            fc_warnings = Article.objects.filter(
+                is_published=True,
+                is_deleted=False,
+                content__contains='ai-fact-check-block',
+            ).count()
+
+            nodes.append({
+                'id': 'ai_pipeline', 'label': 'AI Pipeline', 'group': 'ml',
+                'icon': '🤖', 'count': ap_today,
+                'breakdown': {
+                    'auto_publish': '✅ enabled' if ap_enabled else '⏸️ disabled',
+                    'published_today': f'{ap_today}/{ap_max}',
+                    'fact_check_warnings': fc_warnings,
+                    'telegram_today': auto_settings.telegram_today_count,
+                },
+                'health': 'warning' if fc_warnings > 3 else 'healthy',
+            })
+            edges.append({'from': 'pending_articles', 'to': 'ai_pipeline', 'label': 'auto-publish', 'count': ap_today})
+            edges.append({'from': 'ai_pipeline', 'to': 'articles', 'label': 'publishes', 'count': ap_today})
+            edges.append({'from': 'ai_pipeline', 'to': 'telegram', 'label': 'notifies', 'count': auto_settings.telegram_today_count})
+
+            if fc_warnings > 3:
+                warnings.append({'level': 'warning', 'message': f'{fc_warnings} published articles have unresolved fact-check warnings'})
+        except Exception:
+            pass
+
+        # ── WebAuthn / Passkeys ──────────────────────────────────
+        try:
+            from news.models import WebAuthnCredential
+            passkey_total = WebAuthnCredential.objects.count()
+            passkey_users = WebAuthnCredential.objects.values('user').distinct().count()
+            import os
+            wn_origin_set = bool(os.environ.get('WEBAUTHN_ORIGIN', ''))
+            wn_rp_set = bool(os.environ.get('WEBAUTHN_RP_ID', ''))
+
+            nodes.append({
+                'id': 'passkeys', 'label': 'Passkeys', 'group': 'system',
+                'icon': '🔑', 'count': passkey_total,
+                'breakdown': {
+                    'credentials': passkey_total,
+                    'users_enrolled': passkey_users,
+                    'origin': '✅ set' if wn_origin_set else '❌ missing',
+                    'rp_id': '✅ set' if wn_rp_set else '❌ missing',
+                },
+                'health': 'error' if not (wn_origin_set and wn_rp_set) else 'healthy',
+            })
+            if not (wn_origin_set and wn_rp_set):
+                warnings.append({'level': 'error', 'message': 'WebAuthn not configured — WEBAUTHN_ORIGIN or WEBAUTHN_RP_ID missing'})
+        except Exception:
+            pass
+
+        # ── Admin Notifications ───────────────────────────────────
+        try:
+            import os
+            admin_id_set = bool(os.environ.get('TELEGRAM_ADMIN_ID', ''))
+            nodes.append({
+                'id': 'admin_notifications', 'label': 'Admin Alerts', 'group': 'social',
+                'icon': '🔔', 'count': 0,
+                'breakdown': {
+                    'daily_report': '✅ ready',
+                    'publish_alerts': '✅ ready',
+                    'error_alerts': '✅ ready',
+                    'admin_id': '✅ set' if admin_id_set else '❌ not set',
+                },
+                'health': 'healthy' if admin_id_set else 'warning',
+            })
+            edges.append({'from': 'ai_pipeline', 'to': 'admin_notifications', 'label': 'alerts', 'count': 0})
+            edges.append({'from': 'errors', 'to': 'admin_notifications', 'label': 'error alerts', 'count': 0})
+        except Exception:
+            pass
+
         # Sort warnings: error first, then warning, then info
         level_order = {'error': 0, 'warning': 1, 'info': 2}
         warnings.sort(key=lambda w: level_order.get(w['level'], 3))
@@ -332,6 +456,7 @@ class SystemGraphView(APIView):
             'warnings': warnings,
             'generated_at': now.isoformat(),
         })
+
 
 
 class EmbeddingStatsView(APIView):
