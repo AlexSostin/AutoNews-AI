@@ -94,8 +94,10 @@ class PasskeyRegisterBeginView(APIView):
         user_id = str(user.pk).encode()
 
         existing = WebAuthnCredential.objects.filter(user=user).values_list('credential_id', flat=True)
+
+        from webauthn.helpers.structs import PublicKeyCredentialDescriptor
         exclude_credentials = [
-            {'id': bytes(cred_id), 'type': 'public-key'}
+            PublicKeyCredentialDescriptor(id=bytes(cred_id))
             for cred_id in existing
         ]
 
