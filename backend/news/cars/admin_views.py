@@ -124,6 +124,7 @@ class BrandViewSet(viewsets.ModelViewSet):
     serializer_class = BrandSerializer
     permission_classes = [IsAdminUser]
     queryset = Brand.objects.all()
+    pagination_class = None  # Admin page — show all brands, no pagination
 
     def get_queryset(self):
         qs = Brand.objects.select_related('parent').prefetch_related('sub_brands')
@@ -149,6 +150,15 @@ class BrandViewSet(viewsets.ModelViewSet):
         visible = self.request.query_params.get('visible')
         if visible is not None:
             qs = qs.filter(is_visible=visible.lower() == 'true')
+
+        # Sorting
+        ordering = self.request.query_params.get('ordering', 'name')
+        allowed = {'name', '-name', 'country', '-country', 'sort_order', '-sort_order', 'is_visible', '-is_visible'}
+        if ordering in allowed:
+            qs = qs.order_by(ordering)
+        else:
+            qs = qs.order_by('name')
+
         return qs
 
     def perform_create(self, serializer):

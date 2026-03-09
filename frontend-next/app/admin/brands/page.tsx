@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, X, Merge, Eye, EyeOff, Search, RefreshCw, Globe, ChevronDown, ChevronRight, ArrowRightLeft, Newspaper } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, X, Merge, Eye, EyeOff, Search, RefreshCw, Globe, ChevronDown, ChevronRight, ChevronUp, ArrowRightLeft, Newspaper, ArrowUpDown, Filter } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
 
@@ -52,6 +52,9 @@ export default function BrandsPage() {
     const [brandArticles, setBrandArticles] = useState<BrandArticle[]>([]);
     const [loadingArticles, setLoadingArticles] = useState(false);
     const [moveTarget, setMoveTarget] = useState<{ specId: number; brandId: number | null }>({ specId: 0, brandId: null });
+    const [visFilter, setVisFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+    const [sortKey, setSortKey] = useState<'name' | 'country' | 'model_count' | 'article_count'>('name');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [formData, setFormData] = useState({
         name: '',
         country: '',
@@ -260,8 +263,38 @@ export default function BrandsPage() {
         }
     };
 
-    // No local filtering — search is handled by backend
-    const filteredBrands = brands;
+    // Local visibility filter
+    const filteredBrands = useMemo(() => {
+        let list = brands;
+        if (visFilter === 'visible') list = list.filter(b => b.is_visible);
+        if (visFilter === 'hidden') list = list.filter(b => !b.is_visible);
+        // Sort
+        list = [...list].sort((a, b) => {
+            const av = a[sortKey];
+            const bv = b[sortKey];
+            if (typeof av === 'string' && typeof bv === 'string') {
+                return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+            }
+            return sortDir === 'asc' ? (Number(av) - Number(bv)) : (Number(bv) - Number(av));
+        });
+        return list;
+    }, [brands, visFilter, sortKey, sortDir]);
+
+    const handleSort = (key: typeof sortKey) => {
+        if (sortKey === key) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir('asc');
+        }
+    };
+
+    const SortIcon = ({ col }: { col: typeof sortKey }) => {
+        if (sortKey !== col) return <ArrowUpDown size={12} className="opacity-0 group-hover:opacity-40 ml-1" />;
+        return sortDir === 'asc'
+            ? <ChevronUp size={14} className="text-indigo-600 ml-1" />
+            : <ChevronDown size={14} className="text-indigo-600 ml-1" />;
+    };
 
     // Group: parents first, then sub-brands underneath
     const topBrands = filteredBrands.filter(b => b.parent === null);
@@ -326,16 +359,41 @@ export default function BrandsPage() {
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="relative mb-6">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                    type="text"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search brands, models, articles..."
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900"
-                />
+            {/* Search + Filter Row */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                <div className="relative flex-1">
+                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search brands, models, articles..."
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900"
+                    />
+                </div>
+                <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    {(['all', 'visible', 'hidden'] as const).map(f => (
+                        <button
+                            key={f}
+                            onClick={() => setVisFilter(f)}
+                            className={`px-4 py-2.5 text-sm font-bold transition-all flex items-center gap-1.5 ${visFilter === f
+                                    ? f === 'visible' ? 'bg-green-50 text-green-700 border-b-2 border-green-500'
+                                        : f === 'hidden' ? 'bg-gray-100 text-gray-600 border-b-2 border-gray-400'
+                                            : 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-500'
+                                    : 'text-gray-500 hover:bg-gray-50'
+                                }`}
+                        >
+                            {f === 'visible' && <Eye size={14} />}
+                            {f === 'hidden' && <EyeOff size={14} />}
+                            {f === 'all' && <Filter size={14} />}
+                            <span className="capitalize">{f}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${visFilter === f ? 'bg-white/60' : 'bg-gray-100'
+                                }`}>
+                                {f === 'all' ? brands.length : f === 'visible' ? brands.filter(b => b.is_visible).length : brands.filter(b => !b.is_visible).length}
+                            </span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Brands Table */}
@@ -357,10 +415,18 @@ export default function BrandsPage() {
                             <thead>
                                 <tr className="bg-gray-50 border-b border-gray-200">
                                     <th className="w-8 px-2"></th>
-                                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Brand</th>
-                                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Country</th>
-                                    <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Models</th>
-                                    <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Articles</th>
+                                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer group select-none" onClick={() => handleSort('name')}>
+                                        <span className="inline-flex items-center">Brand <SortIcon col="name" /></span>
+                                    </th>
+                                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden sm:table-cell cursor-pointer group select-none" onClick={() => handleSort('country')}>
+                                        <span className="inline-flex items-center">Country <SortIcon col="country" /></span>
+                                    </th>
+                                    <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer group select-none" onClick={() => handleSort('model_count')}>
+                                        <span className="inline-flex items-center justify-center">Models <SortIcon col="model_count" /></span>
+                                    </th>
+                                    <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer group select-none" onClick={() => handleSort('article_count')}>
+                                        <span className="inline-flex items-center justify-center">Articles <SortIcon col="article_count" /></span>
+                                    </th>
                                     <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                                     <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Parent</th>
                                     <th className="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
