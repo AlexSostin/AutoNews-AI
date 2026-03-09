@@ -9,7 +9,10 @@ Endpoints:
   DELETE /api/v1/auth/passkey/credentials/<pk>/ — Remove passkey
 
 Works on localhost without HTTPS per WebAuthn spec.
-On Railway: set WEBAUTHN_RP_ID and WEBAUTHN_ORIGIN env vars.
+On Railway: set WEBAUTHN_RP_ID and WEBAUTHN_ALLOWED_ORIGINS env vars.
+  WEBAUTHN_RP_ID=freshmotors.net
+  WEBAUTHN_ALLOWED_ORIGINS=https://www.freshmotors.net,https://freshmotors.net
+  (comma-separated — supports both www and non-www in the same deployment)
 
 NOTE: webauthn is imported lazily (inside each method) to avoid oscrypto
       startup errors in WSL environments with non-standard OpenSSL paths.
@@ -39,8 +42,19 @@ def _get_rp_id() -> str:
 def _get_rp_name() -> str:
     return getattr(settings, 'WEBAUTHN_RP_NAME', 'FreshMotors Admin')
 
-def _get_origin() -> str:
-    return getattr(settings, 'WEBAUTHN_ORIGIN', 'http://localhost:3000')
+def _get_allowed_origins() -> list[str]:
+    """
+    Returns list of allowed WebAuthn origins.
+    Reads WEBAUTHN_ALLOWED_ORIGINS (comma-separated) first,
+    falls back to WEBAUTHN_ORIGIN for backwards compatibility.
+    Example Railway value: https://www.freshmotors.net,https://freshmotors.net
+    """
+    allowed = getattr(settings, 'WEBAUTHN_ALLOWED_ORIGINS', '')
+    if allowed:
+        return [o.strip() for o in allowed.split(',') if o.strip()]
+    # Fallback to single WEBAUTHN_ORIGIN
+    origin = getattr(settings, 'WEBAUTHN_ORIGIN', 'http://localhost:3000')
+    return [origin]
 
 def _b64url_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
@@ -123,7 +137,7 @@ class PasskeyRegisterCompleteView(APIView):
                 credential=request.data,
                 expected_challenge=challenge,
                 expected_rp_id=_get_rp_id(),
-                expected_origin=_get_origin(),
+                expected_origin=_get_allowed_origins(),
                 require_user_verification=False,
             )
         except Exception as e:
@@ -200,7 +214,7 @@ class PasskeyAuthenticateView(APIView):
                 credential=request.data,
                 expected_challenge=challenge,
                 expected_rp_id=_get_rp_id(),
-                expected_origin=_get_origin(),
+                expected_origin=_get_allowed_origins(),
                 credential_public_key=bytes(cred.public_key),
                 credential_current_sign_count=cred.sign_count,
                 require_user_verification=False,
@@ -329,7 +343,7 @@ class PasskeyVerifyPendingView(APIView):
                 credential=assertion_data,
                 expected_challenge=challenge,
                 expected_rp_id=_get_rp_id(),
-                expected_origin=_get_origin(),
+                expected_origin=_get_allowed_origins(),
                 credential_public_key=bytes(cred.public_key),
                 credential_current_sign_count=cred.sign_count,
                 require_user_verification=False,
