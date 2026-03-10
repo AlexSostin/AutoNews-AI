@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
     Plus,
@@ -73,7 +72,6 @@ interface DiscoveredFeed {
 }
 
 export default function RSSFeedsPage() {
-    const router = useRouter();
     const [feeds, setFeeds] = useState<RSSFeed[]>([]);
     const [loading, setLoading] = useState(true);
     const [scanning, setScanning] = useState<number | null>(null);
@@ -179,7 +177,7 @@ export default function RSSFeedsPage() {
             }
             setFeedStats(statsMap);
         } catch (error) {
-            console.error('Error fetching feed stats:', error);
+            logCaughtError('rss_feeds_stats', error);
         }
     };
 
@@ -220,11 +218,11 @@ export default function RSSFeedsPage() {
         setScanning(feedId);
         try {
             const response = await api.post(`/rss-feeds/${feedId}/scan_now/`);
-            alert(response.data.message);
+            showToast(response.data.message, 'info');
             setTimeout(fetchFeeds, 3000);
         } catch (error: any) {
-            console.error('Error scanning feed:', error);
-            alert('Failed to start scan');
+            logCaughtError('rss_feeds_scan', error);
+            showToast('Failed to start scan');
         } finally {
             setScanning(null);
         }
@@ -280,7 +278,7 @@ export default function RSSFeedsPage() {
             await api.patch(`/rss-feeds/${feed.id}/`, { is_enabled: !feed.is_enabled });
             fetchFeeds();
         } catch (error: any) {
-            console.error('Error toggling feed:', error);
+            logCaughtError('rss_feeds_toggle', error);
         }
     };
 
@@ -291,7 +289,7 @@ export default function RSSFeedsPage() {
             await api.delete(`/rss-feeds/${feedId}/`);
             fetchFeeds();
         } catch (error: any) {
-            console.error('Error deleting feed:', error);
+            logCaughtError('rss_feeds_delete', error);
         }
     };
 
@@ -306,8 +304,8 @@ export default function RSSFeedsPage() {
 
             pollForCompletion([feedId], { [feedId]: originalTimestamp });
         } catch (error: any) {
-            console.error('Error checking license:', error);
-            alert('Failed to start license check');
+            logCaughtError('rss_feeds_license_check', error);
+            showToast('Failed to start license check');
         } finally {
             setCheckingLicense(null);
         }
@@ -333,8 +331,8 @@ export default function RSSFeedsPage() {
                 showToast('All feeds already checked');
             }
         } catch (error: any) {
-            console.error('Error checking all licenses:', error);
-            alert('Failed to start license check');
+            logCaughtError('rss_feeds_license_check_all', error);
+            showToast('Failed to start license check');
             setCheckingAllLicenses(false);
         }
     };
@@ -356,7 +354,7 @@ export default function RSSFeedsPage() {
     };
     const handleBulkEnable = async (enable: boolean) => {
         for (const id of selectedFeeds) {
-            try { await api.patch(`/rss-feeds/${id}/`, { is_enabled: enable }); } catch { }
+            try { await api.patch(`/rss-feeds/${id}/`, { is_enabled: enable }); } catch (e) { logCaughtError('rss_feeds_bulk_enable', e); }
         }
         setSelectedFeeds(new Set());
         fetchFeeds();
@@ -365,7 +363,7 @@ export default function RSSFeedsPage() {
     const handleBulkDelete = async () => {
         if (!confirm(`Delete ${selectedFeeds.size} selected feed(s)?`)) return;
         for (const id of selectedFeeds) {
-            try { await api.delete(`/rss-feeds/${id}/`); } catch { }
+            try { await api.delete(`/rss-feeds/${id}/`); } catch (e) { logCaughtError('rss_feeds_bulk_delete', e); }
         }
         setSelectedFeeds(new Set());
         fetchFeeds();
@@ -381,7 +379,7 @@ export default function RSSFeedsPage() {
             setDiscoveredFeeds(response.data.results || []);
         } catch (error: any) {
             logCaughtError('rss_feeds_discover', error);
-            alert('Failed to discover feeds');
+            showToast('Failed to discover feeds');
         } finally {
             setDiscovering(false);
         }
@@ -406,8 +404,8 @@ export default function RSSFeedsPage() {
             ));
             fetchFeeds();
         } catch (error: any) {
-            console.error('Error adding feed:', error);
-            alert(error.response?.data?.error || 'Failed to add feed');
+            logCaughtError('rss_feeds_add_discovered', error);
+            showToast(error.response?.data?.error || 'Failed to add feed');
         } finally {
             setAddingFeed(null);
         }

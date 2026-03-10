@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, TestTube, CheckCircle, XCircle, AlertCircle, Wand2 } from 'lucide-react';
-import { authenticatedFetch } from '@/lib/authenticatedFetch';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 interface Category {
     id: number;
@@ -52,12 +53,8 @@ export default function NewRSSFeedPage() {
 
     const fetchCategories = async () => {
         try {
-            const response = await authenticatedFetch('/categories/');
-
-            if (response.ok) {
-                const data = await response.json();
-                setCategories(data);
-            }
+            const { data } = await api.get('/categories/');
+            setCategories(data);
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
@@ -68,23 +65,15 @@ export default function NewRSSFeedPage() {
         setLoading(true);
 
         try {
-            const response = await authenticatedFetch('/rss-feeds/', {
-                method: 'POST',
-                body: JSON.stringify({
-                    ...formData,
-                    default_category: formData.default_category || null,
-                }),
+            await api.post('/rss-feeds/', {
+                ...formData,
+                default_category: formData.default_category ? parseInt(formData.default_category, 10) : null,
             });
-
-            if (response.ok) {
-                router.push('/admin/rss-feeds');
-            } else {
-                const error = await response.json();
-                alert(`Error: ${JSON.stringify(error)}`);
-            }
-        } catch (error) {
+            router.push('/admin/rss-feeds');
+        } catch (error: any) {
             console.error('Error creating RSS feed:', error);
-            alert('Failed to create RSS feed');
+            const detail = error.response?.data?.detail || error.response?.data?.feed_url?.[0] || 'Failed to create RSS feed';
+            toast.error(detail);
         } finally {
             setLoading(false);
         }
@@ -112,17 +101,7 @@ export default function NewRSSFeedPage() {
         setTestResult(null);
 
         try {
-            const response = await authenticatedFetch('/rss-feeds/test_feed/', {
-                method: 'POST',
-                body: JSON.stringify({ feed_url: formData.feed_url }),
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
+            const { data } = await api.post('/rss-feeds/test_feed/', { feed_url: formData.feed_url });
 
             setTestResult({
                 success: true,
@@ -131,9 +110,10 @@ export default function NewRSSFeedPage() {
                 feed_meta: data.feed_meta,
             });
         } catch (error: any) {
+            const msg = error.response?.data?.error || error.message;
             setTestResult({
                 success: false,
-                message: `✗ Error: ${error.message}`,
+                message: `✗ Error: ${msg}`,
             });
         } finally {
             setTesting(false);

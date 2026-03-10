@@ -81,7 +81,7 @@ export default function BulkImportPage() {
                 updateRow(i, { status: 'success' });
             } catch (err: any) {
                 const msg = err?.response?.data?.feed_url?.[0] || err?.response?.data?.detail || '';
-                if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('unique') || err?.response?.status === 400) {
+                if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('unique')) {
                     updateRow(i, { status: 'duplicate', name, error: 'Already in database' });
                 } else {
                     updateRow(i, { status: 'error', name, error: msg || 'Failed to save' });

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, TestTube, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { authenticatedFetch } from '@/lib/authenticatedFetch';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 interface Category {
     id: number;
@@ -50,12 +51,8 @@ export default function EditRSSFeedPage() {
 
     const fetchCategories = async () => {
         try {
-            const response = await authenticatedFetch('/categories/');
-
-            if (response.ok) {
-                const data = await response.json();
-                setCategories(data);
-            }
+            const { data } = await api.get('/categories/');
+            setCategories(data);
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
@@ -63,28 +60,21 @@ export default function EditRSSFeedPage() {
 
     const fetchFeed = async () => {
         try {
-            const response = await authenticatedFetch(`/rss-feeds/${feedId}/`);
-
-            if (response.ok) {
-                const data = await response.json();
-                setFormData({
-                    name: data.name || '',
-                    feed_url: data.feed_url || '',
-                    website_url: data.website_url || '',
-                    source_type: data.source_type || 'brand',
-                    is_enabled: data.is_enabled ?? true,
-                    auto_publish: data.auto_publish ?? false,
-                    default_category: data.default_category || '',
-                    logo_url: data.logo_url || '',
-                    description: data.description || '',
-                });
-            } else {
-                alert('Failed to load RSS feed');
-                router.push('/admin/rss-feeds');
-            }
+            const { data } = await api.get(`/rss-feeds/${feedId}/`);
+            setFormData({
+                name: data.name || '',
+                feed_url: data.feed_url || '',
+                website_url: data.website_url || '',
+                source_type: data.source_type || 'brand',
+                is_enabled: data.is_enabled ?? true,
+                auto_publish: data.auto_publish ?? false,
+                default_category: data.default_category?.toString() || '',
+                logo_url: data.logo_url || '',
+                description: data.description || '',
+            });
         } catch (error) {
             console.error('Error fetching feed:', error);
-            alert('Failed to load RSS feed');
+            toast.error('Failed to load RSS feed');
             router.push('/admin/rss-feeds');
         } finally {
             setFetching(false);
@@ -96,23 +86,15 @@ export default function EditRSSFeedPage() {
         setLoading(true);
 
         try {
-            const response = await authenticatedFetch(`/rss-feeds/${feedId}/`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                    ...formData,
-                    default_category: formData.default_category || null,
-                }),
+            await api.put(`/rss-feeds/${feedId}/`, {
+                ...formData,
+                default_category: formData.default_category ? parseInt(formData.default_category, 10) : null,
             });
-
-            if (response.ok) {
-                router.push('/admin/rss-feeds');
-            } else {
-                const error = await response.json();
-                alert(`Error: ${JSON.stringify(error)}`);
-            }
-        } catch (error) {
+            router.push('/admin/rss-feeds');
+        } catch (error: any) {
             console.error('Error updating RSS feed:', error);
-            alert('Failed to update RSS feed');
+            const detail = error.response?.data?.detail || error.response?.data?.feed_url?.[0] || 'Failed to update RSS feed';
+            toast.error(detail);
         } finally {
             setLoading(false);
         }
@@ -140,47 +122,18 @@ export default function EditRSSFeedPage() {
         setTestResult(null);
 
         try {
-            const response = await fetch(formData.feed_url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/rss+xml, application/xml, text/xml',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const text = await response.text();
-
-            if (!text.includes('<rss') && !text.includes('<feed')) {
-                throw new Error('Not a valid RSS/Atom feed');
-            }
-
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(text, 'text/xml');
-
-            const parseError = xmlDoc.querySelector('parsererror');
-            if (parseError) {
-                throw new Error('Invalid XML format');
-            }
-
-            const items = xmlDoc.querySelectorAll('item, entry');
-            const entries = Array.from(items).slice(0, 3).map(item => ({
-                title: item.querySelector('title')?.textContent || 'No title',
-                link: item.querySelector('link')?.textContent || item.querySelector('link')?.getAttribute('href') || '',
-                published: item.querySelector('pubDate, published')?.textContent || '',
-            }));
+            const { data } = await api.post('/rss-feeds/test_feed/', { feed_url: formData.feed_url });
 
             setTestResult({
                 success: true,
-                message: `✓ Valid RSS feed! Found ${items.length} entries.`,
-                entries,
+                message: `✓ Valid RSS feed! Found ${data.entries_count} entries.`,
+                entries: data.entries,
             });
         } catch (error: any) {
+            const msg = error.response?.data?.error || error.message;
             setTestResult({
                 success: false,
-                message: `✗ Error: ${error.message}`,
+                message: `✗ Error: ${msg}`,
             });
         } finally {
             setTesting(false);
