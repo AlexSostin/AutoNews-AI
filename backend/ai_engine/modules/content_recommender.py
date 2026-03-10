@@ -30,6 +30,11 @@ MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
 MODEL_PATH = os.path.join(MODEL_DIR, 'content_recommender.joblib')
 META_PATH = os.path.join(MODEL_DIR, 'content_recommender_meta.json')
 
+# Redis keys for surviving Railway deploys (ephemeral filesystem)
+_REDIS_CR_MODEL_KEY = 'content_recommender_joblib'
+_REDIS_CR_META_KEY = 'content_recommender_meta'
+_REDIS_CR_TTL = 60 * 60 * 24 * 30  # 30 days
+
 # Minimum articles to build a useful model
 MIN_ARTICLES = 10
 
@@ -182,7 +187,17 @@ def build(force: bool = False) -> Dict:
     
     with open(META_PATH, 'w') as f:
         json.dump(meta, f, indent=2)
-    
+
+    # Cache to Redis (survives Railway deploy)
+    try:
+        from django.core.cache import cache
+        with open(MODEL_PATH, 'rb') as mf:
+            cache.set(_REDIS_CR_MODEL_KEY, mf.read(), _REDIS_CR_TTL)
+        cache.set(_REDIS_CR_META_KEY, json.dumps(meta), _REDIS_CR_TTL)
+        logger.info('ContentRecommender: ✅ Model cached to Redis')
+    except Exception as e:
+        logger.warning(f'ContentRecommender: ⚠️ Redis cache failed: {e}')
+
     # Clear cached model so next call loads fresh
     global _cached_model, _cached_model_hash
     _cached_model = None
@@ -205,26 +220,44 @@ def build(force: bool = False) -> Dict:
 
 
 def _load_model() -> Optional[Dict]:
-    """Load model from disk with caching."""
+    """Load model with priority: memory cache → disk → Redis cache."""
     global _cached_model, _cached_model_hash
     
-    if not os.path.exists(MODEL_PATH):
-        return None
-    
-    # Check if file changed (by mtime)
-    current_hash = str(os.path.getmtime(MODEL_PATH))
-    
-    if _cached_model is not None and _cached_model_hash == current_hash:
-        return _cached_model
-    
+    # Try memory cache first
+    if os.path.exists(MODEL_PATH):
+        current_hash = str(os.path.getmtime(MODEL_PATH))
+        if _cached_model is not None and _cached_model_hash == current_hash:
+            return _cached_model
+        try:
+            model = joblib.load(MODEL_PATH)
+            _cached_model = model
+            _cached_model_hash = current_hash
+            return model
+        except Exception as e:
+            logger.error(f'ContentRecommender: Disk load failed: {e}')
+
+    # Fallback: try Redis (surviving deploy)
     try:
-        model = joblib.load(MODEL_PATH)
-        _cached_model = model
-        _cached_model_hash = current_hash
-        return model
+        from django.core.cache import cache as redis_cache
+        model_bytes = redis_cache.get(_REDIS_CR_MODEL_KEY)
+        if model_bytes:
+            os.makedirs(MODEL_DIR, exist_ok=True)
+            with open(MODEL_PATH, 'wb') as mf:
+                mf.write(model_bytes)
+            # Also restore meta
+            meta_json = redis_cache.get(_REDIS_CR_META_KEY)
+            if meta_json:
+                with open(META_PATH, 'w') as mf:
+                    mf.write(meta_json)
+            model = joblib.load(MODEL_PATH)
+            _cached_model = model
+            _cached_model_hash = str(os.path.getmtime(MODEL_PATH))
+            logger.info('ContentRecommender: ✅ Restored model from Redis cache')
+            return model
     except Exception as e:
-        logger.error(f"ContentRecommender: Failed to load model: {e}")
-        return None
+        logger.debug(f'ContentRecommender: Redis cache miss: {e}')
+
+    return None
 
 
 def predict_tags(title: str, content: str, summary: str = '',

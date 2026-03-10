@@ -526,3 +526,88 @@ def sync_car_spec_tags(sender, instance, **kwargs):
                     logger.warning(f"⚠️ Drivetrain tag '{dt}' not found in DB")
     except Exception as e:
         logger.error(f"❌ Failed to sync CarSpec tags for article: {e}")
+
+
+# ============================================================================
+# AUTO-POST TO TELEGRAM ON MANUAL PUBLISH
+# When an admin publishes an article (is_published changes to True),
+# automatically post it to Telegram if TELEGRAM_AUTO_POST is enabled.
+# This fills the gap where only AI-pipeline articles were auto-posted.
+# ============================================================================
+
+@receiver(post_save, sender=Article)
+def auto_telegram_on_publish(sender, instance, created, **kwargs):
+    """
+    Auto-post to Telegram when an article is manually published.
+
+    Guards against double-posting:
+    - Skips if article was just created (AI pipeline handles its own posting)
+    - Skips if already posted to Telegram (checks generation_metadata)
+    - Skips if TELEGRAM_AUTO_POST is disabled
+    - Runs in background thread via on_commit
+    """
+    # Only care about updates (not initial creation — AI pipeline does that)
+    if created:
+        return
+
+    # Only published, non-deleted articles
+    if not instance.is_published or instance.is_deleted:
+        return
+
+    # Skip if already posted to Telegram
+    meta = instance.generation_metadata or {}
+    if meta.get('telegram_post'):
+        return
+
+    # Check if auto-post is enabled
+    from django.conf import settings
+    if not getattr(settings, 'TELEGRAM_AUTO_POST', False):
+        return
+
+    article_id = instance.id
+
+    def _send():
+        try:
+            from ai_engine.modules.telegram_publisher import (
+                send_to_channel, format_telegram_post
+            )
+            from news.models import SocialPost, AutomationSettings as AS
+            from django.utils import timezone as tz
+            from django.db.models import F as F_expr
+
+            # Re-fetch to get fresh state
+            article = Article.objects.get(id=article_id)
+
+            # Double-check not already posted (race condition guard)
+            fresh_meta = article.generation_metadata or {}
+            if fresh_meta.get('telegram_post'):
+                return
+
+            result = send_to_channel(article, force=True)  # force=True: we already checked the setting
+            if result.get('ok'):
+                msg_id = result.get('result', {}).get('message_id', '?')
+                logger.info(f"📱 Auto-posted to Telegram on manual publish: [{article_id}] (msg_id={msg_id})")
+                try:
+                    SocialPost.objects.create(
+                        article=article, platform='telegram', status='sent',
+                        message_text=format_telegram_post(article),
+                        external_id=str(msg_id),
+                        channel_id='@freshmotors_news',
+                        posted_at=tz.now(),
+                    )
+                    AS.objects.filter(pk=1).update(
+                        telegram_last_run=tz.now(),
+                        telegram_last_status=f'✅ Auto: {article.title[:50]}',
+                        telegram_today_count=F_expr('telegram_today_count') + 1,
+                    )
+                except Exception as sp_err:
+                    logger.warning(f"⚠️ SocialPost record failed: {sp_err}")
+            else:
+                desc = result.get('description', 'Unknown')
+                logger.warning(f"📱 Telegram auto-post failed for [{article_id}]: {desc}")
+
+        except Exception as e:
+            logger.error(f"❌ auto_telegram_on_publish failed for [{article_id}]: {e}")
+
+    thread = threading.Thread(target=_send, daemon=True)
+    transaction.on_commit(lambda: thread.start())

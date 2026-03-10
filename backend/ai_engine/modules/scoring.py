@@ -471,6 +471,11 @@ MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 MODEL_PATH = os.path.join(MODEL_DIR, 'quality_model.joblib')
 META_PATH = os.path.join(MODEL_DIR, 'quality_model_meta.json')
 
+# Redis keys for surviving Railway deploys (ephemeral filesystem)
+_REDIS_MODEL_KEY = 'ml_quality_model_joblib'
+_REDIS_META_KEY = 'ml_quality_model_meta'
+_REDIS_MODEL_TTL = 60 * 60 * 24 * 30  # 30 days
+
 # Minimum training samples required
 MIN_TRAINING_SAMPLES = 50
 
@@ -701,7 +706,7 @@ def train_model(force=False):
     importances = dict(zip(feature_names, model.feature_importances_))
     top_features = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:8]
     
-    # Save model
+    # Save model to disk
     os.makedirs(MODEL_DIR, exist_ok=True)
     joblib.dump(model, MODEL_PATH)
     
@@ -717,6 +722,16 @@ def train_model(force=False):
     }
     with open(META_PATH, 'w') as f:
         json.dump(meta, f, indent=2)
+
+    # Cache to Redis (survives Railway deploy)
+    try:
+        from django.core.cache import cache
+        with open(MODEL_PATH, 'rb') as mf:
+            cache.set(_REDIS_MODEL_KEY, mf.read(), _REDIS_MODEL_TTL)
+        cache.set(_REDIS_META_KEY, json.dumps(meta), _REDIS_MODEL_TTL)
+        logger.info('[ML-SCORER] ✅ Model cached to Redis')
+    except Exception as e:
+        logger.warning(f'[ML-SCORER] ⚠️ Redis cache failed: {e}')
     
     logger.info(
         f"[ML-SCORER] ✅ Model trained: {count} samples, "
@@ -734,19 +749,42 @@ def train_model(force=False):
 
 
 def _load_model():
-    """Load trained model and metadata. Returns (model, feature_names) or (None, None)."""
-    if not os.path.exists(MODEL_PATH) or not os.path.exists(META_PATH):
-        return None, None
-    
+    """Load trained model and metadata.
+    Priority: disk → Redis cache → None.
+    Returns (model, feature_names) or (None, None).
+    """
+    # Try disk first
+    if os.path.exists(MODEL_PATH) and os.path.exists(META_PATH):
+        try:
+            import joblib
+            model = joblib.load(MODEL_PATH)
+            with open(META_PATH, 'r') as f:
+                meta = json.load(f)
+            return model, meta.get('feature_names', [])
+        except Exception as e:
+            logger.warning(f'[ML-SCORER] Disk load failed: {e}')
+
+    # Fallback: try Redis (surviving deploy)
     try:
-        import joblib
-        model = joblib.load(MODEL_PATH)
-        with open(META_PATH, 'r') as f:
-            meta = json.load(f)
-        return model, meta.get('feature_names', [])
+        from django.core.cache import cache
+        import joblib, io
+        model_bytes = cache.get(_REDIS_MODEL_KEY)
+        meta_json = cache.get(_REDIS_META_KEY)
+        if model_bytes and meta_json:
+            # Restore to disk for future fast loads
+            os.makedirs(MODEL_DIR, exist_ok=True)
+            with open(MODEL_PATH, 'wb') as mf:
+                mf.write(model_bytes)
+            meta = json.loads(meta_json)
+            with open(META_PATH, 'w') as mf:
+                json.dump(meta, mf, indent=2)
+            model = joblib.load(MODEL_PATH)
+            logger.info('[ML-SCORER] ✅ Restored model from Redis cache')
+            return model, meta.get('feature_names', [])
     except Exception as e:
-        logger.warning(f"[ML-SCORER] Failed to load model: {e}")
-        return None, None
+        logger.debug(f'[ML-SCORER] Redis cache miss: {e}')
+
+    return None, None
 
 
 def predict_quality(title: str, content: str, specs: dict = None,
