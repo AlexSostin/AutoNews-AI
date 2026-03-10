@@ -78,13 +78,11 @@ export default function AnalyticsPage() {
 
       {/* ═══ 6. SEO — Google Search Console ═══ */}
       <section className="space-y-6">
-        <SectionHeader emoji="🔍" title="SEO — Google Search Console" color="border-amber-500" />
         <GSCDashboard />
       </section>
 
       {/* ═══ 7. A/B Tests ═══ */}
       <section className="space-y-6">
-        <SectionHeader emoji="🧪" title="A/B Tests" subtitle="Title & image variant performance" color="border-pink-500" />
         <ABTestsSection />
       </section>
 

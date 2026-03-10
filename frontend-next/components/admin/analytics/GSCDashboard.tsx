@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { Cpu } from 'lucide-react';
 import api from '@/lib/api';
 import { GSCStats } from '@/types/analytics';
 
@@ -15,10 +14,11 @@ const PERIOD_OPTIONS = [
     { label: '3mo', days: 90 },
 ];
 
-function getTrend(current: number, previous: number): { percent: string; up: boolean } {
+function getTrend(current: number, previous: number, lowerIsBetter = false): { percent: string; up: boolean } {
     if (!previous) return { percent: '—', up: true };
     const diff = Math.round(((current - previous) / previous) * 100);
-    return { percent: `${Math.abs(diff)}%`, up: diff >= 0 };
+    const up = lowerIsBetter ? diff <= 0 : diff >= 0;
+    return { percent: `${Math.abs(diff)}%`, up };
 }
 
 export default function GSCDashboard() {
@@ -69,11 +69,10 @@ export default function GSCDashboard() {
         },
         {
             label: 'Avg. Position',
-            icon: '⏱',
+            icon: '📍',
             iconBg: 'bg-orange-500',
             value: gscStats.summary.position.toString(),
-            percent: (gscStats.summary.position < gscStats.previous_summary.position) ? 'Better' : 'Worse',
-            up: gscStats.summary.position <= gscStats.previous_summary.position
+            ...getTrend(gscStats.summary.position, gscStats.previous_summary.position, true)
         },
     ];
 
@@ -96,8 +95,8 @@ export default function GSCDashboard() {
                             key={opt.days}
                             onClick={() => setDays(opt.days)}
                             className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${days === opt.days
-                                    ? 'bg-white text-gray-900 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700'
+                                ? 'bg-white text-gray-900 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             {opt.label}
