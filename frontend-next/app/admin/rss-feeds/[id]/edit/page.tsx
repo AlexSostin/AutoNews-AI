@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Save, TestTube, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { logCaughtError } from '@/lib/error-logger';
 
 interface Category {
     id: number;
@@ -73,7 +74,7 @@ export default function EditRSSFeedPage() {
                 description: data.description || '',
             });
         } catch (error) {
-            console.error('Error fetching feed:', error);
+            logCaughtError('rss_feed_fetch', error);
             toast.error('Failed to load RSS feed');
             router.push('/admin/rss-feeds');
         } finally {

@@ -266,7 +266,7 @@ export default function RSSFeedsPage() {
             }, 600000);
 
         } catch (error: any) {
-            console.error('Error scanning all feeds:', error);
+            logCaughtError('rss_feeds_scan_all', error);
             showToast('Failed to start scan');
             setScanningAll(false);
             setScanProgress(null);

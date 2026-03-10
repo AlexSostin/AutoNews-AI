@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Upload, CheckCircle, XCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 type FeedStatus = 'pending' | 'testing' | 'importing' | 'success' | 'duplicate' | 'error';
 
@@ -38,7 +39,7 @@ export default function BulkImportPage() {
     const handleImport = async () => {
         const urls = parseUrls(rawUrls);
         if (urls.length === 0) {
-            alert('No valid URLs found. Make sure each URL is on its own line and starts with http:// or https://');
+            toast.error('No valid URLs found. Make sure each URL is on its own line and starts with http:// or https://');
             return;
         }
 
