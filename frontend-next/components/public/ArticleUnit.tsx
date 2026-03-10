@@ -214,7 +214,7 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                     src={imageUrl}
                     alt={article.title}
                     fill
-                    className="object-cover brightness-90"
+                    className="object-cover brightness-75"
                     priority={index === 0}
                     loading={index === 0 ? 'eager' : 'lazy'}
                     unoptimized
