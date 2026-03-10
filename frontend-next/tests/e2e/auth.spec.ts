@@ -92,23 +92,22 @@ test.describe('Authentication and Session', () => {
             await route.fulfill({ status: 200, headers: corsHeaders, body: '{"is_favorite": false}' });
         });
 
-        // 2. Catch all other endpoints first (Playwright matches last-registered first)
+        // 2. Broad favorites fallback — must be registered BEFORE toggle so Playwright
+        //    (last-registered = first-matched) picks the more-specific toggle route first.
         await page.route('**/api/v1/favorites/**', async route => {
             if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 200, headers: corsHeaders });
             await route.fulfill({ status: 200, headers: corsHeaders, body: '[]' });
         });
 
-        // Mock favorites/toggle/ to trigger the 401 Interceptor
+        // Mock favorites/toggle/ — registered AFTER favorites/** so Playwright matches it first.
+        // First call → 401 (expired token), second call → 200 (after refresh).
         let toggleCount = 0;
         await page.route('**/api/v1/favorites/toggle/**', async route => {
             if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 200, headers: corsHeaders });
-
             toggleCount++;
             if (toggleCount === 1) {
-                // First attempt: Token is formally rejected
                 await route.fulfill({ status: 401, headers: corsHeaders, body: '{"detail":"Token is invalid or expired"}' });
             } else {
-                // Second attempt: Token has been refreshed, accept the favorite!
                 await route.fulfill({ status: 200, headers: corsHeaders, body: '{"is_favorited": true}' });
             }
         });
