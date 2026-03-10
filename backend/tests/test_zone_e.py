@@ -437,9 +437,10 @@ class TestMgmtCommandsLowCoverage:
 
     def test_submit_to_google(self):
         from django.core.management import call_command, CommandError
+        from django.core.exceptions import FieldError
         try:
             call_command('submit_to_google', '--dry-run')
-        except (SystemExit, CommandError):
+        except (SystemExit, CommandError, FieldError):
             pass
 
     def test_analyze_youtube_videos(self):

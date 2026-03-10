@@ -137,13 +137,14 @@ class Command(BaseCommand):
 
         # Get articles
         if options['all']:
-            articles = Article.objects.filter(status='published').order_by('-created_at')
+            articles = Article.objects.filter(is_published=True, is_deleted=False).order_by('-created_at')
             self.stdout.write(f"Found {articles.count()} published articles")
         else:
             hours = options['hours']
             since = timezone.now() - timedelta(hours=hours)
             articles = Article.objects.filter(
-                status='published',
+                is_published=True,
+                is_deleted=False,
                 created_at__gte=since
             ).order_by('-created_at')
             self.stdout.write(f"Found {articles.count()} articles from last {hours}h")
