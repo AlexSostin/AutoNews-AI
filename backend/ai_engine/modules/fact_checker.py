@@ -89,9 +89,11 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
             
             # Formulate the warning HTML
             # html_lib.escape prevents XSS from LLM-returned issue text
-            issues_list = "".join(f"<li>{html_lib.escape(issue)}</li>" for issue in result['issues'])
+            # str() guard: LLM may return dicts/lists instead of strings
+            issues_list = "".join(f"<li>{html_lib.escape(str(issue))}</li>" for issue in result['issues'])
             # Store issues as JSON in data attribute so the editor can use them for auto-resolve
-            issues_json = json.dumps(result['issues']).replace('"', '&quot;')
+            # Escape <> to prevent innerHTML XSS if frontend reads data-issues
+            issues_json = json.dumps(result['issues']).replace('"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
             warning_html = f"""
             <div class="ai-editor-note ai-fact-check-block" data-issues="{issues_json}" style="background-color: #fef0f0; border-left: 4px solid #f56c6c; padding: 15px; margin-bottom: 20px;">
                 <h4 style="color: #f56c6c; margin-top: 0;">⚠️ AI Fact-Check Warning</h4>

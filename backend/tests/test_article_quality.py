@@ -274,8 +274,8 @@ class TestEdgeCases:
         assert _detect_duplicate_paragraphs(html) == html
 
     def test_detect_duplicate_paragraphs_single_para(self):
-        """A single paragraph — nothing to compare, should pass through."""
-        html = '<p>The BYD Seal is an impressive electric sedan.</p>'
+        """A single paragraph (>80 chars) — nothing to compare, should pass through."""
+        html = '<p>The BYD Seal is an impressive mid-size electric sedan with 313 horsepower, rear-wheel drive, and a competitive price.</p>'
         assert _detect_duplicate_paragraphs(html) == html
 
     def test_validate_prices_unicode_content(self):
