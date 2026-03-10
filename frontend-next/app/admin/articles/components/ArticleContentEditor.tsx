@@ -63,7 +63,7 @@ export function ArticleContentEditor({
     isAutoResolving,
     hasYoutubeUrl
 }: ArticleContentEditorProps) {
-    const editorRef = useRef<any>(null);
+    const editorRef = useRef<unknown>(null);
 
     const CustomToolbar = () => (
         <div className="flex gap-2">
@@ -132,7 +132,7 @@ export function ArticleContentEditor({
             <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm [&_.tox-tinymce]:border-0">
                 <Editor
                     licenseKey="gpl"
-                    onInit={(evt: any, editor: any) => editorRef.current = editor}
+                    onInit={(_evt: unknown, editor: unknown) => { editorRef.current = editor; }}
                     value={content}
                     onEditorChange={(newContent: string) => onContentChange(newContent)}
                     init={{

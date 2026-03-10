@@ -1,9 +1,23 @@
 import React from 'react';
 import { Loader2, Search, Wand2, Maximize2, Video } from 'lucide-react';
 
+interface ArticleFormData {
+    current_image?: string;
+    current_image_2?: string;
+    current_image_3?: string;
+    image?: File | null;
+    image_2?: File | null;
+    image_3?: File | null;
+    delete_image?: boolean;
+    delete_image_2?: boolean;
+    delete_image_3?: boolean;
+    youtube_url?: string;
+    [key: string]: unknown;
+}
+
 interface ArticleImageManagerProps {
-    formData: any;
-    setFormData: (data: any) => void;
+    formData: ArticleFormData;
+    setFormData: (data: ArticleFormData) => void;
     imageSource: string;
     setImageSource: (source: string) => void;
     setPreviewImage: (url: string | null) => void;
@@ -134,7 +148,7 @@ export function ArticleImageManager({
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Image 1 (Main)</label>
                         {formData.current_image && !formData.delete_image && (
-                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group cursor-pointer" onClick={() => setPreviewImage(formData.current_image)}>
+                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group cursor-pointer" onClick={() => setPreviewImage(formData.current_image ?? null)}>
                                 <img src={formData.current_image} alt="Current Image 1" className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                                     <Maximize2 className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
@@ -180,7 +194,7 @@ export function ArticleImageManager({
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Image 2</label>
                         {formData.current_image_2 && !formData.delete_image_2 && (
-                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group cursor-pointer" onClick={() => setPreviewImage(formData.current_image_2)}>
+                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group cursor-pointer" onClick={() => setPreviewImage(formData.current_image_2 ?? null)}>
                                 <img src={formData.current_image_2} alt="Current Image 2" className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                                     <Maximize2 className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
@@ -221,7 +235,7 @@ export function ArticleImageManager({
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Image 3</label>
                         {formData.current_image_3 && !formData.delete_image_3 && (
-                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group cursor-pointer" onClick={() => setPreviewImage(formData.current_image_3)}>
+                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group cursor-pointer" onClick={() => setPreviewImage(formData.current_image_3 ?? null)}>
                                 <img src={formData.current_image_3} alt="Current Image 3" className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                                     <Maximize2 className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />

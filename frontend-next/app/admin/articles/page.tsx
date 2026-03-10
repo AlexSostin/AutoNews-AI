@@ -23,6 +23,39 @@ interface PaginationInfo {
   previous: string | null;
 }
 
+interface EnrichResult {
+  id: number;
+  title: string;
+  steps: Record<string, boolean | string | number>;
+  errors?: string[];
+  deep_specs_detail?: {
+    make: string;
+    model: string;
+    fields_filled: number;
+    key: Record<string, string | number>;
+  };
+}
+
+interface BulkResult {
+  success: boolean;
+  message: string;
+  processed?: number;
+  success_count?: number;
+  error_count?: number;
+  elapsed_seconds?: number;
+  results?: EnrichResult[];
+  summary?: {
+    deep_specs?: {
+      generated?: number;
+      skipped?: number;
+      failed?: number;
+      no_data?: number;
+      total_fields_filled?: number;
+    };
+    tags_added?: number;
+  };
+}
+
 export default function ArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +68,7 @@ export default function ArticlesPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [bulkEnriching, setBulkEnriching] = useState(false);
-  const [bulkResults, setBulkResults] = useState<any>(null);
+  const [bulkResults, setBulkResults] = useState<BulkResult | null>(null);
   const [enrichProgress, setEnrichProgress] = useState<{ current: number; total: number } | null>(null);
 
   const handleBulkEnrich = async (mode: 'missing' | 'all') => {
@@ -79,8 +112,10 @@ export default function ArticlesPage() {
           // Polling error — keep trying
         }
       }, 1500);
-    } catch (err: any) {
-      setBulkResults({ success: false, message: err?.response?.data?.detail || err.message || 'Network Error' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network Error';
+      const apiErr = err as { response?: { data?: { detail?: string } } };
+      setBulkResults({ success: false, message: apiErr?.response?.data?.detail || msg });
       setBulkEnriching(false);
       setEnrichProgress(null);
     }
@@ -102,7 +137,7 @@ export default function ArticlesPage() {
   const fetchArticles = async () => {
     try {
       setLoading(true);
-      const params: any = {
+      const params: Record<string, string | number> = {
         page: currentPage,
         page_size: itemsPerPage
       };
@@ -137,10 +172,11 @@ export default function ArticlesPage() {
       setArticles(prev => prev.filter(a => a.id !== id));
       setSuccessMessage('Article deleted successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to delete article:', error);
-      const status = error.response?.status;
-      const detail = error.response?.data?.detail || error.response?.data?.error || '';
+      const apiErr = error as { response?: { status?: number; data?: { detail?: string; error?: string } } };
+      const status = apiErr.response?.status;
+      const detail = apiErr.response?.data?.detail || apiErr.response?.data?.error || '';
       if (status === 403) {
         alert(`⛔ No permission to delete. Please re-login.\n\n${detail}`);
       } else if (status === 404) {
@@ -174,9 +210,10 @@ export default function ArticlesPage() {
           : '📝 Article unpublished — moved to drafts.'
       );
       setTimeout(() => setSuccessMessage(null), 4000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Failed to toggle publish:', error);
-      alert('Failed to update status: ' + (error.response?.data?.detail || error.message));
+      const apiErr = error as { response?: { data?: { detail?: string } }; message?: string };
+      alert('Failed to update status: ' + (apiErr.response?.data?.detail || apiErr.message));
       // Revert on error
       setArticles(prev => prev.map(a =>
         a.id === id ? { ...a, is_published: currentStatus } : a
@@ -193,9 +230,10 @@ export default function ArticlesPage() {
       ));
 
       await api.patch(`/articles/${slug}/`, { is_hero: !currentStatus });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to update hero status:', error);
-      alert('Failed to update status: ' + (error.response?.data?.detail || error.message));
+      const apiErr = error as { response?: { data?: { detail?: string } }; message?: string };
+      alert('Failed to update status: ' + (apiErr.response?.data?.detail || apiErr.message));
       // Revert on error
       setArticles(articles.map(a =>
         a.id === id ? { ...a, is_hero: currentStatus } : a
@@ -243,7 +281,7 @@ export default function ArticlesPage() {
               </div>
             )}
             <div className="p-5 overflow-y-auto max-h-[60vh] space-y-3">
-              {bulkResults.processed > 0 && (
+              {(bulkResults.processed ?? 0) > 0 && (
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="bg-green-50 rounded-lg p-3 text-center">
                     <p className="text-2xl font-black text-green-700">{bulkResults.success_count}</p>
@@ -259,11 +297,11 @@ export default function ArticlesPage() {
                   </div>
                 </div>
               )}
-              {bulkResults.results?.map((r: any) => (
+              {bulkResults.results?.map((r: EnrichResult) => (
                 <div key={r.id} className={`border rounded-lg p-3 ${r.errors?.length ? 'border-red-200 bg-red-50/50' : 'border-green-200 bg-green-50/50'}`}>
                   <p className="font-bold text-gray-900 text-sm truncate">#{r.id} {r.title}</p>
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {Object.entries(r.steps || {}).map(([key, val]: [string, any]) => (
+                    {Object.entries(r.steps || {}).map(([key, val]: [string, boolean | string | number]) => (
                       <span key={key} className={`px-2 py-0.5 rounded-full text-xs font-semibold ${val === true ? 'bg-green-100 text-green-700' :
                         val === 'skipped' ? 'bg-gray-100 text-gray-500' :
                           typeof val === 'number' ? 'bg-blue-100 text-blue-700' :
@@ -281,8 +319,8 @@ export default function ArticlesPage() {
                       {r.deep_specs_detail.key?.range_km && ` • ${r.deep_specs_detail.key.range_km}km`}
                     </p>
                   )}
-                  {r.errors?.length > 0 && (
-                    <p className="text-xs text-red-600 mt-1.5 font-medium">{r.errors.join(', ')}</p>
+                  {(r.errors?.length ?? 0) > 0 && (
+                    <p className="text-xs text-red-600 mt-1.5 font-medium">{r.errors!.join(', ')}</p>
                   )}
                 </div>
               ))}
@@ -309,7 +347,7 @@ export default function ArticlesPage() {
                       <p className="text-[10px] font-semibold text-blue-600">Total Fields</p>
                     </div>
                   </div>
-                  {bulkResults.summary.tags_added > 0 && (
+                  {(bulkResults.summary.tags_added ?? 0) > 0 && (
                     <p className="text-xs text-gray-500 mt-2">🏷️ {bulkResults.summary.tags_added} tags added</p>
                   )}
                 </div>
@@ -331,7 +369,7 @@ export default function ArticlesPage() {
                       if (bulkResults.summary.tags_added) lines.push(`Tags added: ${bulkResults.summary.tags_added}`);
                     }
                     lines.push(`\n--- Per Article ---`);
-                    bulkResults.results?.forEach((r: any) => {
+                    bulkResults.results?.forEach((r: EnrichResult) => {
                       const steps = Object.entries(r.steps || {}).map(([k, v]: [string, any]) =>
                         `${k}: ${v === true ? '✅' : v === 'skipped' ? '⏭️' : typeof v === 'number' ? `+${v}` : v === 'no_specs' ? '⚠️' : '❌'}`
                       ).join(' | ');
