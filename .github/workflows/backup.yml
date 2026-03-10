@@ -2,15 +2,16 @@ name: Database Backup
 
 on:
   schedule:
-    # Every day at 3:00 UTC (6:00 Kyiv time)
+    # Every day at 3:00 UTC (6:00 Jerusalem / Israel time)
     - cron: '0 3 * * *'
   workflow_dispatch:  # Can be triggered manually
 
 jobs:
   backup:
     runs-on: ubuntu-latest
-    # Skip silently if DATABASE_URL secret is not configured
-    if: ${{ vars.BACKUP_ENABLED == 'true' || secrets.DATABASE_URL != '' }}
+    # Note: secrets cannot be accessed in job-level 'if' conditions (GitHub security restriction).
+    # BACKUP_ENABLED var controls this job; DATABASE_URL is checked inside the steps.
+    if: vars.BACKUP_ENABLED == 'true'
 
     steps:
       - name: Check if DATABASE_URL is set

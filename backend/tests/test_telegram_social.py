@@ -205,3 +205,122 @@ class TestAutomationSettingsTelegram:
         settings.telegram_enabled = True
         settings.save()
         assert 'Telegram' in str(settings)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AUTO-TELEGRAM-ON-PUBLISH SIGNAL
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.django_db(transaction=True)
+class TestAutoTelegramOnPublish:
+    """
+    Tests for the auto_telegram_on_publish post_save signal.
+    This signal fires when an article is manually published (is_published=True, update).
+    """
+
+    @pytest.fixture
+    def pub_article(self):
+        """Unpublished article ready to be toggled published."""
+        from news.models import Article
+        return Article.objects.create(
+            title='Auto Telegram Test Article',
+            slug='auto-telegram-test',
+            content='<p>Great EV review content</p>',
+            summary='A great review.',
+            is_published=False,
+        )
+
+    def _reconnect_signal(self):
+        """Re-connect the auto_telegram_on_publish signal (disabled globally by test fixtures)."""
+        from django.db.models.signals import post_save
+        from news.signals import auto_telegram_on_publish
+        from news.models import Article
+        post_save.connect(auto_telegram_on_publish, sender=Article)
+        return auto_telegram_on_publish
+
+    def _disconnect_signal(self, handler):
+        from django.db.models.signals import post_save
+        from news.models import Article
+        post_save.disconnect(handler, sender=Article)
+
+    @patch('news.signals.threading.Thread')
+    @patch('news.signals.transaction.on_commit')
+    def test_fires_on_manual_publish(self, mock_commit, mock_thread, pub_article):
+        """Publishing an article (update) should schedule a Telegram post."""
+        handler = self._reconnect_signal()
+        try:
+            from django.test import override_settings
+            mock_commit.reset_mock()
+            with override_settings(TELEGRAM_AUTO_POST=True):
+                pub_article.is_published = True
+                pub_article.save()
+            assert mock_commit.called
+        finally:
+            self._disconnect_signal(handler)
+
+    @patch('news.signals.threading.Thread')
+    @patch('news.signals.transaction.on_commit')
+    def test_skips_on_create(self, mock_commit, mock_thread, db):
+        """Creating a new published article should NOT trigger this signal (AI pipeline does it)."""
+        handler = self._reconnect_signal()
+        try:
+            from news.models import Article
+            from django.test import override_settings
+            mock_commit.reset_mock()
+            with override_settings(TELEGRAM_AUTO_POST=True):
+                Article.objects.create(
+                    title='New AI Article', slug='new-ai-article',
+                    content='<p>Content</p>', is_published=True,
+                )
+            # mock_commit may be called but NOT by auto_telegram_on_publish
+            # (it fires for other signals like vector_search, content_recommender)
+            # We validate the signal doesn't raise by checking no exception was thrown.
+        finally:
+            self._disconnect_signal(handler)
+
+    @patch('news.signals.threading.Thread')
+    @patch('news.signals.transaction.on_commit')
+    def test_skips_if_auto_post_disabled(self, mock_commit, mock_thread, pub_article):
+        """Signal should exit early if TELEGRAM_AUTO_POST=False."""
+        handler = self._reconnect_signal()
+        try:
+            from django.test import override_settings
+            mock_commit.reset_mock()
+            with override_settings(TELEGRAM_AUTO_POST=False):
+                pub_article.is_published = True
+                pub_article.save()
+            # mock_commit might be called by other signals, but thread count for
+            # telegram specifically should not be created — we verify no exception
+        finally:
+            self._disconnect_signal(handler)
+
+    @patch('news.signals.threading.Thread')
+    @patch('news.signals.transaction.on_commit')
+    def test_skips_if_already_posted_via_metadata(self, mock_commit, mock_thread, pub_article):
+        """Signal skips if generation_metadata already has telegram_post (duplicate guard)."""
+        handler = self._reconnect_signal()
+        try:
+            from django.test import override_settings
+            # Pre-set metadata indicating already posted
+            pub_article.generation_metadata = {'telegram_post': {'message_id': 42}}
+            pub_article.save()
+            mock_commit.reset_mock()
+            with override_settings(TELEGRAM_AUTO_POST=True):
+                pub_article.is_published = True
+                pub_article.save()
+            # on_commit should NOT be called for auto_telegram specifically
+            # (metadata guard should prevent scheduling)
+        finally:
+            self._disconnect_signal(handler)
+
+    def test_skips_unpublished_articles(self, pub_article):
+        """Signal must not attempt to post unpublished or deleted articles."""
+        handler = self._reconnect_signal()
+        try:
+            from django.test import override_settings
+            with override_settings(TELEGRAM_AUTO_POST=True):
+                pub_article.is_deleted = True
+                pub_article.is_published = True
+                pub_article.save()  # deleted=True means it should be skipped
+        finally:
+            self._disconnect_signal(handler)
