@@ -186,25 +186,44 @@ class PasskeyAuthenticateView(APIView):
 
     def get(self, request):
         import webauthn  # lazy
+        import secrets
         from webauthn.helpers.structs import UserVerificationRequirement
+        from django.core.cache import cache
 
         options = webauthn.generate_authentication_options(
             rp_id=_get_rp_id(),
             user_verification=UserVerificationRequirement.PREFERRED,
         )
-        request.session['webauthn_auth_challenge'] = _b64url_encode(options.challenge)
-        request.session.modified = True
+
+        # Store challenge in cache with a one-time token (cross-domain safe).
+        # Session cookies are lost on cross-domain POST (SameSite=Lax), so
+        # session storage breaks on Vercel+Railway. Cache avoids this.
+        auth_token = secrets.token_urlsafe(32)
+        cache.set(
+            f'passkey_auth:{auth_token}',
+            {'challenge': _b64url_encode(options.challenge)},
+            timeout=120,  # 2 minutes to complete the flow
+        )
+
         import json as _json
-        return Response(_json.loads(webauthn.options_to_json(options)))
+        response_data = _json.loads(webauthn.options_to_json(options))
+        response_data['auth_token'] = auth_token  # client must echo this in POST
+        return Response(response_data)
 
     def post(self, request):
         import webauthn  # lazy
+        from django.core.cache import cache
 
-        challenge_b64 = request.session.get('webauthn_auth_challenge')
-        if not challenge_b64:
-            return Response({'detail': 'No authentication challenge. Call GET first.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        challenge = _b64url_decode(challenge_b64)
+        # Retrieve challenge from cache using the one-time auth_token
+        auth_token = request.data.get('auth_token', '')
+        cached = cache.get(f'passkey_auth:{auth_token}')
+        if not cached:
+            return Response(
+                {'detail': 'Challenge expired or missing. Please try again.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        challenge = _b64url_decode(cached['challenge'])
+        cache.delete(f'passkey_auth:{auth_token}')  # One-time use
 
         raw_id_b64 = request.data.get('rawId') or request.data.get('id', '')
         try:
@@ -235,9 +254,6 @@ class PasskeyAuthenticateView(APIView):
         cred.sign_count = verification.new_sign_count
         cred.last_used = datetime.now(timezone.utc)
         cred.save(update_fields=['sign_count', 'last_used'])
-
-        del request.session['webauthn_auth_challenge']
-        request.session.modified = True
 
         user = cred.user
         if not user.is_active:

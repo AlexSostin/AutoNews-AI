@@ -90,15 +90,22 @@ export async function loginWithPasskey(): Promise<{ access: string; refresh: str
     if (!authOptionsRes.ok) throw new Error('Could not start passkey login');
     const options = await authOptionsRes.json();
 
-    // Step 2: browser asks for biometrics
-    const assertion = await startAuthentication({ optionsJSON: options });
+    // Extract the one-time auth_token; backend uses cache instead of session
+    // (cross-domain safe: session cookies lost on Vercel→Railway cross-origin POST)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawOptions = options as any;
+    const auth_token: string = rawOptions.auth_token;
+    delete rawOptions.auth_token;
+
+    // Step 2: browser asks for biometrics (Touch ID / Face ID / Windows Hello)
+    const assertion = await startAuthentication({ optionsJSON: rawOptions });
 
     // Step 3: verify with backend → get JWT
     const verifyRes = await fetch(`${API()}/auth/passkey/authenticate/`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(assertion),
+        body: JSON.stringify({ ...assertion, auth_token }),
     });
 
     if (!verifyRes.ok) {
