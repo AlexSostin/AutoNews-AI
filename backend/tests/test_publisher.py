@@ -223,9 +223,9 @@ class TestPublishArticle:
         assert article.tags.count() == 3
 
     def test_saves_car_specs(self):
-        """Note: publisher.py has a known bug — it passes 'year' to CarSpecification
-        which doesn't have that field. This test uses specs without year to verify
-        the happy path. The year bug is logged separately."""
+        """Regression: publisher must handle specs with 'year' key gracefully.
+        CarSpecification model doesn't have a 'year' field — publisher correctly
+        strips it before update_or_create. This test includes 'year' to catch regressions."""
         from news.models import CarSpecification
         from ai_engine.modules.publisher import publish_article
 
@@ -234,8 +234,7 @@ class TestPublishArticle:
             "model": "X5",
             "engine": "3.0L Inline-6 Turbo",
             "horsepower": 375,
-            # Note: 'year' intentionally omitted — CarSpecification model
-            # doesn't have this field, and publisher.py will fail if it's passed
+            "year": "2025",  # Regression: CarSpecification has no year field
         }
 
         article = publish_article(

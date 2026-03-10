@@ -414,8 +414,9 @@ def search_feeds_by_keyword(query: str, max_results: int = 10) -> list:
     # Filter: keep only results that mention the query in title, URL, or snippet
     def _is_relevant(sr):
         text = f"{sr.get('title', '')} {sr.get('href', '')} {sr.get('body', '')}".lower()
-        # Query keyword must appear somewhere
-        if query_lower not in text:
+        # At least one query word must appear somewhere
+        query_words = query_lower.split()
+        if not any(w in text for w in query_words):
             return False
         # Must look automotive/news-related (not random forums)
         auto_keywords = ['car', 'auto', 'motor', 'vehicle', 'ev', 'electric', 

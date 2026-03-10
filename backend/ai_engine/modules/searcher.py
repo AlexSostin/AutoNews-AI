@@ -342,7 +342,7 @@ def search_car_details(make, model, year=None):
         ' океан', 'neta', 'leapmotor', 'voyah', 'hozon',
     }
     is_chinese_brand = any(
-        cb in (make or '').lower() or cb in (model or '').lower()
+        re.search(r'\b' + re.escape(cb) + r'\b', (make or '').lower() + ' ' + (model or '').lower())
         for cb in CHINESE_BRANDS
     )
 

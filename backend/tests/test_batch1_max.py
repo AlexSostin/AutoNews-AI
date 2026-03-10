@@ -481,10 +481,11 @@ class TestSignals:
             title='Sync Error', slug='sync-error-test', content='<p>C</p>'
         )
         with patch.object(CarSpecification.objects, 'update_or_create', side_effect=Exception('DB crashed')):
-            # Should not crash
-            VehicleSpecs.objects.create(
+            vs = VehicleSpecs.objects.create(
                 article=article, make='BYD', model_name='Seal',
             )
+        # VehicleSpecs should still be created even though CarSpec sync failed
+        assert VehicleSpecs.objects.filter(pk=vs.pk).exists()
 
     def test_car_spec_tags_exception(self):
         """L342-343: Exception in tag sync → logged, no crash."""
@@ -493,10 +494,11 @@ class TestSignals:
             title='Tag Error', slug='tag-error-test', content='<p>C</p>'
         )
         with patch('news.models.Tag.objects.filter', side_effect=Exception('Tag error')):
-            # Should not crash
-            CarSpecification.objects.create(
+            cs = CarSpecification.objects.create(
                 article=article, model_name='Test', make='BYD', drivetrain='AWD'
             )
+        # CarSpec should still be created even though tag sync failed
+        assert CarSpecification.objects.filter(pk=cs.pk).exists()
 
 
 # ═══════════════════════════════════════════════════════════════════

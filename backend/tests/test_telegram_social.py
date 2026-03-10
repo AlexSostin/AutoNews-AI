@@ -313,14 +313,19 @@ class TestAutoTelegramOnPublish:
         finally:
             self._disconnect_signal(handler)
 
-    def test_skips_unpublished_articles(self, pub_article):
+    @patch('news.signals.threading.Thread')
+    @patch('news.signals.transaction.on_commit')
+    def test_skips_unpublished_articles(self, mock_commit, mock_thread, pub_article):
         """Signal must not attempt to post unpublished or deleted articles."""
         handler = self._reconnect_signal()
         try:
             from django.test import override_settings
+            mock_commit.reset_mock()
             with override_settings(TELEGRAM_AUTO_POST=True):
                 pub_article.is_deleted = True
                 pub_article.is_published = True
                 pub_article.save()  # deleted=True means it should be skipped
+            # Thread should not be created for deleted articles
+            mock_thread.assert_not_called()
         finally:
             self._disconnect_signal(handler)

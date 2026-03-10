@@ -345,11 +345,14 @@ def extract_specs_dict(analysis):
         elif line.startswith('Horsepower:'):
             hp_str = line.split(':', 1)[1].strip()
             try:
-                # Извлекаем число из "300 HP" или "300"
-                import re
-                match = re.search(r'(\d+)', hp_str)
-                if match:
-                    specs['horsepower'] = int(match.group(1))
+                # For ranges like "300-350 hp", take the higher value
+                range_match = re.search(r'(\d+)\s*[-–]\s*(\d+)', hp_str)
+                if range_match:
+                    specs['horsepower'] = max(int(range_match.group(1)), int(range_match.group(2)))
+                else:
+                    match = re.search(r'(\d+)', hp_str)
+                    if match:
+                        specs['horsepower'] = int(match.group(1))
             except:
                 pass
         elif line.startswith('Torque:'):
@@ -386,15 +389,24 @@ def extract_price_usd(analysis):
     if not price_str or price_str.lower() == 'not specified':
         return None
     
+    # Use currency_service for live exchange rates
+    try:
+        from news.services.currency_service import convert_to_usd
+    except ImportError:
+        convert_to_usd = None
+
     # Handle Chinese 万 (wàn = 10,000) format FIRST
     # Matches: ¥11.5万, 11.5万元, ¥7.98万
     wan_match = re.search(r'[¥]?(\d+\.?\d*)\s*万', price_str)
     if wan_match:
         amount_wan = float(wan_match.group(1))
         amount_cny = amount_wan * 10000  # 11.5万 = 115,000
-        amount_usd = amount_cny / 7.25
+        if convert_to_usd:
+            amount_usd = convert_to_usd(amount_cny, 'CNY')
+        else:
+            amount_usd = amount_cny / 7.25  # fallback
         logger.info(f"Converted Chinese 万 price: {price_str} → ¥{amount_cny:,.0f} → ${amount_usd:,.0f}")
-        return round(amount_usd, 2)
+        return round(amount_usd, 2) if amount_usd else None
     
     # Extract number from price string
     # Remove commas and spaces
@@ -407,20 +419,25 @@ def extract_price_usd(analysis):
     
     amount = float(match.group(1))
     
-    # Detect currency and convert to USD
+    # Detect currency and convert to USD using live rates
+    currency = 'USD'  # default
     if '€' in price_str or 'EUR' in price_str.upper():
-        amount = amount * 1.09
+        currency = 'EUR'
     elif '¥' in price_str or 'CNY' in price_str.upper() or 'RMB' in price_str.upper():
-        # Could be CNY or JPY
-        if amount > 1000000:
-            # Likely JPY (Japanese Yen) — very high numbers
-            amount = amount / 148.5
-        else:
-            # CNY to USD
-            amount = amount / 7.25
+        currency = 'JPY' if amount > 1000000 else 'CNY'
     elif '£' in price_str or 'GBP' in price_str.upper():
-        amount = amount * 1.27
-    # USD is default ($ or no symbol)
+        currency = 'GBP'
+
+    if currency != 'USD':
+        if convert_to_usd:
+            converted = convert_to_usd(amount, currency)
+            amount = float(converted) if converted else amount
+        else:
+            # Hardcoded fallback if currency_service unavailable
+            fallback_rates = {'CNY': 7.25, 'EUR': 0.92, 'GBP': 0.79, 'JPY': 148.5}
+            rate = fallback_rates.get(currency)
+            if rate:
+                amount = amount / rate if rate > 1 else amount * (1 / rate)
     
     # Sanity check: car prices should be reasonable ($1,000 - $10M)
     if amount < 1000 or amount > 10000000:

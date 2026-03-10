@@ -615,7 +615,8 @@ class RSSAggregator:
                 expand_press_release,
                 press_release_text=content,
                 source_url=source_url,
-                provider='gemini'
+                provider='gemini',
+                source_title=title,
             )
             
             # Extract title from AI-generated content using shared extract_title

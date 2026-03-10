@@ -411,8 +411,9 @@ class TestLogDecision:
         pending = PendingArticle.objects.create(
             title='Log Test', video_url='https://youtube.com/watch?v=logtest'
         )
-        # Should not crash
         _log_decision(pending, 'skipped_safety', 'Testing log')
+        from news.models import AutoPublishLog
+        assert AutoPublishLog.objects.filter(pending_article=pending, decision='skipped_safety').exists()
 
 
 class TestAutoPublishPending:

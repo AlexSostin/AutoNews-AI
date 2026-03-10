@@ -176,7 +176,15 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 if not has_model_tag:
                     # Try to find a matching Model tag in DB
                     for mt in model_tags:
-                        if model_name.lower() in mt.lower() or mt.lower() in model_name.lower():
+                        mn_lower = model_name.lower()
+                        mt_lower = mt.lower()
+                        # Short names (e.g. 'S', 'X', 'e2') must match exactly
+                        if len(mn_lower) <= 2 or len(mt_lower) <= 2:
+                            if mn_lower == mt_lower:
+                                tag_names.append(mt)
+                                print(f"🏷️ Auto-added model tag: {mt}")
+                                break
+                        elif mn_lower in mt_lower or mt_lower in mn_lower:
                             tag_names.append(mt)
                             print(f"🏷️ Auto-added model tag: {mt}")
                             break

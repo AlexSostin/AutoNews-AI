@@ -371,14 +371,23 @@ article_generator.py → run_fact_check()     ← injects ⚠️ warning banner 
 
 ## Known Technical Debt
 
-- `CarSpecification` ↔ `VehicleSpecs` — duplicate models, need consolidation
 - `notifications` admin page — dead (0 triggers)
-- 5 dead AI modules identified in audit (1,078 lines to remove)
-- Feed keyword search filter too strict — needs word-by-word matching instead of full phrase
 
-## TODOs (Temporary Code to Remove)
+## Fixed (March 2026 — substring audit)
 
-- **`start.sh` line 19-22**: `train_content_model` runs on every deploy. Remove once ML model is stable and retrained via scheduled Celery task instead. Added: 2026-03-02
+All 6 substring-matching bugs identified by Claude Code audit have been fixed:
+- `content_recommender.py:873` — `'ev' in text` → `\bev\b` (was matching review/level/achieve)
+- `content_recommender.py:805` — body_map keywords → `\b` regex (was matching 'van' in advantage)
+- `searcher.py:344` — CHINESE_BRANDS → `\b` regex (was matching 'tang' in Mustang)
+- `content_generator.py:179` — short model names ≤2 chars → exact match only
+- `assign_article_categories.py:74` — per-tag check + `\b` regex (was matching 'ai' in tail/rain)
+- `feed_discovery.py:418` — word-by-word matching instead of full-phrase
+
+## Architecture Notes (NOT tech debt)
+
+- `CarSpecification` ↔ `VehicleSpecs` — **intentionally separate** models: `CarSpecification` is OneToOne per article (basic make/model/trim); `VehicleSpecs` is ForeignKey (AI-generated cards with multiple trim variants)
+- `engagement_scorer.py`, `specs_extractor.py`, `quality_scorer.py` etc. — **backward-compatible re-export stubs** (intentional). Real code lives in `scoring.py`, `deep_specs.py`. Old imports don't break after refactoring.
+- `train_content_model` in `start.sh` — **intentional** `|| true` pattern (nice-to-have on startup). Not a problem.
 
 ## Brand Management
 

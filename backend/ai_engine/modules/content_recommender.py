@@ -802,7 +802,7 @@ def extract_specs_from_text(title: str, content: str) -> Dict:
         'fastback': 'fastback', 'liftback': 'liftback',
     }
     for keyword, body in body_map.items():
-        if keyword in text_lower:
+        if re.search(r'\b' + re.escape(keyword) + r'\b', text_lower):
             specs['body_type'] = body
             break
     
@@ -870,7 +870,7 @@ def extract_specs_from_text(title: str, content: str) -> Dict:
         specs['charging_power_max_kw'] = int(charge_kw.group(1))
     
     # === TRANSMISSION ===
-    if 'single-speed' in text_lower or 'single speed' in text_lower or ('ev' in text_lower and 'gear' not in text_lower):
+    if 'single-speed' in text_lower or 'single speed' in text_lower or (re.search(r'\bev\b', text_lower) and 'gear' not in text_lower):
         specs['transmission'] = 'single-speed'
     elif 'cvt' in text_lower:
         specs['transmission'] = 'CVT'

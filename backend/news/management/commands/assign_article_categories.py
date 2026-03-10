@@ -5,6 +5,7 @@ This is needed after migrating from ForeignKey to ManyToMany categories field.
 """
 from django.core.management.base import BaseCommand
 from news.models import Article, Category, Tag
+import re
 
 
 class Command(BaseCommand):
@@ -65,13 +66,16 @@ class Command(BaseCommand):
             
             # Try to assign based on tags
             article_tags = article.tags.all()
-            tag_names = ' '.join([tag.name.lower() for tag in article_tags])
+            tag_name_list = [tag.name.lower() for tag in article_tags]
             
             # Check each category's keywords
             for cat_slug, keywords in category_keywords.items():
                 if cat_slug in categories:
                     for keyword in keywords:
-                        if keyword in tag_names or keyword in article.title.lower():
+                        # Check individual tags (exact or word match), not joined string
+                        tag_match = any(keyword == tn or keyword in tn.split() for tn in tag_name_list)
+                        title_match = re.search(r'\b' + re.escape(keyword) + r'\b', article.title.lower())
+                        if tag_match or title_match:
                             assigned_category = categories[cat_slug]
                             break
                     if assigned_category:

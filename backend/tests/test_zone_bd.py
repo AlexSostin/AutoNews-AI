@@ -355,42 +355,49 @@ class TestVectorSearch:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestZeroCoverageCommands:
+    """Smoke tests for 0%-coverage management commands.
+
+    Catch SystemExit + CommandError (unrecognized args) — real exceptions
+    still fail the test.
+    """
 
     def test_populate_db(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('populate_db', '--dry-run')
-        except (SystemExit, Exception):
-            pass  # Just reaches import + handle()
+        except (SystemExit, CommandError):
+            pass
 
     @patch('ai_engine.modules.deep_specs.generate_deep_vehicle_specs')
     def test_backfill_car_specs(self, mock_specs):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('backfill_car_specs', '--dry-run')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     @patch('ai_engine.modules.deep_specs.generate_deep_vehicle_specs')
     def test_backfill_missing_specs(self, mock_specs):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('backfill_missing_specs', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     @patch('ai_engine.modules.publisher.publish_article')
     def test_reformat_rss_articles(self, mock_pub):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('reformat_rss_articles', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     @patch('ai_engine.modules.deep_specs.generate_deep_vehicle_specs')
     def test_bulk_enrich(self, mock_specs):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('bulk_enrich', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
+
+

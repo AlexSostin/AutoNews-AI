@@ -366,87 +366,93 @@ class TestApiHelpers:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestMgmtCommandsLowCoverage:
+    """Management commands smoke tests.
+
+    Catch SystemExit (argparse) and CommandError (unrecognized args)
+    but NOT generic Exception — real bugs should fail the test.
+    """
 
     def test_consolidate_categories(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('consolidate_categories', '--dry-run')
-        except (SystemExit, Exception):
-            pass
+        except (SystemExit, CommandError):
+            pass  # argparse/unrecognized args OK
 
     def test_auto_assign_categories(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('auto_assign_categories', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_backfill_sources(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('backfill_sources', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_check_rss_license(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('check_rss_license', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_assign_article_categories(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('assign_article_categories', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_index_articles(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('index_articles', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_cleanup_tags(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('cleanup_tags', '--dry-run')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_update_branding(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('update_branding')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_backfill_authors(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('backfill_authors')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_submit_to_google(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('submit_to_google', '--dry-run')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_analyze_youtube_videos(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('analyze_youtube_videos', '--limit', '0')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
 
     def test_fix_migrations(self):
-        from django.core.management import call_command
+        from django.core.management import call_command, CommandError
         try:
             call_command('fix_migrations', '--dry-run')
-        except (SystemExit, Exception):
+        except (SystemExit, CommandError):
             pass
+
