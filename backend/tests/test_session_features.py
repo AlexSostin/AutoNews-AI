@@ -177,7 +177,7 @@ class TestABLifecycle:
 class TestCacheBusting:
 
     def test_pick_winner_busts_bulk_cache(self, admin_client, sample_article):
-        """ab_pick_winner via slug → ab_stats_bulk_v1 cache deleted."""
+        """ab_pick_winner via slug → ab_stats_bulk_v2 cache deleted."""
         client, _ = admin_client
         v = ArticleTitleVariant.objects.create(
             article=sample_article, variant='A', title='Cached Title',
@@ -188,9 +188,9 @@ class TestCacheBusting:
             impressions=50, clicks=5, is_active=True, is_winner=False,
         )
 
-        # Pre-seed cache
-        cache.set('ab_stats_bulk_v1', [{'stale': True}], 60)
-        assert cache.get('ab_stats_bulk_v1') is not None
+        # Pre-seed cache (key v2 — bumped when deleted-article filter was added)
+        cache.set('ab_stats_bulk_v2', [{'stale': True}], 60)
+        assert cache.get('ab_stats_bulk_v2') is not None
 
         response = client.post(
             f'/api/v1/articles/{sample_article.slug}/ab-pick-winner/',
@@ -198,7 +198,7 @@ class TestCacheBusting:
         )
 
         assert response.status_code == 200
-        assert cache.get('ab_stats_bulk_v1') is None  # Cache busted
+        assert cache.get('ab_stats_bulk_v2') is None  # Cache busted
 
     def test_frontend_resolve_all_busts_nav_badges(self, admin_client):
         """Frontend events resolve-all → nav_badges_v1 cache deleted."""
