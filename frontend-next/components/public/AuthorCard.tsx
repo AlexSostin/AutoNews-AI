@@ -99,7 +99,7 @@ export default function AuthorCard({
                                 alt={name}
                                 width={80}
                                 height={80}
-                                className="object-cover object-[center_20%] w-full h-full brightness-75"
+                                className="object-cover object-[center_20%] w-full h-full brightness-95"
                                 unoptimized
                             />
                         </div>
