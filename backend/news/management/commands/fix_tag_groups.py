@@ -30,7 +30,10 @@ FIXES = {
     'Technology': 'Tech & Features',
     'Advanced': 'Tech & Features',
     # Ungrouped → Years
+    '2024': 'Years',
     '2025': 'Years',
+    '2026': 'Years',
+    '2027': 'Years',
 }
 
 

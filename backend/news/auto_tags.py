@@ -161,7 +161,13 @@ def normalize_tag_name(raw_name):
 
     cleaned = raw_name.strip().lower()
 
-    # Skip too short or stop words
+    # Check aliases FIRST — before stop words, so 'performance' → 'Performance'
+    if cleaned in TAG_ALIASES:
+        canonical = TAG_ALIASES[cleaned]
+        group = TAG_GROUP_MAP.get(canonical, None)
+        return canonical, group
+
+    # Skip too short or stop words (after alias check)
     if len(cleaned) < 2 or cleaned in STOP_WORDS:
         return None, None
 
@@ -171,12 +177,6 @@ def normalize_tag_name(raw_name):
         if 2020 <= year <= 2030:
             return cleaned, 'Years'
         return None, None
-
-    # Check aliases first
-    if cleaned in TAG_ALIASES:
-        canonical = TAG_ALIASES[cleaned]
-        group = TAG_GROUP_MAP.get(canonical, None)
-        return canonical, group
 
     # Check if it's a known brand
     if cleaned in KNOWN_BRANDS:
@@ -210,13 +210,14 @@ def find_or_create_tag(name, group_name=None):
     # Case-insensitive lookup
     existing = Tag.objects.filter(name__iexact=canonical).first()
     if existing:
-        # Fix group if misplaced and we know the correct one
-        if group_name and not existing.group:
+        # Fix group if missing OR incorrect
+        if group_name and (not existing.group or existing.group.name != group_name):
             try:
                 grp = TagGroup.objects.get(name=group_name)
+                old_group = existing.group.name if existing.group else 'ungrouped'
                 existing.group = grp
                 existing.save(update_fields=['group'])
-                logger.info(f'🔧 Fixed tag "{existing.name}" → group "{group_name}"')
+                logger.info(f'🔧 Fixed tag "{existing.name}" group: {old_group} → "{group_name}"')
             except TagGroup.DoesNotExist:
                 pass
         return existing, False

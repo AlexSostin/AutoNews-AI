@@ -383,7 +383,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING('\n=== Phase 6: Removing Dead Tags (0 Articles) ===\n'))
 
         dead_tags = Tag.objects.annotate(
-            article_count=Count('articles')
+            article_count=Count('article')
         ).filter(article_count=0, group__isnull=True)
 
         count = dead_tags.count()

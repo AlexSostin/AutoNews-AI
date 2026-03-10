@@ -62,7 +62,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             from django.db.models import Q
             queryset = queryset.annotate(
-                _article_count=Count('articles', filter=Q(articles__is_published=True))
+                _article_count=Count('article', filter=Q(article__is_published=True))
             )
         return queryset
 
