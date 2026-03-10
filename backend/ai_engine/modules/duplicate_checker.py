@@ -33,6 +33,8 @@ TRIM_VARIANT_KEYWORDS = [
     'long range', 'standard range',           # Range variants
     '6-seater', '7-seater', '5-seater',      # Seating config
     'walk-around', 'walkaround', 'review',   # Video type (helps distinguish)
+    # NOTE: 'walk-around' and 'walkaround' are both listed but we normalize
+    #       hyphens in _extract_trim_keywords below so both map to 'walkaround'.
 ]
 
 
@@ -42,14 +44,19 @@ import re as _re
 def _extract_trim_keywords(text: str) -> set:
     """Extract variant-distinguishing keywords from a title or trim string.
     Uses word-boundary matching so 'ev' does NOT match inside 'rev' or 'preview'.
+    Normalizes hyphens so 'walk-around' and 'walkaround' are treated as one keyword.
     """
     text_lower = (text or '').lower()
     found = set()
+    # Normalize common hyphen variants
+    _HYPHEN_NORMALIZE = {'walk-around': 'walkaround'}
     for kw in TRIM_VARIANT_KEYWORDS:
         # Escape special regex chars (e.g. hyphens in 'dm-p')
         pattern = r'(?<![a-z0-9])' + _re.escape(kw) + r'(?![a-z0-9])'
         if _re.search(pattern, text_lower):
-            found.add(kw)
+            # Map hyphen variants to single canonical form
+            canonical = _HYPHEN_NORMALIZE.get(kw, kw)
+            found.add(canonical)
     return found
 
 

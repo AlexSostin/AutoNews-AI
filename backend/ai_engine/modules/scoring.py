@@ -644,16 +644,29 @@ def train_model(force=False):
         # Get tags
         tag_names = list(article.tags.values_list('name', flat=True))
         
+        # Determine source safety from RSSFeed or YouTubeChannel
+        is_safe = 0.0
+        try:
+            from news.models import RSSNewsItem
+            rss_item = RSSNewsItem.objects.filter(
+                title__icontains=article.title[:60]
+            ).select_related('feed').first()
+            if rss_item and rss_item.feed:
+                is_safe = 1.0 if getattr(rss_item.feed, 'is_safe', False) else 0.0
+        except Exception:
+            pass
+
         features = extract_features(
             title=article.title,
             content=article.content,
             specs=specs,
             tags=tag_names,
             featured_image=str(article.image) if article.image else '',
-            images=[str(article.image_2), str(article.image_3)],
+            images=[x for x in [article.image_2, article.image_3] if x],
             provider=provider,
             source_type=source_type,
         )
+        features['is_safe_source'] = is_safe
         
         if feature_names is None:
             feature_names = sorted(features.keys())

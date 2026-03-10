@@ -13,6 +13,8 @@ k=60 is the standard constant — dampens the effect of very high ranks.
 
 import os
 import hashlib
+import threading
+import logging
 from typing import List, Dict, Optional
 from pathlib import Path
 
@@ -20,6 +22,13 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 import faiss
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
+# Redis key for storing the serialized FAISS index
+FAISS_REDIS_KEY = 'faiss_index_cache'
+FAISS_REDIS_TTL = 60 * 60 * 24 * 7  # 7 days
 
 
 class BM25Index:
@@ -102,17 +111,19 @@ class VectorSearchEngine:
 
     def __init__(self):
         """Initialize the hybrid vector search engine"""
+        self._lock = threading.Lock()  # Prevent concurrent rebuild races
         self.embedding_model = self._get_embedding_model()
         self.vector_store = None
         self.bm25 = BM25Index()
         self.index_path = Path("data/vector_db/faiss_index")
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Try to load FAISS from disk first (faster), then from database
-        if (self.index_path / "index.faiss").exists():
-            self._load_index_from_disk()
-        else:
-            self._rebuild_from_database()
+        # Startup priority: Redis cache → disk → full DB rebuild
+        if not self._load_index_from_redis():
+            if (self.index_path / "index.faiss").exists():
+                self._load_index_from_disk()
+            else:
+                self._rebuild_from_database()
     
     def _get_embedding_model(self):
         """Get Google Gemini embedding model"""
@@ -125,6 +136,51 @@ class VectorSearchEngine:
             google_api_key=api_key
         )
     
+    def _load_index_from_redis(self) -> bool:
+        """Try loading FAISS index from Redis cache (survives Railway deploys)."""
+        try:
+            from django.core.cache import cache
+            serialized = cache.get(FAISS_REDIS_KEY)
+            if serialized:
+                # Write to temp disk path and load via FAISS
+                import tempfile, shutil
+                with tempfile.TemporaryDirectory() as tmp:
+                    tmp_path = Path(tmp) / 'faiss_idx'
+                    tmp_path.mkdir()
+                    for name, data in serialized.items():
+                        (tmp_path / name).write_bytes(data)
+                    self.vector_store = FAISS.load_local(
+                        str(tmp_path), self.embedding_model,
+                        allow_dangerous_deserialization=True
+                    )
+                    # Also save to disk for faster future startups
+                    self._save_index_to_disk()
+                    self._rebuild_bm25_from_faiss()
+                    logger.info(
+                        f'✓ Loaded FAISS from Redis cache '
+                        f'({self.vector_store.index.ntotal} vectors)'
+                    )
+                    return True
+        except Exception as e:
+            logger.debug(f'Redis FAISS cache miss: {e}')
+        return False
+
+    def _save_index_to_redis(self):
+        """Cache the serialized FAISS index in Redis for fast startup after deploy."""
+        if not self.vector_store:
+            return
+        try:
+            from django.core.cache import cache
+            # Serialize FAISS to disk first, then read the files
+            self.vector_store.save_local(str(self.index_path))
+            serialized = {}
+            for f in self.index_path.iterdir():
+                serialized[f.name] = f.read_bytes()
+            cache.set(FAISS_REDIS_KEY, serialized, FAISS_REDIS_TTL)
+            logger.info(f'✓ Saved FAISS to Redis cache ({len(serialized)} files)')
+        except Exception as e:
+            logger.warning(f'⚠️ Failed to cache FAISS in Redis: {e}')
+
     def _load_index_from_disk(self):
         """Load existing FAISS index from disk (fast startup)"""
         try:
@@ -133,64 +189,91 @@ class VectorSearchEngine:
                 self.embedding_model,
                 allow_dangerous_deserialization=True
             )
-            print(f"✓ Loaded FAISS index from disk ({self.vector_store.index.ntotal} vectors)")
+            self._rebuild_bm25_from_faiss()
+            logger.info(f'✓ Loaded FAISS index from disk ({self.vector_store.index.ntotal} vectors)')
         except Exception as e:
-            print(f"⚠️ Failed to load from disk: {e}")
+            logger.warning(f'⚠️ Failed to load from disk: {e}')
             self._rebuild_from_database()
     
     def _rebuild_from_database(self):
-        """Rebuild FAISS + BM25 indexes from PostgreSQL (on first startup or corruption)"""
-        try:
-            from news.models import ArticleEmbedding
+        """Rebuild FAISS + BM25 indexes from PostgreSQL (on first startup or corruption).
+        Uses STORED embedding vectors from ArticleEmbedding — NO Gemini API calls needed!
+        """
+        with self._lock:
+            try:
+                from news.models import ArticleEmbedding
 
-            embeddings = ArticleEmbedding.objects.select_related('article').all()
-            count = embeddings.count()
+                embeddings = ArticleEmbedding.objects.select_related('article').all()
+                count = embeddings.count()
 
-            if count == 0:
-                print("ℹ️ No embeddings in database, starting with empty index")
-                self.vector_store = None
-                return
+                if count == 0:
+                    logger.info('ℹ️ No embeddings in database, starting with empty index')
+                    self.vector_store = None
+                    return
 
-            print(f"🔄 Rebuilding FAISS + BM25 indexes from {count} database embeddings...")
+                logger.info(f'🔄 Rebuilding FAISS + BM25 from {count} stored embeddings (no API calls)...')
 
-            documents = []
-            bm25_docs = []
-            for emb in embeddings:
-                article = emb.article
-                text = f"{article.title}\n\n{article.summary or ''}\n\n{article.content}"
+                documents = []
+                bm25_docs = []
+                emb_vectors = []
+                for emb in embeddings:
+                    article = emb.article
+                    text = f"{article.title}\n\n{article.summary or ''}\n\n{article.content}"
 
-                doc = Document(
-                    page_content=text,
-                    metadata={
-                        "article_id": article.id,
-                        "title": article.title,
-                        "summary": article.summary or "",
-                        "slug": article.slug,
-                    }
-                )
-                documents.append(doc)
-                bm25_docs.append({'article_id': article.id, 'title': article.title, 'text': text})
+                    doc = Document(
+                        page_content=text,
+                        metadata={
+                            "article_id": article.id,
+                            "title": article.title,
+                            "summary": article.summary or "",
+                            "slug": article.slug,
+                        }
+                    )
+                    documents.append(doc)
+                    bm25_docs.append({'article_id': article.id, 'title': article.title, 'text': text})
 
-            if documents:
-                self.vector_store = FAISS.from_documents(documents, self.embedding_model)
+                    # Use stored vector if available (no API call!)
+                    vec = getattr(emb, 'embedding_vector', None)
+                    if vec is not None:
+                        emb_vectors.append(vec)
+
+                if documents and len(emb_vectors) == len(documents):
+                    # Build FAISS directly from stored vectors (FREE — no Gemini API)
+                    text_embedding_pairs = list(zip(
+                        [doc.page_content for doc in documents],
+                        emb_vectors,
+                    ))
+                    metadatas = [doc.metadata for doc in documents]
+                    self.vector_store = FAISS.from_embeddings(
+                        text_embedding_pairs,
+                        self.embedding_model,
+                        metadatas=metadatas,
+                    )
+                    logger.info(f'✅ Rebuilt FAISS from stored vectors ({len(documents)} articles, 0 API calls)')
+                elif documents:
+                    # Fallback: re-embed via API (only if no stored vectors)
+                    logger.warning('⚠️ No stored vectors — re-embedding via Gemini API')
+                    self.vector_store = FAISS.from_documents(documents, self.embedding_model)
+
                 self._save_index_to_disk()
+                self._save_index_to_redis()
                 self.bm25.build(bm25_docs)
-                print(f"✅ Rebuilt FAISS + BM25 indexes with {len(documents)} articles")
+                logger.info(f'✅ Rebuild complete: {len(documents)} articles indexed')
 
-        except Exception as e:
-            print(f"❌ Failed to rebuild from database: {e}")
-            import traceback
-            traceback.print_exc()
-            self.vector_store = None
-    
+            except Exception as e:
+                logger.error(f'❌ Failed to rebuild from database: {e}')
+                import traceback
+                traceback.print_exc()
+                self.vector_store = None
+
     def _save_index_to_disk(self):
         """Save FAISS index to disk for faster startup"""
         if self.vector_store:
             try:
                 self.vector_store.save_local(str(self.index_path))
-                print(f"✓ Saved FAISS index to {self.index_path}")
+                logger.info(f'✓ Saved FAISS index to {self.index_path}')
             except Exception as e:
-                print(f"⚠️ Failed to save index: {e}")
+                logger.warning(f'⚠️ Failed to save index: {e}')
     
     def _save_to_database(self, article_id: int, embedding: List[float], text: str):
         """Save embedding to PostgreSQL for persistence"""
@@ -256,6 +339,7 @@ class VectorSearchEngine:
             self.vector_store.add_documents([document])
 
         self._save_index_to_disk()
+        self._save_index_to_redis()
 
         # Rebuild BM25 from all current docs (cheap, instant)
         self._rebuild_bm25_from_faiss()
@@ -292,8 +376,9 @@ class VectorSearchEngine:
             self.vector_store.add_documents(documents)
 
         self._save_index_to_disk()
+        self._save_index_to_redis()
         self._rebuild_bm25_from_faiss()
-        print(f"✓ Indexed {len(documents)} articles (FAISS + BM25)")
+        logger.info(f'✓ Indexed {len(documents)} articles (FAISS + BM25)')
         return True
     
     def remove_article(self, article_id: int):
@@ -316,8 +401,9 @@ class VectorSearchEngine:
 
         self.vector_store = FAISS.from_documents(all_docs, self.embedding_model)
         self._save_index_to_disk()
+        self._save_index_to_redis()
         self._rebuild_bm25_from_faiss()
-        print(f"✓ Removed article {article_id} from FAISS + BM25")
+        logger.info(f'✓ Removed article {article_id} from FAISS + BM25')
         return True
     
     # ─────────────────────────────────────────────────────────────
