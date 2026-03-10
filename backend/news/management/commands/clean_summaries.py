@@ -71,7 +71,7 @@ def _regenerate_with_ai(article, ai_provider) -> str:
 
     car_name = article.title or ''
 
-    prompt = f"""Write a compelling 2-sentence summary (140-160 characters total) for this automotive article.
+    prompt = f"""Write a compelling 1-2 sentence SEO meta description (130-155 characters total) for this car article.
 
 ARTICLE TITLE: {car_name}
 
@@ -80,19 +80,20 @@ ARTICLE CONTENT (excerpt):
 
 STRICT RULES:
 1. Write as ORIGINAL JOURNALISM — you are the author, this is YOUR article
-2. NEVER use words: "video", "transcript", "footage", "presenter", "narrator", "walk-around", "showcases"
-3. Start with the car name + most compelling fact (price, range, power, or unique feature)
-4. Include 1-2 key specs that car buyers search for (range, price, horsepower)
-5. Use active voice, present tense
+2. NEVER use words: "video", "transcript", "footage", "presenter", "narrator", "walk-around"
+3. START with the car name + its single most impressive number (range km, price, HP, or kWh)
+4. Pack in 2-3 key specs that buyers Google (range, price, horsepower, seating, battery size)
+5. Use active voice, present tense. Make people WANT to click
 6. No HTML tags, no quotes, no markdown
-7. Be SPECIFIC — use real numbers from the content
-8. Write like a Google meta description that makes people click
+7. Be SPECIFIC — real numbers only, no vague adjectives like "impressive" or "formidable"
+8. Max 155 characters — count them!
 
-GOOD EXAMPLES:
-- "The 2026 BYD TANG 1240 delivers 1,240 km combined range in a 7-seater PHEV SUV starting at CNY 199,800 ($27,500). Its CATL Blade battery and dual-motor AWD make it a serious family hauler."
-- "Zeekr's 007GT combines 421 hp with shooting brake styling and a 680 km range. Starting at CNY 209,900, it targets buyers who want performance without the SUV compromise."
+GOOD EXAMPLES (note: tight, number-first, clickable):
+- "2026 BYD Tang PHEV offers 1,240 km combined range and 7 seats from CNY 199,800. Dual-motor AWD delivers 360 kW."
+- "Zeekr 007GT: 421 hp shooting brake EV, 680 km range, starts at CNY 209,900. Manual trunk, ventilated seats."
+- "XPeng X9 EREV: 1,602 km total range, 452 km EV-only, 7 seats, air suspension from CNY 359,800 ($49,800)."
 
-Write ONLY the summary, nothing else:"""
+Write ONLY the meta description, nothing else:"""
 
     try:
         result = ai_provider.generate_completion(
@@ -106,8 +107,11 @@ Write ONLY the summary, nothing else:"""
             result = result.strip().strip('"\'')
             result = _strip_html(result)
             result = re.sub(r'\s+', ' ', result).strip()
-            # Validate: not too short, no banned phrases
+            # Validate: not too short, no banned phrases, within 155 chars
             if len(result) >= 50 and not _is_affected(result):
+                # If AI still went over 155 chars, truncate at word boundary
+                if len(result) > 155:
+                    result = result[:152].rsplit(' ', 1)[0].rstrip('.,;:') + '...'
                 return result
     except Exception as e:
         print(f"    ⚠️ AI generation failed: {e}")
@@ -180,11 +184,14 @@ def _finalize_summary(summary: str) -> tuple:
     summary = _strip_html(summary)
     # Clean whitespace
     summary = re.sub(r'\s+', ' ', summary).strip()
-    # Trim to 300 chars
+    # Trim summary to 300 chars at word boundary
     if len(summary) > 300:
-        summary = summary[:297] + "..."
-    # SEO description is first 160 chars
-    seo_description = summary[:160]
+        summary = summary[:297].rsplit(' ', 1)[0].rstrip('.,;:') + '...'
+    # SEO description: first 155 chars, trimmed at word boundary — no mid-word cuts
+    if len(summary) <= 155:
+        seo_description = summary
+    else:
+        seo_description = summary[:152].rsplit(' ', 1)[0].rstrip('.,;:') + '...'
     return summary, seo_description
 
 

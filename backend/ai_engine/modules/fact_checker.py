@@ -322,6 +322,9 @@ Return ONLY valid JSON. No markdown fences, no extra text.
         # Strip any remaining inline (unverified)/(per manufacturer) tags the LLM might add
         fixed_html = re.sub(r'\s*\((?:unverified|per manufacturer|not independently verified)\)', '', fixed_html)
 
+        # Normalize Chinese currency notation: "RMB 359,800" → "¥359,800 CNY"
+        fixed_html = re.sub(r'\bRMB\s+([\d,]+)', r'¥\1 CNY', fixed_html)
+
         # Sanity check: if fixed_html is dramatically shorter (>40% loss), it means
         # the LLM still stripped too aggressively — fall back to original
         original_text_len = len(re.sub(r'<[^>]+>', '', article_html))
