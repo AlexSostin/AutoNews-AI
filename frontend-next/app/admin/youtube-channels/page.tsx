@@ -16,7 +16,8 @@ import {
   FileText,
   Rss
 } from 'lucide-react';
-import api, { getApiUrl } from '@/lib/api';
+import api from '@/lib/api';
+import { logCaughtError } from '@/lib/error-logger';
 import Link from 'next/link';
 
 
@@ -104,7 +105,7 @@ export default function YouTubeChannelsPage() {
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data.results || []);
       setRssPendingCount(rssStatsRes.data.pending || 0);
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      logCaughtError('youtube_channels_fetch', error);
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export default function YouTubeChannelsPage() {
 
       const payload = {
         ...formData,
-        default_category: formData.default_category || null
+        default_category: formData.default_category ? parseInt(formData.default_category, 10) : null
       };
 
       const response = editingChannel
@@ -150,6 +151,7 @@ export default function YouTubeChannelsPage() {
       setChannels(channels.filter(c => c.id !== id));
       setMessage({ type: 'success', text: 'Channel deleted' });
     } catch (error) {
+      logCaughtError('youtube_channel_delete', error);
       setMessage({ type: 'error', text: 'Failed to delete channel' });
     }
   };
@@ -164,6 +166,7 @@ export default function YouTubeChannelsPage() {
         c.id === channel.id ? { ...c, is_enabled: !c.is_enabled } : c
       ));
     } catch (error) {
+      logCaughtError('youtube_channel_toggle', error);
       setMessage({ type: 'error', text: 'Failed to update channel' });
     }
   };
@@ -220,7 +223,7 @@ export default function YouTubeChannelsPage() {
         setScanError('No recent videos found for this channel.');
       }
     } catch (error: any) {
-      console.error(error);
+      logCaughtError('youtube_channel_scan', error);
       const errorMsg = error.response?.data?.error || 'Failed to fetch videos from YouTube.';
       setScanError(errorMsg);
     } finally {

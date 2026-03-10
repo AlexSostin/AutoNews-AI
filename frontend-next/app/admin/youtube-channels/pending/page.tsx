@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Youtube,
   Clock,
@@ -20,6 +21,7 @@ import {
   Wrench
 } from 'lucide-react';
 import api, { getApiUrl } from '@/lib/api';
+import { logCaughtError } from '@/lib/error-logger';
 import Link from 'next/link';
 import { sanitizeHtml } from '@/lib/sanitize';
 
@@ -50,6 +52,7 @@ interface Stats {
 }
 
 export default function PendingArticlesPage() {
+  const router = useRouter();
   const [articles, setArticles] = useState<PendingArticle[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +80,7 @@ export default function PendingArticlesPage() {
       setArticles(Array.isArray(articlesRes.data) ? articlesRes.data : articlesRes.data.results || []);
       setStats(statsRes.data);
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      logCaughtError('youtube_pending_fetch', error);
     } finally {
       setLoading(false);
     }
@@ -94,14 +97,20 @@ export default function PendingArticlesPage() {
         if (!publish && data.article_slug) {
           setMessage({ type: 'success', text: 'Article approved as draft! Redirecting to editor...' });
           setTimeout(() => {
-            window.location.href = `/admin/articles/${data.article_slug}/edit`;
+            router.push(`/admin/articles/${data.article_slug}/edit`);
           }, 500); // Quick redirect — images upload server-side in background
         } else {
           setMessage({ type: 'success', text: 'Article published successfully!' });
         }
 
         setArticles(articles.filter(a => a.id !== id));
-        if (stats) setStats({ ...stats, pending: stats.pending - 1, published: stats.published + 1 });
+        if (stats) {
+          if (publish) {
+            setStats({ ...stats, pending: stats.pending - 1, published: stats.published + 1 });
+          } else {
+            setStats({ ...stats, pending: stats.pending - 1, approved: stats.approved + 1 });
+          }
+        }
       } else {
         setMessage({ type: 'error', text: 'Failed to approve' });
       }
