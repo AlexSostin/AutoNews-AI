@@ -76,11 +76,15 @@ class GeminiProvider(AIProvider):
         if not GENAI_AVAILABLE or not gemini_client:
             raise Exception("google-genai library not available or client not initialised")
         
-        # Model priority: 2.5-pro-exp (free, best quality) > 2.5-flash > 2.5-flash-lite > 2.0-flash fallback
+        # Model priority (updated March 2026):
+        # gemini-3.1-pro (best quality, preview) > gemini-3-flash (frontier at Flash price)
+        # > gemini-2.5-pro-exp (free backup) > gemini-2.5-flash > gemini-2.0-flash (last resort)
+        # NOTE: gemini-3-pro was SHUT DOWN on March 9 2026 — do NOT use it
         model_names_to_try = [
+            'gemini-3.1-pro-preview',
+            'gemini-3-flash-preview',
             'gemini-2.5-pro-exp-03-25',
             'gemini-2.5-flash',
-            'gemini-2.5-flash-lite',
             'gemini-2.0-flash',
         ]
         
