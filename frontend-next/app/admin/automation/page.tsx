@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getApiUrl } from '@/lib/api';
+import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
 import { AutomationSettings, AutomationStats } from './types';
@@ -10,8 +10,6 @@ import { SafetyOverview } from './components/SafetyOverview';
 import { SiteThemePicker } from './components/SiteThemePicker';
 import { TaskModules } from './components/TaskModules';
 import { DecisionLog } from './components/DecisionLog';
-
-const API_URL = getApiUrl();
 
 export default function AutomationPage() {
     const [settings, setSettings] = useState<AutomationSettings | null>(null);
@@ -22,16 +20,13 @@ export default function AutomationPage() {
 
     const fetchData = useCallback(async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-
             const [settingsRes, statsRes] = await Promise.all([
-                fetch(`${API_URL}/automation/settings/`, { headers }),
-                fetch(`${API_URL}/automation/stats/`, { headers }),
+                api.get('/automation/settings/'),
+                api.get('/automation/stats/'),
             ]);
 
-            if (settingsRes.ok) setSettings(await settingsRes.json());
-            if (statsRes.ok) setStats(await statsRes.json());
+            if (settingsRes.data) setSettings(settingsRes.data);
+            if (statsRes.data) setStats(statsRes.data);
         } catch (err) {
             console.error('Failed to fetch automation data:', err);
         } finally {
@@ -51,21 +46,12 @@ export default function AutomationPage() {
         if (!settings) return;
         setSaving(true);
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch(`${API_URL}/automation/settings/`, {
-                method: 'PUT',
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ [key]: value }),
-            });
-            if (res.ok) {
-                const updated = await res.json();
-                setSettings(updated);
-                toast.success('Settings updated');
-            } else {
-                toast.error('Failed to update');
-            }
-        } catch {
-            toast.error('Network error');
+            const res = await api.put('/automation/settings/', { [key]: value });
+            setSettings(res.data);
+            toast.success('Settings updated');
+        } catch (err) {
+            console.error('Failed to update setting:', err);
+            toast.error('Failed to update');
         } finally {
             setSaving(false);
         }
@@ -74,21 +60,17 @@ export default function AutomationPage() {
     const triggerTask = async (taskType: string) => {
         setTriggering(taskType);
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch(`${API_URL}/automation/trigger/${taskType}/`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            });
-            if (res.ok) {
-                toast.success(`${taskType} triggered!`);
-                setTimeout(fetchData, 5000);
-            } else if (res.status === 409) {
+            await api.post(`/automation/trigger/${taskType}/`);
+            toast.success(`${taskType} triggered!`);
+            // Data will refresh on next 30s auto-refresh cycle
+        } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 409) {
                 toast.error(`${taskType} is already running`);
             } else {
+                console.error(`Trigger ${taskType} failed:`, err);
                 toast.error('Trigger failed');
             }
-        } catch {
-            toast.error('Network error');
         } finally {
             setTriggering(null);
         }

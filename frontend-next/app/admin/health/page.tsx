@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
-import { getApiUrl } from '@/lib/config';
 import {
     Loader2, CheckCircle, AlertTriangle, XCircle, Server, Monitor,
     Clock, RefreshCw, Trash2, Activity, Zap, Globe, X, ExternalLink, Copy, Square, CheckSquare
@@ -153,8 +152,6 @@ export default function SystemHealthPage() {
         }
     };
 
-    const apiUrl = getApiUrl();
-
     const PAGE_SIZE = 20;
 
     // Parse paginated API response into unified errors
@@ -189,9 +186,9 @@ export default function SystemHealthPage() {
         if (!silent) setLoading(true);
         try {
             const [summaryRes, backendRes, frontendRes] = await Promise.allSettled([
-                api.get(`${apiUrl}/health/errors-summary/`),
-                api.get(`${apiUrl}/backend-errors/?ordering=-last_seen&page_size=${PAGE_SIZE}`),
-                api.get(`${apiUrl}/frontend-events/?page_size=${PAGE_SIZE}`),
+                api.get('/health/errors-summary/'),
+                api.get(`/backend-errors/?ordering=-last_seen&page_size=${PAGE_SIZE}`),
+                api.get(`/frontend-events/?page_size=${PAGE_SIZE}`),
             ]);
 
             if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
@@ -223,7 +220,7 @@ export default function SystemHealthPage() {
         } finally {
             setLoading(false);
         }
-    }, [apiUrl]);
+    }, []);
 
     // ── Load More ────────────────────────────────────────────────────
     const loadMore = async () => {
@@ -233,7 +230,7 @@ export default function SystemHealthPage() {
 
             if (hasMoreBackend) {
                 const nextPage = backendPage + 1;
-                const { data: bd } = await api.get(`${apiUrl}/backend-errors/?ordering=-last_seen&page_size=${PAGE_SIZE}&page=${nextPage}`);
+                const { data: bd } = await api.get(`/backend-errors/?ordering=-last_seen&page_size=${PAGE_SIZE}&page=${nextPage}`);
                 newErrors.push(...parseBackend(bd));
                 setHasMoreBackend(!!bd.next);
                 setBackendPage(nextPage);
@@ -241,7 +238,7 @@ export default function SystemHealthPage() {
 
             if (hasMoreFrontend) {
                 const nextPage = frontendPage + 1;
-                const { data: fd } = await api.get(`${apiUrl}/frontend-events/?page_size=${PAGE_SIZE}&page=${nextPage}`);
+                const { data: fd } = await api.get(`/frontend-events/?page_size=${PAGE_SIZE}&page=${nextPage}`);
                 newErrors.push(...parseFrontend(fd));
                 setHasMoreFrontend(!!fd.next);
                 setFrontendPage(nextPage);
@@ -271,7 +268,7 @@ export default function SystemHealthPage() {
     const markResolved = async (err: UnifiedError, resolved: boolean) => {
         const endpoint = err._source === 'backend' ? 'backend-errors' : 'frontend-events';
         try {
-            await api.patch(`${apiUrl}/${endpoint}/${err.id}/`, { resolved });
+            await api.patch(`/${endpoint}/${err.id}/`, { resolved });
             toast.success(resolved ? 'Marked resolved' : 'Reopened');
             if (selectedError?._id === err._id) setSelectedError({ ...selectedError, resolved });
             loadData(true);
@@ -281,7 +278,7 @@ export default function SystemHealthPage() {
     const deleteError = async (err: UnifiedError) => {
         const endpoint = err._source === 'backend' ? 'backend-errors' : 'frontend-events';
         try {
-            await api.delete(`${apiUrl}/${endpoint}/${err.id}/`);
+            await api.delete(`/${endpoint}/${err.id}/`);
             toast.success('Deleted');
             setSelectedError(null);
             loadData(true);
@@ -291,8 +288,8 @@ export default function SystemHealthPage() {
     const resolveAll = async () => {
         try {
             const [backendRes, frontendRes] = await Promise.allSettled([
-                api.post(`${apiUrl}/backend-errors/resolve-all/`),
-                api.post(`${apiUrl}/frontend-events/resolve-all/`),
+                api.post('/backend-errors/resolve-all/'),
+                api.post('/frontend-events/resolve-all/'),
             ]);
             const backendCount = backendRes.status === 'fulfilled' ? backendRes.value.data?.resolved ?? 0 : 0;
             const frontendCount = frontendRes.status === 'fulfilled' ? frontendRes.value.data?.resolved ?? 0 : 0;
@@ -304,7 +301,7 @@ export default function SystemHealthPage() {
 
     const clearStale = async () => {
         try {
-            const { data } = await api.post(`${apiUrl}/backend-errors/clear-stale/`);
+            const { data } = await api.post('/backend-errors/clear-stale/');
             toast.success(`Cleared ${data.resolved} stale error(s)`);
             loadData(true);
         } catch { toast.error('Failed to clear stale'); }
@@ -420,7 +417,7 @@ export default function SystemHealthPage() {
     const batchResolve = async () => {
         const promises = errors.filter(e => selected.has(e._id) && !e.resolved).map(err => {
             const endpoint = err._source === 'backend' ? 'backend-errors' : 'frontend-events';
-            return api.patch(`${apiUrl}/${endpoint}/${err.id}/`, { resolved: true });
+            return api.patch(`/${endpoint}/${err.id}/`, { resolved: true });
         });
         await Promise.all(promises);
         toast.success(`${promises.length} error(s) resolved`);
@@ -431,7 +428,7 @@ export default function SystemHealthPage() {
     const batchDelete = async () => {
         const promises = errors.filter(e => selected.has(e._id)).map(err => {
             const endpoint = err._source === 'backend' ? 'backend-errors' : 'frontend-events';
-            return api.delete(`${apiUrl}/${endpoint}/${err.id}/`);
+            return api.delete(`/${endpoint}/${err.id}/`);
         });
         await Promise.all(promises);
         toast.success(`${promises.length} error(s) deleted`);

@@ -16,15 +16,14 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import api from '@/lib/api';
-import { getApiUrl } from '@/lib/config';
 import toast from 'react-hot-toast';
 import {
     RefreshCw, Loader2, AlertTriangle, CheckCircle, XCircle, Info, X,
 } from 'lucide-react';
 
 // ── Progress Bar Component ──────────────────────────────────────────
-function ProgressBar({ value, max, color = 'bg-emerald-500', showLabel = true }: {
-    value: number; max: number; color?: string; showLabel?: boolean;
+function ProgressBar({ value, max, showLabel = true }: {
+    value: number; max: number; showLabel?: boolean;
 }) {
     const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
     const barColor =
@@ -169,6 +168,22 @@ const ANIMATED_EDGE_STYLE = {
     strokeWidth: 2,
 };
 
+// ── Warning Badge (top-level to avoid remount on each parent re-render) ──
+function WarningBadge({ w }: { w: Warning }) {
+    const cfg: Record<string, { icon: any; color: string }> = {
+        error: { icon: <XCircle className="w-4 h-4" />, color: 'bg-red-50 text-red-700 border-red-200' },
+        warning: { icon: <AlertTriangle className="w-4 h-4" />, color: 'bg-amber-50 text-amber-700 border-amber-200' },
+        info: { icon: <Info className="w-4 h-4" />, color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    };
+    const c = cfg[w.level] || cfg.info;
+    return (
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium ${c.color}`}>
+            {c.icon}
+            {w.message}
+        </div>
+    );
+}
+
 // ── Main Component ─────────────────────────────────────────────────
 export default function SystemGraphPage() {
     const [graphData, setGraphData] = useState<{
@@ -178,7 +193,6 @@ export default function SystemGraphPage() {
     } | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-    const apiUrl = getApiUrl();
 
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -186,7 +200,7 @@ export default function SystemGraphPage() {
     const loadData = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const { data } = await api.get(`${apiUrl}/health/graph-data/`);
+            const { data } = await api.get('/health/graph-data/');
             setGraphData(data);
 
             // Build React Flow nodes
@@ -225,9 +239,9 @@ export default function SystemGraphPage() {
         } finally {
             setLoading(false);
         }
-    }, [apiUrl, selectedNode?.id]);
+    }, []);
 
-    useEffect(() => { loadData(); }, []);
+    useEffect(() => { loadData(); }, [loadData]);
 
     // Update node selection highlighting when selectedNode changes
     useEffect(() => {
@@ -242,21 +256,7 @@ export default function SystemGraphPage() {
         })));
     }, [selectedNode?.id]);
 
-    // ── Warning Badge ──────────────────────────────────────────────
-    const WarningBadge = ({ w }: { w: Warning }) => {
-        const cfg: Record<string, { icon: any; color: string }> = {
-            error: { icon: <XCircle className="w-4 h-4" />, color: 'bg-red-50 text-red-700 border-red-200' },
-            warning: { icon: <AlertTriangle className="w-4 h-4" />, color: 'bg-amber-50 text-amber-700 border-amber-200' },
-            info: { icon: <Info className="w-4 h-4" />, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-        };
-        const c = cfg[w.level] || cfg.info;
-        return (
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium ${c.color}`}>
-                {c.icon}
-                {w.message}
-            </div>
-        );
-    };
+
 
     // ── Render ──────────────────────────────────────────────────────
     if (loading) {
@@ -308,14 +308,14 @@ export default function SystemGraphPage() {
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">System Health</span>
                                 <span className={`text-lg font-black ${healthScore.pct >= 80 ? 'text-emerald-600' :
-                                        healthScore.pct >= 50 ? 'text-amber-600' : 'text-red-600'
+                                    healthScore.pct >= 50 ? 'text-amber-600' : 'text-red-600'
                                     }`}>{healthScore.pct}%</span>
                             </div>
                             <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
                                 <div
                                     className={`h-full rounded-full transition-all duration-700 ${healthScore.pct >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
-                                            healthScore.pct >= 50 ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
-                                                'bg-gradient-to-r from-red-400 to-red-600'
+                                        healthScore.pct >= 50 ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
+                                            'bg-gradient-to-r from-red-400 to-red-600'
                                         }`}
                                     style={{ width: `${healthScore.pct}%` }}
                                 />
