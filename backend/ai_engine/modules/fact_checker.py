@@ -136,7 +136,11 @@ def _extract_car_info_from_html(article_html: str) -> dict:
         m = re.match(r'(?:20\d{2}\s+)?(\S+)\s+(.+)', title_text, re.I)
 
     if m:
-        return {'make': m.group(1).strip(), 'model': m.group(2).strip()[:40]}
+        year_match = re.match(r'(20\d{2})', title_text.strip())
+        result = {'make': m.group(1).strip(), 'model': m.group(2).strip()[:40]}
+        if year_match:
+            result['year'] = year_match.group(1)
+        return result
     return {}
 
 
@@ -189,14 +193,16 @@ def _build_enriched_context(article_html: str, web_context: str) -> str:
     except Exception as e:
         logger.debug(f"Fact-checker DB lookup failed (non-fatal): {e}")
 
-    # Phase 2: Additional web search
+    # Phase 2: Additional web search — year-aware so we get 2026 specs, not 2023 rumors
     try:
         from ai_engine.modules.searcher import search_car_details
-        extra_context = search_car_details(make, model)
+        article_year = car_info.get('year')  # e.g. '2026'
+        extra_context = search_car_details(make, model, year=article_year)
         if extra_context and len(extra_context) > 100:
+            year_note = f" (year-filtered: {article_year})" if article_year else ""
             return (
                 web_context
-                + "\n\n--- ADDITIONAL WEB SEARCH RESULTS ---\n"
+                + f"\n\n--- ADDITIONAL WEB SEARCH RESULTS{year_note} ---\n"
                 + extra_context[:8000]
             )
     except Exception as e:
