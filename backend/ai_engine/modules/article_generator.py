@@ -233,6 +233,16 @@ def _clean_banned_phrases(html: str) -> str:
     # 4. Clean up empty paragraphs left behind
     html = re.sub(r'<p>\s*</p>', '', html)
 
+    # 4b. Remove orphan section headers — h2/h3 with no content before next header
+    # Happens when all <p> inside a section are stripped by banned-phrase filters
+    # e.g. <h2>Driving Experience</h2><h2>Pricing & Availability</h2> → remove the empty one
+    html = re.sub(
+        r'(<h[23][^>]*>[^<]+</h[23]>)\s*(?=<h[23])',
+        '',
+        html,
+        flags=re.IGNORECASE,
+    )
+
     # 5. Strip spec-table lines where value is 'Not specified in web context'
     #    Pattern: '▸ FIELD: Not specified in web context' (plain text lines inside <p> or bare)
     _not_specified_rx = re.compile(
