@@ -64,7 +64,7 @@ class CarSpecificationViewSet(viewsets.ModelViewSet):
             from news.spec_extractor import extract_specs_from_content, save_specs_for_article
             specs = extract_specs_from_content(article)
             if specs and specs.get('make') and specs['make'] != 'Not specified':
-                result = save_specs_for_article(article, specs)
+                result = save_specs_for_article(article, specs, force_update=True)
                 if result:
                     serializer = self.get_serializer(result)
                     return Response({

@@ -13,6 +13,16 @@ logger = logging.getLogger(__name__)
 
 MAX_FIELD_LENGTH = 50  # DB varchar(50) limit
 
+# Minimum plausible car prices per currency (to catch extraction errors)
+PRICE_SANITY = {
+    '$': 5_000,    # USD — even a beater is $5k+
+    '¥': 50_000,   # CNY — €/¥ Japanese yen would be 500k, but ¥ here = CNY usually
+    '€': 5_000,
+    '£': 5_000,
+    'CNY': 50_000,
+    'RMB': 50_000,
+}
+
 # Canonical make names mapping (lowercase -> correct case)
 MAKE_CANONICAL = {
     'xpeng': 'XPENG',
@@ -82,6 +92,38 @@ def normalize_hp(hp_str: str) -> str:
     return hp_str
 
 
+def normalize_price(price_str: str) -> str:
+    """Clean up price string and do a basic sanity check.
+    Returns empty string if price looks like an extraction error (too low).
+    """
+    if not price_str:
+        return ''
+    price_str = price_str.strip()
+
+    # Detect currency symbol / prefix
+    currency_key = None
+    numeric_part = price_str
+    for sym in ('CNY', 'RMB', '$', '¥', '€', '£'):
+        if price_str.upper().startswith(sym.upper()):
+            currency_key = sym
+            numeric_part = price_str[len(sym):].strip().replace(',', '')
+            break
+
+    if currency_key and currency_key in PRICE_SANITY:
+        try:
+            value = float(numeric_part.split()[0])  # handle trailing text
+            if value < PRICE_SANITY[currency_key]:
+                logger.warning(
+                    f'Price sanity FAIL — {price_str!r} is suspiciously low '
+                    f'(min {PRICE_SANITY[currency_key]:,} for {currency_key}). Discarding.'
+                )
+                return ''
+        except (ValueError, IndexError):
+            pass  # can't parse numeric part — keep as-is
+
+    return price_str
+
+
 def extract_specs_from_content(article) -> dict | None:
     """Extract car specs from article content.
     Tries AI (Gemini) first, falls back to regex extraction from title/content.
@@ -130,10 +172,15 @@ Torque: [With unit, e.g. "400 Nm"]
 Acceleration: [0-60 mph or 0-100 km/h time, e.g. "5.5 seconds (0-60 mph)"]
 Top Speed: [With unit, e.g. "155 mph" or "250 km/h"]
 Drivetrain: [AWD/FWD/RWD/4WD or "Not specified"]
-Price: [With currency symbol, e.g. "$45,000" or "¥169,800"]
+Price: [PRIMARY market launch price in its NATIVE currency with symbol.
+  - Chinese cars: use CNY price (¥168,000 or CNY 168,000), NOT the USD equivalent
+  - US/EU cars: use USD or EUR as appropriate
+  - Include the full price, e.g. "¥168,800" NOT just "¥19" or truncated values
+  - If ONLY a USD/EUR conversion is mentioned for a Chinese car, still write that (e.g. "$23,000")
+  - Write "Not specified" if NO price is in the article]
 
 IMPORTANT:
-1. Only include specs EXPLICITLY mentioned in the content. 
+1. Only include specs EXPLICITLY mentioned in the content.
 2. Write "Not specified" if a spec is not found in the text.
 3. NEVER guess, estimate, or use qualifiers like "(estimated)".
 4. If the article is clearly NOT about a specific car model, output Make: Not specified
@@ -202,12 +249,24 @@ def _extract_specs_regex(article) -> dict | None:
     if not specs.get('make'):
         return None
 
-    # Extract price from content: "$29,400" or "¥169,800"
-    price_match = re.search(r'(?:starting\s+(?:price|at|from)|price[:\s]+|priced\s+(?:at|from)|MSRP[:\s]+|costs?\s+)[\s]*(\$[\d,]+(?:\.\d+)?)', content, re.IGNORECASE)
+    # Extract price from content — supports ¥, $, €, £, CNY, RMB
+    # First try to find a contextual price ("starting at ...", "priced from ...")
+    price_match = re.search(
+        r'(?:starting\s+(?:price|at|from)|price[:\s]+|priced\s+(?:at|from)|MSRP[:\s]+|costs?\s+)'
+        r'[\s]*([¥$€£]\s*[\d,]+(?:\.\d+)?|(?:CNY|RMB|USD|EUR|GBP)\s+[\d,]+(?:\.\d+)?)',
+        content, re.IGNORECASE
+    )
     if not price_match:
-        price_match = re.search(r'(\$[\d,]+(?:\.\d+)?)', content)
+        # Broader: any price-like token in the content
+        price_match = re.search(
+            r'([¥$€£]\s*[\d]{2,3}(?:[,\d]+)(?:\.\d+)?|(?:CNY|RMB)\s+[\d,]+(?:\.\d+)?)',
+            content
+        )
     if price_match:
-        specs['price'] = price_match.group(1)
+        raw_price = price_match.group(1).replace(' ', '')
+        validated = normalize_price(raw_price)
+        if validated:
+            specs['price'] = validated
 
     # Extract horsepower from content
     hp_match = re.search(r'(\d+)\s*(?:hp|HP|horsepower|Horse\s*Power)', content)
@@ -258,15 +317,19 @@ def _parse_specs(text: str) -> dict:
         elif line.startswith('Drivetrain:') or line.startswith('Drive:'):
             specs['drivetrain'] = line.split(':', 1)[1].strip()
         elif line.startswith('Price:'):
-            specs['price'] = line.split(':', 1)[1].strip()
+            raw = line.split(':', 1)[1].strip()
+            validated = normalize_price(raw)
+            if validated and validated != 'Not specified':
+                specs['price'] = validated
     return specs
 
 
-def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
+def save_specs_for_article(article, specs: dict, force_update: bool = False) -> CarSpecification | None:
     """Create or update CarSpecification for an article from extracted specs dict.
     Applies normalization (canonical make names, clean HP).
-    MERGE logic: only overwrites a field if the new value is non-empty.
-    Preserves existing data when AI returns empty/missing values.
+    MERGE logic (force_update=False): only overwrites EMPTY fields (safe, auto-run mode).
+    FORCE mode (force_update=True): overwrites ALL non-empty spec fields from extraction
+      — used by the admin re_extract action to correct wrong data.
     Returns the CarSpecification instance, or None if specs are insufficient.
     """
     make = specs.get('make', '')
@@ -347,10 +410,16 @@ def save_specs_for_article(article, specs: dict) -> CarSpecification | None:
                         setattr(existing, field, new_value)
                         updated_fields.append(field)
                 else:
-                    # Spec fields: only fill if currently empty (donor logic)
-                    if new_value and not old_value:
-                        setattr(existing, field, new_value)
-                        updated_fields.append(field)
+                    if force_update:
+                        # FORCE mode: overwrite existing value with fresh extraction
+                        if new_value and new_value != old_value:
+                            setattr(existing, field, new_value)
+                            updated_fields.append(field)
+                    else:
+                        # Spec fields: only fill if currently empty (donor logic)
+                        if new_value and not old_value:
+                            setattr(existing, field, new_value)
+                            updated_fields.append(field)
 
             if updated_fields:
                 existing.save(update_fields=updated_fields)
