@@ -72,7 +72,7 @@ def test_sync_data_no_credentials():
 # NEW: Empty response handling
 # ═══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_sync_data_empty_rows(gsc_service):
     """If API returns empty rows, sync still returns True without errors."""
     service, mock_gsc_client = gsc_service
