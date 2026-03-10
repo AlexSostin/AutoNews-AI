@@ -76,10 +76,11 @@ class GeminiProvider(AIProvider):
         if not GENAI_AVAILABLE or not gemini_client:
             raise Exception("google-genai library not available or client not initialised")
         
-        # Model priority: 2.5-flash-lite (fast+cheap) > 2.5-flash > 2.0-flash fallback
+        # Model priority: 2.5-pro-exp (free, best quality) > 2.5-flash > 2.5-flash-lite > 2.0-flash fallback
         model_names_to_try = [
-            'gemini-2.5-flash-lite',
+            'gemini-2.5-pro-exp-03-25',
             'gemini-2.5-flash',
+            'gemini-2.5-flash-lite',
             'gemini-2.0-flash',
         ]
         
