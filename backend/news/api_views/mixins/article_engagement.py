@@ -372,13 +372,17 @@ class ArticleEngagementMixin:
         from news.models import ArticleTitleVariant
         from django.core.cache import cache
 
-        cache_key = 'ab_stats_bulk_v1'
+        cache_key = 'ab_stats_bulk_v2'
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
 
         # Single optimized query — all variants with their articles
-        variants = ArticleTitleVariant.objects.select_related('article').order_by(
+        # Filter out deleted/unpublished articles to prevent ghost entries
+        variants = ArticleTitleVariant.objects.select_related('article').filter(
+            article__is_deleted=False,
+            article__is_published=True,
+        ).order_by(
             'article__id', 'variant'
         )
 
@@ -435,7 +439,7 @@ class ArticleEngagementMixin:
         article.title = winner.title
         article.save(update_fields=['title'])
         # Bust bulk cache so frontend re-fetch sees updated is_winner immediately
-        cache.delete('ab_stats_bulk_v1')
+        cache.delete('ab_stats_bulk_v2')
         return Response({'success': True, 'new_title': winner.title, 'variant': winner.variant, 'ctr': winner.ctr})
 
     @action(detail=True, methods=['get'], url_path='ab-image', permission_classes=[AllowAny])
