@@ -295,8 +295,8 @@ def _reduce_repetition(html: str) -> str:
         for spec in specs_in_block:
             spec_counts[spec.strip().lower()] += 1
 
-    # Find specs that appear in 5+ different body blocks (raised from 4 to reduce false positives)
-    overused = {spec for spec, count in spec_counts.items() if count >= 5}
+    # Find specs that appear in 3+ different body blocks (lowered from 5 to catch more repetition)
+    overused = {spec for spec, count in spec_counts.items() if count >= 3}
     if not overused:
         return html
 
@@ -499,6 +499,244 @@ def _detect_missing_sections(html: str, word_count: int, has_competitors: bool =
         'needs_retry': bool(retry_parts),
         'retry_prompt': retry_prompt,
     }
+
+
+# ── Price format validator ─────────────────────────────────────────────
+def _validate_prices(html: str) -> str:
+    """Fix broken price formatting that LLMs sometimes produce."""
+    original = html
+
+    # 1. Fix doubled approximate conversions:
+    #    "CNY 359,800 (approx. $5,000)0 (approximately $49,800 USD)"
+    #    → "CNY 359,800 (approximately $49,800)"
+    html = re.sub(
+        r'\(approx\.?\s*\$[\d,]+\)\d*\s*\(approximately\s*(\$[\d,]+(?:\s*USD)?)\)',
+        r'(approximately \1)',
+        html, flags=re.IGNORECASE,
+    )
+    # Catch the reverse order too
+    html = re.sub(
+        r'\(approximately\s*\$[\d,]+(?:\s*USD)?\)\s*\(approx\.?\s*(\$[\d,]+)\)',
+        r'(approximately \1)',
+        html, flags=re.IGNORECASE,
+    )
+
+    # 2. Fix CNY prices with too few digits (broken comma placement):
+    #    "CNY 359,80" → "CNY 359,800"  (probable dropped trailing zero)
+    #    Only triggers for values that look like broken thousands (X,XX pattern)
+    def _fix_cny_comma(m):
+        prefix = m.group(1)  # "CNY " or "RMB "
+        before_comma = m.group(2)
+        after_comma = m.group(3)
+        # If after-comma part is exactly 2 digits and before-comma is 1-3 digits,
+        # it's likely a dropped trailing zero (359,80 → 359,800)
+        if len(after_comma) == 2 and 1 <= len(before_comma) <= 3:
+            fixed = f"{prefix}{before_comma},{after_comma}0"
+            print(f"  💰 Price fix: {m.group(0)} → {fixed}")
+            return fixed
+        return m.group(0)
+
+    html = re.sub(
+        r'(CNY\s+|RMB\s+)(\d{1,3}),(\d{2})\b(?!\d)',
+        _fix_cny_comma, html,
+    )
+
+    # 3. Fix stray digits after closing parenthesis in price conversions:
+    #    "(approx. $49,800)0" → "(approx. $49,800)"
+    html = re.sub(
+        r'(\(approx(?:imately)?\.?\s*\$[\d,]+(?:\s*USD)?\))(\d{1,2})(?=\s|[.,;)]|$)',
+        r'\1', html,
+    )
+
+    # 4. Remove duplicate USD annotations on the same price:
+    #    "CNY 359,800 (approximately $49,800) (approx. $49,800)"
+    html = re.sub(
+        r'(\(approx(?:imately)?\.?\s*\$[\d,]+(?:\s*USD)?\))\s*\(approx(?:imately)?\.?\s*\$[\d,]+(?:\s*USD)?\)',
+        r'\1', html, flags=re.IGNORECASE,
+    )
+
+    if html != original:
+        print(f"  💰 Price validator: fixed formatting issues")
+
+    return html
+
+
+# ── Duplicate paragraph detector ───────────────────────────────────────
+def _detect_duplicate_paragraphs(html: str) -> str:
+    """Remove near-duplicate paragraphs (>70% text similarity)."""
+    from difflib import SequenceMatcher
+
+    # Extract all <p> blocks with their positions
+    para_pattern = re.compile(r'<p>.*?</p>', re.DOTALL)
+    matches = list(para_pattern.finditer(html))
+
+    if len(matches) < 3:
+        return html  # Not enough paragraphs to compare
+
+    # Convert to plain text for comparison
+    def _plain(html_block):
+        return re.sub(r'<[^>]+>', ' ', html_block).strip().lower()
+
+    texts = [_plain(m.group()) for m in matches]
+
+    # Find duplicate pairs (compare each para with all later ones)
+    to_remove = set()
+    for i in range(len(texts)):
+        if i in to_remove:
+            continue
+        if len(texts[i]) < 80:  # Skip very short paragraphs
+            continue
+        for j in range(i + 1, len(texts)):
+            if j in to_remove:
+                continue
+            if len(texts[j]) < 80:
+                continue
+            ratio = SequenceMatcher(None, texts[i], texts[j]).ratio()
+            if ratio > 0.70:
+                # Remove the later (duplicate) paragraph
+                to_remove.add(j)
+                print(f"  🔁 Duplicate para detected: {ratio:.0%} similar, removing para #{j+1}")
+
+    if not to_remove:
+        return html
+
+    # Remove duplicates from end to start (to preserve indices)
+    for idx in sorted(to_remove, reverse=True):
+        m = matches[idx]
+        html = html[:m.start()] + html[m.end():]
+
+    # Clean up leftover whitespace
+    html = re.sub(r'\n\s*\n\s*\n', '\n\n', html)
+    print(f"  🔁 Duplicate detector: removed {len(to_remove)} duplicate paragraph(s)")
+
+    return html
+
+
+# ── Self-consistency checker ───────────────────────────────────────────
+def _check_self_consistency(html: str) -> str:
+    """
+    Detect and fix contradictory numeric specs within the same article.
+    Example: "63.3 kWh" in one place and "63 kWh" in another → keep 63.3 kWh.
+    """
+    import collections
+
+    # Extract all numeric claims with units (skip inside headings)
+    body_text = re.sub(r'<h[1-6][^>]*>.*?</h[1-6]>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    spec_re = re.compile(
+        r'(\d[\d,.]*)\s*(kWh|km|hp|HP|kW|Nm|mm|kg|mph|liters?|litres?|seconds?)\b',
+        re.IGNORECASE
+    )
+
+    # Group by unit type
+    unit_groups = collections.defaultdict(list)
+    for value_str, unit in spec_re.findall(body_text):
+        # Normalize unit
+        unit_lower = unit.lower().rstrip('s')
+        if unit_lower in ('liter', 'litre'):
+            unit_lower = 'liter'
+        if unit_lower == 'second':
+            unit_lower = 'second'
+        try:
+            value = float(value_str.replace(',', ''))
+        except ValueError:
+            continue
+        unit_groups[unit_lower].append((value, value_str))
+
+    # For each unit, check for near-duplicates (within ±3%)
+    fixes = {}
+    for unit, values in unit_groups.items():
+        if len(values) < 2:
+            continue
+        unique_values = list(set(v[0] for v in values))
+        if len(unique_values) < 2:
+            continue
+
+        # Check each pair of unique values
+        for i in range(len(unique_values)):
+            for j in range(i + 1, len(unique_values)):
+                v1, v2 = unique_values[i], unique_values[j]
+                if v1 == 0 or v2 == 0:
+                    continue
+                diff_pct = abs(v1 - v2) / max(v1, v2) * 100
+                if diff_pct <= 3:  # Within 3% — likely a rounding inconsistency
+                    # Keep the more precise value (more decimal places)
+                    str1 = next(s for v, s in values if v == v1)
+                    str2 = next(s for v, s in values if v == v2)
+                    # More decimal places = more precise
+                    prec1 = len(str1.split('.')[-1]) if '.' in str1 else 0
+                    prec2 = len(str2.split('.')[-1]) if '.' in str2 else 0
+                    if prec1 >= prec2:
+                        keep, replace = str1, str2
+                    else:
+                        keep, replace = str2, str1
+
+                    if keep != replace:
+                        fixes[replace] = (keep, unit)
+
+    if not fixes:
+        return html
+
+    for old_val, (new_val, unit) in fixes.items():
+        # Only replace the bare number followed by the unit, not inside larger numbers
+        pattern = re.compile(
+            r'\b' + re.escape(old_val) + r'(\s*' + unit + r')',
+            re.IGNORECASE
+        )
+        new_html = pattern.sub(new_val + r'\1', html)
+        if new_html != html:
+            print(f"  🔧 Consistency fix: {old_val} {unit} → {new_val} {unit}")
+            html = new_html
+
+    return html
+
+
+# ── Source typo propagation guard ──────────────────────────────────────
+
+# Common AI-propagated automotive typos: (wrong → correct)
+_COMMON_TYPOS = [
+    # "staring price" → "starting price" (very common in AI output)
+    (re.compile(r'\bstaring\s+price\b', re.IGNORECASE), 'starting price'),
+    (re.compile(r'\bstaring\s+at\b', re.IGNORECASE), 'starting at'),
+    (re.compile(r'\bstaring\s+from\b', re.IGNORECASE), 'starting from'),
+    (re.compile(r'\bstaring\s+EREV\b'), 'starting EREV'),
+    (re.compile(r'\bstaring\s+model\b', re.IGNORECASE), 'starting model'),
+    # Model-name "staring" used as trim name (e.g., "X9 staring") — flag in title too
+    (re.compile(r'(\b[A-Z][A-Za-z0-9]+)\s+staring\b'), r'\1 Starting'),
+    # Other common AI typos
+    (re.compile(r'\bbraking\s+news\b', re.IGNORECASE), 'breaking news'),
+    (re.compile(r'\bluxary\b', re.IGNORECASE), 'luxury'),
+    (re.compile(r'\bvehcile\b', re.IGNORECASE), 'vehicle'),
+    (re.compile(r'\bsedan\s+sedan\b', re.IGNORECASE), 'sedan'),
+    (re.compile(r'\bSUV\s+SUV\b'), 'SUV'),
+    (re.compile(r'\belectirc\b', re.IGNORECASE), 'electric'),
+    (re.compile(r'\bkilowat\b', re.IGNORECASE), 'kilowatt'),
+    (re.compile(r'\baccelration\b', re.IGNORECASE), 'acceleration'),
+    (re.compile(r'\bpowertarin\b', re.IGNORECASE), 'powertrain'),
+    (re.compile(r'\binfotainement\b', re.IGNORECASE), 'infotainment'),
+    (re.compile(r'\bautonomus\b', re.IGNORECASE), 'autonomous'),
+    (re.compile(r'\bwheelbaes\b', re.IGNORECASE), 'wheelbase'),
+    (re.compile(r'\bchasis\b', re.IGNORECASE), 'chassis'),
+    (re.compile(r'\bmanuever\b', re.IGNORECASE), 'maneuver'),
+    (re.compile(r'\baerodynaminc\b', re.IGNORECASE), 'aerodynamic'),
+]
+
+
+def _clean_source_typos(html: str) -> str:
+    """Fix common typos that AI copies from source data and repeats throughout."""
+    original = html
+    fixed_count = 0
+
+    for pattern, replacement in _COMMON_TYPOS:
+        new_html = pattern.sub(replacement, html)
+        if new_html != html:
+            count = len(pattern.findall(html))
+            fixed_count += count
+            html = new_html
+
+    if fixed_count > 0:
+        print(f"  🔤 Typo guard: fixed {fixed_count} propagated typo(s)")
+
+    return html
 
 
 def enhance_existing_article(existing_html: str, specs: dict = None, provider='gemini'):
@@ -1043,11 +1281,15 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
             
         print(f"✓ Article generated successfully with {provider_display}! Length: {len(article_content)} characters, {word_count} words")
         
-        # Post-processing: ensure it's HTML, not Markdown
-        article_content = ensure_html_only(article_content)
-        article_content = _clean_banned_phrases(article_content)
-        article_content = _reduce_repetition(article_content)
-        article_content = _shorten_car_names(article_content)
+        # Post-processing pipeline (order matters)
+        article_content = ensure_html_only(article_content)         # MD → HTML
+        article_content = _clean_banned_phrases(article_content)     # Filler removal
+        article_content = _validate_prices(article_content)          # Price format fix
+        article_content = _clean_source_typos(article_content)       # Source typo guard
+        article_content = _check_self_consistency(article_content)   # Internal contradiction fix
+        article_content = _detect_duplicate_paragraphs(article_content)  # Duplicate para removal
+        article_content = _reduce_repetition(article_content)        # Spec over-repetition
+        article_content = _shorten_car_names(article_content)        # Name shortening
         
         # Проверка качества статьи
         quality = validate_article_quality(article_content)
