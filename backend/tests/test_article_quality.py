@@ -46,7 +46,8 @@ class TestValidatePrices:
         html = '<p>Starting at CNY 359,80 for the base model.</p>'
         result = _validate_prices(html)
         assert 'CNY 359,800' in result
-        assert 'CNY 359,80 ' not in result
+        # Word boundary — trailing space was a false safety net (misses "359,80." "359,80)")
+        assert not re.search(r'CNY 359,80\b', result)
 
     def test_leaves_valid_cny_alone(self):
         """CNY 359,800 should NOT be modified."""
@@ -129,9 +130,9 @@ class TestCheckSelfConsistency:
             '<p>With its 63 kWh battery, range reaches 450 km.</p>'
         )
         result = _check_self_consistency(html)
-        assert '63 kWh' not in result or '63.3 kWh' in result
-        # Check that 63.3 appears and bare 63 does not (followed by kWh)
-        assert result.count('63.3 kWh') >= 1
+        # Bare "63 kWh" must be gone; precise "63.3 kWh" must be present everywhere
+        assert not re.search(r'\b63 kWh\b', result), "Rounded value was not replaced"
+        assert result.count('63.3 kWh') >= 2, "Both occurrences should now say 63.3 kWh"
 
     def test_accepts_different_specs(self):
         """63.3 kWh battery and 60 liters fuel → no conflict (different units)."""
@@ -160,9 +161,11 @@ class TestCheckSelfConsistency:
             '<p>The 63 kWh pack delivers solid range.</p>'
         )
         result = _check_self_consistency(html)
-        # Only one body mention of kWh, so no fix should be applied
-        # (heading is excluded from counting)
-        assert '<h2>' in result  # heading preserved
+        # Heading must be preserved unchanged
+        assert '<h2>63.3 kWh Battery and 450 km Range</h2>' in result
+        # With only one body occurrence of kWh, no consistency fix should apply
+        # so the body text stays as-is ("63 kWh" not changed since nothing to compare to)
+        assert '63 kWh' in result, "Single body occurrence should not be altered"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -188,7 +191,10 @@ class TestCleanSourceTypos:
         """'X9 staring' (trim name) → 'X9 Starting'."""
         html = '<p>The XPeng X9 staring EREV comes with a 63.3 kWh battery.</p>'
         result = _clean_source_typos(html)
-        assert 'X9 Starting' in result or 'starting EREV' in result
+        # Function converts "X9 staring EREV" → "X9 starting EREV" (lowercase s)
+        # or "X9 Starting" (capital S) via the trim-name regex — either is correct
+        assert 'staring' not in result, f"'staring' was not corrected; got: {result}"
+        assert 'starting' in result.lower(), "Expected 'starting' to appear after correction"
 
     def test_fixes_luxary(self):
         """'luxary' → 'luxury'."""
@@ -242,3 +248,46 @@ class TestReduceRepetitionThreshold:
         )
         result = _reduce_repetition(html)
         assert result.count('450 km') == 2  # Both kept
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 6. Edge Cases — empty/None/no-tags/Unicode
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestEdgeCases:
+
+    def test_validate_prices_empty_string(self):
+        """Empty string should not crash and return empty string."""
+        assert _validate_prices('') == ''
+
+    def test_clean_source_typos_empty_string(self):
+        """Empty string should not crash."""
+        assert _clean_source_typos('') == ''
+
+    def test_check_self_consistency_empty_string(self):
+        """Empty string should not crash."""
+        assert _check_self_consistency('') == ''
+
+    def test_detect_duplicate_paragraphs_no_p_tags(self):
+        """HTML without <p> tags (e.g. only headings) returns unchanged."""
+        html = '<h2>Performance</h2><h2>Design</h2>'
+        assert _detect_duplicate_paragraphs(html) == html
+
+    def test_detect_duplicate_paragraphs_single_para(self):
+        """A single paragraph — nothing to compare, should pass through."""
+        html = '<p>The BYD Seal is an impressive electric sedan.</p>'
+        assert _detect_duplicate_paragraphs(html) == html
+
+    def test_validate_prices_unicode_content(self):
+        """Unicode text (Chinese/Arabic) alongside prices should not corrupt content."""
+        html = '<p>价格从 CNY 359,800 (approximately $49,800) 开始。</p>'
+        result = _validate_prices(html)
+        assert '开始' in result  # Chinese chars preserved
+        assert 'CNY 359,800' in result
+
+    def test_clean_source_typos_correct_text_unicode(self):
+        """Hebrew/Arabic text should pass through the typo guard cleanly."""
+        html = '<p>السيارة الكهربائية ممتازة — starting price is $49,800.</p>'
+        result = _clean_source_typos(html)
+        assert 'starting price' in result
+        assert 'السيارة' in result  # Arabic chars preserved

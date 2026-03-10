@@ -1,5 +1,6 @@
 import logging
 import json
+import html as html_lib
 import os
 import re
 
@@ -76,16 +77,19 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
         clean_json = response.strip()
         if clean_json.startswith("```json"):
             clean_json = clean_json[7:]
+        elif clean_json.startswith("```"):   # bare fence without language tag
+            clean_json = clean_json[3:]
         if clean_json.endswith("```"):
             clean_json = clean_json[:-3]
             
         result = json.loads(clean_json.strip())
         
         if result.get('hallucinations_found') and result.get('issues'):
-            print(f"⚠️ Fact-check detected issues: {result['issues']}")
+            logger.warning(f"Fact-check detected issues: {result['issues']}")
             
             # Formulate the warning HTML
-            issues_list = "".join(f"<li>{issue}</li>" for issue in result['issues'])
+            # html_lib.escape prevents XSS from LLM-returned issue text
+            issues_list = "".join(f"<li>{html_lib.escape(issue)}</li>" for issue in result['issues'])
             # Store issues as JSON in data attribute so the editor can use them for auto-resolve
             issues_json = json.dumps(result['issues']).replace('"', '&quot;')
             warning_html = f"""
@@ -103,8 +107,7 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
         return article_html
         
     except Exception as e:
-        logger.error(f"Fact-checking failed: {e}")
-        print(f"⚠️ Fact-checking failed: {e}. Skipping validation.")
+        logger.error(f"Fact-checking failed: {e}. Skipping validation.")
         return article_html
 
 
@@ -326,11 +329,25 @@ Return ONLY valid JSON. No markdown fences, no extra text.
                 f"Auto-resolve stripped too much content: {original_text_len} → {fixed_text_len} chars. "
                 f"Falling back to original with caveats only."
             )
-            # Fall back: just remove the warning block from original
-            fallback_html = re.sub(
-                r'<div\s+class="ai-editor-note[^"]*"[^>]*>.*?</div>',
-                '', article_html, flags=re.DOTALL
-            )
+            # Remove the warning block: count nested <div> tags to avoid stopping at first </div>
+            fallback_html = article_html
+            block_start = re.search(r'<div\s+class="ai-editor-note[^"]*"', article_html)
+            if block_start:
+                pos = block_start.start()
+                depth = 0
+                i = pos
+                while i < len(fallback_html):
+                    if fallback_html[i:i+4] == '<div':
+                        depth += 1
+                        i += 4
+                    elif fallback_html[i:i+6] == '</div>':
+                        depth -= 1
+                        i += 6
+                        if depth == 0:
+                            fallback_html = fallback_html[:pos] + fallback_html[i:]
+                            break
+                    else:
+                        i += 1
             return {
                 'content': fallback_html,
                 'replaced': [],
