@@ -38,7 +38,14 @@ function extractAndLabelHeadings(html: string): { html: string; headings: TocHea
     const headings: TocHeading[] = [];
     const seenIds = new Map<string, number>();
     const patched = html.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, (_match, inner) => {
-        const text = inner.replace(/<[^>]+>/g, '').trim();
+        const raw = inner.replace(/<[^>]+>/g, '').trim();
+        const text = raw
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&nbsp;/g, ' ');
         const base = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section';
         const count = seenIds.get(base) ?? 0;
         seenIds.set(base, count + 1);
