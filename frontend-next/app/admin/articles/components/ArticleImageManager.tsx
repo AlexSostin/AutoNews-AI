@@ -2,22 +2,39 @@ import React from 'react';
 import { Loader2, Search, Wand2, Maximize2, Video } from 'lucide-react';
 
 interface ArticleFormData {
-    current_image?: string;
-    current_image_2?: string;
-    current_image_3?: string;
-    image?: File | null;
-    image_2?: File | null;
-    image_3?: File | null;
-    delete_image?: boolean;
-    delete_image_2?: boolean;
-    delete_image_3?: boolean;
-    youtube_url?: string;
-    [key: string]: unknown;
+    // Core fields (required — mirrors parent formData shape)
+    title: string;
+    slug: string;
+    summary: string;
+    content: string;
+    category_ids: number[];
+    tags: number[];
+    published: boolean;
+    is_hero: boolean;
+    is_news_only: boolean;
+    youtube_url: string;
+    author_name: string;
+    author_channel_url: string;
+    show_source: boolean;
+    show_youtube: boolean;
+    show_price: boolean;
+    // Image fields
+    current_image: string;
+    current_image_2: string;
+    current_image_3: string;
+    image: File | null;
+    image_2: File | null;
+    image_3: File | null;
+    delete_image: boolean;
+    delete_image_2: boolean;
+    delete_image_3: boolean;
 }
 
 interface ArticleImageManagerProps {
     formData: ArticleFormData;
-    setFormData: (data: ArticleFormData) => void;
+    // Use React.Dispatch so both setFormData and functional-updater callers compile.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setFormData: React.Dispatch<React.SetStateAction<any>>;
     imageSource: string;
     setImageSource: (source: string) => void;
     setPreviewImage: (url: string | null) => void;

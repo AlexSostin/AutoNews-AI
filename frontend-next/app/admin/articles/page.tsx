@@ -174,7 +174,7 @@ export default function ArticlesPage() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error: unknown) {
       console.error('Failed to delete article:', error);
-      const apiErr = error as { response?: { status?: number; data?: { detail?: string; error?: string } } };
+      const apiErr = error as { response?: { status?: number; data?: { detail?: string; error?: string } }; message?: string };
       const status = apiErr.response?.status;
       const detail = apiErr.response?.data?.detail || apiErr.response?.data?.error || '';
       if (status === 403) {
@@ -183,7 +183,7 @@ export default function ArticlesPage() {
         alert('Article not found — it may have been deleted already.');
         setArticles(prev => prev.filter(a => a.id !== id));
       } else {
-        alert(`Failed to delete article (${status || 'network error'})\n\n${detail || error.message}`);
+        alert(`Failed to delete article (${status || 'network error'})\n\n${detail || apiErr.message || ''}`);
       }
     } finally {
       setDeletingId(null);
