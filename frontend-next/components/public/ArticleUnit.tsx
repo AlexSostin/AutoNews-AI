@@ -20,9 +20,10 @@ import PriceConverter from '@/components/public/PriceConverter';
 import ArticleFeedbackCapsules from '@/components/public/ArticleFeedbackCapsules';
 import CommentSection from '@/components/public/CommentSection';
 import FeedbackButton from '@/components/public/FeedbackButton';
-import { Calendar, User, Rss, ExternalLink, Youtube, Tag } from 'lucide-react';
+import { Calendar, User, Rss, ExternalLink, Youtube, Tag, Clock } from 'lucide-react';
 import AuthorCard from '@/components/public/AuthorCard';
 import JsonLd from '@/components/public/JsonLd';
+import TableOfContents, { TocHeading } from '@/components/public/TableOfContents';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -30,6 +31,28 @@ function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric',
     });
+}
+
+/** Inject anchors IDs into H2 tags and extract headings for the ToC. */
+function extractAndLabelHeadings(html: string): { html: string; headings: TocHeading[] } {
+    const headings: TocHeading[] = [];
+    const seenIds = new Map<string, number>();
+    const patched = html.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, (_match, inner) => {
+        const text = inner.replace(/<[^>]+>/g, '').trim();
+        const base = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section';
+        const count = seenIds.get(base) ?? 0;
+        seenIds.set(base, count + 1);
+        const id = count === 0 ? base : `${base}-${count}`;
+        headings.push({ id, text });
+        return `<h2 id="${id}">${inner}</h2>`;
+    });
+    return { html: patched, headings };
+}
+
+/** Estimate reading time from HTML content (200 wpm). */
+function calcReadingTime(html: string): number {
+    const words = html.replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.ceil(words / 200));
 }
 
 function fixUrl(url: string | null | undefined): string {
@@ -84,6 +107,12 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
         .replace(/<div[^>]*class="video-container"[^>]*>[\s\S]*?<\/div>/g, '')
         .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/g, '')
         .replace(/<div[^>]*class="entity-mismatch-warning"[^>]*>[\s\S]*?<\/div>/g, '');
+
+    // Inject IDs into H2 headings so ToC links work
+    const { html: labelledContent, headings } = extractAndLabelHeadings(articleContentHtml);
+
+    // Reading time: prefer backend value, fall back to calc from content
+    const readingTime: number = article.reading_time ?? calcReadingTime(labelledContent);
 
     const hasYoutubeVideo = Boolean(article.youtube_url) && article.show_youtube !== false;
     const youtubeVideoId = article.youtube_url
@@ -206,6 +235,10 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
             <div ref={headlineRef} className="mt-6 mb-4">
                 <div className="flex flex-wrap gap-4 text-xs sm:text-sm text-gray-600 items-center mb-4">
                     <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-indigo-600" />
+                        <span>{readingTime} min read</span>
+                    </div>
+                    <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-indigo-600" />
                         <span>{formatDate(article.created_at)}</span>
                     </div>
@@ -251,13 +284,16 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
 
             </div>
 
+            {/* Table of contents — parsed from H2 headings */}
+            <TableOfContents headings={headings} />
+
             {/* Content */}
             <div className="space-y-6 mt-6">
                 <AdBanner position="header" />
 
                 <div className="bg-white rounded-xl shadow-md p-6 sm:p-8">
                     <ArticleContentWithImages
-                        content={articleContentHtml}
+                        content={labelledContent}
                         images={articleImages}
                         imageSource={article.image_source}
                         authorName={article.author_name}

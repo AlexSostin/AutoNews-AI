@@ -12,7 +12,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ArticleUnit from '@/components/public/ArticleUnit';
-import ReadingProgressBar from '@/components/public/ReadingProgressBar';
 import ABImpressionTracker from '@/components/public/ABImpressionTracker';
 import JsonLd from '@/components/public/JsonLd';
 
@@ -154,7 +153,6 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
                 variantId={initialArticle.ab_variant_id}
                 imageVariantId={initialArticle.ab_image_variant_id}
             />
-            <ReadingProgressBar />
 
             <main className="flex-1 bg-gray-50">
                 <div className="container mx-auto px-4 py-8">
