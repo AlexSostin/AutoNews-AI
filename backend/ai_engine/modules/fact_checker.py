@@ -289,6 +289,21 @@ If no correct value exists in context, use Tier 2 instead.
     ]
 }}
 
+### Rule 5: Currency Conversion — always do the math explicitly
+The exchange rate to use: **1 USD ≈ 7.1 CNY/RMB** (use this fixed rate for consistency).
+Formula: USD = CNY_amount ÷ 7.1. Always show BOTH currencies:
+  - Correct:  "¥400,000 CNY (approx. $56,300 USD)"
+  - Wrong:    "CNY 400,000 (approx. $6,000)"  ← missing a zero, caused by skipping the division
+If you see a USD equivalent that is obviously 10x too small vs the CNY amount, it is a math error — recalculate.
+
+### Rule 6: Power unit consistency — NEVER mix kW and hp in the same article
+- 1 kW = 1.341 hp  |  1 hp = 0.7457 kW
+- If the article uses hp everywhere, keep hp everywhere (convert kW from context → hp).
+- If the article uses kW everywhere, keep kW everywhere.
+- In comparison tables or "How It Compares" sections, use the SAME unit for both cars.
+  - Wrong: "500 kW vs. 200 hp" ← incomparable units
+  - Correct: "671 hp vs. 268 hp" OR "500 kW vs. 149 kW"
+
 Return ONLY valid JSON. No markdown fences, no extra text.
 """
 
