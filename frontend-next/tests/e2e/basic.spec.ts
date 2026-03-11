@@ -6,12 +6,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Homepage', () => {
   test('should load homepage with title', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveTitle(/Fresh Motors/i);
   });
 
   test('should have navigation header', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('header')).toBeVisible();
   });
 
@@ -22,7 +22,7 @@ test.describe('Homepage', () => {
   });
 
   test('should have footer', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('footer')).toBeVisible();
   });
 });
@@ -81,7 +81,7 @@ test.describe('Article Detail', () => {
 
 test.describe('Categories', () => {
   test('should load categories page', async ({ page }) => {
-    const response = await page.goto('/categories/reviews');
+    const response = await page.goto('/categories/reviews', { waitUntil: 'domcontentloaded' });
     if (response) {
       expect(response.status()).toBeLessThan(500);
     }
@@ -94,23 +94,23 @@ test.describe('Categories', () => {
 
 test.describe('Static Pages', () => {
   test('about page loads', async ({ page }) => {
-    const response = await page.goto('/about');
+    const response = await page.goto('/about', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBeLessThan(500);
     await expect(page.locator('h1, h2').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('privacy policy page loads', async ({ page }) => {
-    const response = await page.goto('/privacy-policy');
+    const response = await page.goto('/privacy-policy', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBeLessThan(500);
   });
 
   test('contact page loads', async ({ page }) => {
-    const response = await page.goto('/contact');
+    const response = await page.goto('/contact', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBeLessThan(500);
   });
 
   test('trending page loads', async ({ page }) => {
-    const response = await page.goto('/trending');
+    const response = await page.goto('/trending', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBeLessThan(500);
   });
 });
@@ -121,7 +121,7 @@ test.describe('Static Pages', () => {
 
 test.describe('SEO', () => {
   test('homepage has meta description', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const metaDesc = page.locator('meta[name="description"]');
     const content = await metaDesc.getAttribute('content');
     expect(content).toBeTruthy();
@@ -129,7 +129,7 @@ test.describe('SEO', () => {
   });
 
   test('homepage has og:title', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const ogTitle = page.locator('meta[property="og:title"]');
     const content = await ogTitle.getAttribute('content');
     expect(content).toBeTruthy();
@@ -147,7 +147,7 @@ test.describe('SEO', () => {
 
 test.describe('Authentication', () => {
   test('should show login page', async ({ page }) => {
-    const response = await page.goto('/login');
+    const response = await page.goto('/login', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBeLessThan(500);
   });
 });
@@ -173,7 +173,7 @@ test.describe('Mobile Responsive', () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
   test('should be responsive on mobile', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('header')).toBeVisible();
     const body = page.locator('body');
     const bodyBox = await body.boundingBox();
