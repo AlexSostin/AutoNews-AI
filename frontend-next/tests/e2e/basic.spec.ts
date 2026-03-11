@@ -16,8 +16,7 @@ test.describe('Homepage', () => {
   });
 
   test('should show article cards', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const articles = page.locator('article, [data-testid="article-card"], a[href*="/articles/"]');
     await expect(articles.first()).toBeVisible({ timeout: 10000 });
   });
@@ -34,16 +33,14 @@ test.describe('Homepage', () => {
 
 test.describe('Articles Page', () => {
   test('should load articles listing', async ({ page }) => {
-    await page.goto('/articles');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     // The h1 shows the article count e.g. "5 Articles", and there's a badge with "📰 All Articles"
     const heading = page.getByRole('heading', { name: /Articles/i });
     await expect(heading.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should have working article links', async ({ page }) => {
-    await page.goto('/articles');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     const articleLink = page.locator('a[href*="/articles/"]').first();
     if (await articleLink.isVisible()) {
       const href = await articleLink.getAttribute('href');
@@ -58,8 +55,7 @@ test.describe('Articles Page', () => {
 
 test.describe('Article Detail', () => {
   test('should load an article page', async ({ page }) => {
-    await page.goto('/articles');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/articles', { waitUntil: 'domcontentloaded' });
 
     // Dismiss cookie/consent overlay if present (z-index 9999)
     await page.evaluate(() => {
