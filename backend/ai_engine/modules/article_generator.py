@@ -263,11 +263,19 @@ def _clean_banned_phrases(html: str) -> str:
     #    a) RMB → CNY
     html = re.sub(r'\bRMB\b', 'CNY', html)
     #    b) If CNY price present but no USD approximation, add one
+    # Get live CNY/USD rate from currency_service, fallback to approximate
+    try:
+        from ai_engine.modules.currency_service import get_cached_rates
+        cached = get_cached_rates()
+        cny_rate = cached['rates'].get('CNY', 7.25) if cached and cached.get('rates') else 7.25
+    except Exception:
+        cny_rate = 7.25
+
     def _inject_usd(m):
         amount_str = m.group(1).replace(',', '')
         try:
             cny = float(amount_str)
-            usd = round(cny / 7.25 / 1000) * 1000  # rough 1 USD ≈ 7.25 CNY
+            usd = round(cny / cny_rate / 1000) * 1000
             usd_str = f'${usd:,.0f}'
             return f"{m.group(0)} (approx. {usd_str})"
         except ValueError:
