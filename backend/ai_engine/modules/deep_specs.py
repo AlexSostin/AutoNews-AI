@@ -16,6 +16,15 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ai_engine.modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
+except ImportError:
+    try:
+        from modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
+    except ImportError:
+        wrap_untrusted = lambda text, label='DATA', max_length=15000: text[:max_length]
+        ANTI_INJECTION_NOTICE = ''
+
 
 # Valid choices for constrained fields (must match VehicleSpecs model choices)
 VALID_DRIVETRAINS = {'FWD', 'RWD', 'AWD', '4WD'}
@@ -46,9 +55,7 @@ def _build_prompt(make, model_name, trim, year, existing_specs, web_context):
     
     web_section = ""
     if web_context:
-        # Truncate to avoid context overflow
-        web_text = web_context[:3000]
-        web_section = f"\n\nWeb research data (use to fill specs):\n{web_text}"
+        web_section = f"\n\nWeb research data (use to fill specs):\n{wrap_untrusted(web_context[:3000], 'WEB_CONTEXT')}\n{ANTI_INJECTION_NOTICE}"
     
     return f"""You are an automotive specifications database. Your task: fill in ALL known specifications for this vehicle using your knowledge and the provided web data.
 
@@ -884,7 +891,8 @@ If a value is truly not mentioned anywhere, use "Not specified".
 Missing fields:
 {missing_desc}
 
-{context}
+{wrap_untrusted(context, 'ARTICLE_CONTEXT')}
+{ANTI_INJECTION_NOTICE}
 
 Reply with ONLY valid JSON containing the missing field names as keys and their values as strings.
 Example: {{"horsepower": "320", "drivetrain": "AWD"}}

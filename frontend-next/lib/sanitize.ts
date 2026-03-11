@@ -1,15 +1,15 @@
-import DOMPurify from 'dompurify';
+import DOMPurify from 'isomorphic-dompurify';
 
 /**
  * Sanitize HTML content to prevent XSS attacks.
  * Strips <script>, event handlers (onclick, onerror), and other dangerous elements.
  * Safe for use with dangerouslySetInnerHTML.
  *
- * On the server (SSR), returns html as-is since DOMPurify requires a DOM.
- * The client-side render will sanitize it.
+ * Uses isomorphic-dompurify so sanitization works on both server (SSR) and client.
+ * Previously, SSR returned raw HTML unsanitized — now it's safe on both sides.
  */
 export function sanitizeHtml(html: string): string {
-    if (typeof window === 'undefined') return html;
+    if (!html) return '';
     return DOMPurify.sanitize(html, {
         ALLOWED_TAGS: [
             'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
