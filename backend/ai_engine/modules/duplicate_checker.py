@@ -11,6 +11,11 @@ Only exact YouTube URL duplicates are hard-blocked.
 Trim awareness: "BYD Tang DM-p" and "BYD Tang PHEV 7-seater" are
 DIFFERENT cars and should NOT block each other. We only block if the
 trims are clearly the same (or both unknown).
+
+Range awareness: "BYD Sealion 06 605km" and "BYD Sealion 06 710km" are
+DIFFERENT range variants and must NOT block each other. Range numbers
+(digits followed by km/mi) are extracted and compared — distinct values
+mean different variants.
 """
 import logging
 from datetime import timedelta
@@ -60,6 +65,24 @@ def _extract_trim_keywords(text: str) -> set:
     return found
 
 
+def _extract_range_numbers(text: str) -> set:
+    """Extract range numbers (digits before km/mi/кмч) from a title.
+
+    Examples:
+        '2026 BYD Sealion 06 EV 710km range' → {'710'}
+        '605km CLTC Long Range' → {'605'}
+        '350 mi EPA range' → {'350'}
+    Only numbers ≥ 100 are considered (avoids false matches on year digits
+    like '06' or spec numbers like '4x4').
+    """
+    text_lower = (text or '').lower()
+    # Match: digits ≥ 3 chars immediately followed (optional space) by km/mi/кмч
+    found = set()
+    for m in _re.finditer(r'\b(\d{3,})\s*(?:km|mi|кмч)\b', text_lower):
+        found.add(m.group(1))
+    return found
+
+
 def _trims_conflict(new_trim: str, new_title: str,
                     existing_trim: str, existing_title: str) -> bool:
     """
@@ -67,10 +90,21 @@ def _trims_conflict(new_trim: str, new_title: str,
     (i.e., they should be considered duplicates of each other).
 
     Rules:
-    - Both have variant keywords AND they are disjoint → False (different variants, allow)
-    - Neither has any variant keywords → True (conservative, block — same unknown trim)
-    - Overlapping keywords → True (same variant, block)
+    1. Range numbers differ (e.g. 605km vs 710km) → False (different variant, allow)
+    2. Both have variant keywords AND they are disjoint → False (different variant, allow)
+    3. Neither has variant keywords → True (conservative, block)
+    4. Overlapping keywords → True (same variant, block)
     """
+    # ── Rule 1: Range-number comparison ──────────────────────────────────────
+    new_range = (_extract_range_numbers(new_trim) |
+                 _extract_range_numbers(new_title))
+    ex_range = (_extract_range_numbers(existing_trim) |
+                _extract_range_numbers(existing_title))
+    if new_range and ex_range and new_range.isdisjoint(ex_range):
+        # Both articles advertise different range figures → clearly different variants
+        return False
+
+    # ── Rule 2-4: Keyword comparison ─────────────────────────────────────────
     new_kw = _extract_trim_keywords(new_trim) | _extract_trim_keywords(new_title)
     ex_kw = _extract_trim_keywords(existing_trim) | _extract_trim_keywords(existing_title)
 
