@@ -256,7 +256,7 @@ export default function RSSNewsPage() {
     const [curatorLoading, setCuratorLoading] = useState(false);
     const [curatorOpen, setCuratorOpen] = useState(false);
     const [curatorDeciding, setCuratorDeciding] = useState<string | null>(null); // cluster_id being decided on
-    const [merging, setMerging] = useState(false);
+    const [merging, setMerging] = useState<string | null>(null);
     const [expandedCluster, setExpandedCluster] = useState<string | null>(null);
     const [statsScanned, setStatsScanned] = useState<number>(0);
 
@@ -468,7 +468,7 @@ export default function RSSNewsPage() {
     };
 
     const handleMergeGenerate = async (ids: number[], clusterId: string) => {
-        setMerging(true);
+        setMerging(clusterId);
         try {
             const res = await api.post('/rss-news-items/merge_generate/', {
                 ids,
@@ -490,7 +490,7 @@ export default function RSSNewsPage() {
             logCaughtError('merge_generate', error);
             toast.error(`Merge failed: ${error.response?.data?.error || error.message}`);
         } finally {
-            setMerging(false);
+            setMerging(null);
         }
     };
 
@@ -758,10 +758,10 @@ export default function RSSNewsPage() {
                                                     {cluster.merge_suggested && cluster.items.length >= 2 && (
                                                         <button
                                                             onClick={() => handleMergeGenerate(cluster.items.map(i => i.id), cluster.id)}
-                                                            disabled={merging}
+                                                            disabled={merging === cluster.id}
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg text-xs font-bold hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 transition-all shadow-sm"
                                                         >
-                                                            {merging ? <Loader2 className="animate-spin" size={12} /> : <><Combine size={12} /> Merge</>}
+                                                            {merging === cluster.id ? <Loader2 className="animate-spin" size={12} /> : <><Combine size={12} /> Merge</>}
                                                         </button>
                                                     )}
                                                     <button

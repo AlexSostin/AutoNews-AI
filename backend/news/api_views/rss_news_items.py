@@ -541,44 +541,81 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             item.save(update_fields=['status'])
 
         try:
-            from ai_engine.modules.article_generator import expand_press_release
-            from ai_engine.main import extract_title, validate_title, _is_generic_header
+            from ai_engine.modules.ai_provider import get_ai_provider
+            import json as _json
 
-            # Combine content from all items into a roundup prompt
-            combined_parts = []
+            # Build source summaries
+            source_parts = []
             source_urls = []
             all_images = []
 
-            for item in items:
+            for idx, item in enumerate(items, 1):
                 plain_text = re.sub(r'<[^>]+>', '', item.content or '').strip()
                 if not plain_text:
                     plain_text = item.excerpt or ''
-                combined_parts.append(f"### Source: {item.title}\n{plain_text[:800]}")
+                source_parts.append(
+                    f"SOURCE {idx}: {item.title}\n"
+                    f"Feed: {item.rss_feed.name if item.rss_feed else 'Unknown'}\n"
+                    f"Content: {plain_text[:1200]}"
+                )
                 if item.source_url:
                     source_urls.append(item.source_url)
                 if item.image_url:
                     all_images.append(item.image_url)
 
-            combined_text = (
-                "The following are multiple news items about a related topic. "
-                "Write a comprehensive roundup article that covers all the key points. "
-                "Use a cohesive narrative structure, don't just list the sources.\n\n"
-                + "\n\n".join(combined_parts)
-            )
+            sources_text = "\n\n---\n\n".join(source_parts)
 
-            expanded_content = expand_press_release(
-                press_release_text=combined_text,
-                source_url=source_urls[0] if source_urls else '',
-                provider=provider,
-                source_title=items[0].title,
-            )
+            prompt = f"""You are a senior automotive journalist for FreshMotors.net — a premium car news site focused on Chinese EVs, new models, and automotive technology.
 
-            ai_title = extract_title(expanded_content)
-            if not ai_title or _is_generic_header(ai_title):
-                ai_title = f"Roundup: {items[0].title}"
-            ai_title = validate_title(ai_title)
+You are writing a ROUNDUP article that combines information from {len(items)} different news sources about the same topic.
 
-            # Convert markdown to HTML if needed
+Here are the sources:
+
+{sources_text}
+
+Write a comprehensive, engaging roundup article in HTML format. Follow these rules:
+
+1. **TITLE**: Start with a single <h1> tag containing a compelling, specific headline (NOT generic like "Why This Matters" or "Roundup"). Include the car brand/model name and the key news. Example: "BYD Great Tang: 950km Electric SUV Targets Premium Segment"
+
+2. **STRUCTURE**: Use <h2> sections. Cover: Key News, Specifications (if available), Analysis, Market Impact. Do NOT use markdown headers (##), use HTML tags.
+
+3. **CONTENT**: Synthesize all sources into ONE cohesive narrative. Don't repeat information. Add expert analysis. Minimum 600 words.
+
+4. **EXCERPT**: After the article, on a NEW LINE, write: EXCERPT: [1-2 sentence summary for article cards, 120-160 chars]
+
+5. **TONE**: Professional, analytical, engaging. Write for car enthusiasts and industry watchers.
+
+6. Do NOT include "Source:" attributions in the text. Do NOT mention "according to sources" or "multiple reports".
+
+Write the article now:"""
+
+            ai = get_ai_provider(provider)
+            raw_response = ai.generate_text(prompt, max_tokens=3000, temperature=0.7)
+
+            # Extract title from <h1> tag
+            h1_match = re.search(r'<h1[^>]*>(.*?)</h1>', raw_response, re.IGNORECASE | re.DOTALL)
+            if h1_match:
+                ai_title = re.sub(r'<[^>]+>', '', h1_match.group(1)).strip()
+                # Remove the h1 from content (PendingArticle stores title separately)
+                expanded_content = raw_response[:h1_match.start()] + raw_response[h1_match.end():]
+            else:
+                # Fallback: try first line or first heading
+                lines = raw_response.strip().split('\n')
+                ai_title = re.sub(r'[#*<>]', '', lines[0]).strip()[:150]
+                expanded_content = '\n'.join(lines[1:])
+
+            if not ai_title or len(ai_title) < 10:
+                ai_title = f"{items[0].title} — Multi-Source Roundup"
+
+            # Extract excerpt
+            excerpt = f"Roundup covering {len(items)} sources"
+            excerpt_match = re.search(r'EXCERPT:\s*(.+)', raw_response, re.IGNORECASE)
+            if excerpt_match:
+                excerpt = excerpt_match.group(1).strip()[:200]
+                # Remove EXCERPT line from content
+                expanded_content = re.sub(r'\n*EXCERPT:.*$', '', expanded_content, flags=re.IGNORECASE | re.MULTILINE).strip()
+
+            # Clean up any remaining markdown if AI slipped
             if '###' in expanded_content and '<h2>' not in expanded_content:
                 try:
                     import markdown
@@ -588,8 +625,12 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
 
+            # Strip markdown code fences if present
+            expanded_content = re.sub(r'^```html\s*', '', expanded_content.strip())
+            expanded_content = re.sub(r'\s*```$', '', expanded_content.strip())
+
             word_count = len(re.sub(r'<[^>]+>', '', expanded_content).split())
-            if word_count < 200:
+            if word_count < 150:
                 for item in items:
                     item.status = 'new'
                     item.save(update_fields=['status'])
@@ -616,7 +657,7 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 content_hash='',
                 title=ai_title,
                 content=expanded_content,
-                excerpt=f"Roundup from {len(items)} sources",
+                excerpt=excerpt,
                 images=images,
                 featured_image=featured_image,
                 image_source=img_source,
@@ -661,4 +702,5 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 {'error': f'Merge generation failed: {str(e)[:200]}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
 
