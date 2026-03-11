@@ -23,7 +23,7 @@ description: Essential project setup, architecture, and conventions for AutoNews
 - **Cache/Queue**: Redis 7 (Railway prod / Docker local dev on port 6379)
 - **Local Config**: `.env` (Docker hostnames) + `.env.local` (localhost overrides) → `settings.py` loads both
 - **Task Queue**: Celery (background enrichment, auto-spec extraction, auto-publishing)
-- **AI Primary**: Google Gemini 2.0 Flash
+- **AI Primary**: Google Gemini 3.1 Pro Preview (model chain: 3.1-pro → 3-flash → 2.5-pro-exp → 2.5-flash → 2.0-flash)
 - **AI Fallback**: Groq Llama 3.3 70b (NOT OpenAI)
 - **ML Engine**: TF-IDF Content Recommender (sklearn, zero-cost, self-learning)
 - **Media CDN**: Cloudinary (Railway has ephemeral filesystem)
@@ -131,6 +131,10 @@ frontend-next/
 ## Known Gotchas (from past bugs)
 
 - **Gemini 429 rate limits**: AI functions (spec extraction, article generation) hit rate limits. Always add retry logic (3 retries, 30/60/90s delays) and regex fallback
+- **Gemini model chain** (`ai_provider.py`): tries `gemini-3.1-pro-preview` first, falls back through `gemini-3-flash-preview` → `gemini-2.5-pro-exp-03-25` → `gemini-2.5-flash` → `gemini-2.0-flash`. ⚠️ `gemini-3-pro` was **shut down March 9 2026** — do not add it back
+- **Fact-checker currency bug**: LLM sometimes writes `$6,000` for ¥400,000 CNY (math error). Rule added: `USD = CNY ÷ 7.1`. If USD is 10x smaller than expected — it's a calculation error
+- **Fact-checker power units**: Never mix `kW` and `hp` in the same article. `1 kW = 1.341 hp`. The auto-resolve prompt now enforces this (Rule 6)
+- **Fact-checker year search**: `_build_enriched_context()` in `fact_checker.py` extracts the model year from `<h1>` and passes it to `search_car_details(year=...)`. Without this, DuckDuckGo returns 2023 rumor articles instead of 2026 specs
 - **ISR cache**: Next.js caches pages. After content changes, set `revalidate: 30` not 300. Use `api/revalidate` endpoint for on-demand revalidation
 - **Entity warning banners**: `entity_validator.py` can inject HTML warnings into article content stored in DB. Always strip `<div class="entity-mismatch-warning">` before rendering on public site
 - **A/B title overwrite**: `ABTitle` component is currently disabled — it was overwriting manually edited titles with old A/B variants. If re-enabling, check `ArticleTitleVariant` cleanup logic
@@ -180,6 +184,8 @@ The site has 3 color themes. **NO Tailwind dark mode** — do NOT use `dark:` cl
 - Monolithic ViewSets > 1000 lines → extract into mixins (`api_views/mixins/`)
 - Shared interfaces → extract into `types.ts` files
 - Pattern: `ArticleViewSet` inherits from `ArticleGenerationMixin`, `ArticleEngagementMixin`, `ArticleEnrichmentMixin`
+- **`ArticleImageManager` `setFormData` type**: use `React.Dispatch<React.SetStateAction<any>>` — the component is shared between edit and new pages which have slightly different state types; using `any` here with ESLint suppress is the correct pattern
+- **TypeScript catch blocks**: always type as `catch (error: unknown)`, then cast: `const e = error as { response?: ...; message?: string }` — never use `error: any` in catch
 
 ## ML System (Content Recommender)
 
