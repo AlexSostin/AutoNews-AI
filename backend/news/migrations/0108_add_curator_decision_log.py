@@ -5,7 +5,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('news', '0107_alter_webauthn_credential'),
+        ('news', '0107_add_seo_description_to_pending_article'),
     ]
 
     operations = [
