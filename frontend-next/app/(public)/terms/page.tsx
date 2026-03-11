@@ -1,9 +1,12 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { FileText, AlertCircle, Scale, UserCheck, Loader2 } from 'lucide-react';
+import { Metadata } from 'next';
+import { FileText, AlertCircle, Scale, UserCheck } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { sanitizeHtml } from '@/lib/sanitize';
+
+export const metadata: Metadata = {
+  title: 'Terms of Service | Fresh Motors',
+  description: 'Read the Terms of Service for Fresh Motors. Understand your rights and responsibilities when using our automotive news platform.',
+};
 
 interface SiteSettings {
   terms_page_title: string;
@@ -11,40 +14,23 @@ interface SiteSettings {
   terms_page_enabled: boolean;
 }
 
-export default function TermsPage() {
-  const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+async function getSettings(): Promise<SiteSettings | null> {
+  try {
+    const apiUrl = getApiUrl();
+    const res = await fetch(`${apiUrl}/settings/`, {
+      next: { revalidate: 300 },
+    });
+    if (res.ok) return res.json();
+  } catch {}
+  return null;
+}
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/settings/`);
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+export default async function TermsPage() {
+  const settings = await getSettings();
 
   const pageTitle = settings?.terms_page_title || 'Terms of Service';
   const pageContent = settings?.terms_page_content || '';
   const hasCustomContent = pageContent.trim().length > 0;
-
-  if (loading) {
-    return (
-      <main className="flex-1 bg-gray-50 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-purple-600" size={48} />
-      </main>
-    );
-  }
 
   return (
     <>
