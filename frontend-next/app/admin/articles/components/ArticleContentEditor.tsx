@@ -27,7 +27,6 @@ import 'tinymce/plugins/wordcount';
 // Model (required for TinyMCE 7+)
 import 'tinymce/models/dom';
 
-// @ts-ignore - TinyMCE types might be missing in package.json
 import { Editor } from '@tinymce/tinymce-react';
 import { FormCard } from '@/app/admin/components/forms/FormCard';
 import { FileText, Sparkles, Loader2, Zap, RefreshCw, Wand2, Wrench } from 'lucide-react';

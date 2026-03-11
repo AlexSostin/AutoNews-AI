@@ -193,6 +193,10 @@ class TestErrorCaptureMiddleware:
 
 @pytest.mark.django_db
 class TestSchedulerErrorLogging:
+    def setup_method(self):
+        """Clear all BackendErrorLog entries between tests for isolation."""
+        BackendErrorLog.objects.all().delete()
+
     def test_log_scheduler_error(self):
         from news.scheduler import _log_scheduler_error
 
@@ -202,6 +206,7 @@ class TestSchedulerErrorLogging:
         err = BackendErrorLog.objects.get(
             source='scheduler',
             task_name='rss_scan',
+            error_class='ConnectionError',
         )
         assert err.error_class == 'ConnectionError'
         assert 'Redis' in err.message
@@ -215,6 +220,7 @@ class TestSchedulerErrorLogging:
 
         entries = BackendErrorLog.objects.filter(
             source='scheduler', task_name='youtube_scan',
+            error_class='TimeoutError',
         )
         assert entries.count() == 1
         assert entries.first().occurrence_count >= 2
