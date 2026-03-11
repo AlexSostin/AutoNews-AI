@@ -24,7 +24,7 @@ description: Essential project setup, architecture, and conventions for AutoNews
 - **Local Config**: `.env` (Docker hostnames) + `.env.local` (localhost overrides) → `settings.py` loads both
 - **Task Queue**: Celery (background enrichment, auto-spec extraction, auto-publishing)
 - **AI Primary**: Google Gemini 3.1 Pro Preview (model chain: 3.1-pro → 3-flash → 2.5-pro-exp → 2.5-flash → 2.0-flash)
-- **AI Fallback**: Groq Llama 3.3 70b (NOT OpenAI)
+- **AI Fallback**: Groq `openai/gpt-oss-120b` (GPT OSS 120B — upgraded Mar 2026, best reasoning + multilingual)
 - **ML Engine**: TF-IDF Content Recommender (sklearn, zero-cost, self-learning)
 - **Media CDN**: Cloudinary (Railway has ephemeral filesystem)
 - **Monitoring**: Sentry + custom FrontendEventLog + BackendErrorLog
