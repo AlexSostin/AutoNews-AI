@@ -20,7 +20,7 @@ LOGS_DIR = os.path.join(OUTPUT_DIR, "logs")
 
 # Module Settings
 WHISPER_MODEL = "whisper-1"  # OpenAI Whisper (optional)
-GROQ_MODEL = "llama-3.3-70b-versatile"  # Main model (Jan 2026)
+GROQ_MODEL = "openai/gpt-oss-120b"  # GPT OSS 120B — best reasoning + multilingual on Groq (Mar 2026)
 LLM_MODEL = "gpt-4-turbo"  # OpenAI GPT (optional)
 
 # Pexels API Configuration (Free image search)

@@ -12,8 +12,8 @@ logger = logging.getLogger('news')
 
 # Interval: 6 hours in seconds
 GSC_SYNC_INTERVAL = 6 * 60 * 60
-# Interval: 7 days in seconds
-CURRENCY_UPDATE_INTERVAL = 7 * 24 * 60 * 60
+# Interval: 1 day in seconds (daily exchange rate refresh for AI accuracy)
+CURRENCY_UPDATE_INTERVAL = 24 * 60 * 60
 # Auto-publish check interval: 10 minutes
 AUTO_PUBLISH_CHECK_INTERVAL = 10 * 60
 # Default fallback check interval when module is disabled
@@ -93,7 +93,7 @@ def _schedule_gsc_sync():
 
 
 def _run_currency_update():
-    """Update USD price equivalents and schedule next run."""
+    """Update USD price equivalents and fetch exchange rates. Schedule next run."""
     from django.db import close_old_connections
     close_old_connections()
     try:
@@ -103,8 +103,15 @@ def _run_currency_update():
     except Exception as e:
         logger.error(f"❌ Scheduled currency update error: {e}")
         _log_scheduler_error('currency_update', e)
-    finally:
-        _schedule_currency_update()
+    
+    # Also refresh exchange rates for AI prompt injection
+    try:
+        from ai_engine.modules.currency_service import fetch_and_cache_rates
+        fetch_and_cache_rates()
+    except Exception as e:
+        logger.warning(f"💱 Exchange rate fetch failed (non-critical): {e}")
+    
+    _schedule_currency_update()
 
 
 def _schedule_currency_update():

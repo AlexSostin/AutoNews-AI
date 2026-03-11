@@ -940,10 +940,20 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     except Exception as e:
         print(f"⚠️ Could not load correction memory: {e}")
     
+    # Load current exchange rates for accurate price conversions
+    exchange_rates_block = ""
+    try:
+        from ai_engine.modules.currency_service import get_rates_for_prompt
+        exchange_rates_block = get_rates_for_prompt()
+        print(f"  💱 Loaded exchange rates into prompt")
+    except Exception as e:
+        print(f"⚠️ Could not load exchange rates: {e}")
+    
     prompt = f"""
 {entity_anchor}
 {web_data_section}
 {competitor_section}
+{exchange_rates_block}
 TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
 
 Create a professional, SEO-optimized automotive article based on the analysis below.
