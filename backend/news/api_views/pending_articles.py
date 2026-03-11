@@ -102,6 +102,7 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 slug=slug,
                 content=pending.content,
                 summary=pending.excerpt or pending.content[:200],
+                seo_description=pending.seo_description or '',
                 is_published=is_published,
                 youtube_url=pending.video_url,
                 author_name=author_name,

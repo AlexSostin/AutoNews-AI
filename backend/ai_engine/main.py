@@ -240,6 +240,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
             title=result['title'],
             content=result['content'],
             excerpt=result['summary'],
+            seo_description=result.get('seo_description', '')[:160],
             suggested_category=default_category,
             images=result['image_paths'],  # JSON field
             featured_image=result['image_paths'][0] if result['image_paths'] else '',
@@ -265,6 +266,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
                     title=result['title'],
                     content=result['content'],
                     excerpt=result['summary'],
+                    seo_description=result.get('seo_description', '')[:160],
                     suggested_category=default_category,
                     images=result['image_paths'],
                     featured_image=result['image_paths'][0] if result['image_paths'] else '',

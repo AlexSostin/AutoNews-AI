@@ -336,7 +336,7 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Article
-        fields = ['id', 'title', 'slug', 'content', 'summary', 'categories', 'category_ids',
+        fields = ['id', 'title', 'slug', 'content', 'summary', 'seo_description', 'categories', 'category_ids',
                   'tags', 'tag_ids', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
                   'image_3', 'image_3_url', 'youtube_url', 'price_usd', 'views', 
                   'car_specification', 'vehicle_specs', 'images', 'average_rating', 'rating_count',
@@ -805,7 +805,7 @@ class PendingArticleSerializer(serializers.ModelSerializer):
             'id', 'youtube_channel', 'channel_name',
             'rss_feed', 'source_url',
             'video_url', 'video_id', 'video_title',
-            'title', 'content', 'excerpt',
+            'title', 'content', 'excerpt', 'seo_description',
             'suggested_category', 'category_name',
             'images', 'featured_image', 'image_source',
             'status', 'published_article',

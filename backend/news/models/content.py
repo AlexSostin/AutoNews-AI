@@ -207,7 +207,9 @@ class Article(models.Model):
             self.slug = slug
         if not self.seo_title:
             self.seo_title = self.title[:200]
-        if not self.seo_description:
+        # Auto-generate seo_description from summary only if both are empty
+        # (respect manually set or AI-generated seo_description)
+        if not self.seo_description and not self.pk:
             summary_text = self.summary or ""
             self.seo_description = summary_text[:160]
         super().save(*args, **kwargs)
@@ -282,6 +284,7 @@ class PendingArticle(models.Model):
     title = models.CharField(max_length=500)
     content = models.TextField()
     excerpt = models.TextField(blank=True)
+    seo_description = models.CharField(max_length=160, blank=True, help_text="SEO meta description (max 160 chars). Separate from excerpt/summary.")
     suggested_category = models.ForeignKey(
         'Category', on_delete=models.SET_NULL, null=True, blank=True
     )

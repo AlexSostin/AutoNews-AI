@@ -557,6 +557,23 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         if not summary:
             summary = f"Comprehensive review of the {specs.get('make', '')} {specs.get('model', '')}"
         
+        # 6.1 Generate SEO description (concise, keyword-rich, max 155 chars for Google)
+        seo_description = ''
+        make = specs.get('make', '')
+        model = specs.get('model', '')
+        year = specs.get('year', '')
+        hp = specs.get('horsepower', '')
+        if make and model and make != 'Not specified':
+            year_str = f"{year} " if year else ""
+            hp_str = f" {hp} HP" if hp and hp != 'Not specified' else ""
+            # Build a compact SEO description from key specs
+            seo_description = f"Explore the {year_str}{make} {model}{hp_str}. Full specs, pricing, range, performance data & expert review."
+            if len(seo_description) > 155:
+                seo_description = seo_description[:152] + '...'
+        if not seo_description:
+            # Fallback: truncate summary
+            seo_description = summary[:155].rsplit(' ', 1)[0] if len(summary) > 155 else summary
+        
         # 6.5. Generate SEO keywords
         try:
             from ai_engine.modules.seo_helpers import generate_seo_keywords
@@ -618,6 +635,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             'content': article_html,
             'content_original': content_original,
             'summary': summary,
+            'seo_description': seo_description,
             'category_name': category_name,
             'tag_names': tag_names,
             'specs': specs,
