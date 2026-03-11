@@ -125,6 +125,10 @@ export default function LoginPage() {
       // 2FA required — save credentials so step 2 can re-authenticate
       if (err instanceof TwoFARequiredError) {
         setPending2FACredentials({ username: formData.username, password: formData.password });
+        // If backend says user also has passkeys, store token for alternative auth
+        if (err.hasPasskeys && err.pendingToken) {
+          setPendingPasskeyToken(err.pendingToken);
+        }
         setRequires2FA(true);
         setIsLoading(false);
         return;
@@ -223,9 +227,27 @@ export default function LoginPage() {
                 {isLoading ? 'Verifying...' : 'Verify & Login'}
               </button>
 
+              {/* Passkey alternative — shown when user has both 2FA and passkeys */}
+              {pendingPasskeyToken && passkeySupported && (
+                <>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+                    <div className="relative flex justify-center text-xs"><span className="px-2 bg-white text-gray-400">or</span></div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setRequires2FA(false); setRequiresPasskey(true); }}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-indigo-500 text-white py-3 rounded-xl font-semibold hover:from-violet-600 hover:to-indigo-600 transition-all shadow-lg shadow-violet-500/20 text-sm"
+                  >
+                    <Fingerprint size={18} />
+                    Use Passkey Instead
+                  </button>
+                </>
+              )}
+
               <button
                 type="button"
-                onClick={() => { setRequires2FA(false); setTotpCode(''); setError(''); setPending2FACredentials({ username: '', password: '' }); setGoogleUserId(''); }}
+                onClick={() => { setRequires2FA(false); setTotpCode(''); setError(''); setPending2FACredentials({ username: '', password: '' }); setGoogleUserId(''); setPendingPasskeyToken(''); }}
                 className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
               >
                 ← Back to login

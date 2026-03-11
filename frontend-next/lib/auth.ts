@@ -12,9 +12,13 @@ const setCookie = (name: string, value: string, maxAgeSeconds: number = 7 * 24 *
 
 // Special error class to signal that 2FA is required
 export class TwoFARequiredError extends Error {
-  constructor() {
+  hasPasskeys: boolean;
+  pendingToken: string;
+  constructor(hasPasskeys = false, pendingToken = '') {
     super('2FA required');
     this.name = 'TwoFARequiredError';
+    this.hasPasskeys = hasPasskeys;
+    this.pendingToken = pendingToken;
   }
 }
 
@@ -34,7 +38,7 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
 
   // If backend requires 2FA — throw special error for the login page to handle
   if (data.requires_2fa) {
-    throw new TwoFARequiredError();
+    throw new TwoFARequiredError(data.has_passkeys === true, data.pending_token ?? '');
   }
 
   // If backend requires Passkey — throw special error with the one-time token
