@@ -894,6 +894,25 @@ class AutomationSettings(models.Model):
     
     LOCK_STALE_MINUTES = 10  # Release lock if older than this
     
+    # === YouTube Daytime-Only Mode ===
+    # YouTube scans trigger AI article generation (expensive). Restrict to daytime hours
+    # so articles are generated when the admin is awake to review them.
+    youtube_daytime_only = models.BooleanField(
+        default=True, help_text="Only run YouTube scans during active hours (saves API costs at night)"
+    )
+    youtube_active_hours_start = models.IntegerField(
+        default=7, help_text="Hour to START YouTube scans (Israel time, 0-23). Default: 7 AM"
+    )
+    youtube_active_hours_end = models.IntegerField(
+        default=22, help_text="Hour to STOP YouTube scans (Israel time, 0-23). Default: 10 PM"
+    )
+    
+    # === Auto-Publish Safety ===
+    auto_publish_skip_with_warnings = models.BooleanField(
+        default=True,
+        help_text="Skip articles with ⚠️ AI Fact-Check Warning banners — require manual review"
+    )
+    
     # === Bulk Enrichment Report ===
     # Stored in DB so it survives Railway/Docker redeploys (unlike filesystem)
     enrichment_report = models.JSONField(
@@ -994,7 +1013,9 @@ class AutoPublishLog(models.Model):
         ('skipped_quality', 'Skipped: Low Quality'),
         ('skipped_safety', 'Skipped: Feed Unsafe'),
         ('skipped_no_image', 'Skipped: No Image'),
+        ('skipped_warnings', 'Skipped: Fact-Check Warning'),
         ('skipped_limit', 'Skipped: Rate Limit'),
+        ('skipped_duplicate', 'Skipped: Too Similar'),
         ('failed', 'Failed: Error'),
     ]
     

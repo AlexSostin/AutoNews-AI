@@ -144,6 +144,15 @@ def auto_publish_pending():
                     f"No featured image and auto-image is off")
                 continue
         
+        # Fact-check warning check: skip articles containing unresolved ⚠️ banners
+        if settings.auto_publish_skip_with_warnings:
+            content = pending.content or ''
+            if 'ai-fact-check-block' in content or 'AI Fact-Check Warning' in content:
+                _log_decision(pending, 'skipped_warnings',
+                    f"Content contains unresolved fact-check warning — requires manual review")
+                logger.info(f"[AUTO-PUBLISHER] ⚠️ Skipped (fact-check warning): {pending.title[:50]}")
+                continue
+        
         # ML originality check: skip if too similar to existing published articles
         try:
             from ai_engine.modules.content_recommender import is_available, _load_model, _clean_text

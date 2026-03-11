@@ -64,6 +64,8 @@ def _log_scheduler_error(task_name, exception, severity='error'):
 
 def _run_gsc_sync():
     """Sync GSC data and schedule next run."""
+    from django.db import close_old_connections
+    close_old_connections()  # Release idle DB connections before starting
     try:
         from news.services.gsc_service import GSCService
         service = GSCService()
@@ -92,6 +94,8 @@ def _schedule_gsc_sync():
 
 def _run_currency_update():
     """Update USD price equivalents and schedule next run."""
+    from django.db import close_old_connections
+    close_old_connections()
     try:
         from news.services.currency_service import update_all_usd_prices
         updated, errors = update_all_usd_prices()
@@ -116,6 +120,8 @@ def _schedule_currency_update():
 
 def _run_rss_scan():
     """Scan RSS feeds if enabled in AutomationSettings."""
+    from django.db import close_old_connections
+    close_old_connections()
     try:
         from news.models import AutomationSettings, RSSFeed
         from ai_engine.modules.rss_aggregator import RSSAggregator
@@ -180,6 +186,8 @@ def _schedule_rss_scan(interval_seconds):
 
 def _run_youtube_scan():
     """Scan YouTube channels if enabled in AutomationSettings."""
+    from django.db import close_old_connections
+    close_old_connections()
     try:
         from news.models import AutomationSettings, YouTubeChannel, PendingArticle, Article
         from ai_engine.modules.youtube_client import YouTubeClient
@@ -191,6 +199,29 @@ def _run_youtube_scan():
         if not settings.youtube_scan_enabled:
             _schedule_youtube_scan(DISABLED_CHECK_INTERVAL)
             return
+        
+        # Daytime-only check: YouTube scans trigger AI generation (expensive).
+        # Skip during night hours to save API costs and avoid generating articles
+        # when nobody is awake to review them.
+        if settings.youtube_daytime_only:
+            try:
+                import pytz
+                israel_tz = pytz.timezone('Asia/Jerusalem')
+                current_hour = timezone.now().astimezone(israel_tz).hour
+            except ImportError:
+                # Fallback: assume server is in UTC+2 (Israel winter time)
+                current_hour = (timezone.now().hour + 2) % 24
+            
+            start_h = settings.youtube_active_hours_start
+            end_h = settings.youtube_active_hours_end
+            if not (start_h <= current_hour < end_h):
+                logger.info(f"[SCHEDULER/YOUTUBE] 🌙 Night skip — {current_hour}:xx Israel time "
+                            f"(active: {start_h}:00-{end_h}:00)")
+                settings.youtube_last_status = f"🌙 Night skip ({current_hour}:xx, active {start_h}-{end_h})"
+                settings.youtube_last_run = timezone.now()
+                settings.save(update_fields=['youtube_last_status', 'youtube_last_run'])
+                _schedule_youtube_scan(DISABLED_CHECK_INTERVAL)
+                return
         
         # Acquire lock to prevent concurrent scans
         if not AutomationSettings.acquire_lock('youtube'):
@@ -290,6 +321,8 @@ def _schedule_youtube_scan(interval_seconds):
 
 def _run_auto_publish():
     """Check for eligible pending articles and auto-publish."""
+    from django.db import close_old_connections
+    close_old_connections()
     try:
         from news.models import AutomationSettings
         from ai_engine.modules.auto_publisher import auto_publish_pending
@@ -358,6 +391,8 @@ def _run_deep_specs_backfill():
     3. Don't have a VehicleSpecs card yet
     4. Have a CarSpecification (so we know make/model)
     """
+    from django.db import close_old_connections
+    close_old_connections()
     try:
         from django.utils import timezone
         from datetime import timedelta

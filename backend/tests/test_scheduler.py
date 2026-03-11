@@ -15,6 +15,13 @@ pytestmark = pytest.mark.django_db
 # Fixtures
 # ═══════════════════════════════════════════════════════════════════════════
 
+@pytest.fixture(autouse=True)
+def mock_close_old_connections():
+    """Prevent close_old_connections from closing the test DB connection."""
+    with patch('django.db.close_old_connections'):
+        yield
+
+
 @pytest.fixture
 def automation_settings(db):
     from news.models import AutomationSettings
@@ -26,6 +33,7 @@ def automation_settings(db):
     settings.youtube_scan_interval_minutes = 120
     settings.rss_max_articles_per_scan = 5
     settings.youtube_max_videos_per_scan = 5
+    settings.youtube_daytime_only = False  # Don't trigger daytime check in tests
     settings.save()
     return settings
 
