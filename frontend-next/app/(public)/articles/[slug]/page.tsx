@@ -41,16 +41,17 @@ export async function generateMetadata(
   }
 
   const siteUrl = 'https://www.freshmotors.net';
+  const seoDesc = article.seo_description || article.summary;
 
   return {
     title: `${article.title} - Fresh Motors`,
-    description: article.summary,
+    description: seoDesc,
     alternates: {
       canonical: `${siteUrl}/articles/${slug}`,
     },
     openGraph: {
       title: article.title,
-      description: article.summary,
+      description: article.summary || seoDesc,
       url: `${siteUrl}/articles/${slug}`,
       type: 'article',
       publishedTime: article.created_at,
@@ -68,7 +69,7 @@ export async function generateMetadata(
     twitter: {
       card: 'summary_large_image',
       title: article.title,
-      description: article.summary,
+      description: article.summary || seoDesc,
       images: [article.image || `${siteUrl}/logo.png`],
     },
   };

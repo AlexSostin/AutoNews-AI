@@ -69,6 +69,7 @@ export default function NewArticlePage() {
     title: '',
     slug: '',
     summary: '',
+    seo_description: '',
     content: '',
     category_ids: [] as number[],
     tags: [] as number[],
@@ -710,14 +711,16 @@ export default function NewArticlePage() {
           </div>
         )}
 
-        {/* 1. Basic Info: Title, Slug, Summary */}
+        {/* 1. Basic Info: Title, Slug, Summary, SEO Description */}
         <ArticleBasicInfo
           title={formData.title}
           slug={formData.slug}
           summary={formData.summary}
+          seoDescription={formData.seo_description}
           onTitleChange={handleTitleChange}
           onSlugChange={(v) => setFormData({ ...formData, slug: v })}
           onSummaryChange={(v) => setFormData({ ...formData, summary: v })}
+          onSeoDescriptionChange={(v) => setFormData({ ...formData, seo_description: v })}
         />
 
         {/* 2. Article Content (WYSIWYG Editor) */}

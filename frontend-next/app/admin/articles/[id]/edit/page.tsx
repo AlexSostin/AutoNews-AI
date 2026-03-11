@@ -134,6 +134,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
     title: '',
     slug: '',
     summary: '',
+    seo_description: '',
     content: '',
     category_ids: [] as number[],
     tags: [] as number[],
@@ -197,6 +198,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         title: article.title || '',
         slug: article.slug || '',
         summary: article.summary || '',
+        seo_description: article.seo_description || '',
         content: article.content || '',
         category_ids: Array.isArray(article.categories) ? article.categories.map((cat: any) => cat.id) : [],
         tags: Array.isArray(article.tags) ? article.tags.map((tag: any) => tag.id) : [],
@@ -247,6 +249,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         formDataToSend.append('title', formData.title);
         formDataToSend.append('slug', formData.slug);
         formDataToSend.append('summary', formData.summary);
+        formDataToSend.append('seo_description', formData.seo_description);
         formDataToSend.append('content', formData.content);
         formData.category_ids.forEach(id => formDataToSend.append('category_ids', id.toString()));
         formData.tags.forEach(id => formDataToSend.append('tag_ids', id.toString()));
@@ -293,6 +296,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         const payload: Record<string, any> = {
           title: formData.title,
           summary: formData.summary,
+          seo_description: formData.seo_description,
           content: formData.content,
           category_ids: formData.category_ids,
           tag_ids: formData.tags,
@@ -356,14 +360,16 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         />
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 1. Basic Info: Title, Slug, Summary */}
+          {/* 1. Basic Info: Title, Slug, Summary, SEO Description */}
           <ArticleBasicInfo
             title={formData.title}
             slug={formData.slug}
             summary={formData.summary}
+            seoDescription={formData.seo_description}
             onTitleChange={(v: string) => setFormData({ ...formData, title: v })}
             onSlugChange={(v: string) => setFormData({ ...formData, slug: v })}
             onSummaryChange={(v: string) => setFormData({ ...formData, summary: v })}
+            onSeoDescriptionChange={(v: string) => setFormData({ ...formData, seo_description: v })}
           />
 
           {/* 2. Article Content (WYSIWYG Editor) */}

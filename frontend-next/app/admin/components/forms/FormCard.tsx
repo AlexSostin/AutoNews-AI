@@ -33,7 +33,7 @@ export function FormCard({ title, icon, children, className = '', action }: Form
 
 // Helper for standardizing input labels/wrappers inside FormCards
 interface FormFieldProps {
-    label: string;
+    label: ReactNode;
     htmlFor?: string;
     required?: boolean;
     description?: string;
