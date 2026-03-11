@@ -395,3 +395,270 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             'id': news_item.id,
             'is_favorite': news_item.is_favorite,
         })
+
+    # ================================================================
+    # Smart RSS Curator Endpoints
+    # ================================================================
+
+    @action(detail=False, methods=['post'])
+    def curate(self, request):
+        """Run Smart RSS Curator pipeline.
+
+        POST /api/v1/rss-news-items/curate/
+        Body: { days?: 7, include_ai_summary?: true, provider?: 'gemini' }
+
+        Returns clustered, scored, AI-summarised recommendations.
+        """
+        import threading
+
+        from ai_engine.modules.rss_curator import curate as run_curator
+
+        days = int(request.data.get('days', 7))
+        include_ai = request.data.get('include_ai_summary', True)
+        provider = request.data.get('provider', 'gemini')
+
+        if provider not in ('groq', 'gemini'):
+            provider = 'gemini'
+
+        result = run_curator(
+            days=days,
+            include_ai_summary=include_ai,
+            provider=provider,
+        )
+        return Response(result)
+
+    @action(detail=False, methods=['post'])
+    def curator_decision(self, request):
+        """Log admin decision on a curated item (generate/skip/merge/save_later).
+
+        POST /api/v1/rss-news-items/curator_decision/
+        Body: { item_id, decision, cluster_id?, score?, brand? }
+        """
+        from ..models import CuratorDecisionLog
+
+        item_id = request.data.get('item_id')
+        decision = request.data.get('decision')
+        cluster_id = request.data.get('cluster_id', '')
+        score = int(request.data.get('score', 0))
+        brand = request.data.get('brand', '')
+
+        valid_decisions = ('generate', 'skip', 'merge', 'save_later')
+        if decision not in valid_decisions:
+            return Response(
+                {'error': f'Invalid decision. Must be one of: {valid_decisions}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not item_id:
+            return Response(
+                {'error': 'item_id is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            news_item = RSSNewsItem.objects.get(id=item_id)
+        except RSSNewsItem.DoesNotExist:
+            return Response(
+                {'error': f'RSSNewsItem {item_id} not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        log = CuratorDecisionLog.objects.create(
+            news_item=news_item,
+            decision=decision,
+            curator_score=score,
+            cluster_id=cluster_id,
+            brand=brand,
+            has_specs_data=request.data.get('has_specs', False),
+            source_count=news_item.source_count or 1,
+            llm_score=news_item.llm_score,
+            title_text=news_item.title[:500],
+        )
+
+        # If decision is 'generate', trigger article generation immediately
+        generated_article_id = None
+        if decision == 'generate':
+            try:
+                # Re-use existing generate logic
+                generate_response = self.generate(request._request, pk=item_id)
+                if hasattr(generate_response, 'data') and generate_response.data.get('pending_article_id'):
+                    generated_article_id = generate_response.data['pending_article_id']
+            except Exception as e:
+                logger.error(f'[Curator] Auto-generate failed for item {item_id}: {e}')
+
+        # If decision is 'skip', mark as dismissed
+        if decision == 'skip':
+            news_item.status = 'dismissed'
+            news_item.save(update_fields=['status'])
+
+        return Response({
+            'success': True,
+            'log_id': log.id,
+            'decision': decision,
+            'generated_article_id': generated_article_id,
+        })
+
+    @action(detail=False, methods=['post'])
+    def merge_generate(self, request):
+        """Generate a single roundup article from multiple RSS items.
+
+        POST /api/v1/rss-news-items/merge_generate/
+        Body: { ids: [1, 2, 3], provider?: 'gemini' }
+        """
+        ids = request.data.get('ids', [])
+        provider = request.data.get('provider', 'gemini')
+
+        if len(ids) < 2:
+            return Response(
+                {'error': 'At least 2 items required for merge'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(ids) > 5:
+            return Response(
+                {'error': 'Maximum 5 items per merge'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if provider not in ('groq', 'gemini'):
+            provider = 'gemini'
+
+        items = list(
+            RSSNewsItem.objects.filter(
+                id__in=ids,
+                status__in=['new', 'read'],
+            ).select_related('rss_feed')
+        )
+
+        if len(items) < 2:
+            return Response(
+                {'error': 'Not enough eligible items (must be new or read status)'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Mark all as generating
+        for item in items:
+            item.status = 'generating'
+            item.save(update_fields=['status'])
+
+        try:
+            from ai_engine.modules.article_generator import expand_press_release
+            from ai_engine.main import extract_title, validate_title, _is_generic_header
+
+            # Combine content from all items into a roundup prompt
+            combined_parts = []
+            source_urls = []
+            all_images = []
+
+            for item in items:
+                plain_text = re.sub(r'<[^>]+>', '', item.content or '').strip()
+                if not plain_text:
+                    plain_text = item.excerpt or ''
+                combined_parts.append(f"### Source: {item.title}\n{plain_text[:800]}")
+                if item.source_url:
+                    source_urls.append(item.source_url)
+                if item.image_url:
+                    all_images.append(item.image_url)
+
+            combined_text = (
+                "The following are multiple news items about a related topic. "
+                "Write a comprehensive roundup article that covers all the key points. "
+                "Use a cohesive narrative structure, don't just list the sources.\n\n"
+                + "\n\n".join(combined_parts)
+            )
+
+            expanded_content = expand_press_release(
+                press_release_text=combined_text,
+                source_url=source_urls[0] if source_urls else '',
+                provider=provider,
+                source_title=items[0].title,
+            )
+
+            ai_title = extract_title(expanded_content)
+            if not ai_title or _is_generic_header(ai_title):
+                ai_title = f"Roundup: {items[0].title}"
+            ai_title = validate_title(ai_title)
+
+            # Convert markdown to HTML if needed
+            if '###' in expanded_content and '<h2>' not in expanded_content:
+                try:
+                    import markdown
+                    expanded_content = markdown.markdown(
+                        expanded_content, extensions=['fenced_code', 'tables']
+                    )
+                except Exception:
+                    pass
+
+            word_count = len(re.sub(r'<[^>]+>', '', expanded_content).split())
+            if word_count < 200:
+                for item in items:
+                    item.status = 'new'
+                    item.save(update_fields=['status'])
+                return Response(
+                    {'error': f'Roundup too short ({word_count} words), try again'},
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+
+            # Choose first feed's image policy
+            feed = items[0].rss_feed
+            image_policy = feed.image_policy if feed else 'pexels_fallback'
+            if image_policy == 'pexels_only':
+                images = []
+                featured_image = ''
+                img_source = 'pexels'
+            else:
+                images = all_images[:3]
+                featured_image = all_images[0] if all_images else ''
+                img_source = 'rss_original' if images else 'unknown'
+
+            pending = PendingArticle.objects.create(
+                rss_feed=items[0].rss_feed,
+                source_url=source_urls[0] if source_urls else '',
+                content_hash='',
+                title=ai_title,
+                content=expanded_content,
+                excerpt=f"Roundup from {len(items)} sources",
+                images=images,
+                featured_image=featured_image,
+                image_source=img_source,
+                suggested_category=(
+                    items[0].rss_feed.default_category if items[0].rss_feed else None
+                ),
+                status='pending',
+            )
+
+            # Mark all items as generated
+            for item in items:
+                item.status = 'generated'
+                item.pending_article = pending
+                item.save(update_fields=['status', 'pending_article'])
+
+            # Log curator decisions for all merged items
+            from ..models import CuratorDecisionLog
+            for item in items:
+                CuratorDecisionLog.objects.create(
+                    news_item=item,
+                    decision='merge',
+                    curator_score=0,
+                    title_text=item.title[:500],
+                    source_count=item.source_count or 1,
+                    llm_score=item.llm_score,
+                )
+
+            return Response({
+                'success': True,
+                'title': ai_title,
+                'pending_article_id': pending.id,
+                'items_merged': len(items),
+                'word_count': word_count,
+            })
+
+        except Exception as e:
+            logger.error(f'Merge generate failed: {e}', exc_info=True)
+            for item in items:
+                item.status = 'new'
+                item.save(update_fields=['status'])
+            return Response(
+                {'error': f'Merge generation failed: {str(e)[:200]}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+

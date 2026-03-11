@@ -1073,6 +1073,63 @@ class AutoPublishLog(models.Model):
         return f"{self.decision}: {self.article_title[:50]}"
 
 
+class CuratorDecisionLog(models.Model):
+    """Records admin decisions on curated RSS items for ML training.
+
+    Every time an admin uses the Smart Curator and clicks Generate / Skip /
+    Merge / Save-Later, a row is created here.  Over time the ML preference
+    scorer uses these rows to learn what kinds of articles the admin prefers.
+    """
+    DECISION_CHOICES = [
+        ('generate', 'Generated Article'),
+        ('merge', 'Merged into Roundup'),
+        ('skip', 'Skipped'),
+        ('save_later', 'Saved for Later'),
+    ]
+
+    news_item = models.ForeignKey(
+        'news.RSSNewsItem', on_delete=models.CASCADE,
+        related_name='curator_decisions',
+    )
+    decision = models.CharField(max_length=20, choices=DECISION_CHOICES)
+    curator_score = models.IntegerField(
+        default=0, help_text="FreshMotors relevance score at decision time"
+    )
+    cluster_id = models.CharField(
+        max_length=50, blank=True, default='',
+        help_text="Cluster identifier from curator run",
+    )
+
+    # Feature snapshot for ML (frozen at decision time)
+    brand = models.CharField(max_length=100, blank=True, default='')
+    has_specs_data = models.BooleanField(default=False)
+    source_count = models.IntegerField(default=1)
+    llm_score = models.IntegerField(null=True, blank=True)
+    title_text = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text="Title snapshot — avoids JOIN for ML training queries",
+    )
+
+    # Result tracking
+    generated_article = models.ForeignKey(
+        'Article', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='curator_decisions',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Curator Decision Log'
+        verbose_name_plural = 'Curator Decision Logs'
+        indexes = [
+            models.Index(fields=['decision', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"[{self.decision}] {self.title_text[:60]}"
+
+
 class SocialPost(models.Model):
     """Tracks social media posts (Telegram, Twitter, etc.) for audit trail and queue.
     

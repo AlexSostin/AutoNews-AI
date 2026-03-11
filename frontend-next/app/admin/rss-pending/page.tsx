@@ -16,6 +16,14 @@ import {
     Sparkles,
     Tag,
     Heart,
+    Brain,
+    Combine,
+    SkipForward,
+    Bookmark,
+    ChevronDown,
+    ChevronUp,
+    Zap,
+    BarChart3,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
@@ -164,6 +172,49 @@ interface RSSNewsItem {
     source_count: number;           // how many feeds covered this story
 }
 
+// ----------------------------------------------------------------
+// Smart RSS Curator types
+// ----------------------------------------------------------------
+interface CuratorItem {
+    id: number;
+    title: string;
+    excerpt: string;
+    source_url: string;
+    image_url: string;
+    feed_name: string;
+    published_at: string | null;
+    brand: string | null;
+    score: number;
+    score_breakdown: Record<string, number>;
+    has_specs: boolean;
+    duplicate_of: number | null;
+    source_count: number;
+    llm_score: number | null;
+    is_favorite: boolean;
+    ai_summary: string;
+}
+
+interface CuratorCluster {
+    id: string;
+    topic: string;
+    items: CuratorItem[];
+    max_score: number;
+    merge_suggested: boolean;
+    merge_reason: string;
+}
+
+interface CuratorResult {
+    success: boolean;
+    items_scanned: number;
+    clusters: CuratorCluster[];
+    stats: {
+        total_clusters: number;
+        recommended: number;
+        skippable: number;
+        duplicates_found: number;
+    };
+}
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
     new: { label: 'New', color: 'from-blue-500 to-blue-600', icon: '🆕' },
     read: { label: 'Read', color: 'from-gray-400 to-gray-500', icon: '👁️' },
@@ -199,6 +250,14 @@ export default function RSSNewsPage() {
     // Global brand stats — fetched from API (all items in DB, last 30 days)
     const [globalBrandStats, setGlobalBrandStats] = useState<[string, number][]>([]);
     const [loadingStats, setLoadingStats] = useState(false);
+
+    // Smart Curator state
+    const [curatorResults, setCuratorResults] = useState<CuratorResult | null>(null);
+    const [curatorLoading, setCuratorLoading] = useState(false);
+    const [curatorOpen, setCuratorOpen] = useState(false);
+    const [curatorDeciding, setCuratorDeciding] = useState<string | null>(null); // cluster_id being decided on
+    const [merging, setMerging] = useState(false);
+    const [expandedCluster, setExpandedCluster] = useState<string | null>(null);
     const [statsScanned, setStatsScanned] = useState<number>(0);
 
     const fetchGlobalBrandStats = async () => {
@@ -339,6 +398,109 @@ export default function RSSNewsPage() {
         }
     };
 
+    // ----------------------------------------------------------------
+    // Smart Curator handlers
+    // ----------------------------------------------------------------
+
+    const handleCurate = async () => {
+        setCuratorLoading(true);
+        setCuratorOpen(true);
+        try {
+            const res = await api.post('/rss-news-items/curate/', {
+                days: 7,
+                include_ai_summary: true,
+                provider: 'gemini',
+            });
+            setCuratorResults(res.data);
+        } catch (error: any) {
+            logCaughtError('curator_run', error);
+            toast.error(`Curator failed: ${error.response?.data?.error || error.message}`);
+        } finally {
+            setCuratorLoading(false);
+        }
+    };
+
+    const handleCuratorDecision = async (
+        itemId: number,
+        decision: 'generate' | 'skip' | 'save_later',
+        clusterId: string,
+        score: number,
+        brand: string,
+    ) => {
+        setCuratorDeciding(`${clusterId}_${itemId}_${decision}`);
+        try {
+            const res = await api.post('/rss-news-items/curator_decision/', {
+                item_id: itemId,
+                decision,
+                cluster_id: clusterId,
+                score,
+                brand,
+            });
+
+            if (decision === 'generate' && res.data.generated_article_id) {
+                toast.success(`✅ Article generated! (Pending #${res.data.generated_article_id})`);
+            } else if (decision === 'skip') {
+                toast.success('⏭️ Skipped — ML will remember this preference');
+            } else if (decision === 'save_later') {
+                toast.success('📌 Saved for later');
+            }
+
+            // Remove item from curator results
+            if (curatorResults) {
+                const updated = {
+                    ...curatorResults,
+                    clusters: curatorResults.clusters.map(c => ({
+                        ...c,
+                        items: c.items.filter(i => i.id !== itemId),
+                    })).filter(c => c.items.length > 0),
+                };
+                setCuratorResults(updated);
+            }
+
+            // Refresh main list
+            fetchNewsItems();
+        } catch (error: any) {
+            logCaughtError('curator_decision', error);
+            toast.error(`Decision failed: ${error.response?.data?.error || error.message}`);
+        } finally {
+            setCuratorDeciding(null);
+        }
+    };
+
+    const handleMergeGenerate = async (ids: number[], clusterId: string) => {
+        setMerging(true);
+        try {
+            const res = await api.post('/rss-news-items/merge_generate/', {
+                ids,
+                provider: 'gemini',
+            });
+            toast.success(`🔗 Roundup created: ${res.data.title} (${res.data.word_count} words)`);
+
+            // Remove merged items from curator results
+            if (curatorResults) {
+                const updated = {
+                    ...curatorResults,
+                    clusters: curatorResults.clusters.filter(c => c.id !== clusterId),
+                };
+                setCuratorResults(updated);
+            }
+
+            fetchNewsItems();
+        } catch (error: any) {
+            logCaughtError('merge_generate', error);
+            toast.error(`Merge failed: ${error.response?.data?.error || error.message}`);
+        } finally {
+            setMerging(false);
+        }
+    };
+
+    const getScoreColor = (score: number) => {
+        if (score >= 70) return 'bg-emerald-500 text-white';
+        if (score >= 50) return 'bg-amber-500 text-white';
+        if (score >= 30) return 'bg-orange-400 text-white';
+        return 'bg-gray-400 text-white';
+    };
+
     const handleBulkDismiss = async () => {
         if (selectedItems.size === 0) return;
         setBulkDismissing(true);
@@ -448,17 +610,238 @@ export default function RSSNewsPage() {
     return (
         <div className="p-4 sm:p-6 max-w-[1440px] mx-auto min-h-screen bg-gray-50">
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl sm:text-3xl font-black text-gray-950 flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl shadow-lg">
-                        <Newspaper className="text-white" size={28} />
-                    </div>
-                    RSS News Reader
-                </h1>
-                <p className="text-gray-600 mt-2">
-                    Browse news from your RSS feeds. Select interesting articles to generate with AI.
-                </p>
+            <div className="mb-6 flex items-start justify-between">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-950 flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl shadow-lg">
+                            <Newspaper className="text-white" size={28} />
+                        </div>
+                        RSS News Reader
+                    </h1>
+                    <p className="text-gray-600 mt-2">
+                        Browse news from your RSS feeds. Select interesting articles to generate with AI.
+                    </p>
+                </div>
+                <button
+                    onClick={handleCurate}
+                    disabled={curatorLoading}
+                    className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:from-violet-700 hover:to-purple-700 disabled:opacity-60 transition-all font-bold shadow-lg hover:shadow-xl text-sm"
+                >
+                    {curatorLoading ? (
+                        <><Loader2 className="animate-spin" size={18} /> Analyzing...</>
+                    ) : (
+                        <><Brain size={18} /> 🤖 Analyze Feed</>
+                    )}
+                </button>
             </div>
+
+            {/* ═══════ Smart Curator Panel ═══════ */}
+            {curatorOpen && (
+                <div className="mb-6 bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl shadow-xl border border-violet-200 overflow-hidden">
+                    {/* Curator Header */}
+                    <div
+                        className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-violet-100/50 transition-colors"
+                        onClick={() => setCuratorOpen(prev => !prev)}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-md">
+                                <Brain size={20} className="text-white" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-900">Smart Curator</h2>
+                                {curatorResults && !curatorLoading && (
+                                    <p className="text-sm text-gray-500">
+                                        Scanned {curatorResults.items_scanned} items → {curatorResults.stats.total_clusters} clusters → <span className="font-semibold text-emerald-600">{curatorResults.stats.recommended} recommended</span>
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            {curatorResults && (
+                                <div className="flex gap-2 text-xs">
+                                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full font-bold flex items-center gap-1">
+                                        <Zap size={12} /> {curatorResults.stats.recommended} rec
+                                    </span>
+                                    <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full font-medium">
+                                        {curatorResults.stats.skippable} skip
+                                    </span>
+                                    {curatorResults.stats.duplicates_found > 0 && (
+                                        <span className="px-2.5 py-1 bg-red-100 text-red-600 rounded-full font-medium">
+                                            {curatorResults.stats.duplicates_found} dup
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setCuratorOpen(false); }}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <XCircle size={20} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Loading State */}
+                    {curatorLoading && (
+                        <div className="px-6 py-12 flex flex-col items-center gap-4">
+                            <div className="relative">
+                                <div className="w-16 h-16 border-4 border-violet-200 rounded-full animate-spin border-t-violet-600" />
+                                <Brain className="text-violet-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" size={24} />
+                            </div>
+                            <p className="text-sm text-gray-500 font-medium">Analyzing RSS items with AI...</p>
+                            <p className="text-xs text-gray-400">Clustering → Scoring → Generating summaries</p>
+                        </div>
+                    )}
+
+                    {/* Curator Clusters */}
+                    {curatorResults && !curatorLoading && (
+                        <div className="px-6 pb-6 space-y-3 max-h-[600px] overflow-y-auto">
+                            {curatorResults.clusters.length === 0 ? (
+                                <p className="text-center text-gray-500 py-8">No pending items to analyze.</p>
+                            ) : (
+                                curatorResults.clusters.map((cluster) => {
+                                    const isExpCluster = expandedCluster === cluster.id;
+                                    const topItem = cluster.items[0];
+                                    return (
+                                        <div
+                                            key={cluster.id}
+                                            className={`bg-white rounded-xl border transition-all ${
+                                                cluster.max_score >= 60
+                                                    ? 'border-emerald-200 shadow-md'
+                                                    : 'border-gray-200 shadow-sm'
+                                            }`}
+                                        >
+                                            {/* Cluster Header */}
+                                            <div
+                                                className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50/80 transition-colors"
+                                                onClick={() => setExpandedCluster(isExpCluster ? null : cluster.id)}
+                                            >
+                                                {/* Score Badge */}
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${getScoreColor(cluster.max_score)}`} title={`Score: ${cluster.max_score}`}>
+                                                    {cluster.max_score}
+                                                </div>
+
+                                                {/* Topic + Info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-bold text-gray-900 text-sm truncate">{cluster.topic || topItem?.title || 'Unknown'}</h3>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="text-xs text-gray-500">{cluster.items.length} item{cluster.items.length > 1 ? 's' : ''}</span>
+                                                        {topItem?.brand && (
+                                                            <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-semibold">{topItem.brand}</span>
+                                                        )}
+                                                        {cluster.merge_suggested && cluster.items.length >= 2 && (
+                                                            <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-semibold flex items-center gap-0.5">
+                                                                <Combine size={10} /> Merge
+                                                            </span>
+                                                        )}
+                                                        {topItem?.duplicate_of && (
+                                                            <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-semibold">⚠ Duplicate</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Quick Actions */}
+                                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                                    {topItem && !topItem.duplicate_of && (
+                                                        <button
+                                                            onClick={() => handleCuratorDecision(topItem.id, 'generate', cluster.id, topItem.score, topItem.brand || '')}
+                                                            disabled={curatorDeciding === `${cluster.id}_${topItem.id}_generate`}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg text-xs font-bold hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50 transition-all shadow-sm"
+                                                        >
+                                                            {curatorDeciding === `${cluster.id}_${topItem.id}_generate` ? (
+                                                                <Loader2 className="animate-spin" size={12} />
+                                                            ) : (
+                                                                <><Wand2 size={12} /> Generate</>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                    {cluster.merge_suggested && cluster.items.length >= 2 && (
+                                                        <button
+                                                            onClick={() => handleMergeGenerate(cluster.items.map(i => i.id), cluster.id)}
+                                                            disabled={merging}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg text-xs font-bold hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 transition-all shadow-sm"
+                                                        >
+                                                            {merging ? <Loader2 className="animate-spin" size={12} /> : <><Combine size={12} /> Merge</>}
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => topItem && handleCuratorDecision(topItem.id, 'skip', cluster.id, topItem.score, topItem.brand || '')}
+                                                        disabled={!topItem || curatorDeciding === `${cluster.id}_${topItem?.id}_skip`}
+                                                        className="flex items-center gap-1 px-2 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-xs font-medium transition-all"
+                                                    >
+                                                        <SkipForward size={12} /> Skip
+                                                    </button>
+                                                </div>
+
+                                                {isExpCluster ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                                            </div>
+
+                                            {/* AI Summary */}
+                                            {topItem?.ai_summary && (
+                                                <div className="px-4 pb-2">
+                                                    <p className="text-xs text-violet-600 italic pl-[52px]">💡 {topItem.ai_summary}</p>
+                                                </div>
+                                            )}
+
+                                            {/* Expanded: all items in cluster */}
+                                            {isExpCluster && (
+                                                <div className="border-t border-gray-100 px-4 py-3 space-y-2 bg-gray-50/50">
+                                                    {cluster.items.map((ci) => (
+                                                        <div key={ci.id} className="flex items-start gap-3 py-2">
+                                                            <div
+                                                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 ${getScoreColor(ci.score)}`}
+                                                            >
+                                                                {ci.score}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-semibold text-gray-800 truncate">{ci.title}</p>
+                                                                <div className="flex items-center gap-2 mt-0.5">
+                                                                    <span className="text-xs text-gray-400">{ci.feed_name}</span>
+                                                                    {ci.brand && <span className="text-xs px-1 py-0.5 bg-amber-50 text-amber-600 rounded">{ci.brand}</span>}
+                                                                    {ci.duplicate_of && <span className="text-xs text-red-500">⚠ dup of #{ci.duplicate_of}</span>}
+                                                                    {Object.entries(ci.score_breakdown).map(([k, v]) => (
+                                                                        <span key={k} className={`text-[10px] px-1 py-0.5 rounded ${
+                                                                            (v as number) > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
+                                                                        }`}>
+                                                                            {k}: {v > 0 ? '+' : ''}{v as number}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                                {!ci.duplicate_of && (
+                                                                    <button
+                                                                        onClick={() => handleCuratorDecision(ci.id, 'generate', cluster.id, ci.score, ci.brand || '')}
+                                                                        disabled={curatorDeciding === `${cluster.id}_${ci.id}_generate`}
+                                                                        className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-semibold hover:bg-emerald-200 disabled:opacity-50 transition-all"
+                                                                    >
+                                                                        {curatorDeciding === `${cluster.id}_${ci.id}_generate` ? <Loader2 className="animate-spin" size={10} /> : 'Gen'}
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => handleCuratorDecision(ci.id, 'skip', cluster.id, ci.score, ci.brand || '')}
+                                                                    className="px-2 py-1 text-gray-400 hover:bg-gray-100 rounded text-xs transition-all"
+                                                                >
+                                                                    Skip
+                                                                </button>
+                                                                {ci.source_url && (
+                                                                    <a href={ci.source_url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-600">
+                                                                        <ExternalLink size={12} />
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="grid grid-cols-12 gap-6">
                 {/* Sidebar - RSS Feeds */}
