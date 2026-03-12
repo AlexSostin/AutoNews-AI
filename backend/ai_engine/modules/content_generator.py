@@ -459,6 +459,13 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         )
         article_html = noise_body_re.sub('', article_html)
         
+        # 4.6 Content sanitization — strip non-Latin chars and duplicate words
+        try:
+            from ai_engine.modules.content_sanitizer import sanitize_article_html
+            article_html = sanitize_article_html(article_html)
+        except Exception as e:
+            print(f"⚠️ Content sanitizer failed (continuing): {e}")
+        
         # 5. Extract screenshots from video
         _t_step = _time.time()
         send_progress(6, 80, "📸 Extracting screenshots...")

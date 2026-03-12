@@ -188,6 +188,13 @@ def _format_competitor_line(v) -> tuple[str, dict]:
     if v.trim_name:
         name_parts.append(v.trim_name)
     name = " ".join(p for p in name_parts if p).strip()
+
+    # Sanitize: strip non-Latin chars + deduplicate consecutive words
+    try:
+        from ai_engine.modules.content_sanitizer import sanitize_car_name
+        name = sanitize_car_name(name)
+    except ImportError:
+        pass
     parts.append(name)
 
     spec_parts = []
