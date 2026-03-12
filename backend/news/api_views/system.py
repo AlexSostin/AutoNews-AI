@@ -604,6 +604,7 @@ class AutomationTriggerView(APIView):
         'deep-specs': 'deep_specs',
         'ab-cleanup': None,   # no lock needed — fast
         'index-articles': None,
+        'clear-embeddings': None,
         'telegram-test': None,
         'telegram-send': None,
     }
@@ -680,6 +681,21 @@ class AutomationTriggerView(APIView):
                     logger.error(f'[index-articles] failed: {e}')
             threading.Thread(target=_index, daemon=True).start()
             return Response({'message': 'Article embeddings indexing triggered', 'status': 'running'})
+
+        elif task_type == 'clear-embeddings':
+            def _clear():
+                import subprocess, sys
+                manage_py = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'manage.py')
+                try:
+                    subprocess.run(
+                        [sys.executable, manage_py, 'clear_embeddings', '--confirm'],
+                        check=True, timeout=60,
+                    )
+                    logger.info('[clear-embeddings] completed')
+                except Exception as e:
+                    logger.error(f'[clear-embeddings] failed: {e}')
+            threading.Thread(target=_clear, daemon=True).start()
+            return Response({'message': 'Embeddings cleared — run Index Articles to re-index', 'status': 'running'})
         
         elif task_type == 'telegram-test':
             try:
