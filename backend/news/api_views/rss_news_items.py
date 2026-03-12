@@ -560,26 +560,37 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
 
         # If decision is 'generate', trigger article generation immediately
         generated_article_id = None
+        generation_error = None
         if decision == 'generate':
             try:
-                # Re-use existing generate logic
+                # self.generate() uses self.get_object() which needs pk in URL kwargs
+                # Since curator_decision is detail=False, we must inject pk manually
+                self.kwargs['pk'] = str(item_id)
                 generate_response = self.generate(request._request, pk=item_id)
-                if hasattr(generate_response, 'data') and generate_response.data.get('pending_article_id'):
-                    generated_article_id = generate_response.data['pending_article_id']
+                if hasattr(generate_response, 'data'):
+                    if generate_response.data.get('pending_article_id'):
+                        generated_article_id = generate_response.data['pending_article_id']
+                    elif generate_response.data.get('error'):
+                        generation_error = generate_response.data['error']
+                        logger.error(f'[Curator] Generate returned error for item {item_id}: {generation_error}')
             except Exception as e:
-                logger.error(f'[Curator] Auto-generate failed for item {item_id}: {e}')
+                generation_error = str(e)
+                logger.error(f'[Curator] Auto-generate failed for item {item_id}: {e}', exc_info=True)
 
         # If decision is 'skip', mark as dismissed
         if decision == 'skip':
             news_item.status = 'dismissed'
             news_item.save(update_fields=['status'])
 
-        return Response({
+        response_data = {
             'success': True,
             'log_id': log.id,
             'decision': decision,
             'generated_article_id': generated_article_id,
-        })
+        }
+        if generation_error:
+            response_data['generation_error'] = generation_error
+        return Response(response_data)
 
     @action(detail=False, methods=['post'])
     def merge_generate(self, request):

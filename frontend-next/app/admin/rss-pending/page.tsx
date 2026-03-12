@@ -252,10 +252,29 @@ export default function RSSNewsPage() {
     const [globalBrandStats, setGlobalBrandStats] = useState<[string, number][]>([]);
     const [loadingStats, setLoadingStats] = useState(false);
 
-    // Smart Curator state
-    const [curatorResults, setCuratorResults] = useState<CuratorResult | null>(null);
+    // Smart Curator state — restored from sessionStorage on mount
+    const [curatorResults, setCuratorResultsRaw] = useState<CuratorResult | null>(() => {
+        if (typeof window === 'undefined') return null;
+        try {
+            const saved = sessionStorage.getItem('curator_results');
+            return saved ? JSON.parse(saved) : null;
+        } catch { return null; }
+    });
+    const setCuratorResults = (val: CuratorResult | null | ((prev: CuratorResult | null) => CuratorResult | null)) => {
+        setCuratorResultsRaw(prev => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            try {
+                if (next) sessionStorage.setItem('curator_results', JSON.stringify(next));
+                else sessionStorage.removeItem('curator_results');
+            } catch {}
+            return next;
+        });
+    };
     const [curatorLoading, setCuratorLoading] = useState(false);
-    const [curatorOpen, setCuratorOpen] = useState(false);
+    const [curatorOpen, setCuratorOpen] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return sessionStorage.getItem('curator_results') !== null;
+    });
     const [curatorDeciding, setCuratorDeciding] = useState<string | null>(null); // cluster_id being decided on
     const [merging, setMerging] = useState<string | null>(null);
     const [expandedCluster, setExpandedCluster] = useState<string | null>(null);
@@ -440,15 +459,26 @@ export default function RSSNewsPage() {
                 brand,
             });
 
-            if (decision === 'generate' && res.data.generated_article_id) {
-                toast.success(`✅ Article generated! (Pending #${res.data.generated_article_id})`);
+            if (decision === 'generate') {
+                if (res.data.generated_article_id) {
+                    toast.success(
+                        `✅ Article generated! Pending #${res.data.generated_article_id}`,
+                        { duration: 5000 }
+                    );
+                } else if (res.data.generation_error) {
+                    toast.error(`Generation failed: ${res.data.generation_error}`, { duration: 6000 });
+                    return; // Don't remove item — let user retry
+                } else {
+                    toast.error('Generation failed silently — check server logs', { duration: 6000 });
+                    return;
+                }
             } else if (decision === 'skip') {
                 toast.success('⏭️ Skipped — ML will remember this preference');
             } else if (decision === 'save_later') {
                 toast.success('📌 Saved for later');
             }
 
-            // Remove item from curator results
+            // Remove item from curator results (only on success)
             if (curatorResults) {
                 const updated = {
                     ...curatorResults,
