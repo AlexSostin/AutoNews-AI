@@ -48,7 +48,13 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
         if (slug === activeSlug) return;
         setActiveSlug(slug);
         const newUrl = `/articles/${slug}`;
-        window.history.pushState({ slug }, '', newUrl);
+        try {
+          // Spread existing state to preserve Next.js App Router internal flags (__NA/__N).
+          // Use replaceState (not pushState) — each article in the feed is not a new history entry.
+          window.history.replaceState({ ...window.history.state, slug }, '', newUrl);
+        } catch {
+          // Silently ignore — history manipulation is best-effort for UX only
+        }
         document.title = `${title} | Fresh Motors`;
         window.dispatchEvent(new CustomEvent('article-active-slug', { detail: slug }));
         try {

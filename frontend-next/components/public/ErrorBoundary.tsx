@@ -21,6 +21,18 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        // ChunkLoadError = stale JS chunk after a new deploy → auto-reload to get fresh assets
+        const isChunkError =
+            error.name === 'ChunkLoadError' ||
+            error.message.includes('Loading chunk') ||
+            error.message.includes('Failed to fetch dynamically imported module');
+
+        if (isChunkError) {
+            console.warn('ChunkLoadError detected — reloading for fresh assets', error.message);
+            window.location.reload();
+            return;
+        }
+
         console.error('Uncaught error:', error, errorInfo);
 
         // Ship the crash to the backend error log

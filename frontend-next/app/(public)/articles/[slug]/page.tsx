@@ -13,12 +13,30 @@ const getApiUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
 };
 
+/** Fetch with up to `retries` retries and a short per-attempt timeout.
+ *  Reduces transient Railway failures that cause unnecessary React #419 fallbacks. */
+async function fetchWithRetry(url: string, retries = 2, delayMs = 400): Promise<Response | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        next: { revalidate: 60 },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (res.ok) return res;
+      // Don't retry 4xx — article genuinely not found
+      if (res.status >= 400 && res.status < 500) return null;
+    } catch {
+      // Network error / timeout — retry after delay
+    }
+    if (attempt < retries) await new Promise(r => setTimeout(r, delayMs));
+  }
+  return null;
+}
+
 async function getArticle(slug: string): Promise<Article | null> {
   try {
-    const res = await fetch(`${getApiUrl()}/articles/${slug}/`, {
-      next: { revalidate: 30 }
-    });
-    if (!res.ok) return null;
+    const res = await fetchWithRetry(`${getApiUrl()}/articles/${slug}/`);
+    if (!res) return null;
     return res.json();
   } catch {
     // SSR fetch failed (Docker dev Turbopack/webpack DNS issue) — fallback to client
