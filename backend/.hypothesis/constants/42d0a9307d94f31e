@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/image_generator.py
+# hypothesis_version: 6.151.9
+
+[1024, 2000, 15000, 'BLOCKED', 'GEMINI_API_KEY', 'GEMINI_IMAGE_MODEL', 'Image', 'QUOTA', 'RATE', 'SAFETY', 'Text', 'User-Agent', '_', 'coastal', 'description', 'desert_sunset', 'error', 'forest', 'image/png', 'image_data', 'inline_data', 'key', 'label', 'mime_type', 'mountain_pass', 'scenic_road', 'showroom', 'studio', 'success', 'text', 'urban_city', 'utf-8']

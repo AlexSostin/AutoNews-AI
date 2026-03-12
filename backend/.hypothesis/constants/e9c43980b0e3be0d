@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/index_articles.py
+# hypothesis_version: 6.151.9
+
+['--limit', '--rebuild', 'categories', 'content', 'created_at', 'id', 'is_published', 'limit', 'metadata', 'rebuild', 'slug', 'specs', 'store_true', 'summary', 'tags', 'title', '❌ Indexing failed']

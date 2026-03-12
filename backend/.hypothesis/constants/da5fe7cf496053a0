@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0078_add_image_source.py
+# hypothesis_version: 6.151.9
+
+['0077_theme_analytics', 'Manual Upload', 'Pexels Stock Photo', 'Unknown', 'YouTube Thumbnail', 'article', 'commentmoderationlog', 'image_source', 'news', 'pendingarticle', 'pexels', 'rss_original', 'themeanalytics', 'unknown', 'uploaded', 'youtube']

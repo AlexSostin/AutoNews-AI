@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/consumers.py
+# hypothesis_version: 6.151.9
+
+['kwargs', 'message', 'progress', 'step', 'task_id', 'url_route']

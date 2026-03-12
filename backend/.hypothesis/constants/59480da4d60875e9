@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0073_draft_toggle_and_learning.py
+# hypothesis_version: 6.151.9
+
+['Failed: Error', 'Human Approved', 'Human Rejected', 'Published', 'Skipped: Feed Unsafe', 'Skipped: Low Quality', 'Skipped: No Image', 'Skipped: Rate Limit', 'automationsettings', 'autopublishlog', 'decision', 'drafted', 'failed', 'human_approved', 'human_rejected', 'news', 'published', 'review_time_seconds', 'reviewer_notes', 'skipped_limit', 'skipped_no_image', 'skipped_quality', 'skipped_safety']

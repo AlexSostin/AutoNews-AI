@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/analyze_youtube_videos.py
+# hypothesis_version: 6.151.9
+
+[100, 200, 2026, '--channel-id', '--max-videos', '--missing-only', '--year', 'No channels found', 'YOUTUBE_API_KEY', 'channel_id', 'contentDetails', 'id', 'items', 'key', 'maxResults', 'max_videos', 'missing_only', 'nextPageToken', 'pageToken', 'part', 'playlistId', 'published', 'publishedAt', 'relatedPlaylists', 'snippet', 'statistics', 'store_true', 'title', 'uploads', 'url', 'videoCount', 'videoId', 'year', 'youtube_url']

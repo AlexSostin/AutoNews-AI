@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0027_securitylog.py
+# hypothesis_version: 6.151.9
+
+[255, '-created_at', 'Account Locked', 'Email Changed', 'ID', 'Login Failed', 'Login Success', 'Logout', 'Password Changed', 'Security Log', 'Security Logs', 'SecurityLog', 'account_locked', 'action', 'created_at', 'details', 'email_changed', 'id', 'indexes', 'ip_address', 'login_failed', 'login_success', 'logout', 'new_value', 'news', 'old_value', 'ordering', 'password_changed', 'security_logs', 'user', 'user_agent', 'verbose_name', 'verbose_name_plural']

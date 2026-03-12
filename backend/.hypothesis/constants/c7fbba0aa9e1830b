@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/cache_signals.py
+# hypothesis_version: 6.151.9
+
+[100, 'articles', 'articles_list', 'cars_picker', 'categories', 'categories_list', 'currency', 'currency_rates', 'delete_pattern', 'get_client', 'popular', 'robots', 'robots_txt', 'settings', 'site_settings_api_v1', 'tags', 'tags_list', 'trending', 'trending_articles', 'utf-8']

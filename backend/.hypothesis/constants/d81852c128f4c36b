@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0097_capsule_feedback_infinite_scroll.py
+# hypothesis_version: 6.151.9
+
+['-created_at', 'ID', 'accurate_specs', 'article', 'capsule_feedback', 'constraints', 'created_at', 'fair_review', 'feedback_type', 'great_photos', 'id', 'inaccurate', 'indexes', 'ip_address', 'is_positive', 'missing_price', 'need_photos', 'news', 'news.article', 'ordering', 'sitesettings', 'too_long', 'useful_info', 'verbose_name', 'verbose_name_plural', 'well_written', 'wrong_specs', '⚖️ Fair Review', '✍️ Too Long', '✍️ Well Written', '❌ Inaccurate', '💡 Useful Info', '💰 Missing Price', '📊 Accurate Specs', '📊 Wrong Specs', '📸 Great Photos', '📸 Need Photos']

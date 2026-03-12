@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0077_theme_analytics.py
+# hypothesis_version: 6.151.9
+
+['-created_at', 'ID', 'ThemeAnalytics', 'created_at', 'id', 'indexes', 'news', 'ordering', 'session_hash', 'theme']

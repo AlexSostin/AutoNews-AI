@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0096_ab_title_variant_winner_tracking.py
+# hypothesis_version: 6.151.9
+
+['AI-recommended', 'Auto-picked by CTR', 'admin', 'ai', 'articletitlevariant', 'auto', 'news', 'selected_at', 'selection_source', 'title_pattern']

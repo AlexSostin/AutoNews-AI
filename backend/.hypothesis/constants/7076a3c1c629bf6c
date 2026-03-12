@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/validators.py
+# hypothesis_version: 6.151.9
+
+['(.)\\1{4,}', '12345678', '123456789', '1234567890', 'Password is strong', '[A-Za-z]', '\\d', 'abc123', 'admin', 'dragon', 'letmein', 'login', 'master', 'monkey', 'pass', 'passw0rd', 'password', 'password123', 'qwerty', 'qwerty123', 'root', 'welcome']

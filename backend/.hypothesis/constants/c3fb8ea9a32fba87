@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/prompt_sanitizer.py
+# hypothesis_version: 6.151.9
+
+[14999, 15000, '<</SYS>>', '<<SYS>>', '<\\|assistant\\|>', '<\\|im_end\\|>', '<\\|im_start\\|>', '<\\|system\\|>', '<\\|user\\|>', 'SOURCE_CONTENT', '[FILTERED]', '\\[/INST\\]', '\\[INST\\]']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0028_emailverification_passwordresettoken.py
+# hypothesis_version: 6.151.9
+
+[254, '-created_at', '0027_securitylog', 'Email Verification', 'Email Verifications', 'EmailVerification', 'ID', 'Password Reset Token', 'PasswordResetToken', 'code', 'created_at', 'email_verifications', 'expires_at', 'id', 'indexes', 'ip_address', 'is_used', 'new_email', 'news', 'ordering', 'password_resets', 'token', 'user', 'verbose_name', 'verbose_name_plural']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0098_totp_device_2fa.py
+# hypothesis_version: 6.151.9
+
+['ID', 'TOTP Device', 'TOTP Devices', 'TOTPDevice', 'action', 'adminactionlog', 'backup_codes', 'created_at', 'delete', 'edit_save', 'id', 'image_change', 'is_confirmed', 'news', 'publish', 're_enrich', 'reformat', 'regenerate', 'secret', 'totp_device', 'unpublish', 'user', 'verbose_name', 'verbose_name_plural', '⚡ Re-enrich Specs', '✨ Reformat with AI', '💾 Article Saved', '📝 Unpublished', '📢 Published', '🔄 Regenerate', '🖼️ Image Changed', '🗑️ Deleted']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0089_brandalias_model_prefix.py
+# hypothesis_version: 6.151.9
+
+[100, 'JavaScript Error', 'Other', 'alias', 'api_4xx', 'api_5xx', 'brandalias', 'caught_error', 'error_type', 'frontendeventlog', 'hydration', 'js_error', 'model_prefix', 'network', 'news', 'other', 'performance', 'react_crash', 'resource_404', 'unhandled_rejection', 'unique_alias_prefix']

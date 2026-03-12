@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/fix_video_embeds.py
+# hypothesis_version: 6.151.9
+
+['--article-id', '--dry-run', '</h2>', '<iframe', 'Fixed', 'Would fix', 'article_id', 'content', 'dry_run', 'store_true']

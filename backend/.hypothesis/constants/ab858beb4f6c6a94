@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/ab_testing_views.py
+# hypothesis_version: 6.151.9
+
+['!', ':', '?', 'REMOTE_ADDR', '\\d', '^\\d', 'ab_seed', 'active_count', 'admin', 'article_id', 'article_slug', 'article_title', 'char_count', 'clicks', 'count', 'ctr', 'details', 'error', 'has_colon', 'has_exclamation', 'has_numbers', 'has_question', 'has_spec', 'has_superlative', 'id', 'image', 'impressions', 'is_active', 'is_winner', 'limit', 'ok', 'selected_at', 'selection_source', 'showing', 'starts_with_number', 'tests', 'title', 'title_pattern', 'title_variants', 'total_impressions', 'type', 'unknown', 'uppercase_ratio', 'variant', 'variant not found', 'variant_id', 'variant_id required', 'variants', 'winner', 'winners_count', 'winners_picked', 'winning_title', 'winning_variant', 'word_count']

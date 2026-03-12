@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0094_article_is_news_only.py
+# hypothesis_version: 6.151.9
+
+['article', 'is_news_only', 'news']

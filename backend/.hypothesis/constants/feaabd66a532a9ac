@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0090_carspec_is_make_locked.py
+# hypothesis_version: 6.151.9
+
+['carspecification', 'is_make_locked', 'news']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0036_article_author_channel_url_article_author_name.py
+# hypothesis_version: 6.151.9
+
+[200, 'article', 'author_channel_url', 'author_name', 'news']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/sync_views.py
+# hypothesis_version: 6.151.9
+
+['--dry-run', ':', 'article_views:*', 'default', 'dry_run', 'store_true', 'verbosity', '✓ Cleared cache']

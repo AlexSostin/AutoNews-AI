@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/add_popular_rss_feeds.py
+# hypothesis_version: 6.151.9
+
+['BMWBLOG', 'Electrek Tesla', 'Electric Vehicles', 'Ford Media Center', 'Luxury', 'News', 'Teslarati', 'Toyota USA Newsroom', 'category', 'default_category', 'electric-vehicles', 'feed_url', 'is_enabled', 'logo_url', 'luxury', 'name', 'news', 'slug']

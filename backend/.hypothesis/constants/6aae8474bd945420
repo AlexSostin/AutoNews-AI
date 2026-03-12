@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/duplicate_checker.py
+# hypothesis_version: 6.151.9
+
+[100, '(?![a-z0-9])', '(?<![a-z0-9])', '4wd', '5-seater', '6-seater', '7-seater', 'Not specified', 'awd', 'bev', 'diesel', 'dm-i', 'dm-o', 'dm-p', 'dm-s', 'duplicate', 'duplicate_pending', 'error', 'ev', 'existing_article_id', 'existing_pending_id', 'fcev', 'fwd', 'hev', 'ice', 'is_duplicate', 'long range', 'make', 'max', 'mhev', 'model', 'pending', 'petrol', 'phev', 'plus', 'pro', 'reason', 'rev', 'review', 'rwd', 'standard range', 'title', 'trim', 'ultra', 'walk-around', 'walkaround']

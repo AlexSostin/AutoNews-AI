@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0079_admin_action_log.py
+# hypothesis_version: 6.151.9
+
+['-created_at', 'AdminActionLog', 'ID', 'action', 'admin_action_logs', 'article', 'created_at', 'details', 'edit_save', 'id', 'image_change', 'indexes', 'news', 'news.article', 'ordering', 'publish', 're_enrich', 'reformat', 'regenerate', 'success', 'unpublish', 'user', '⚡ Re-enrich Specs', '✨ Reformat with AI', '💾 Article Saved', '📝 Unpublished', '📢 Published', '🔄 Regenerate', '🖼️ Image Changed']

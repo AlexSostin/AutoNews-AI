@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/assign_article_categories.py
+# hypothesis_version: 6.151.9
+
+['--default-category', '--dry-run', 'Summary:', '\\b', 'ai', 'audi', 'autonomous', 'battery', 'bentley', 'bmw', 'charging', 'comparison', 'default_category', 'drive', 'dry_run', 'electric', 'ev', 'evs', 'lucid', 'luxury', 'mercedes', 'news', 'porsche', 'premium', 'review', 'reviews', 'rivian', 'rolls-royce', 'self-driving', 'software', 'store_true', 'tech', 'technology', 'tesla', 'test']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0084_frontendeventlog.py
+# hypothesis_version: 6.151.9
+
+[1000, '-last_seen', 'Frontend Event Log', 'Frontend Event Logs', 'FrontendEventLog', 'ID', 'Other', 'error_type', 'first_seen', 'hydration', 'id', 'indexes', 'js_error', 'last_seen', 'message', 'network', 'news', 'occurrence_count', 'ordering', 'other', 'performance', 'resolution_notes', 'resolved', 'resolved_at', 'resource_404', 'stack_trace', 'url', 'user_agent', 'verbose_name', 'verbose_name_plural']

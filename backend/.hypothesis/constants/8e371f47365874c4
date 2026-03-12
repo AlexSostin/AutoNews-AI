@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0032_gscreport_articlegscstats.py
+# hypothesis_version: 6.151.9
+
+[0.0, '-date', 'Article Search Stat', 'Article Search Stats', 'ArticleGSCStats', 'GSC Daily Report', 'GSC Daily Reports', 'GSCReport', 'ID', 'article', 'clicks', 'created_at', 'ctr', 'date', 'id', 'impressions', 'news', 'news.article', 'ordering', 'position', 'search_stats', 'top_queries', 'unique_together', 'updated_at', 'verbose_name', 'verbose_name_plural']

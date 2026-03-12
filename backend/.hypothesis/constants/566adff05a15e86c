@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/sync_redis_views.py
+# hypothesis_version: 6.151.9
+
+[':', 'article_views:*', 'default']

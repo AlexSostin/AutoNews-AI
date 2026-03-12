@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0091_add_web_search_ai_generated_image_source.py
+# hypothesis_version: 6.151.9
+
+['AI Generated', 'Manual Upload', 'Pexels Stock Photo', 'Unknown', 'Web Search Photo', 'YouTube Thumbnail', 'ai_generated', 'article', 'image_source', 'news', 'pendingarticle', 'pexels', 'rss_original', 'unknown', 'uploaded', 'web_search', 'youtube']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0023_adminnotification.py
+# hypothesis_version: 6.151.9
+
+[200, 500, '-created_at', 'AI Generation Error', 'Admin Notification', 'Admin Notifications', 'AdminNotification', 'High', 'ID', 'Information', 'Low', 'New Article', 'New Comment', 'New Subscriber', 'Normal', 'System Alert', 'Video Pending Review', 'ai_error', 'article', 'comment', 'created_at', 'high', 'id', 'info', 'is_read', 'link', 'low', 'message', 'news', 'normal', 'notification_type', 'ordering', 'priority', 'subscriber', 'system', 'title', 'verbose_name', 'verbose_name_plural', 'video_error', 'video_pending']

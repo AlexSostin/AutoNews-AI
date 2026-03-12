@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0093_brand_add_logo_url_website.py
+# hypothesis_version: 6.151.9
+
+['brand', 'logo_url', 'news', 'website']

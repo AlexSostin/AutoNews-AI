@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0006_rating.py
+# hypothesis_version: 6.151.9
+
+['-created_at', '0005_comment', 'ID', 'Rating', 'Rating 1-5 stars', 'article', 'created_at', 'id', 'ip_address', 'news', 'news.article', 'ordering', 'rating', 'ratings', 'unique_together']

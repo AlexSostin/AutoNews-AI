@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/urls.py
+# hypothesis_version: 6.151.9
+
+['api_root', 'article/<slug:slug>/', 'article_detail', 'atom_feed', 'category_feed', 'feed/atom/', 'feed/rss/', 'news', 'robots.txt', 'robots_txt', 'rss_feed']

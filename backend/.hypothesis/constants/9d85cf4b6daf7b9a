@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0011_alter_article_options_alter_article_created_at_and_more.py
+# hypothesis_version: 6.151.9
+
+[100, '-created_at', '-views', 'Admin must approve', 'article', 'article_views_idx', 'category', 'comment', 'created_at', 'is_approved', 'is_published', 'name', 'news', 'ordering', 'tag', 'views']

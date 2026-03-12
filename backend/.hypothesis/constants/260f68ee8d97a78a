@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0046_carspecification_drivetrain.py
+# hypothesis_version: 6.151.9
+
+['AWD, FWD, RWD, 4WD', 'carspecification', 'drivetrain', 'news']

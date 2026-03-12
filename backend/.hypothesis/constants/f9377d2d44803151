@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/discover_rss_feeds.py
+# hypothesis_version: 6.151.9
+
+[' [ALREADY ADDED]', '--add-green', '--skip-license', 'add_green', 'already_added', 'feed_title', 'feed_url', 'feed_valid', 'green', 'license_checked_at', 'license_details', 'license_status', 'name', 'red', 'skip_license', 'source_type', 'store_true', 'unchecked', 'website_url', 'yellow', '✅ Valid RSS', '❌ No RSS', '❓', '🔴', '🟡', '🟢']

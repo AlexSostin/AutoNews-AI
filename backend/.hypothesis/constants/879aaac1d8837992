@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/models/sources.py
+# hypothesis_version: 6.151.9
+
+[100, 200, 500, 1000, 2000, '-created_at', 'Article Generated', 'Automotive Brand', 'Automotive Media', 'Category', 'Dismissed', 'Featured image URL', 'Free to Use', 'Generating Article', 'Industry Blog', 'Main website URL', 'New', 'Not Checked', 'PendingArticle', 'RSS Feed', 'RSS Feeds', 'RSS News Item', 'RSS News Items', 'RSS/Atom feed URL', 'Read', 'Restricted', 'Use Original Images', 'Use Pexels Only', 'Use with Caution', 'YouTube Channel', 'YouTube Channels', 'blog', 'brand', 'dismissed', 'failing', 'generated', 'generating', 'green', 'healthy', 'media', 'name', 'new', 'news.RSSFeed', 'news_items', 'original', 'passed', 'pexels_fallback', 'pexels_only', 'read', 'red', 'review', 'rss_feed', 'safe', 'source_news_item', 'stale', 'status', 'unchecked', 'unsafe', 'yellow']

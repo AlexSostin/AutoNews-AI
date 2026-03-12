@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0050_carspec_indexes.py
+# hypothesis_version: 6.151.9
+
+[100, '0049_brandalias', 'Base Model', 'Car Brand', 'carspecification', 'make', 'model', 'news']

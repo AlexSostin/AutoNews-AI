@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/feedback.py
+# hypothesis_version: 6.151.9
+
+[100, '-created_at', 'admin_notes', 'article', 'article_id', 'article_slug', 'article_title', 'category', 'category_display', 'created_at', 'false', 'id', 'ip_address', 'is_resolved', 'message', 'post', 'resolved', 'success', 'true']

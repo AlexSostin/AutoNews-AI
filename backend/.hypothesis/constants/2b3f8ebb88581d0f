@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/signals.py
+# hypothesis_version: 6.151.9
+
+[300, 500, ' / ', '/admin/subscribers', '429', '4WD', '?', '@freshmotors_news', 'AWD', 'Created', 'Drivetrain', 'FWD', 'New Comment', 'New Subscriber', 'Not specified', 'RWD', 'TELEGRAM_AUTO_POST', 'USD', 'Unknown', 'Updated', 'Video Pending Review', 'YouTube', 'article', 'car_specification', 'categories', 'comment', 'created_at', 'description', 'drivetrain', 'engine', 'error', 'gemini', 'high', 'horsepower', 'human_approved', 'is_published', 'low', 'make', 'message_id', 'model', 'model_name', 'news', 'normal', 'ok', 'price', 'price_usd_est', 'result', 'safety_score', 'sent', 'skipped', 'slug', 'subscriber', 'success', 'tags', 'telegram', 'telegram_post', 'telegram_today_count', 'top_speed', 'torque', 'trim', 'trim_name', 'video_error', 'video_pending', 'youtube', 'zero_to_sixty', '📊 Indexed', '🔄 Re-indexed']

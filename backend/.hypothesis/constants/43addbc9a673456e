@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0037_pendingarticle_content_hash_and_more.py
+# hypothesis_version: 6.151.9
+
+[200, 500, 'Automotive Brand', 'Automotive Media', 'ID', 'Industry Blog', 'Main website URL', 'RSS Feed', 'RSS Feeds', 'RSS/Atom feed URL', 'RSSFeed', 'auto_publish', 'blog', 'brand', 'content_hash', 'created_at', 'default_category', 'description', 'entries_processed', 'feed_url', 'id', 'is_enabled', 'last_checked', 'last_entry_date', 'logo_url', 'media', 'name', 'news', 'news.category', 'news.rssfeed', 'ordering', 'pending_articles', 'pendingarticle', 'rss_feed', 'source_type', 'source_url', 'updated_at', 'verbose_name', 'verbose_name_plural', 'video_id', 'video_title', 'video_url', 'website_url']

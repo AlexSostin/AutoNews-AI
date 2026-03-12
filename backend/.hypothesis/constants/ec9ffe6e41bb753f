@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/comments.py
+# hypothesis_version: 6.151.9
+
+[255, '-created_at', '10/h', 'POST', 'admin_approved', 'admin_rejected', 'approve', 'approved', 'article', 'content', 'count', 'create', 'created', 'created_at', 'false', 'get', 'id', 'include_replies', 'ip', 'is_approved', 'list', 'moderation_reason', 'moderation_status', 'my_comments', 'name', 'patch', 'post', 'rejected', 'results', 'retrieve', 'status', 'true', 'user', 'website']

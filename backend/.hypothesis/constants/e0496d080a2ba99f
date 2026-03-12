@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/transcriber.py
+# hypothesis_version: 6.151.9
+
+[100, 200, '/tmp/cookies_yt.txt', '<[^>]+>', 'Accept', 'Accept-Language', 'Content-Type', 'Unknown Channel', 'Unknown Title', 'User-Agent', 'WEBVTT', 'WEBVTT.*?\\n\\n', 'author', 'author_name', 'automatic_captions', 'channel', 'cookiefile', 'de', 'description', 'en', 'en-us,en;q=0.5', 'es', 'events', 'ext', 'fr', 'http\\S+', 'http_headers', 'json', 'json3', 'no_warnings', 'quiet', 'ru', 'segs', 'skip_download', 'subtitles', 'subtitleslangs', 'title', 'url', 'utf8', 'w', 'writeautomaticsub', 'writesubtitles', 'zh', 'zh-Hans', 'zh-Hant']

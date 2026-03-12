@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0031_article_is_hero_sitesettings_hero_subtitle_and_more.py
+# hypothesis_version: 6.151.9
+
+[200, 'article', 'hero_subtitle', 'hero_title', 'is_hero', 'news', 'sitesettings', 'use_classic_hero']

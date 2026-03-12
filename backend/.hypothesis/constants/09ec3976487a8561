@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0022_add_email_preferences.py
+# hypothesis_version: 6.151.9
+
+['Email Preferences', 'EmailPreferences', 'ID', 'created_at', 'email_preferences', 'id', 'marketing_enabled', 'new_articles_enabled', 'news', 'newsletter_enabled', 'updated_at', 'user', 'verbose_name', 'verbose_name_plural']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/populate_db.py
+# hypothesis_version: 6.151.9
+
+['\n✅ Ready to go!', '\n🏷️ Creating tags...', '=', 'Audi', 'AutoNews', 'BMW', 'Budget', 'City', 'Classics', 'Comparisons', 'EVs', 'Electric', 'Family', 'Hybrid', 'Industry', 'Luxury', 'Mercedes', 'Modifications', 'Motorsport', 'News', 'Off-road', 'Reviews', 'SUV', 'Sedan', 'Sport', 'Technology', 'Tesla', 'Toyota', 'category', 'classics', 'comparisons', 'contact_email', 'content', 'evs', 'excerpt', 'footer_text', 'industry', 'info@autonews.ai', 'is_published', 'modifications', 'motorsport', 'name', 'news', 'reviews', 'site_description', 'site_name', 'slug', 'summary', 'tags_idx', 'technology', 'title', 'views']

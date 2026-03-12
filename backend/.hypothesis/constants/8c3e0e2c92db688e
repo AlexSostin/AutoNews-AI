@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/fix_tag_groups.py
+# hypothesis_version: 6.151.9
+
+['2024', '2025', '2026', '2027', 'AWD', 'Advanced', 'Body Types', 'Budget', 'Convertible', 'Dongfeng', 'Drivetrain', 'EV', 'Fuel Types', 'Hatchback', 'Luxury', 'Manufacturers', 'Navigation', 'Performance', 'Pickup Truck', 'SUV', 'Segments', 'Supercar', 'Tech & Features', 'Technology', 'Wagon', 'Years', 'ZEEKR', 'group', 'name', 'order', 'slug', 'ungrouped']

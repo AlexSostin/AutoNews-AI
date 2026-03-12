@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0021_add_user_to_comment_and_rating.py
+# hypothesis_version: 6.151.9
+
+['-created_at', 'comment', 'comments', 'news', 'rating', 'ratings', 'user']

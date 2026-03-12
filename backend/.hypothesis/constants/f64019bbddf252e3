@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0049_brandalias.py
+# hypothesis_version: 6.151.9
+
+[100, 'Brand Aliases', 'BrandAlias', 'ID', 'alias', 'canonical_name', 'created_at', 'id', 'news', 'ordering', 'verbose_name_plural']

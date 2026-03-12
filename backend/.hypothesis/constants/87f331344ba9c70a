@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0095_add_competitor_pair_log.py
+# hypothesis_version: 6.151.9
+
+[0.0, 100, '-created_at', 'Competitor Pair Log', 'Competitor Pair Logs', 'CompetitorPairLog', 'ID', 'article', 'competitor_make', 'competitor_model', 'competitor_pair_logs', 'competitor_power_hp', 'competitor_price_usd', 'competitor_range_km', 'competitor_trim', 'created_at', 'engagement_scored_at', 'id', 'indexes', 'match_score', 'ml_ranked', 'news', 'news.article', 'ordering', 'rule_based', 'selection_method', 'subject_make', 'subject_model', 'verbose_name', 'verbose_name_plural']

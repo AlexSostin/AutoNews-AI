@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0104_add_webauthn_credential.py
+# hypothesis_version: 6.151.9
+
+[100, '-created_at', 'ID', 'Passkey', 'WebAuthn Credential', 'WebAuthn Credentials', 'WebAuthnCredential', 'created_at', 'credential_id', 'device_name', 'id', 'last_used', 'news', 'ordering', 'public_key', 'sign_count', 'transports', 'user', 'verbose_name', 'verbose_name_plural', 'webauthn_credentials']

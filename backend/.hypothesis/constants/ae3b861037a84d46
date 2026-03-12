@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0034_carspecification_make_carspecification_model_and_more.py
+# hypothesis_version: 6.151.9
+
+[100, 200, 'Base Model', 'Car Brand', 'Trim or Version', 'carspecification', 'make', 'model', 'model_name', 'news', 'trim']

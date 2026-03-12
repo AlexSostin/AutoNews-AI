@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0005_comment.py
+# hypothesis_version: 6.151.9
+
+[100, 254, '-created_at', 'Admin must approve', 'Comment', 'ID', 'Your comment', 'Your name', 'article', 'comments', 'content', 'created_at', 'email', 'id', 'is_approved', 'name', 'news', 'news.article', 'ordering']

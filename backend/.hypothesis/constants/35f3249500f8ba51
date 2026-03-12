@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/find_duplicates.py
+# hypothesis_version: 6.151.9
+
+['--min-count', '-count', 'Not specified', 'article', 'article__created_at', 'count', 'id', 'make', 'min_count', 'model', 'views', '⚠️ ', '📄']

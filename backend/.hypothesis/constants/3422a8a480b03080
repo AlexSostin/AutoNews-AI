@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0065_rssfeed_license_checked_at_rssfeed_license_details_and_more.py
+# hypothesis_version: 6.151.9
+
+['Free to Use', 'Not Checked', 'Restricted', 'Use with Caution', 'green', 'license_checked_at', 'license_details', 'license_status', 'news', 'red', 'rssfeed', 'unchecked', 'yellow']

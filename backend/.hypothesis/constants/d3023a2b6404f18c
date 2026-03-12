@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/webauthn_views.py
+# hypothesis_version: 6.151.9
+
+[b'=', 100, 120, '-created_at', '=', 'Account is disabled.', 'FreshMotors Admin', 'Invalid rawId.', 'Not found.', 'Passkey', 'Staff only.', 'Unknown credential.', 'WEBAUTHN_ORIGIN', 'WEBAUTHN_RP_ID', 'WEBAUTHN_RP_NAME', 'access', 'auth_token', 'challenge', 'created_at', 'credential_id', 'deleted', 'detail', 'device_name', 'https://', 'https://www.', 'id', 'last_used', 'localhost', 'news', 'ok', 'pending_token', 'rawId', 'refresh', 'response', 'sign_count', 'status', 'token', 'transports', 'user']

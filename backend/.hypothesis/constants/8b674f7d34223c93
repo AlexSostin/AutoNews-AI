@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0030_taggroup_tag_group.py
+# hypothesis_version: 6.151.9
+
+[100, 'Display order', 'ID', 'Tag Group', 'Tag Groups', 'TagGroup', 'group', 'id', 'name', 'news', 'news.taggroup', 'order', 'ordering', 'slug', 'tag', 'tags', 'verbose_name', 'verbose_name_plural']

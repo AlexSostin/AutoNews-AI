@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/bulk_enrich.py
+# hypothesis_version: 6.151.9
+
+[',', '--dry-run', '--ids', '--mode', '--no-ai-tags', '--tags-only', 'ai_used', 'all', 'article_id', 'articles_processed', 'articles_total', 'created', 'dry_run', 'duration_seconds', 'enrichment_report', 'errors', 'gemini', 'id', 'ids', 'last_run', 'make', 'matched', 'missing', 'mode', 'model', 'no_ai_tags', 'skipped', 'store_true', 'success', 'tags_created', 'tags_matched', 'tags_only', 'trim', 'year']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/reformat_rss_articles.py
+# hypothesis_version: 6.151.9
+
+[500, '###', '--dry-run', '--force', '<[^>]+>', '<article>', '<div>', '<h1>', '<h2>', '<h3>', '<ol>', '<p>', '<ul>', 'Source', 'content', 'dry_run', 'excerpt', 'fenced_code', 'force', 'pending', 'rss_feed', 'store_true', 'tables']

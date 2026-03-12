@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/services/gsc_service.py
+# hypothesis_version: 6.151.9
+
+[0.0, 5000, '"', '%Y-%m-%d', "'", '/', '\\n', 'clicks', 'ctr', 'date', 'dimensions', 'endDate', 'gsc_key.json', 'impressions', 'keys', 'news', 'page', 'position', 'private_key', 'rowLimit', 'rows', 'searchconsole', 'startDate', 'v1']

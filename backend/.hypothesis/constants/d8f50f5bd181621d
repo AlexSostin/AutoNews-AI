@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0048_vehiclespecs_multi_trim.py
+# hypothesis_version: 6.151.9
+
+[100, 'CarSpecification', 'Not specified', 'VehicleSpecs', 'article', 'make', 'model_name', 'news', 'news.article', 'ordering', 'trim_name', 'vehicle_specs_set', 'vehiclespecs', 'verbose_name', 'verbose_name_plural']

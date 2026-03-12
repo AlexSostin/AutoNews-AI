@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0068_add_auto_publish_log.py
+# hypothesis_version: 6.151.9
+
+[100, 300, 500, '-created_at', 'Auto-Publish Log', 'Auto-Publish Logs', 'AutoPublishLog', 'Failed: Error', 'ID', 'Published', 'Skipped: Feed Unsafe', 'Skipped: Low Quality', 'Skipped: No Image', 'Skipped: Rate Limit', 'article_title', 'automationsettings', 'category_name', 'content_length', 'created_at', 'decision', 'failed', 'feed_name', 'has_image', 'has_specs', 'id', 'image_policy', 'indexes', 'news', 'news.article', 'news.pendingarticle', 'ordering', 'pending_article', 'publish_logs', 'published', 'published_article', 'quality_score', 'reason', 'safety_score', 'skipped_limit', 'skipped_no_image', 'skipped_quality', 'skipped_safety', 'source_is_youtube', 'source_type', 'tag_count', 'verbose_name', 'verbose_name_plural']

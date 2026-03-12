@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/submit_to_google.py
+# hypothesis_version: 6.151.9
+
+[200, '"', "'", '--all', '--dry-run', '--hours', '--url', '-created_at', 'Authorization', 'Content-Type', 'SITE_URL', 'URL_UPDATED', '\\n', 'all', 'application/json', 'dry_run', 'error', 'gsc_key.json', 'hours', 'private_key', 'response', 'store_true', 'success', 'type', 'url']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/telegram_publisher.py
+# hypothesis_version: 6.151.9
+
+[297, 300, ' | ', '$', '&', '&amp;', '&gt;', '&lt;', '...', '<', '>', '?', 'HTML', 'New Article', 'SITE_URL', 'TELEGRAM_ADMIN_ID', 'TELEGRAM_AUTO_POST', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHANNEL_ID', 'Unknown error', '[^a-zA-Z0-9]', 'auto_post_disabled', 'button', 'caption', 'channel', 'chat_id', 'description', 'generation_metadata', 'http', 'inline_keyboard', 'message_id', 'name', 'news', 'no_admin_config', 'ok', 'parse_mode', 'photo', 'post', 'posted_at', 'reason', 'reply_markup', 'result', 'sendMessage', 'sendPhoto', 'telegram_post', 'text', 'url']

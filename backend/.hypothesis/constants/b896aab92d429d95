@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0100_rssfeed_health_tracking.py
+# hypothesis_version: 6.151.9
+
+[500, 'consecutive_failures', 'last_error', 'news', 'rssfeed']

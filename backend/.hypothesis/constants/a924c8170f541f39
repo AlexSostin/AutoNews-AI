@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0083_articleimagevariant_articlemicrofeedback.py
+# hypothesis_version: 6.151.9
+
+[255, 500, 1000, '-created_at', 'A', 'AI Generated', 'ArticleImageVariant', 'ArticleMicroFeedback', 'B', 'C', 'ID', 'Image A/B Variant', 'Image A/B Variants', 'Manual Upload', 'Original Source', 'Pexels', 'Unknown', 'Variant A (Original)', 'Variant B', 'Variant C', 'YouTube Thumbnail', 'ai_generated', 'article', 'auto_pick_threshold', 'clicks', 'component_type', 'created_at', 'id', 'image_source', 'image_url', 'image_variants', 'impressions', 'indexes', 'ip_address', 'is_active', 'is_helpful', 'is_winner', 'micro_feedback', 'news', 'news.article', 'ordering', 'pexels', 'rss_original', 'session_key', 'unique_together', 'unknown', 'uploaded', 'user', 'variant', 'verbose_name', 'verbose_name_plural', 'youtube']

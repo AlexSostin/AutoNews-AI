@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/scan_rss_feeds.py
+# hypothesis_version: 6.151.9
+
+[100, 600, '   [DRY RUN MODE]', '--all', '--dry-run', '--feed-id', '--limit', '--no-ai', 'No RSS feeds found', 'REDIS_URL', 'Untitled', 'all', 'brands_created', 'current_feed', 'done', 'dry_run', 'feed_id', 'finished', 'limit', 'models_created', 'new', 'no_ai', 'percent', 'read', 'rss_scan_progress', 'store_true', 'title', 'total', 'ts']

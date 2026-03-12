@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/consolidate_categories.py
+# hypothesis_version: 6.151.9
+
+['--dry-run', 'comparisons', 'dry_run', 'electric-vehicles', 'evs', 'industry', 'name', 'news', 'store_true']

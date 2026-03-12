@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0051_brand.py
+# hypothesis_version: 6.151.9
+
+[100, 120, '-sort_order', '0050_carspec_indexes', 'Brand', 'Brand logo', 'BrandAlias', 'Brands', 'CarSpecification', 'Country of origin', 'Display name', 'ID', 'Not specified', 'URL slug', 'brands/', 'country', 'created_at', 'description', 'id', 'is_visible', 'logo', 'make', 'name', 'news', 'news.brand', 'ordering', 'parent', 'slug', 'sort_order', 'sub_brands', 'updated_at', 'verbose_name_plural']

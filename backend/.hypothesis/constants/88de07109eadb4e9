@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0070_add_unique_video_id_constraint.py
+# hypothesis_version: 6.151.9
+
+['news', 'pendingarticle', 'rejected', 'status', 'video_id']

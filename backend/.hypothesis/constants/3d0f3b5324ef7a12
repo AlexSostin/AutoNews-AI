@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/content_sanitizer.py
+# hypothesis_version: 6.151.9
+
+['<strong>.*?</strong>', '[ \\t]{2,}', '\\1', '\\s{2,}']

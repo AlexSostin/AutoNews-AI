@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0074_tag_learning_log.py
+# hypothesis_version: 6.151.9
+
+[500, '-updated_at', 'ID', 'Tag Learning Log', 'Tag Learning Logs', 'TagLearningLog', 'article', 'created_at', 'final_tags', 'id', 'indexes', 'news', 'news.article', 'tag_learning_log', 'title', 'title_keywords', 'updated_at', 'verbose_name', 'verbose_name_plural']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0016_add_page_settings.py
+# hypothesis_version: 6.151.9
+
+[200, 254, 500, 'About AutoNews', 'Contact Us', 'Office address', 'Privacy Policy', 'Show Terms in footer', 'Terms of Service', 'about_page_content', 'about_page_enabled', 'about_page_title', 'business_email', 'contact_address', 'contact_page_enabled', 'contact_page_title', 'contact_phone', 'news', 'privacy_page_content', 'privacy_page_enabled', 'privacy_page_title', 'sitesettings', 'support_email', 'terms_page_content', 'terms_page_enabled', 'terms_page_title']

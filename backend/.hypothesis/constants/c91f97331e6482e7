@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0064_automationsettings_auto_publish_lock_and_more.py
+# hypothesis_version: 6.151.9
+
+['auto_publish_lock', 'auto_publish_lock_at', 'automationsettings', 'news', 'rss_lock', 'rss_lock_at', 'score_lock', 'score_lock_at', 'youtube_lock', 'youtube_lock_at']

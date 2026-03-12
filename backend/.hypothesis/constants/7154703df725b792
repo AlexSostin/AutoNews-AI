@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/extract_all_specs.py
+# hypothesis_version: 6.151.9
+
+[0.3, 1.0, '--delay', '--force', '--limit', '=', 'Created', 'Updated', 'confidence_score', 'delay', 'force', 'limit', 'power_hp', 'price_from', 'range_km', 'store_true']

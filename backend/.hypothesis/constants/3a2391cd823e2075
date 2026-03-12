@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0058_remove_unused_embedding_indexes.py
+# hypothesis_version: 6.151.9
+
+['articleembedding', 'news']

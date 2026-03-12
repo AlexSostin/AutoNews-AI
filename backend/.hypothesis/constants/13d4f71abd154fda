@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0088_add_backend_error_log.py
+# hypothesis_version: 6.151.9
+
+[100, 150, 255, 500, '-last_seen', 'API Request (500)', 'Backend Error Log', 'Backend Error Logs', 'BackendErrorLog', 'Critical', 'Error', 'Error message', 'Full traceback', 'ID', 'Middleware', 'Scheduler Task', 'Warning', 'api', 'critical', 'error', 'error_class', 'first_seen', 'id', 'indexes', 'last_seen', 'message', 'middleware', 'news', 'occurrence_count', 'ordering', 'request_ip', 'request_method', 'request_path', 'request_user', 'resolution_notes', 'resolved', 'resolved_at', 'scheduler', 'severity', 'source', 'task_name', 'traceback', 'verbose_name', 'verbose_name_plural', 'warning']

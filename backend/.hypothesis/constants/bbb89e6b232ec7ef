@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0019_add_subscriber.py
+# hypothesis_version: 6.151.9
+
+[254, '-created_at', '0018_add_price_usd', 'ID', 'Subscriber', 'created_at', 'email', 'id', 'is_active', 'news', 'ordering', 'unsubscribed_at']

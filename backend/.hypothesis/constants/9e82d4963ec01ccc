@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0056_add_combined_range_and_usd_prices.py
+# hypothesis_version: 6.151.9
+
+['combined_range_km', 'news', 'price_updated_at', 'price_usd_from', 'price_usd_to', 'vehiclespecs']

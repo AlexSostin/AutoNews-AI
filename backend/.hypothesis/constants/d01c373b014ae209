@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/score_competitor_pairs.py
+# hypothesis_version: 6.151.9
+
+[500, '--dry-run', '--limit', '--min-age', 'article', 'created_at', 'dry_run', 'engagement_scored_at', 'limit', 'min_age', 'store_true']

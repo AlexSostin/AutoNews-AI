@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/backfill_sources.py
+# hypothesis_version: 6.151.9
+
+[200, ',', '--dry-run', 'Fixed', 'Would fix', 'YOUTUBE_API_KEY', 'author_channel_url', 'author_name', 'channelId', 'channelTitle', 'dry_run', 'id', 'items', 'key', 'part', 'snippet', 'store_true']

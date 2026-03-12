@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0063_remove_automationsettings_auto_publish_today_date_and_more.py
+# hypothesis_version: 6.151.9
+
+[500, 'Last indexing result', 'Off — no auto image', 'auto_image_last_run', 'auto_image_mode', 'automationsettings', 'is_auto_published', 'news', 'off', 'pendingarticle', 'search_first']

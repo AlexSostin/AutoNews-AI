@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/update_branding.py
+# hypothesis_version: 6.151.9
+
+['About Fresh Motors', 'about_page_content', 'about_page_title', 'footer_text', 'hero_subtitle', 'hero_title']

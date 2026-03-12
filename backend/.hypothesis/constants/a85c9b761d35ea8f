@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/provider_tracker.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.4, 0.6, 100, 365, 500, 86400, 'Unknown', 'avg_coverage', 'avg_quality', 'avg_time', 'by_brand', 'count', 'coverage', 'gemini', 'make', 'model', 'provider', 'provider_stats', 'providers', 'quality', 'quality_score', 'records', 'redis', 'spec_coverage', 'spec_fields_filled', 'storage', 'time', 'timestamp', 'total_coverage', 'total_quality', 'total_records', 'total_time']

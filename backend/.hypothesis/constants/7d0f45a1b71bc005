@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0053_add_generation_metadata.py
+# hypothesis_version: 6.151.9
+
+['article', 'generation_metadata', 'news']

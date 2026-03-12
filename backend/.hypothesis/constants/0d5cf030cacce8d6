@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0015_article_is_deleted_alter_article_slug_and_more.py
+# hypothesis_version: 6.151.9
+
+[250, 'article', 'is_deleted', 'news', 'slug']

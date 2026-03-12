@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0082_internallinkclick.py
+# hypothesis_version: 6.151.9
+
+[500, '-created_at', '0081_readmetric', 'AI Read Also Block', 'ID', 'Internal Link Click', 'Internal Link Clicks', 'InternalLinkClick', 'Other Internal Link', 'ai_inline', 'ai_read_also', 'created_at', 'destination_url', 'id', 'indexes', 'ip_address', 'link_type', 'news', 'news.article', 'ordering', 'other', 'outbound_clicks', 'related_carousel', 'session_key', 'source_article', 'user', 'verbose_name', 'verbose_name_plural']

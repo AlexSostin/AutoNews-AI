@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/email_service.py
+# hypothesis_version: 6.151.9
+
+[200, 201, 202, 'Fresh Motors', 'SENDGRID_API_KEY', 'SENDGRID_FROM_EMAIL', 'SENDGRID_FROM_NAME', 'text/html', 'text/plain']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/images.py
+# hypothesis_version: 6.151.9
+
+['article', 'created_at', 'order']

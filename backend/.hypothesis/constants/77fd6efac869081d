@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/backfill_missing_specs.py
+# hypothesis_version: 6.151.9
+
+['+', '--article-id', '--delete-dupes', '--dry-run', '--refresh-all', 'Not specified', 'Would', 'article_id', 'delete_dupes', 'dry_run', 'id', 'make', 'model', 'refresh_all', 'store_true']

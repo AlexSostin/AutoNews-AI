@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0025_newsletterhistory.py
+# hypothesis_version: 6.151.9
+
+[255, '-sent_at', 'ID', 'Newsletter History', 'NewsletterHistory', 'id', 'message', 'news', 'ordering', 'sent_at', 'sent_by', 'sent_to_count', 'subject', 'verbose_name_plural']

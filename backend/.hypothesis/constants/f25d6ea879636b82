@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0052_add_content_original.py
+# hypothesis_version: 6.151.9
+
+['0051_brand', 'Body style', 'Cabriolet', 'Convertible', 'Coupe', 'Crossover', 'Fastback', 'Hatchback', 'Liftback', 'Limousine', 'MPV', 'MPV / Minivan', 'Pickup', 'Roadster', 'SUV', 'Sedan', 'Shooting Brake', 'Targa', 'Truck', 'Van', 'Wagon', 'article', 'body_type', 'cabriolet', 'content_original', 'convertible', 'coupe', 'crossover', 'fastback', 'hatchback', 'liftback', 'limousine', 'news', 'pickup', 'roadster', 'sedan', 'shooting_brake', 'targa', 'truck', 'van', 'vehiclespecs', 'wagon']

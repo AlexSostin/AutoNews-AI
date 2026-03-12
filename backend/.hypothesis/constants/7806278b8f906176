@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/backfill_car_specs.py
+# hypothesis_version: 6.151.9
+
+['--dry-run', 'AITO', 'Aion', 'Audi', 'BAIC', 'BMW', 'BYD', 'Bestune', 'CHANGAN', 'Changan', 'Chery', 'Chevrolet', 'DENZA', 'Denza', 'DongFeng', 'Dongfeng', 'FAW', 'Ford', 'GAC', 'Geely', 'Genesis', 'Great Wall', 'Haval', 'Honda', 'Huawei', 'Hyundai', 'IM Motors', 'JAC', 'Jaecoo', 'Jetour', 'Kia', 'Leapmotor', 'Li', 'Li Auto', 'Lotus', 'Lucid', 'Lynk', 'Lynk & Co', 'MG', 'Mazda', 'Mercedes', 'Mercedes-Benz', 'Mitsubishi', 'NIO', 'Neta', 'Nio', 'Nissan', 'Omoda', 'Polestar', 'Porsche', 'Rivian', 'SAIC', 'Seres', 'Smart', 'Subaru', 'Tank', 'Tesla', 'Toyota', 'Updated', 'VOYAH', 'VW', 'Volkswagen', 'Volvo', 'Voyah', 'WEY', 'Wey', 'Would update', 'XPeng', 'Xiaomi', 'Xpeng', 'ZEEKR', 'Zeekr', 'dry_run', 'iCAR', 'make', 'model', 'store_true']

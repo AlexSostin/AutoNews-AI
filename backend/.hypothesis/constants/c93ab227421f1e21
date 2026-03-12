@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0061_add_automation_settings.py
+# hypothesis_version: 6.151.9
+
+[120, 500, 'Automation Settings', 'AutomationSettings', 'ID', 'auto_publish_enabled', 'counters_reset_date', 'id', 'news', 'pendingarticle', 'quality_score', 'rss_articles_today', 'rss_last_run', 'rss_last_status', 'rss_scan_enabled', 'verbose_name', 'verbose_name_plural', 'youtube_last_run', 'youtube_last_status', 'youtube_scan_enabled']

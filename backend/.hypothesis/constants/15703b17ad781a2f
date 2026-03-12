@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0107_add_seo_description_to_pending_article.py
+# hypothesis_version: 6.151.9
+
+[160, 'news', 'pendingarticle', 'seo_description']

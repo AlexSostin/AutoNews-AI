@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/cleanup_markdown_remnants.py
+# hypothesis_version: 6.151.9
+
+[', ', '--article-id', '--dry-run', '</ul>', '<li>', '<strong>', '<strong><em>', '<strong>\\1</strong>', '<ul>', '\\*\\*(.*?)\\*\\*', '\\*\\*(.+?)\\*\\*', '\\*\\*\\*(.*?)\\*\\*\\*', '\\*\\*\\*(.+?)\\*\\*\\*', '^\\*\\s+', '^\\*\\s+(.+)$', 'article_id', 'cleaned', 'content', 'dry_run', 'store_true']

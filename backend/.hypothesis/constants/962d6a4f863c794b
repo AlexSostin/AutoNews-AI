@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/check_rss_license.py
+# hypothesis_version: 6.151.9
+
+['--all', '--all-unchecked', '--feed-id', 'Re-check all feeds', 'all', 'all_unchecked', 'details', 'feed_id', 'green', 'image_policy', 'image_rights', 'license_checked_at', 'license_details', 'license_status', 'original', 'passed', 'pexels_only', 'red', 'safety_checks', 'status', 'store_true', 'unchecked', 'yellow', '✅', '❌', '❓', '🔴', '🟡', '🟢']

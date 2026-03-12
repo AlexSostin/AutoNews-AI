@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/services/currency_service.py
+# hypothesis_version: 6.151.9
+
+[0.0067, 0.011, 0.137, 1.0, 1.08, 1.26, 'CNY', 'EUR', 'FreshMotors/1.0', 'GBP', 'JPY', 'RUB', 'USD', 'User-Agent', 'news', 'price_updated_at', 'price_usd_from', 'price_usd_to', 'rates']

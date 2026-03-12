@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0062_add_auto_image_settings.py
+# hypothesis_version: 6.151.9
+
+['Off — no auto image', 'Search only — no AI', 'ai_only', 'auto_image_mode', 'automationsettings', 'news', 'off', 'search_first', 'search_only']

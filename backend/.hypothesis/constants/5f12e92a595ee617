@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0003_sitesettings.py
+# hypothesis_version: 6.151.9
+
+[100, 160, 254, 'AutoNews', 'GA4 Measurement ID', 'ID', 'Site Settings', 'SiteSettings', 'admin@autonews.com', 'ca-pub-XXXXXX', 'contact_email', 'facebook_url', 'footer_text', 'google_adsense_id', 'google_analytics_id', 'id', 'instagram_url', 'news', 'site_description', 'site_name', 'twitter_url', 'verbose_name', 'verbose_name_plural', 'youtube_url']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/send_telegram_post.py
+# hypothesis_version: 6.151.9
+
+['--article-id', '--dry-run', '--force', '--latest', '--test', '-created_at', '<[^>]+>', '?', 'Article ID to post', 'article_id', 'auto_post_disabled', 'dry_run', 'force', 'latest', 'message_id', 'ok', 'reason', 'result', 'store_true', 'test']

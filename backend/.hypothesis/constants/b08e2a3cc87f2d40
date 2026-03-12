@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0007_articleimage.py
+# hypothesis_version: 6.151.9
+
+[200, '-created_at', '0006_rating', 'ArticleImage', 'Display order', 'ID', 'article', 'caption', 'created_at', 'gallery', 'gallery/', 'id', 'image', 'news', 'news.article', 'order', 'ordering']

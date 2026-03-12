@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/title_utils.py
+# hypothesis_version: 6.151.9
+
+['&', '&amp;', ': ', '<[^>]+>', '<h2[^>]*>(.*?)</h2>', 'New Car Review', 'Not specified', 'Title:', '[\\s:,\\-–—!?]+$', '\\s*[|–—]\\s*[^|–—]+$', '\\s+(?:and|&|\\+)\\s*$', '\\s+:\\s+', '\\s{2,}', '^[\\s:,\\-–—!?]+', '^[\\s\\-:]+|[\\s\\-:]+$', 'battery & range', 'charging & range', 'conclusion', 'design & interior', 'design and interior', 'details', 'driving experience', 'driving impressions', 'engine & performance', 'exterior design', 'features', 'global market', 'information', 'interior & comfort', 'interior design', 'introduction', 'make', 'model', 'new car review', 'overview', 'performance & specs', 'powertrain', 'pros & cons', 'pros and cons', 'safety & technology', 'specifications', 'summary', 'title:', 'trim', 'year']

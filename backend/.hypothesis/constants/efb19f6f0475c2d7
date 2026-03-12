@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0108_add_curator_decision_log.py
+# hypothesis_version: 6.151.9
+
+[100, 500, '-created_at', 'Curator Decision Log', 'CuratorDecisionLog', 'Generated Article', 'ID', 'Merged into Roundup', 'Saved for Later', 'Skipped', 'brand', 'cluster_id', 'created_at', 'curator_decisions', 'curator_score', 'decision', 'generate', 'generated_article', 'has_specs_data', 'id', 'indexes', 'llm_score', 'merge', 'news', 'news.article', 'news.rssnewsitem', 'news_item', 'ordering', 'save_later', 'skip', 'source_count', 'title_text', 'verbose_name', 'verbose_name_plural']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/feeds.py
+# hypothesis_version: 6.151.9
+
+[200, '-created_at', '/articles/', 'article-detail', 'image/webp']

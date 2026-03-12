@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/auto_image_finder.py
+# hypothesis_version: 6.151.9
+
+['Auto-image disabled', 'BEV', 'Drive', 'EV', 'Make', 'Model', 'PHEV', 'Price', 'Range', 'Review', 'SUV', 'Specs', 'Test', 'Unknown error', 'Year', '\\s+', 'ai_generate', 'all-new', 'and', 'error', 'existing', 'height', 'image_data', 'is_press', 'jpg', 'make', 'method', 'mime_type', 'model', 'new', 'news', 'no_reference', 'off', 'png', 'scenic_road', 'success', 'the', 'url', 'vs', 'width', 'year']

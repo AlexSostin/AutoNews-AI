@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/specs_enricher.py
+# hypothesis_version: 6.151.9
+
+[1.341, '(\\d{2,4})\\s*(?:马力|匹)', ',', '-', '4WD', '4wd', 'AWD', 'FWD', 'Nm', 'Nm|N·m', 'Not specified', 'RWD', 'acceleration', 'all wheel drive', 'awd', 'battery', 'cargo', 'drivetrain', 'engine', 'four wheel drive', 'front wheel drive', 'fwd', 'horsepower', 'kW', 'lb-ft', 'price_cny', 'price_usd', 'range', 'range_km', 'range_miles', 'rear wheel drive', 'rwd', 'screen_size', 'top_speed', 'torque', '¥?\\s*(\\d+\\.?\\d*)\\s*万', '全轮驱动', '前轮驱动', '前驱', '后轮驱动', '后驱', '四驱']

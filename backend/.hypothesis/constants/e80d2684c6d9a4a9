@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0018_add_price_usd.py
+# hypothesis_version: 6.151.9
+
+[100, 254, 'Fresh Motors', 'article', 'contact_email', 'footer_text', 'news', 'price_usd', 'site_name', 'sitesettings']

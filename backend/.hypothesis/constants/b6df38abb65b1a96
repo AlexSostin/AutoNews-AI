@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/backfill_seo_descriptions.py
+# hypothesis_version: 6.151.9
+
+[100, 120, 155, 158, 160, ' ev ', '(\\d[\\d,]*)', '(\\d{3,4})\\s*km', '--apply', '-id', '.', '...', 'APPLYING', 'MPV', 'SUV', '\\$\\s*([\\d,]+)', '\\b(20[2-3]\\d)\\b', '\\s*[:|].*$', 'apply', 'battery electric', 'bev', 'cabriolet', 'convertible', 'coupe', 'coupé', 'crossover', 'dm-i', 'dm-p', 'dmi', 'dmp', 'electric', 'erev', 'estate', 'extended-range EV', 'gt', 'hatch', 'hatchback', 'hybrid', 'kwh', 'minivan', 'mpv', 'phev', 'pick-up', 'pickup', 'pickup truck', 'plug-in hybrid', 'range extender', 'range-extender', 'roadster', 'saloon', 'seater', 'sedan', 'spider', 'store_true', 'suv', 'touring', 'truck', 'van', 'vehicle', 'wagon', '⚠️ long', '⚠️ short', '✓']

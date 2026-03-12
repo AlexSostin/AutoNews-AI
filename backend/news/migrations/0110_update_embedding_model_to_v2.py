@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     """
 
     dependencies = [
-        ('news', '0099_unique_user_email'),
+        ('news', '0109_scheduled_publish_at'),
     ]
 
     operations = [

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0044_add_verified_to_carspecification.py
+# hypothesis_version: 6.151.9
+
+['carspecification', 'is_verified', 'news', 'verified_at']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0076_comment_moderation.py
+# hypothesis_version: 6.151.9
+
+[255, '-created_at', 'Admin Approved', 'Admin Rejected', 'Approved', 'Auto-Approved', 'Auto-Blocked', 'CommentModerationLog', 'ID', 'Pending Review', 'Rejected', 'admin_approved', 'admin_rejected', 'admin_user', 'approved', 'auth', 'auth.user', 'auto_approved', 'auto_blocked', 'comment', 'created_at', 'decision', 'id', 'indexes', 'moderation_decisions', 'moderation_logs', 'moderation_reason', 'moderation_status', 'news', 'news.comment', 'ordering', 'pending', 'rejected']

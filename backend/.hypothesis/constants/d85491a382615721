@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_root.py
+# hypothesis_version: 6.151.9
+
+['/api/v1/analytics/', '/api/v1/articles/', '/api/v1/categories/', '/api/v1/comments/', '/api/v1/search/', '1.0', 'admin_panel', 'analytics', 'api_endpoints', 'articles', 'categories', 'comments', 'docs', 'frontend', 'message', 'search', 'version', '🚗 Fresh Motors API']

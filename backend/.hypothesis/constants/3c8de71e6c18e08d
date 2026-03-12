@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0042_increase_article_title_length.py
+# hypothesis_version: 6.151.9
+
+[500, 'article', 'news', 'title']

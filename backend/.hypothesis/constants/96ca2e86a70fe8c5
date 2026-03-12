@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/cars/__init__.py
+# hypothesis_version: 6.151.9
+
+['BrandCleanupView', 'BrandViewSet', 'CarBrandDetailView', 'CarBrandsListView', 'CarCompareView', 'CarModelDetailView', 'CarPickerListView', '_get_image_url', 'get_image_url']

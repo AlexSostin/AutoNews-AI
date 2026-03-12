@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0001_initial.py
+# hypothesis_version: 6.151.9
+
+[100, 160, 200, 250, 'Article', 'Categories', 'Category', 'ID', 'Tag', 'articles', 'articles/', 'category', 'content', 'created_at', 'id', 'image', 'is_published', 'name', 'news.category', 'news.tag', 'seo_description', 'seo_title', 'slug', 'summary', 'tags', 'title', 'updated_at', 'verbose_name_plural']

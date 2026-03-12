@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/ratings.py
+# hypothesis_version: 6.151.9
+
+[',', '-created_at', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR', 'article', 'count', 'created_at', 'get', 'my_ratings', 'rating', 'results', 'user']

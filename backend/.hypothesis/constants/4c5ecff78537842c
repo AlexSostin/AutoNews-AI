@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0071_add_site_theme.py
+# hypothesis_version: 6.151.9
+
+['AutoPublishSchedule', 'Deep Ocean (Blue)', 'automationsettings', 'deep-ocean', 'default', 'midnight-green', 'news', 'site_theme']

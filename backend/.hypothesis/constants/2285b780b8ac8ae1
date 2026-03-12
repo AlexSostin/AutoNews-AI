@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0066_rssfeed_image_policy.py
+# hypothesis_version: 6.151.9
+
+['Use Original Images', 'Use Pexels Only', 'image_policy', 'news', 'original', 'pexels_fallback', 'pexels_only', 'rssfeed']

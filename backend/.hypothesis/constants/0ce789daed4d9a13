@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0060_add_ad_placement.py
+# hypothesis_version: 6.151.9
+
+[200, 500, '-created_at', '-priority', 'Ad Placement', 'Ad Placements', 'AdPlacement', 'Banner image', 'Click-through URL', 'Footer', 'Header Banner', 'Higher = shown first', 'ID', 'Image alt text', 'Sidebar', 'Times clicked', 'Times displayed', 'ad_type', 'ads/', 'after_content', 'all', 'alt_text', 'banner', 'between_articles', 'clicks', 'created_at', 'duration_preset', 'end_date', 'footer', 'header', 'html_code', 'id', 'image', 'impressions', 'is_active', 'link', 'name', 'news', 'ordering', 'position', 'priority', 'sidebar', 'sponsor_name', 'sponsor_text', 'sponsored', 'start_date', 'target_pages', 'unlimited', 'updated_at', 'verbose_name', 'verbose_name_plural']

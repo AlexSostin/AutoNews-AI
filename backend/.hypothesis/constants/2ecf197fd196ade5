@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/categories_tags.py
+# hypothesis_version: 6.151.9
+
+[300, '-_article_count', 'article', 'articles', 'categories_list', 'created_at', 'group', 'list', 'name', 'ordering', 'slug', 'tags_list']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0024_comment_parent_and_more.py
+# hypothesis_version: 6.151.9
+
+['Maintenance Message', 'Maintenance Mode', 'comment', 'maintenance_message', 'maintenance_mode', 'news', 'news.comment', 'parent', 'replies', 'sitesettings']

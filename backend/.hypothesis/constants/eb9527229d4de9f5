@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/ai_actions.py
+# hypothesis_version: 6.151.9
+
+[400, 403, 404, 500, '10/d', 'Accept', 'Article not found', 'BEV', 'Content-Type', 'Drive', 'EV', 'PHEV', 'POST', 'Price', 'Range', 'Review', 'SUV', 'Specs', 'Test', 'User-Agent', '\\s+', 'all-new', 'and', 'count', 'custom_prompt', 'error', 'http', 'image', 'image/*,*/*;q=0.8', 'image/jpeg', 'image_data', 'image_slot', 'image_url', 'jpg', 'max_results', 'mime_type', 'new', 'png', 'q', 'query', 'results', 'scenic_road', 'style', 'styles', 'success', 'the', 'url', 'url is required', 'user', 'vs', 'webp']

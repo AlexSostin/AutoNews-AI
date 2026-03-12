@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0054_add_article_feedback.py
+# hypothesis_version: 6.151.9
+
+[300, 1000, '-created_at', 'AI Hallucination', 'Article Feedback', 'ArticleFeedback', 'Factual Error', 'ID', 'Other', 'Outdated Information', 'Typo / Grammar', 'admin_notes', 'article', 'category', 'created_at', 'factual_error', 'feedback', 'hallucination', 'id', 'ip_address', 'is_resolved', 'message', 'news', 'news.article', 'ordering', 'other', 'outdated', 'typo', 'user_agent', 'verbose_name', 'verbose_name_plural']

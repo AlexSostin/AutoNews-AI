@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/vacuum_db.py
+# hypothesis_version: 6.151.9
+
+['\n🎉 VACUUM complete!', '--full', '--table', 'ANALYZE', 'VACUUM FULL ANALYZE', 'article_embeddings', 'full', 'news_article', 'news_pendingarticle', 'store_true', 'table']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0033_alter_article_image_alter_article_image_2_and_more.py
+# hypothesis_version: 6.151.9
+
+[255, 'article', 'articleimage', 'articles/', 'gallery/', 'image', 'image_2', 'image_3', 'news']

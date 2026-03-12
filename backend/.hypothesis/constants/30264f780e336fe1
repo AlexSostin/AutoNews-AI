@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/subscribers.py
+# hypothesis_version: 6.151.9
+
+['%Y-%m-%d %H:%M:%S', ',', '.csv', '5/h', 'Active', 'Already subscribed!', 'Content-Disposition', 'Email', 'Email is required', 'Email not found', 'HTTP_X_FORWARDED_FOR', 'Invalid email format', 'No IDs provided', 'No file provided', 'POST', 'REMOTE_ADDR', 'Status', 'Subscribed Date', 'Unsubscribed', 'Unsubscribed Date', 'added', 'articles', 'bulk_delete', 'count', 'days', 'days_back', 'destroy', 'email', 'error', 'export_csv', 'file', 'get', 'ids', 'import_csv', 'ip', 'ip_address', 'is_active', 'list', 'message', 'ml_available', 'newsletter_history', 'post', 'send_newsletter', 'skipped', 'subject', 'text/csv', 'utf-8']

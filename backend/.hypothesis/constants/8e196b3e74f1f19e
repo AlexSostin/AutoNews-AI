@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0047_vehiclespecs_extend_fields.py
+# hypothesis_version: 6.151.9
+
+[100, 200, 'Body style', 'Convertible', 'Coupe', 'Crossover', 'Hatchback', 'Pickup', 'SUV', 'Sedan', 'Shooting Brake', 'Truck', 'Van', 'Wagon', 'body_type', 'cargo_liters_max', 'convertible', 'coupe', 'crossover', 'extra_specs', 'ground_clearance_mm', 'hatchback', 'news', 'pickup', 'platform', 'range_cltc', 'sedan', 'shooting_brake', 'suspension_type', 'towing_capacity_kg', 'truck', 'van', 'vehiclespecs', 'voltage_architecture', 'wagon']

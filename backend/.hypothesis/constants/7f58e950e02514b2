@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/error_capture.py
+# hypothesis_version: 6.151.9
+
+[500, 1000, '(?i)(Basic\\s+)\\S+', '(?i)(Bearer\\s+)\\S+', '***REDACTED_KEY***', ',', 'ConnectionError', 'DatabaseError', 'HTTP_X_FORWARDED_FOR', 'OperationalError', 'REMOTE_ADDR', 'TimeoutError', '\\1***REDACTED***', '\\1=***REDACTED***', 'api', 'critical', 'error', 'last_seen', 'message', 'method', 'occurrence_count', 'path', 'severity', 'traceback', 'user', 'username']

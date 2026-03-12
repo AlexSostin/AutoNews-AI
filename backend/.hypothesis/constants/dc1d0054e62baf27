@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0043_alter_articleembedding_model_name_rssnewsitem.py
+# hypothesis_version: 6.151.9
+
+[100, 'articleembedding', 'model_name', 'news']

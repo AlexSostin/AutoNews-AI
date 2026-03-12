@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0010_sitesettings_facebook_enabled_and_more.py
+# hypothesis_version: 6.151.9
+
+['0009_article_views', 'Show Facebook link', 'Show Instagram link', 'Show LinkedIn link', 'Show Telegram link', 'Show TikTok link', 'Show Twitter/X link', 'Show YouTube link', 'facebook_enabled', 'instagram_enabled', 'linkedin_enabled', 'linkedin_url', 'news', 'sitesettings', 'telegram_enabled', 'telegram_url', 'tiktok_enabled', 'tiktok_url', 'twitter_enabled', 'youtube_enabled']

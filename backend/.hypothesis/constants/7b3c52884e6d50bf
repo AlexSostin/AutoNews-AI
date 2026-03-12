@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/youtube_client.py
+# hypothesis_version: 6.151.9
+
+[200, 403, 3600, '/', '/c/', '/user/', '@', 'UC', 'YOUTUBE_API_KEY', 'channel', 'channelId', 'contentDetails', 'default', 'description', 'error', 'errors', 'forHandle', 'high', 'id', 'id,snippet', 'items', 'key', 'maxResults', 'part', 'playlistId', 'publishedAt', 'published_at', 'q', 'quota', 'quotaExceeded', 'reason', 'relatedPlaylists', 'snippet', 'thumbnail', 'thumbnails', 'title', 'type', 'uploads', 'url', 'videoId', 'youtu.be', 'youtube.com', 'youtube.com/c/', 'youtube.com/user/']

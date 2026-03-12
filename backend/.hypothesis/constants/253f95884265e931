@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0004_favorite.py
+# hypothesis_version: 6.151.9
+
+['-created_at', '0003_sitesettings', 'Favorite', 'ID', 'article', 'created_at', 'favorited_by', 'favorites', 'id', 'news', 'news.article', 'ordering', 'unique_together', 'user']

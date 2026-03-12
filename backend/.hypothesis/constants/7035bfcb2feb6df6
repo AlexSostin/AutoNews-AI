@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0103_add_enrichment_report_to_automationsettings.py
+# hypothesis_version: 6.151.9
+
+[200, '0102_rss_llm_score', 'automationsettings', 'enrichment_report', 'llm_score', 'llm_score_reason', 'news', 'rssnewsitem', 'source_count']

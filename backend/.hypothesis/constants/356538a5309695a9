@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/delete_short_articles.py
+# hypothesis_version: 6.151.9
+
+[500, '--dry-run', '--min-length', '<[^>]+>', 'Articles to delete:', 'Unknown', 'dry_run', 'feed', 'id', 'length', 'min_length', 'pending', 'store_true', 'title']

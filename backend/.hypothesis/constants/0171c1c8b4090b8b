@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0106_youtube_daytime_and_autopublish_warnings.py
+# hypothesis_version: 6.151.9
+
+['Failed: Error', 'Human Approved', 'Human Rejected', 'Published', 'Skipped: Feed Unsafe', 'Skipped: Low Quality', 'Skipped: No Image', 'Skipped: Rate Limit', 'Skipped: Too Similar', 'automationsettings', 'autopublishlog', 'decision', 'drafted', 'failed', 'human_approved', 'human_rejected', 'news', 'published', 'skipped_duplicate', 'skipped_limit', 'skipped_no_image', 'skipped_quality', 'skipped_safety', 'skipped_warnings', 'youtube_daytime_only']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/fix_rss_logos.py
+# hypothesis_version: 6.151.9
+
+['BMWBLOG', 'Electrek Tesla', 'Ford Media Center', 'Teslarati', 'Toyota USA Newsroom']

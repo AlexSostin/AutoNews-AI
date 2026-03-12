@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/backfill_authors.py
+# hypothesis_version: 6.151.9
+
+['author_channel_url', 'author_name', 'published', 'published_article', 'youtube_channel']

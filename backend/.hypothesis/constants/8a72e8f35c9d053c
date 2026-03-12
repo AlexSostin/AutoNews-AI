@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0072_circuit_breaker_fields.py
+# hypothesis_version: 6.151.9
+
+['0071_add_site_theme', 'Approved', 'Auto-Publish Failed', 'Pending Review', 'Published', 'Rejected', 'approved', 'auto_failed', 'news', 'pending', 'pendingarticle', 'published', 'rejected', 'status']

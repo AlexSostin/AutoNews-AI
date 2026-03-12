@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0057_fix_rssnewsitem_state.py
+# hypothesis_version: 6.151.9
+
+[500, 1000, '-created_at', 'Article Generated', 'Dismissed', 'Featured image URL', 'Generating Article', 'ID', 'New', 'RSS News Item', 'RSS News Items', 'RSSNewsItem', 'Read', 'content', 'content_hash', 'created_at', 'dismissed', 'excerpt', 'generated', 'generating', 'id', 'image_url', 'indexes', 'new', 'news', 'news.pendingarticle', 'news.rssfeed', 'news_items', 'ordering', 'pending_article', 'published_at', 'read', 'rss_feed', 'source_news_item', 'source_url', 'status', 'title', 'verbose_name', 'verbose_name_plural']

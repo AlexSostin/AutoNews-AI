@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0055_article_title_variants.py
+# hypothesis_version: 6.151.9
+
+[500, 'A', 'ArticleTitleVariant', 'B', 'C', 'ID', 'Title A/B Variant', 'Title A/B Variants', 'Variant A (Original)', 'Variant B', 'Variant C', 'article', 'clicks', 'created_at', 'id', 'impressions', 'is_winner', 'news', 'news.article', 'ordering', 'title', 'title_variants', 'unique_together', 'variant', 'verbose_name', 'verbose_name_plural']

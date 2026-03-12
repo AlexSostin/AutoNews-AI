@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0002_carspecification.py
+# hypothesis_version: 6.151.9
+
+[100, 200, '0-60 mph time', '0001_initial', 'CarSpecification', 'ID', 'article', 'engine', 'horsepower', 'id', 'model_name', 'news', 'news.article', 'price', 'release_date', 'specs', 'top_speed', 'torque', 'zero_to_sixty']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/cars/utils.py
+# hypothesis_version: 6.151.9
+
+['Standard', 'acceleration_0_100', 'article_id', 'battery_kwh', 'body_type', 'cargo_liters', 'cargo_liters_max', 'charging_time_fast', 'charging_time_slow', 'combined_range_km', 'country_of_origin', 'currency', 'drivetrain', 'extra_specs', 'fuel_type', 'full_name', 'ground_clearance_mm', 'height_mm', 'http://', 'https://', 'id', 'length_mm', 'make', 'model_name', 'motor_count', 'motor_placement', 'platform', 'power_hp', 'power_kw', 'price_from', 'price_to', 'price_usd_from', 'price_usd_to', 'range_cltc', 'range_epa', 'range_km', 'range_wltp', 'seats', 'suspension_type', 'top_speed_kmh', 'torque_nm', 'towing_capacity_kg', 'transmission', 'transmission_gears', 'trim_name', 'url', 'voltage_architecture', 'weight_kg', 'wheelbase_mm', 'width_mm', 'year']

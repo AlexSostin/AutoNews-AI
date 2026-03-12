@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0081_readmetric.py
+# hypothesis_version: 6.151.9
+
+['-created_at', 'ID', 'Read Metric', 'Read Metrics', 'ReadMetric', 'article', 'created_at', 'dwell_time_seconds', 'id', 'indexes', 'ip_address', 'max_scroll_depth_pct', 'news', 'news.article', 'ordering', 'read_metrics', 'session_key', 'user', 'verbose_name', 'verbose_name_plural']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/views.py
+# hypothesis_version: 6.151.9
+
+[86400, '# Sitemap', '*', '-created_at', '.gif', '.jpeg', '.jpg', '.png', '.webp', 'Allow: /', 'Allow: /articles/', 'Allow: /categories/', 'Allow: /feed/', 'Content-Type', 'Disallow: /admin/', 'GET, OPTIONS', 'Media file not found', 'POST', 'User-agent: *', 'article', 'comments', 'content', 'email', 'image/gif', 'image/jpeg', 'image/png', 'image/webp', 'name', 'news:article_detail', 'rb', 'robots_txt', 'text/plain']

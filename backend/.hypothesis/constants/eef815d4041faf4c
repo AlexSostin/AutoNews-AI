@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0099_unique_user_email.py
+# hypothesis_version: 6.151.9
+
+['0098_totp_device_2fa', '@', 'date_joined', 'id', 'news']

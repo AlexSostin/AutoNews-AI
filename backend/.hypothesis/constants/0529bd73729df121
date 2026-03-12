@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/bot_protection.py
+# hypothesis_version: 6.151.9
+
+[403, ',', '/api/', '/api/v1/feed', '/api/v1/sitemap', '10.', '127.0.0.1', '172.', '::1', 'HTTP_USER_AGENT', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR', 'aiohttp', 'applebot', 'axios', 'baiduspider', 'bingbot', 'curl/', 'detail', 'duckduckbot', 'facebookexternalhit', 'freshmotors-ssr', 'go-http-client', 'googlebot', 'httpclient', 'httpie', 'is_authenticated', 'java/', 'libwww-perl', 'linkedinbot', 'localhost', 'mechanize', 'next', 'node-fetch', 'php/', 'python-httpx', 'python-requests', 'python-urllib', 'ruby/', 'scrapy', 'slurp', 'telegrambot', 'test', 'twitterbot', 'unknown', 'user', 'wget/', 'whatsapp', 'yandexbot', '|']

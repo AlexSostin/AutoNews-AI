@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0035_newslettersubscriber.py
+# hypothesis_version: 6.151.9
+
+[254, '-subscribed_at', 'ID', 'NewsletterSubscriber', 'email', 'id', 'ip_address', 'is_active', 'news', 'ordering', 'subscribed_at', 'unsubscribed_at', 'verbose_name', 'verbose_name_plural']

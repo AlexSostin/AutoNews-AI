@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0092_add_reddit_social_fields.py
+# hypothesis_version: 6.151.9
+
+['Show Reddit link', 'news', 'reddit_enabled', 'reddit_url', 'sitesettings']

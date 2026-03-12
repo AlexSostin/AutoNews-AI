@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0105_social_publishing_hub.py
+# hypothesis_version: 6.151.9
+
+[100, 500, '-created_at', '@freshmotors_news', 'Failed', 'Formatted post text', 'ID', 'Last post result', 'Pending', 'Posts sent today', 'Reddit', 'Sent', 'Skipped', 'Social Post', 'Social Posts', 'SocialPost', 'Telegram', 'Twitter/X', 'article', 'automationsettings', 'channel_id', 'created_at', 'error_message', 'external_id', 'failed', 'id', 'indexes', 'message_text', 'news', 'news.article', 'ordering', 'pending', 'platform', 'posted_at', 'reddit', 'sent', 'skipped', 'social_posts', 'status', 'telegram', 'telegram_channel_id', 'telegram_enabled', 'telegram_last_run', 'telegram_last_status', 'telegram_today_count', 'twitter', 'verbose_name', 'verbose_name_plural']

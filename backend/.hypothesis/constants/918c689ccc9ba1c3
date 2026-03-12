@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0045_sitesettings_show_browse_by_brand.py
+# hypothesis_version: 6.151.9
+
+['news', 'show_browse_by_brand', 'sitesettings']

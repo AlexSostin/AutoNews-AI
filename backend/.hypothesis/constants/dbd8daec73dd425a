@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/fix_brand_names.py
+# hypothesis_version: 6.151.9
+
+[' —-,;', '--apply', 'APPLYING', 'Base', 'DRY RUN', 'DongFeng VOYAH', 'Dongfeng VOYAH', 'Mid', 'Top', 'Top with Drone', 'VOYAH', 'ZEEKR', 'Zeekr', 'air', 'apply', 'charging_time_fast', 'charging_time_slow', 'dongfeng voyah', 'front', 'h', 'hours', 'independent', 'make', 'min', 'motor_placement', 'multi-link', 'platform', 'rear', 'store_true', 'suspension', 'suspension_type', 'transmission', 'trim_name', 'zeekr', 'Базовая', 'Средняя', 'Топ с дроном', 'Топовая', 'задняя', 'мин', 'минут', 'многорычажная', 'независимая', 'ориентировочно', 'передняя', 'пневматическая', 'подвеска', 'примерно', 'ч', 'часа', 'часов']

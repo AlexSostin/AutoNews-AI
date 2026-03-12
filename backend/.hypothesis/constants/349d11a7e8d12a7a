@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/two_factor.py
+# hypothesis_version: 6.151.9
+
+['2FA is not enabled.', 'Account is disabled.', 'FreshMotors Admin', 'Invalid 2FA code.', 'Invalid code.', 'Invalid credentials.', 'Invalid user.', 'PNG', 'access', 'backup_codes', 'code', 'date_joined', 'detail', 'email', 'enabled', 'first_name', 'google_user_id', 'id', 'is_confirmed', 'is_staff', 'last_name', 'message', 'password', 'provisioning_uri', 'qr_code', 'refresh', 'secret', 'success', 'totp_code', 'user', 'username', 'utf-8']
