@@ -44,6 +44,30 @@ def _send_progress(task_id, step, progress, message):
         print(f"WebSocket progress error: {e}")
 
 
+def _truncate_summary(text: str, max_len: int = 300) -> str:
+    """Truncate summary at a sentence or word boundary.
+    
+    Priority: last sentence end (.) within limit > last word boundary > hard cut.
+    """
+    if len(text) <= max_len:
+        return text
+    
+    truncated = text[:max_len]
+    
+    # Try to cut at last sentence end (period followed by space or end)
+    last_period = truncated.rfind('. ')
+    if last_period > max_len * 0.4:  # Only if we keep at least 40% of content
+        return truncated[:last_period + 1]
+    
+    # Fall back to last word boundary
+    last_space = truncated.rfind(' ')
+    if last_space > max_len * 0.5:
+        return truncated[:last_space]
+    
+    # Hard cut (very rare — would need 150+ char word)
+    return truncated
+
+
 def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None):
     """
     Internal function to generate article content without saving to DB.
@@ -555,11 +579,15 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 # Unescape first to catch &lt;h2&gt; etc.
                 clean_text = html.unescape(raw_text)
                 # Strip any remaining tags
-                summary = re.sub(r'<[^>]+>', '', clean_text).strip()[:300]
+                summary = re.sub(r'<[^>]+>', '', clean_text).strip()
             else:
                 # Absolute fallback from whole content
                 clean_all = re.sub(r'<[^>]+>', '', html.unescape(temp_content))
-                summary = clean_all.strip()[:300]
+                summary = clean_all.strip()
+            
+            # Smart truncation — cut at sentence or word boundary, not mid-word
+            if len(summary) > 300:
+                summary = _truncate_summary(summary, max_len=300)
                 
         if not summary:
             summary = f"Comprehensive review of the {specs.get('make', '')} {specs.get('model', '')}"
