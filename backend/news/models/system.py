@@ -401,7 +401,7 @@ class ArticleEmbedding(models.Model):
     )
     model_name = models.CharField(
         max_length=100,
-        default="models/gemini-embedding-001",
+        default="models/gemini-embedding-2-preview",
         help_text="Gemini model used to generate this embedding"
     )
     text_hash = models.CharField(

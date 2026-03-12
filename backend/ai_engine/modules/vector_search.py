@@ -194,7 +194,7 @@ class VectorSearchEngine:
         
         return ThrottledEmbeddings(
             embeddings=GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-001",
+            model="models/gemini-embedding-2-preview",
                 google_api_key=api_key
             ),
             engine=self,
@@ -354,14 +354,14 @@ class VectorSearchEngine:
             existing = ArticleEmbedding.objects.filter(article=article).first()
             if existing:
                 existing.embedding_vector = embedding
-                existing.model_name = 'models/gemini-embedding-001'
+                existing.model_name = 'models/gemini-embedding-2-preview'
                 existing.text_hash = text_hash
                 existing.save(update_fields=['embedding_vector', 'model_name', 'text_hash', 'updated_at'])
             else:
                 ArticleEmbedding.objects.create(
                     article=article,
                     embedding_vector=embedding,
-                    model_name='models/gemini-embedding-001',
+                    model_name='models/gemini-embedding-2-preview',
                     text_hash=text_hash,
                 )
             print(f"✓ Saved embedding to database for article {article_id}")
