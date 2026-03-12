@@ -7,6 +7,9 @@ from ..serializers import YouTubeChannelSerializer
 from ._shared import invalidate_article_cache
 import os
 import sys
+import json
+import uuid
+import threading
 import logging
 
 logger = logging.getLogger(__name__)
@@ -116,48 +119,103 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def generate_pending(self, request, pk=None):
-        """Generate a PendingArticle from a specific video"""
+        """Generate a PendingArticle from a specific video (async).
+
+        Returns a task_id immediately.  The AI pipeline runs in a
+        background thread and stores its result in Django cache (Redis).
+        Frontend polls /generate_status/?task_id=xxx for progress.
+        """
         channel = self.get_object()
         video_url = request.data.get('video_url')
         video_id = request.data.get('video_id')
         video_title = request.data.get('video_title')
         provider = request.data.get('provider', 'gemini')
-        
+
         if not video_url:
             return Response({'error': 'video_url is required'}, status=status.HTTP_400_BAD_REQUEST)
-            
-        try:
-            # Add both backend and ai_engine paths for proper imports
-            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
-            
-            if backend_dir not in sys.path:
-                sys.path.insert(0, backend_dir)
-            if ai_engine_dir not in sys.path:
-                sys.path.insert(0, ai_engine_dir)
-                
-            from ai_engine.main import create_pending_article
-            
-            result = create_pending_article(
-                youtube_url=video_url,
-                channel_id=channel.id,
-                video_title=video_title,
-                video_id=video_id,
-                provider=provider
-            )
-            
-            if result.get('success'):
-                # Invalidate cache to ensure pending counts are updated
-                invalidate_article_cache()
-                logger.info(f"Cache invalidated after manual generation for channel {channel.name}")
-                return Response(result)
-            else:
-                return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.error(f"Error generating pending article: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        task_id = str(uuid.uuid4())
+
+        # Store initial status in cache (Redis) — TTL 10 min
+        from django.core.cache import cache
+        cache.set(f'gen_task:{task_id}', json.dumps({
+            'status': 'running',
+            'video_title': video_title or '',
+            'channel': channel.name,
+        }), timeout=600)
+
+        # Spawn background thread
+        def _run_generate(task_id, channel_id, channel_name, video_url, video_id, video_title, provider):
+            from django.db import close_old_connections
+            close_old_connections()
+            try:
+                backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
+                if backend_dir not in sys.path:
+                    sys.path.insert(0, backend_dir)
+                if ai_engine_dir not in sys.path:
+                    sys.path.insert(0, ai_engine_dir)
+
+                from ai_engine.main import create_pending_article
+                result = create_pending_article(
+                    youtube_url=video_url,
+                    channel_id=channel_id,
+                    video_title=video_title,
+                    video_id=video_id,
+                    provider=provider,
+                )
+
+                if result.get('success'):
+                    invalidate_article_cache()
+                    logger.info(f"[ASYNC] Generated pending article for {channel_name}")
+                    cache.set(f'gen_task:{task_id}', json.dumps({
+                        'status': 'done',
+                        'result': result,
+                    }), timeout=600)
+                else:
+                    cache.set(f'gen_task:{task_id}', json.dumps({
+                        'status': 'error',
+                        'error': result.get('error', 'Generation returned failure'),
+                    }), timeout=600)
+            except Exception as e:
+                logger.error(f"[ASYNC] generate_pending failed: {e}", exc_info=True)
+                cache.set(f'gen_task:{task_id}', json.dumps({
+                    'status': 'error',
+                    'error': str(e)[:500],
+                }), timeout=600)
+            finally:
+                close_old_connections()
+
+        t = threading.Thread(
+            target=_run_generate,
+            args=(task_id, channel.id, channel.name, video_url, video_id, video_title, provider),
+            daemon=True,
+        )
+        t.start()
+
+        return Response({
+            'task_id': task_id,
+            'message': f'Generation started for "{video_title or video_url}"',
+        })
+
+    @action(detail=False, methods=['get'])
+    def generate_status(self, request):
+        """Poll status of an async generate_pending task.
+
+        GET /api/v1/youtube-channels/generate_status/?task_id=xxx
+        Returns: { status: 'running'|'done'|'error', result?, error? }
+        """
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response({'error': 'task_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.core.cache import cache
+        raw = cache.get(f'gen_task:{task_id}')
+        if not raw:
+            return Response({'status': 'not_found'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = json.loads(raw)
+        return Response(data)
     
     @action(detail=False, methods=['post'])
     def auto_resolve_fact_check(self, request):

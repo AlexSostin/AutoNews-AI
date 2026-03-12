@@ -294,3 +294,117 @@ class ArticleViewSet(
                 logger.error(f"Error in ArticleViewSet.update post-processing: {inner_err}")
                 
         return response
+
+    # ── Publish Queue ────────────────────────────────────────────────
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    def publish_queue(self, request):
+        """Return draft + scheduled articles for the Publish Queue UI."""
+        articles = Article.objects.filter(
+            is_deleted=False,
+            is_published=False,
+        ).select_related('specs').prefetch_related('categories').order_by(
+            # Scheduled first (by time), then unscheduled (by created_at)
+            'scheduled_publish_at',  # NULLs go last in PostgreSQL with default ordering
+            '-created_at',
+        ).defer('content', 'content_original', 'generation_metadata')
+
+        data = []
+        for a in articles[:50]:  # max 50
+            cats = [{'id': c.id, 'name': c.name, 'slug': c.slug} for c in a.categories.all()]
+            img_url = ''
+            if a.image:
+                try:
+                    url = a.image.url
+                    if url and not url.startswith('http'):
+                        # Cloudinary may return relative path — build absolute URI
+                        url = request.build_absolute_uri(url)
+                    img_url = url or ''
+                except Exception:
+                    raw = str(a.image)
+                    if raw.startswith('http'):
+                        img_url = raw
+                    else:
+                        img_url = ''
+
+            data.append({
+                'id': a.id,
+                'title': a.title,
+                'slug': a.slug,
+                'image': img_url,
+                'summary': (a.summary or '')[:120],
+                'categories': cats,
+                'scheduled_publish_at': a.scheduled_publish_at.isoformat() if a.scheduled_publish_at else None,
+                'created_at': a.created_at.isoformat(),
+                'is_published': a.is_published,
+            })
+
+        # Stats
+        total_drafts = Article.objects.filter(is_deleted=False, is_published=False).count()
+        scheduled = Article.objects.filter(
+            is_deleted=False, is_published=False,
+            scheduled_publish_at__isnull=False,
+        ).count()
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timezone.timedelta(days=1)
+        publishing_today = Article.objects.filter(
+            is_deleted=False, is_published=False,
+            scheduled_publish_at__gte=today_start,
+            scheduled_publish_at__lt=today_end,
+        ).count()
+
+        return Response({
+            'articles': data,
+            'stats': {
+                'total_drafts': total_drafts,
+                'scheduled': scheduled,
+                'unscheduled': total_drafts - scheduled,
+                'publishing_today': publishing_today,
+            },
+        })
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])
+    def batch_schedule(self, request):
+        """Auto-assign scheduled_publish_at to multiple articles with interval.
+
+        Body: { article_ids: [1,2,3], start_time: "ISO", interval_hours: 3 }
+        """
+        article_ids = request.data.get('article_ids', [])
+        start_time_str = request.data.get('start_time')
+        interval_hours = float(request.data.get('interval_hours', 3))
+
+        if not article_ids:
+            return Response({'error': 'article_ids required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not start_time_str:
+            return Response({'error': 'start_time required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from datetime import timedelta, datetime as dt
+        try:
+            # Python stdlib ISO parse (strip trailing Z for compatibility)
+            cleaned = start_time_str.replace('Z', '+00:00')
+            start_time = dt.fromisoformat(cleaned)
+            if timezone.is_naive(start_time):
+                start_time = timezone.make_aware(start_time)
+        except Exception:
+            return Response({'error': 'Invalid start_time format'}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated = []
+        for i, aid in enumerate(article_ids):
+            try:
+                article = Article.objects.get(pk=aid, is_deleted=False)
+                scheduled_at = start_time + timedelta(hours=interval_hours * i)
+                article.scheduled_publish_at = scheduled_at
+                article.is_published = False  # ensure it stays draft until scheduler picks it up
+                article.save(update_fields=['scheduled_publish_at', 'is_published'])
+                updated.append({
+                    'id': article.id,
+                    'title': article.title[:80],
+                    'scheduled_publish_at': scheduled_at.isoformat(),
+                })
+            except Article.DoesNotExist:
+                continue
+
+        return Response({
+            'success': True,
+            'scheduled_count': len(updated),
+            'articles': updated,
+        })

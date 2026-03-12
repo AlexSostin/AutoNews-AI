@@ -793,9 +793,11 @@ export default function NewArticlePage() {
           isPublished={formData.published}
           isHero={formData.is_hero}
           isNewsOnly={formData.is_news_only}
+          scheduledPublishAt={''}
           onPublishedChange={(v: boolean) => setFormData({ ...formData, published: v })}
           onHeroChange={(v: boolean) => setFormData({ ...formData, is_hero: v })}
           onNewsOnlyChange={(v: boolean) => setFormData({ ...formData, is_news_only: v })}
+          onScheduledPublishAtChange={() => {}}
         />
 
         {/* Submit Button */}

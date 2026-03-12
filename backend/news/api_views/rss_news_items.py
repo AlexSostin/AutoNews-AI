@@ -12,6 +12,63 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# ── Auto-tag extraction from title + content ──────────────────────
+_BRAND_MAP = {
+    'byd': 'BYD', 'bmw': 'BMW', 'gmc': 'GMC', 'nio': 'NIO', 'gac': 'GAC',
+    'tesla': 'Tesla', 'ford': 'Ford', 'toyota': 'Toyota', 'honda': 'Honda',
+    'hyundai': 'Hyundai', 'kia': 'Kia', 'genesis': 'Genesis',
+    'mercedes': 'Mercedes-Benz', 'mercedes-benz': 'Mercedes-Benz',
+    'audi': 'Audi', 'porsche': 'Porsche', 'volkswagen': 'Volkswagen',
+    'volvo': 'Volvo', 'lexus': 'Lexus', 'mazda': 'Mazda',
+    'xpeng': 'XPENG', 'zeekr': 'ZEEKR', 'geely': 'Geely',
+    'dongfeng': 'Dongfeng', 'changan': 'Changan', 'chery': 'Chery',
+    'xiaomi': 'Xiaomi', 'rivian': 'Rivian', 'lucid': 'Lucid',
+    'polestar': 'Polestar', 'ferrari': 'Ferrari', 'lamborghini': 'Lamborghini',
+    'jaguar': 'Jaguar', 'subaru': 'Subaru', 'nissan': 'Nissan',
+    'chevrolet': 'Chevrolet', 'cadillac': 'Cadillac', 'jeep': 'Jeep',
+    'mini': 'MINI', 'haval': 'Haval', 'voyah': 'VOYAH', 'avatr': 'AVATR',
+    'smart': 'Smart', 'lotus': 'Lotus', 'renault': 'Renault',
+}
+
+def _extract_auto_tags(title: str, content: str) -> list:
+    """Extract brand, fuel type, and body type tags from title+content."""
+    tags = []
+    title_lower = title.lower()
+    content_lower = content[:3000].lower()
+    combined = f" {title_lower} {content_lower} "
+
+    # Brand detection (word-boundary matching)
+    seen_brands = set()
+    for key, display in _BRAND_MAP.items():
+        if display in seen_brands:
+            continue
+        pattern = rf'\b{re.escape(key)}\b'
+        if re.search(pattern, combined):
+            tags.append(display)
+            seen_brands.add(display)
+
+    # Fuel / powertrain
+    if any(kw in combined for kw in ['electric', ' ev ', 'kwh', 'battery electric', ' bev ']):
+        tags.append('Electric')
+    if any(kw in combined for kw in ['hybrid', 'phev', 'plug-in']):
+        tags.append('Hybrid')
+    if 'hydrogen' in combined or 'fuel cell' in combined:
+        tags.append('Hydrogen')
+
+    # Body type
+    if any(kw in combined for kw in [' suv ', 'crossover']):
+        tags.append('SUV')
+    if ' sedan ' in combined or ' saloon ' in combined:
+        tags.append('Sedan')
+    if 'hatchback' in combined:
+        tags.append('Hatchback')
+    if any(kw in combined for kw in [' coupe ', 'coupé']):
+        tags.append('Coupe')
+    if any(kw in combined for kw in ['truck', 'pickup']):
+        tags.append('Truck')
+
+    return tags
+
 class RSSNewsItemViewSet(viewsets.ModelViewSet):
     """
     Browse raw RSS news items and generate articles on demand.
@@ -129,7 +186,7 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             image_policy = feed.image_policy if feed else 'pexels_fallback'
             
             if image_policy == 'pexels_only':
-                # Media site — don't use their images, search Pexels instead
+                # Media site — don't use their images, search web instead
                 images = []
                 featured_image = ''
             else:
@@ -137,13 +194,37 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 images = [news_item.image_url] if news_item.image_url else []
                 featured_image = news_item.image_url or ''
             
+            # Auto image fallback: search web for press photos if no image
+            if not featured_image:
+                try:
+                    from ai_engine.modules.searcher import search_car_images
+                    img_results = search_car_images(f"{ai_title} car press photo official", max_results=3)
+                    if img_results:
+                        featured_image = img_results[0]['url']
+                        images = [r['url'] for r in img_results[:2]]
+                        logger.info(f'[RSS generate] Auto-found {len(img_results)} images for "{ai_title[:50]}"')
+                except Exception as img_err:
+                    logger.warning(f'[RSS generate] Image search failed: {img_err}')
+            
             # Determine image source
-            if image_policy == 'pexels_only':
-                img_source = 'pexels'
+            if image_policy == 'pexels_only' or (not news_item.image_url and featured_image):
+                img_source = 'web_search'
             elif images:
                 img_source = 'rss_original'
             else:
                 img_source = 'unknown'
+            
+            # Auto SEO description from content (max 160 chars)
+            content_plain = re.sub(r'<[^>]+>', '', expanded_content).strip()
+            seo_description = ''
+            if content_plain:
+                if len(content_plain) > 160:
+                    seo_description = content_plain[:157].rsplit(' ', 1)[0] + '...'
+                else:
+                    seo_description = content_plain
+            
+            # Auto tags from title + content
+            auto_tags = _extract_auto_tags(ai_title, expanded_content)
             
             # Create PendingArticle
             pending = PendingArticle.objects.create(
@@ -153,10 +234,12 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 title=ai_title,
                 content=expanded_content,
                 excerpt=plain_text[:500],
+                seo_description=seo_description,
                 images=images,
                 featured_image=featured_image,
                 image_source=img_source,
                 suggested_category=news_item.rss_feed.default_category if news_item.rss_feed else None,
+                tags=auto_tags,
                 status='pending'
             )
             
@@ -590,7 +673,7 @@ Write a comprehensive, engaging roundup article in HTML format. Follow these rul
 Write the article now:"""
 
             ai = get_ai_provider(provider)
-            raw_response = ai.generate_text(prompt, max_tokens=3000, temperature=0.7)
+            raw_response = ai.generate_completion(prompt, max_tokens=3000, temperature=0.7)
 
             # Extract title from <h1> tag
             h1_match = re.search(r'<h1[^>]*>(.*?)</h1>', raw_response, re.IGNORECASE | re.DOTALL)
@@ -645,11 +728,41 @@ Write the article now:"""
             if image_policy == 'pexels_only':
                 images = []
                 featured_image = ''
-                img_source = 'pexels'
             else:
                 images = all_images[:3]
                 featured_image = all_images[0] if all_images else ''
-                img_source = 'rss_original' if images else 'unknown'
+
+            # Auto image fallback: search web for press photos if no image
+            if not featured_image:
+                try:
+                    from ai_engine.modules.searcher import search_car_images
+                    img_results = search_car_images(f"{ai_title} car press photo official", max_results=3)
+                    if img_results:
+                        featured_image = img_results[0]['url']
+                        images = [r['url'] for r in img_results[:2]]
+                        logger.info(f'[RSS merge] Auto-found {len(img_results)} images for "{ai_title[:50]}"')
+                except Exception as img_err:
+                    logger.warning(f'[RSS merge] Image search failed: {img_err}')
+
+            # Determine image source
+            if image_policy == 'pexels_only' or (not all_images and featured_image):
+                img_source = 'web_search'
+            elif images:
+                img_source = 'rss_original'
+            else:
+                img_source = 'unknown'
+
+            # Auto SEO description from content (max 160 chars)
+            content_plain = re.sub(r'<[^>]+>', '', expanded_content).strip()
+            seo_description = ''
+            if content_plain:
+                if len(content_plain) > 160:
+                    seo_description = content_plain[:157].rsplit(' ', 1)[0] + '...'
+                else:
+                    seo_description = content_plain
+
+            # Auto tags from title + content
+            auto_tags = _extract_auto_tags(ai_title, expanded_content)
 
             pending = PendingArticle.objects.create(
                 rss_feed=items[0].rss_feed,
@@ -658,12 +771,14 @@ Write the article now:"""
                 title=ai_title,
                 content=expanded_content,
                 excerpt=excerpt,
+                seo_description=seo_description,
                 images=images,
                 featured_image=featured_image,
                 image_source=img_source,
                 suggested_category=(
                     items[0].rss_feed.default_category if items[0].rss_feed else None
                 ),
+                tags=auto_tags,
                 status='pending',
             )
 

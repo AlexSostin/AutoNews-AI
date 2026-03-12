@@ -24,6 +24,7 @@ import {
     ChevronUp,
     Zap,
     BarChart3,
+    RefreshCw,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
@@ -259,6 +260,8 @@ export default function RSSNewsPage() {
     const [merging, setMerging] = useState<string | null>(null);
     const [expandedCluster, setExpandedCluster] = useState<string | null>(null);
     const [statsScanned, setStatsScanned] = useState<number>(0);
+    const [generateAllLoading, setGenerateAllLoading] = useState(false);
+    const [generateAllProgress, setGenerateAllProgress] = useState('');
 
     const fetchGlobalBrandStats = async () => {
         setLoadingStats(true);
@@ -501,6 +504,48 @@ export default function RSSNewsPage() {
         return 'bg-gray-400 text-white';
     };
 
+    // Generate All Recommended — sequential generation of top items from each cluster
+    const handleGenerateAllRecommended = async () => {
+        if (!curatorResults) return;
+        const recommended = curatorResults.clusters.filter(c => c.max_score >= 50 && !c.items[0]?.duplicate_of);
+        if (recommended.length === 0) {
+            toast.error('No recommended clusters to generate');
+            return;
+        }
+        setGenerateAllLoading(true);
+        let success = 0;
+        let failed = 0;
+        for (let i = 0; i < recommended.length; i++) {
+            const cluster = recommended[i];
+            const topItem = cluster.items[0];
+            if (!topItem) continue;
+            setGenerateAllProgress(`${i + 1}/${recommended.length}: ${topItem.title.slice(0, 40)}...`);
+            try {
+                await api.post('/rss-news-items/curator_decision/', {
+                    item_id: topItem.id,
+                    decision: 'generate',
+                    cluster_id: cluster.id,
+                    score: topItem.score,
+                    brand: topItem.brand || '',
+                });
+                success++;
+                // Remove from curator results
+                if (curatorResults) {
+                    setCuratorResults(prev => prev ? {
+                        ...prev,
+                        clusters: prev.clusters.filter(c => c.id !== cluster.id),
+                    } : null);
+                }
+            } catch {
+                failed++;
+            }
+        }
+        setGenerateAllLoading(false);
+        setGenerateAllProgress('');
+        fetchNewsItems();
+        toast.success(`✅ Generated ${success} articles${failed > 0 ? `, ${failed} failed` : ''}`);
+    };
+
     const handleBulkDismiss = async () => {
         if (selectedItems.size === 0) return;
         setBulkDismissing(true);
@@ -622,17 +667,39 @@ export default function RSSNewsPage() {
                         Browse news from your RSS feeds. Select interesting articles to generate with AI.
                     </p>
                 </div>
-                <button
-                    onClick={handleCurate}
-                    disabled={curatorLoading}
-                    className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:from-violet-700 hover:to-purple-700 disabled:opacity-60 transition-all font-bold shadow-lg hover:shadow-xl text-sm"
-                >
-                    {curatorLoading ? (
-                        <><Loader2 className="animate-spin" size={18} /> Analyzing...</>
-                    ) : (
-                        <><Brain size={18} /> 🤖 Analyze Feed</>
+                <div className="flex items-center gap-2">
+                    {/* If we already have results, show a Refresh button separately */}
+                    {curatorResults && !curatorLoading && (
+                        <button
+                            onClick={handleCurate}
+                            className="flex items-center gap-1.5 px-3 py-2.5 bg-white border border-violet-300 text-violet-600 rounded-xl hover:bg-violet-50 transition-all font-medium text-sm"
+                            title="Re-analyze with AI (costs tokens)"
+                        >
+                            <RefreshCw size={14} />
+                            Refresh
+                        </button>
                     )}
-                </button>
+                    <button
+                        onClick={() => {
+                            // If results already exist, just toggle panel visibility (free)
+                            if (curatorResults && !curatorLoading) {
+                                setCuratorOpen(prev => !prev);
+                            } else {
+                                handleCurate();
+                            }
+                        }}
+                        disabled={curatorLoading}
+                        className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:from-violet-700 hover:to-purple-700 disabled:opacity-60 transition-all font-bold shadow-lg hover:shadow-xl text-sm"
+                    >
+                        {curatorLoading ? (
+                            <><Loader2 className="animate-spin" size={18} /> Analyzing...</>
+                        ) : curatorResults ? (
+                            <><Brain size={18} /> {curatorOpen ? 'Hide Curator' : 'Show Curator'}</>
+                        ) : (
+                            <><Brain size={18} /> 🤖 Analyze Feed</>
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* ═══════ Smart Curator Panel ═══════ */}
@@ -671,6 +738,21 @@ export default function RSSNewsPage() {
                                         </span>
                                     )}
                                 </div>
+                            )}
+                            {/* Generate All Recommended button */}
+                            {curatorResults && curatorResults.stats.recommended > 0 && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleGenerateAllRecommended(); }}
+                                    disabled={generateAllLoading}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg text-xs font-bold hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-60 transition-all shadow-sm"
+                                    title="Generate articles from all recommended clusters"
+                                >
+                                    {generateAllLoading ? (
+                                        <><Loader2 className="animate-spin" size={12} /> {generateAllProgress}</>
+                                    ) : (
+                                        <><Wand2 size={12} /> Generate All ({curatorResults.stats.recommended})</>
+                                    )}
+                                </button>
                             )}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setCuratorOpen(false); }}
@@ -716,9 +798,19 @@ export default function RSSNewsPage() {
                                                 className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50/80 transition-colors"
                                                 onClick={() => setExpandedCluster(isExpCluster ? null : cluster.id)}
                                             >
-                                                {/* Score Badge */}
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${getScoreColor(cluster.max_score)}`} title={`Score: ${cluster.max_score}`}>
-                                                    {cluster.max_score}
+                                                {/* Image + Score */}
+                                                <div className="flex items-center gap-2">
+                                                    {topItem?.image_url && (
+                                                        <img
+                                                            src={topItem.image_url}
+                                                            alt=""
+                                                            className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                                        />
+                                                    )}
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 ${getScoreColor(cluster.max_score)}`} title={`Score: ${cluster.max_score}`}>
+                                                        {cluster.max_score}
+                                                    </div>
                                                 </div>
 
                                                 {/* Topic + Info */}

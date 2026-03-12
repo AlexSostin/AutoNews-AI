@@ -231,7 +231,7 @@ export default function YouTubeChannelsPage() {
     }
   };
 
-  // Called after PIN confirmed — actually runs the generation
+  // Called after PIN confirmed — actually runs the generation (async with polling)
   const doGenerateFromVideo = async (video: Video) => {
     if (!scanningChannel) return;
 
@@ -240,24 +240,57 @@ export default function YouTubeChannelsPage() {
     ));
 
     try {
-      const response = await api.post(`/youtube-channels/${scanningChannel.id}/generate_pending/`, {
+      // 1. POST to start async generation → get task_id
+      const startRes = await api.post(`/youtube-channels/${scanningChannel.id}/generate_pending/`, {
         video_url: video.url,
         video_id: video.id,
         video_title: video.title,
         provider: 'gemini'
       });
 
-      setScannedVideos(prev => prev.map(v =>
-        v.id === video.id ? {
-          ...v,
-          status: 'success',
-          pendingId: response.data.pending_id
-        } : v
-      ));
+      const taskId = startRes.data.task_id;
+      if (!taskId) throw new Error('No task_id returned');
 
-      fetchData();
+      // 2. Poll generate_status every 3 seconds
+      const poll = async (): Promise<void> => {
+        try {
+          const statusRes = await api.get(`/youtube-channels/generate_status/`, {
+            params: { task_id: taskId }
+          });
+          const data = statusRes.data;
+
+          if (data.status === 'done') {
+            setScannedVideos(prev => prev.map(v =>
+              v.id === video.id ? {
+                ...v,
+                status: 'success',
+                pendingId: data.result?.pending_id
+              } : v
+            ));
+            fetchData();
+            return;
+          }
+
+          if (data.status === 'error') {
+            setScannedVideos(prev => prev.map(v =>
+              v.id === video.id ? { ...v, status: 'error', errorMsg: data.error || 'Generation failed' } : v
+            ));
+            return;
+          }
+
+          // Still running — wait 3s and poll again
+          await new Promise(r => setTimeout(r, 3000));
+          return poll();
+        } catch {
+          setScannedVideos(prev => prev.map(v =>
+            v.id === video.id ? { ...v, status: 'error', errorMsg: 'Lost connection to server' } : v
+          ));
+        }
+      };
+
+      await poll();
     } catch (error: any) {
-      const errorMsg = error.response?.data?.error || 'Generation failed';
+      const errorMsg = error.response?.data?.error || 'Failed to start generation';
       setScannedVideos(prev => prev.map(v =>
         v.id === video.id ? { ...v, status: 'error', errorMsg: errorMsg } : v
       ));

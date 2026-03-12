@@ -141,6 +141,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
     published: false,
     is_hero: false,
     is_news_only: false,
+    scheduled_publish_at: '',
     youtube_url: '',
     author_name: '',
     author_channel_url: '',
@@ -205,6 +206,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         published: article.is_published ?? false,
         is_hero: article.is_hero ?? false,
         is_news_only: article.is_news_only ?? false,
+        scheduled_publish_at: article.scheduled_publish_at
+          ? new Date(new Date(article.scheduled_publish_at).getTime() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+          : '',
         youtube_url: article.youtube_url || '',
         author_name: article.author_name || '',
         author_channel_url: article.author_channel_url || '',
@@ -256,6 +260,11 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         formDataToSend.append('is_published', formData.published.toString());
         formDataToSend.append('is_hero', formData.is_hero.toString());
         formDataToSend.append('is_news_only', formData.is_news_only.toString());
+        if (formData.scheduled_publish_at) {
+          formDataToSend.append('scheduled_publish_at', new Date(formData.scheduled_publish_at).toISOString());
+        } else {
+          formDataToSend.append('scheduled_publish_at', '');
+        }
 
         if (formData.youtube_url) {
           formDataToSend.append('youtube_url', formData.youtube_url);
@@ -303,6 +312,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           is_published: formData.published,
           is_hero: formData.is_hero,
           is_news_only: formData.is_news_only,
+          scheduled_publish_at: formData.scheduled_publish_at
+            ? new Date(formData.scheduled_publish_at).toISOString()
+            : null,
           youtube_url: formData.youtube_url,
           author_name: formData.author_name,
           author_channel_url: formData.author_channel_url,
@@ -626,9 +638,11 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             isPublished={formData.published}
             isHero={formData.is_hero}
             isNewsOnly={formData.is_news_only}
+            scheduledPublishAt={formData.scheduled_publish_at}
             onPublishedChange={(v: boolean) => setFormData({ ...formData, published: v })}
             onHeroChange={(v: boolean) => setFormData({ ...formData, is_hero: v })}
             onNewsOnlyChange={(v: boolean) => setFormData({ ...formData, is_news_only: v })}
+            onScheduledPublishAtChange={(v: string) => setFormData({ ...formData, scheduled_publish_at: v })}
           />
 
           {/* 8. Bottom Save Button */}

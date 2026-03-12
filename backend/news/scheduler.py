@@ -16,6 +16,8 @@ GSC_SYNC_INTERVAL = 6 * 60 * 60
 CURRENCY_UPDATE_INTERVAL = 24 * 60 * 60
 # Auto-publish check interval: 10 minutes
 AUTO_PUBLISH_CHECK_INTERVAL = 10 * 60
+# Scheduled publish check interval: 60 seconds (checks articles with scheduled_publish_at)
+SCHEDULED_PUBLISH_INTERVAL = 60
 # Default fallback check interval when module is disabled
 DISABLED_CHECK_INTERVAL = 60  # Check again in 60s if disabled
 
@@ -392,6 +394,101 @@ def _score_new_pending_articles():
 
 
 # =============================================================================
+# Scheduled Publish — publishes articles at their scheduled_publish_at time
+# =============================================================================
+
+
+def _run_scheduled_publish():
+    """Publish articles whose scheduled_publish_at has arrived.
+
+    Checks every 60s.  For each due article:
+      1. Flips is_published=True, clears scheduled_publish_at
+      2. Sends to Telegram channel (if telegram_enabled)
+      3. Creates SocialPost audit record
+      4. Invalidates article cache
+    """
+    from django.db import close_old_connections
+    close_old_connections()
+    try:
+        from django.utils import timezone
+        from news.models.content import Article
+
+        now = timezone.now()
+        due_articles = Article.objects.filter(
+            is_published=False,
+            is_deleted=False,
+            scheduled_publish_at__isnull=False,
+            scheduled_publish_at__lte=now,
+        )
+
+        published_count = 0
+        for article in due_articles:
+            try:
+                article.is_published = True
+                article.scheduled_publish_at = None
+                article.save(update_fields=['is_published', 'scheduled_publish_at'])
+                published_count += 1
+                logger.info(f"[SCHEDULED] ✅ Published: {article.title[:60]}")
+
+                # Telegram auto-post
+                try:
+                    from news.models import AutomationSettings
+                    settings = AutomationSettings.load()
+                    if settings.telegram_enabled:
+                        from ai_engine.modules.telegram_publisher import send_to_channel
+                        tg_result = send_to_channel(article, force=True)
+
+                        # Create SocialPost audit record
+                        from news.models.system import SocialPost
+                        SocialPost.objects.create(
+                            article=article,
+                            platform='telegram',
+                            status='sent' if tg_result.get('ok') else 'failed',
+                            message_text=f'Scheduled auto-post',
+                            external_id=str(tg_result.get('result', {}).get('message_id', '')),
+                            channel_id=settings.telegram_channel_id,
+                            error_message=tg_result.get('description', '') if not tg_result.get('ok') else '',
+                            posted_at=now if tg_result.get('ok') else None,
+                        )
+
+                        if tg_result.get('ok'):
+                            settings.telegram_today_count += 1
+                            settings.telegram_last_run = now
+                            settings.telegram_last_status = f'Scheduled: {article.title[:60]}'
+                            settings.save(update_fields=['telegram_today_count', 'telegram_last_run', 'telegram_last_status'])
+                except Exception as tg_err:
+                    logger.warning(f"[SCHEDULED] Telegram post failed for '{article.title[:40]}': {tg_err}")
+
+                # Invalidate cache
+                try:
+                    from news.api_views._shared import invalidate_article_cache
+                    invalidate_article_cache()
+                except Exception:
+                    pass
+
+            except Exception as e:
+                logger.error(f"[SCHEDULED] ❌ Failed to publish '{article.title[:40]}': {e}")
+                _log_scheduler_error('scheduled_publish', e)
+
+        if published_count > 0:
+            logger.info(f"[SCHEDULED] 📅 Published {published_count} scheduled articles")
+
+    except Exception as e:
+        logger.error(f"[SCHEDULED] ❌ Fatal error: {e}", exc_info=True)
+        _log_scheduler_error('scheduled_publish', e)
+    finally:
+        close_old_connections()
+        _schedule_scheduled_publish()
+
+
+def _schedule_scheduled_publish():
+    """Schedule the next scheduled-publish check."""
+    timer = threading.Timer(SCHEDULED_PUBLISH_INTERVAL, _run_scheduled_publish)
+    timer.daemon = True
+    timer.start()
+
+
+# =============================================================================
 # VehicleSpecs auto-backfill (reads settings from AutomationSettings)
 # =============================================================================
 
@@ -749,6 +846,12 @@ def start_scheduler():
     deep_specs_timer = threading.Timer(360, _run_deep_specs_backfill)
     deep_specs_timer.daemon = True
     deep_specs_timer.start()
+
+    # Scheduled publish — check every 60s, start after 120 seconds
+    sched_pub_timer = threading.Timer(120, _run_scheduled_publish)
+    sched_pub_timer.daemon = True
+    sched_pub_timer.start()
+    logger.info("[SCHEDULER] 📅 Scheduled publish timer started (every 60s)")
 
     # Auto-resolve stale errors — start after 600 seconds, then every 6 hours
     stale_timer = threading.Timer(600, _auto_resolve_stale_errors)

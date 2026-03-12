@@ -107,6 +107,10 @@ class Article(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False, db_index=True)
+    scheduled_publish_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text="If set, auto-publish at this time (flips is_published=True and clears this field)"
+    )
     is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete - allows recreating articles with same slug")
     views = models.PositiveIntegerField(default=0, help_text="Number of times this article has been viewed", db_index=True)
     is_hero = models.BooleanField(default=False, db_index=True, help_text="Show in Home page Hero section")

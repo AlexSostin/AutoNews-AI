@@ -34,6 +34,7 @@ import {
   Users,
   Activity,
   Waypoints,
+  Timer,
   LucideIcon
 } from 'lucide-react';
 import { logout, isSuperuser } from '@/lib/auth';
@@ -69,6 +70,7 @@ const menuSections: MenuSection[] = [
       { href: '/admin/categories', icon: Folder, label: 'Categories' },
       { href: '/admin/tags', icon: Tag, label: 'Tags' },
       { href: '/admin/pages', icon: FileStack, label: 'Pages' },
+      { href: '/admin/publish-queue', icon: Timer, label: 'Publish Queue' },
       { href: '/admin/translate', icon: Languages, label: 'Translate & Enhance' },
     ],
   },
