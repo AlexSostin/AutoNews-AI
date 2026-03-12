@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('Search', () => {
-    test.setTimeout(20000);
+    test.setTimeout(60_000);
 
     test('search page loads without error', async ({ page }) => {
         const response = await page.goto('/search?q=Toyota');

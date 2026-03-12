@@ -261,14 +261,14 @@ class TestPublishArticle:
     def test_trims_long_summary(self):
         from ai_engine.modules.publisher import publish_article
 
-        long_summary = "A" * 500
+        long_summary = "A" * 5000
         article = publish_article(
             title="Long Summary Test",
             content="<p>Short</p>",
             summary=long_summary,
         )
 
-        assert len(article.summary) <= 300
+        assert len(article.summary) <= 3000
         assert article.summary.endswith("...")
 
     def test_draft_mode(self):

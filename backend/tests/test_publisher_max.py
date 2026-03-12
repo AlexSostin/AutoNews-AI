@@ -220,15 +220,15 @@ class TestPublishArticleImages:
 class TestPublishArticleMetadata:
 
     def test_summary_trimmed(self):
-        """L53-54: Summary > 300 chars → trimmed."""
+        """L53-54: Summary > 3000 chars → trimmed."""
         from ai_engine.modules.publisher import publish_article
-        long_summary = 'A' * 400
+        long_summary = 'A' * 5000
         article = publish_article(
             title='Summary Trim Test',
             content='<p>Content.</p>',
             summary=long_summary,
         )
-        assert len(article.summary) <= 300
+        assert len(article.summary) <= 3000
         assert article.summary.endswith('...')
 
     def test_specs_saved(self):
