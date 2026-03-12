@@ -128,7 +128,7 @@ def _schedule_currency_update():
 def _run_rss_scan():
     """Scan RSS feeds if enabled in AutomationSettings."""
     from django.db import close_old_connections
-    close_old_connections()
+    close_old_connections()  # Release idle connections before starting
     try:
         from news.models import AutomationSettings, RSSFeed
         from ai_engine.modules.rss_aggregator import RSSAggregator
@@ -182,6 +182,11 @@ def _run_rss_scan():
         logger.error(f"[SCHEDULER/RSS] ❌ Fatal error: {e}", exc_info=True)
         _log_scheduler_error('rss_scan', e)
         _schedule_rss_scan(5 * 60)  # Retry in 5 min on error
+    finally:
+        # Always release DB connections after the scan — threads don't get
+        # Django's normal request/response cleanup, so we do it manually.
+        # Prevents "too many clients" when CONN_MAX_AGE > 0 is set elsewhere.
+        close_old_connections()
 
 
 def _schedule_rss_scan(interval_seconds):

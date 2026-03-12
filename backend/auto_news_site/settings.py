@@ -222,7 +222,7 @@ else:
             'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', '127.0.0.1'),
             'PORT': os.getenv('DB_PORT', '5433'),
-            'CONN_MAX_AGE': 0 if DEBUG else 600,  # Fresh connections in dev, reuse in prod
+            'CONN_MAX_AGE': 0,  # Always 0 — prevents 'too many clients' on Railway and local Docker PG
         }
     }
 
