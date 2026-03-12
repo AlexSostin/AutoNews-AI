@@ -762,10 +762,12 @@ Return JSON:
                 title_match = _re.search(r'<h2[^>]*>(.*?)</h2>', expanded_content)
                 ai_title = clean_title(title_match.group(1)) if title_match else article.title
                 
-                summary_match = _re.search(r'<p>(.*?)</p>', expanded_content)
-                ai_summary = ''
-                if summary_match:
-                    ai_summary = _re.sub(r'<[^>]+>', '', summary_match.group(1))[:300]
+                try:
+                    from ai_engine.modules.publisher import extract_summary
+                    ai_summary = extract_summary(expanded_content)
+                except Exception:
+                    summary_match = _re.search(r'<p>(.*?)</p>', expanded_content)
+                    ai_summary = _re.sub(r'<[^>]+>', '', summary_match.group(1)) if summary_match else ''
                 
                 word_count = len(_re.sub(r'<[^>]+>', ' ', expanded_content).split())
                 result = {

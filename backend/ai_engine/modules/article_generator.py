@@ -1814,7 +1814,7 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
                 prompt=prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
-                max_tokens=3500
+                max_tokens=12000
             )
             if article_content:
                 print(f"✓ Fallback successful with {fallback_display}!")
