@@ -424,9 +424,16 @@ def _run_scheduled_publish():
         published_count = 0
         for article in due_articles:
             try:
+                # Mark telegram_post BEFORE save so the auto_telegram_on_publish
+                # signal (which fires on Article.save) sees the flag and skips.
+                # This prevents a duplicate Telegram post — only the scheduler's
+                # explicit send (below) will run.
+                meta = article.generation_metadata or {}
+                meta['telegram_post'] = 'scheduled'
+                article.generation_metadata = meta
                 article.is_published = True
                 article.scheduled_publish_at = None
-                article.save(update_fields=['is_published', 'scheduled_publish_at'])
+                article.save(update_fields=['is_published', 'scheduled_publish_at', 'generation_metadata'])
                 published_count += 1
                 logger.info(f"[SCHEDULED] ✅ Published: {article.title[:60]}")
 
