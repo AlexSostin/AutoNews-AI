@@ -153,10 +153,45 @@ def get_competitor_context(
 
         candidates.sort(key=sort_key)
 
-        # ── Step 6: pick top N ───────────────────────────────────────────────
-        selected = candidates[:max_competitors]
-        if not selected:
+        # ── Step 6: diversified selection ────────────────────────────────────
+        # Pick 1 "best match" (highest engagement/spec richness) +
+        # remaining slots randomly sampled from the rest.
+        # Enforce brand diversity: no two competitors from the same make.
+        import random
+
+        if not candidates:
             return "", []
+
+        selected = []
+        used_makes = set()
+
+        # Slot 1: best match (first in sorted list)
+        best = candidates[0]
+        selected.append(best)
+        used_makes.add(best.make.lower())
+
+        # Slots 2+: random from remaining, different brands
+        remaining = [
+            c for c in candidates[1:]
+            if c.make.lower() not in used_makes
+        ]
+        if remaining:
+            sample_n = min(max_competitors - 1, len(remaining))
+            extras = random.sample(remaining, sample_n)
+            for e in extras:
+                selected.append(e)
+                used_makes.add(e.make.lower())
+
+        # If still short (all same brand), allow same brand but different model
+        if len(selected) < max_competitors:
+            remaining_any = [
+                c for c in candidates[1:]
+                if c.id not in {s.id for s in selected}
+            ]
+            for c in remaining_any:
+                if len(selected) >= max_competitors:
+                    break
+                selected.append(c)
 
         # ── Step 7: format for prompt ────────────────────────────────────────
         lines = []
@@ -170,6 +205,8 @@ def get_competitor_context(
             "CARS ALREADY IN OUR DATABASE — USE FOR COMPARISON in the 'How It Compares' section:\n"
             + "\n".join(lines)
             + "\n\nWhen writing the 'How It Compares' section, cite these exact figures from our database."
+            "\nCRITICAL: Do NOT invent or fabricate competitor data. Use ONLY the cars listed above."
+            "\nIf no cars are listed, do NOT include a 'How It Compares' section."
         )
         return block, competitors_data
 
