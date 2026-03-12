@@ -611,3 +611,136 @@ def auto_telegram_on_publish(sender, instance, created, **kwargs):
 
     thread = threading.Thread(target=_send, daemon=True)
     transaction.on_commit(lambda: thread.start())
+
+
+# ============================================================================
+# TRAINING DATA COLLECTION — for Gemini fine-tuning
+# Captures input→output pairs whenever admin edits and publishes an article.
+# ============================================================================
+
+from news.models.interactions import ArticleCapsuleFeedback
+
+@receiver(post_save, sender=Article)
+def record_training_pair(sender, instance, created, **kwargs):
+    """Record a training pair when an article is published with edits.
+    
+    Captures: original AI content → final admin-edited content.
+    Source can be PendingArticle.content or Article.content_original.
+    """
+    if created:
+        return  # Skip initial creation
+
+    if not instance.is_published or instance.is_deleted:
+        return
+
+    # Need either content_original or a linked PendingArticle
+    input_text = ''
+    input_title = ''
+    source_type = 'manual'
+
+    # Strategy 1: content_original field (set by AI Editor)
+    if instance.content_original and instance.content_original.strip():
+        input_text = instance.content_original
+        input_title = instance.title  # title may not have changed
+
+    # Strategy 2: linked PendingArticle (has original AI-generated content)
+    if not input_text:
+        pending = instance.source_pending.first()
+        if pending:
+            input_text = pending.content
+            input_title = pending.title
+            if pending.rss_feed:
+                source_type = 'rss'
+            elif pending.video_url:
+                source_type = 'youtube'
+
+    # No source content found — nothing to record
+    if not input_text:
+        return
+
+    # Only create pair if content actually differs (admin made edits)
+    output_text = instance.content or ''
+    if input_text.strip() == output_text.strip():
+        return  # No edits made, skip
+
+    article_id = instance.id
+    final_source_type = source_type
+    final_input_title = input_title
+    final_input_text = input_text
+    final_output_text = output_text
+    final_output_title = instance.title
+
+    def _record():
+        try:
+            from news.models.system import TrainingPair
+            TrainingPair.objects.update_or_create(
+                article_id=article_id,
+                pair_type='generation',
+                defaults={
+                    'source_type': final_source_type,
+                    'input_title': final_input_title[:500],
+                    'output_title': final_output_title[:500],
+                    'input_text': final_input_text,
+                    'output_text': final_output_text,
+                    'quality_signals': {
+                        'views': Article.objects.filter(id=article_id).values_list('views', flat=True).first() or 0,
+                        'engagement_score': Article.objects.filter(id=article_id).values_list('engagement_score', flat=True).first() or 0,
+                    },
+                },
+            )
+            logger.info(f"[TRAINING] 📝 Recorded generation pair for [{article_id}]")
+        except Exception as e:
+            logger.error(f"[TRAINING] ❌ Failed to record pair for [{article_id}]: {e}")
+
+    thread = threading.Thread(target=_record, daemon=True)
+    transaction.on_commit(lambda: thread.start())
+
+
+@receiver(post_save, sender=ArticleCapsuleFeedback)
+def enrich_training_pair_quality(sender, instance, **kwargs):
+    """Enrich TrainingPair quality_signals when capsule feedback arrives.
+    
+    Aggregates positive/negative capsule votes into a capsule_score
+    and updates the corresponding TrainingPair (if one exists).
+    """
+    article_id = instance.article_id
+
+    def _enrich():
+        try:
+            from news.models.system import TrainingPair
+            pair = TrainingPair.objects.filter(
+                article_id=article_id, pair_type='generation'
+            ).first()
+            if not pair:
+                return  # No training pair for this article yet
+
+            # Aggregate capsule feedback
+            positive = ArticleCapsuleFeedback.objects.filter(
+                article_id=article_id, is_positive=True
+            ).count()
+            negative = ArticleCapsuleFeedback.objects.filter(
+                article_id=article_id, is_positive=False
+            ).count()
+            total = positive + negative
+
+            signals = pair.quality_signals or {}
+            signals['capsule_positive'] = positive
+            signals['capsule_negative'] = negative
+            signals['capsule_score'] = round(positive / total, 2) if total > 0 else None
+            # Refresh views and engagement from article
+            from news.models.content import Article as ArticleModel
+            article = ArticleModel.objects.filter(id=article_id).values(
+                'views', 'engagement_score'
+            ).first()
+            if article:
+                signals['views'] = article['views']
+                signals['engagement_score'] = float(article['engagement_score'] or 0)
+
+            pair.quality_signals = signals
+            pair.save(update_fields=['quality_signals', 'updated_at'])
+            logger.info(f"[TRAINING] 📊 Updated quality signals for [{article_id}]: score={signals.get('capsule_score')}")
+        except Exception as e:
+            logger.error(f"[TRAINING] ❌ Failed to enrich pair for [{article_id}]: {e}")
+
+    thread = threading.Thread(target=_enrich, daemon=True)
+    transaction.on_commit(lambda: thread.start())

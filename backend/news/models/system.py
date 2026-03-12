@@ -1212,6 +1212,63 @@ class TagLearningLog(models.Model):
     def __str__(self):
         return f"{self.title[:50]} → {self.final_tags}"
 
+
+class TrainingPair(models.Model):
+    """Stores input→output pairs for Gemini fine-tuning.
+    
+    Captured automatically via signals:
+    - 'generation': PendingArticle content → final Article content
+    - 'title_ab': losing title → winning A/B title
+    
+    Export with: python manage.py export_training_data
+    """
+    PAIR_TYPE_CHOICES = [
+        ('generation', 'Article Generation (source → final)'),
+        ('title_ab', 'Title A/B Winner'),
+    ]
+    SOURCE_TYPE_CHOICES = [
+        ('rss', 'RSS Feed'),
+        ('youtube', 'YouTube'),
+        ('manual', 'Manual'),
+    ]
+
+    article = models.ForeignKey('news.Article', on_delete=models.CASCADE,
+        related_name='training_pairs'
+    )
+    pair_type = models.CharField(max_length=20, choices=PAIR_TYPE_CHOICES)
+    source_type = models.CharField(max_length=20, choices=SOURCE_TYPE_CHOICES, default='rss')
+
+    # Input/Output for fine-tuning
+    input_title = models.CharField(max_length=500, blank=True)
+    output_title = models.CharField(max_length=500, blank=True)
+    input_text = models.TextField(help_text="Source content (pending article / original AI)")
+    output_text = models.TextField(help_text="Final content after admin edits")
+
+    # Quality signals — enriched over time by capsule feedback
+    quality_signals = models.JSONField(
+        default=dict, blank=True,
+        help_text="Reader quality data: capsule_score, engagement_score, views, etc."
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Training Pair'
+        verbose_name_plural = 'Training Pairs'
+        indexes = [
+            models.Index(fields=['pair_type', '-created_at']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['article', 'pair_type'],
+                name='unique_training_pair_per_article',
+            ),
+        ]
+
+    def __str__(self):
+        return f"[{self.pair_type}] {self.output_title[:50]}"
+
 class ThemeAnalytics(models.Model):
     """Tracks which color theme visitors choose — anonymous analytics."""
     theme = models.CharField(max_length=30, db_index=True, help_text="Theme ID e.g. 'default', 'midnight-green', 'deep-ocean'")
