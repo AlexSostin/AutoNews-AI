@@ -350,8 +350,8 @@ def _analyze_tos_with_ai(tos_text: str) -> dict:
     import json
     
     try:
-        from ai_engine.modules.ai_provider import get_ai_provider
-        provider = get_ai_provider('gemini')
+        from ai_engine.modules.ai_provider import get_light_provider
+        provider = get_light_provider()
         
         prompt = AI_TOS_PROMPT.replace('{tos_text}', tos_text)
         response = provider.generate_completion(prompt, temperature=0.2, max_tokens=1000)
@@ -398,8 +398,8 @@ def _check_image_rights(tos_text: str = None, is_press_portal: bool = False, sou
     # Use AI to specifically analyze image rights from ToS text
     try:
         import json
-        from ai_engine.modules.ai_provider import get_ai_provider
-        provider = get_ai_provider('gemini')
+        from ai_engine.modules.ai_provider import get_light_provider
+        provider = get_light_provider()
         
         prompt = f"""Analyze this Terms of Use text SPECIFICALLY for IMAGE/PHOTO usage rights.
 
@@ -463,8 +463,8 @@ def _analyze_homepage(website_url: str) -> dict:
         if len(text) < 100:
             return None
         
-        from ai_engine.modules.ai_provider import get_ai_provider
-        provider = get_ai_provider('gemini')
+        from ai_engine.modules.ai_provider import get_light_provider
+        provider = get_light_provider()
         
         prompt = AI_HOMEPAGE_PROMPT.replace('{homepage_text}', text)
         response = provider.generate_completion(prompt, temperature=0.1, max_tokens=500)

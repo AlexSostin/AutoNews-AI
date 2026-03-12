@@ -154,6 +154,21 @@ def get_ai_provider(provider_name='gemini'):
         raise ValueError(f"Unknown AI provider: {provider_name}. Use 'groq' or 'gemini'")
 
 
+def get_light_provider():
+    """Return Groq for lightweight tasks (classification, short JSON, tagging).
+    
+    Falls back to Gemini if Groq API key is not configured.
+    Use this for tasks that don't need Gemini's quality:
+    - Structured JSON extraction
+    - Short text generation (verdict, summaries)
+    - Classification / tagging
+    - License checks
+    """
+    if GROQ_API_KEY and groq_client:
+        return GroqProvider()
+    return GeminiProvider()
+
+
 def get_available_providers():
     """
     Returns list of available/configured providers

@@ -18,10 +18,10 @@ except ImportError:
 
 # Import AI provider
 try:
-    from ai_engine.modules.ai_provider import get_ai_provider
+    from ai_engine.modules.ai_provider import get_ai_provider, get_light_provider
     from ai_engine.modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
 except ImportError:
-    from modules.ai_provider import get_ai_provider
+    from modules.ai_provider import get_ai_provider, get_light_provider
     from modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
 
 # Legacy client for backwards compatibility
@@ -244,7 +244,7 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5], [tag6]
     
     try:
         # Use AI provider factory (not hardcoded Groq)
-        ai = get_ai_provider(provider)
+        ai = get_light_provider()
         result = ai.generate_completion(
             prompt=prompt,
             system_prompt="You are an expert automotive content categorizer. Choose tags that exactly match the provided options.",

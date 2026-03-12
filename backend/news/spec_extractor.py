@@ -149,7 +149,7 @@ def extract_specs_from_content(article) -> dict | None:
 
 def _extract_specs_ai(article) -> dict | None:
     """AI-based spec extraction using Gemini."""
-    from ai_engine.modules.ai_provider import get_ai_provider
+    from ai_engine.modules.ai_provider import get_light_provider
 
     # Strip HTML tags for cleaner text
     content = re.sub(r'<[^>]+>', ' ', article.content or '')
@@ -192,7 +192,7 @@ IMPORTANT:
     )
 
     try:
-        ai = get_ai_provider('gemini')
+        ai = get_light_provider()
         result = ai.generate_completion(
             prompt=prompt,
             system_prompt=system_prompt,

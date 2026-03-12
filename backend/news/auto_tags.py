@@ -390,10 +390,10 @@ def extract_tags_with_ai(article):
     Returns list of (tag_name, group_name) tuples.
     """
     try:
-        from ai_engine.modules.ai_provider import get_ai_provider
+        from ai_engine.modules.ai_provider import get_light_provider
         import json
 
-        ai = get_ai_provider('gemini')
+        ai = get_light_provider()
         content_preview = (article.content or '')[:800]
         # Strip HTML
         content_preview = re.sub(r'<[^>]+>', ' ', content_preview)

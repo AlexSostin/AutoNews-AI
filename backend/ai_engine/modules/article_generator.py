@@ -24,7 +24,7 @@ except ImportError:
 # Import utils
 try:
     from ai_engine.modules.utils import clean_title, calculate_reading_time, validate_article_quality, clean_html_markup
-    from ai_engine.modules.ai_provider import get_ai_provider
+    from ai_engine.modules.ai_provider import get_ai_provider, get_light_provider
     from ai_engine.modules.prompt_sanitizer import wrap_untrusted, sanitize_for_prompt, ANTI_INJECTION_NOTICE
 except ImportError:
     from modules.utils import clean_title, calculate_reading_time, validate_article_quality, clean_html_markup
@@ -1429,7 +1429,7 @@ Example of good verdict:
 """
 
     try:
-        ai = get_ai_provider(provider)
+        ai = get_light_provider()
         verdict_para = ai.generate_completion(
             prompt=verdict_prompt,
             system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph as instructed.",

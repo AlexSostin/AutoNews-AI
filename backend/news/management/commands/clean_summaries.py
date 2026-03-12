@@ -229,8 +229,8 @@ class Command(BaseCommand):
         ai_provider = None
         if tier == 1:
             try:
-                from ai_engine.modules.ai_provider import get_ai_provider
-                ai_provider = get_ai_provider('gemini')
+                from ai_engine.modules.ai_provider import get_light_provider
+                ai_provider = get_light_provider()
                 self.stdout.write(self.style.SUCCESS('✓ Gemini AI provider initialized\n'))
             except Exception as e:
                 self.stdout.write(self.style.WARNING(

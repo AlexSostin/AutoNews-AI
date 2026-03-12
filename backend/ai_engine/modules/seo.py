@@ -230,11 +230,11 @@ def generate_title_variants(article, provider='gemini'):
         
         # Generate alternatives using AI
         try:
-            from ai_engine.modules.ai_provider import get_ai_provider
+            from ai_engine.modules.ai_provider import get_light_provider
         except ImportError:
-            from modules.ai_provider import get_ai_provider
+            from modules.ai_provider import get_light_provider
         
-        ai = get_ai_provider(provider)
+        ai = get_light_provider()
         
         # Pull available spec data to enrich the headline
         spec_context = ""

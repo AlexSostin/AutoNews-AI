@@ -362,8 +362,8 @@ def check_semantic_duplicates(text: str, threshold: float = 0.85, max_results: i
         from news.models import ArticleEmbedding
         
         # Generate embedding for new content
-        from ai_engine.modules.ai_provider import get_ai_provider
-        ai = get_ai_provider('gemini')
+        from ai_engine.modules.ai_provider import get_light_provider
+        ai = get_light_provider()
         
         # Use first 2000 chars for embedding (same as article indexing)
         text_preview = text[:2000] if text else ''
