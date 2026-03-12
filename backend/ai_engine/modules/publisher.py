@@ -67,9 +67,9 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     summary = re.sub(r'<[^>]+>', '', summary).strip()
     summary = re.sub(r'\s+', ' ', summary)
 
-    # Trim summary to 300 chars
-    if len(summary) > 300:
-        summary = summary[:297] + "..."
+    # Trim summary to ~3000 chars (~500 words) to give rich previews
+    if len(summary) > 3000:
+        summary = summary[:2997] + "..."
     
     # Generate SEO fields
     seo_title = generate_seo_title(title)
@@ -398,24 +398,65 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     return article
 
 
-def extract_summary(content):
-    """Extract first meaningful paragraph from HTML content for summary."""
-    # Remove all headings
-    cleaned = re.sub(r'<h[1-6][^>]*>.*?</h[1-6]>', '', content, flags=re.DOTALL)
+def extract_summary(content, target_words=500):
+    """Extract multiple paragraphs from HTML content for a rich ~500-word summary.
     
-    # Find all <p> tags
-    paragraphs = re.findall(r'<p>(.*?)</p>', cleaned, re.DOTALL)
+    Collects paragraphs from the introduction section until target_words is reached,
+    stopping before Pros/Cons/Verdict sections to keep the summary meaningful.
+    """
+    _STOP_SECTIONS = {'pros', 'cons', 'verdict', 'pricing', 'availability', 'how it compares'}
+    _SKIP_LABELS = {'Pros', 'Cons', 'Summary', 'Verdict', 'Pricing'}
+
+    # Remove headings and hidden alt-text divs
+    cleaned = re.sub(r'<div[^>]*class=["\']alt-texts["\'][^>]*>.*?</div>', '', content,
+                     flags=re.DOTALL | re.IGNORECASE)
+    
+    # Split on h2 tags to find sections — stop at Pros/Cons/Verdict
+    sections = re.split(r'<h2[^>]*>(.*?)</h2>', cleaned, flags=re.DOTALL | re.IGNORECASE)
+    
+    # Collect text from sections BEFORE the stop sections
+    body = ''
+    if len(sections) <= 1:
+        body = cleaned
+    else:
+        # sections alternates: [pre_h2_text, heading1, content1, heading2, content2, ...]
+        body = sections[0]  # intro text before first h2
+        i = 1
+        while i + 1 < len(sections):
+            heading = re.sub(r'<[^>]+>', '', sections[i]).strip().lower()
+            if any(stop in heading for stop in _STOP_SECTIONS):
+                break  # stop collecting before Pros/Cons/etc.
+            body += sections[i + 1]
+            i += 2
+    
+    # Extract all <p> paragraphs from collected body
+    paragraphs = re.findall(r'<p>(.*?)</p>', body, re.DOTALL)
+    
+    collected = []
+    word_count = 0
     
     for p_content in paragraphs:
-        # Strip HTML tags
         text = re.sub(r'<[^>]+>', '', p_content).strip()
+        text = re.sub(r'\s+', ' ', text)
+        
         # Skip short/junk paragraphs
-        if len(text) < 15:
+        if len(text) < 20:
+            continue
+        # Skip spec-block lines (ALL CAPS label lines like "MOTOR: 240 kW")
+        if re.match(r'^[A-Z][A-Z0-9 /()&:-]{5,}:', text):
             continue
         # Skip paragraphs that are just labels
-        if text.rstrip(':') in ('Pros', 'Cons', 'Summary', 'Verdict', 'Pricing'):
+        if text.rstrip(':') in _SKIP_LABELS:
             continue
-        return text
+        
+        collected.append(text)
+        word_count += len(text.split())
+        
+        if word_count >= target_words:
+            break
+    
+    if collected:
+        return ' '.join(collected)
     
     return "AI-generated automotive article with detailed analysis and specifications."
 

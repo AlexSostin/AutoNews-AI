@@ -44,10 +44,11 @@ def _send_progress(task_id, step, progress, message):
         print(f"WebSocket progress error: {e}")
 
 
-def _truncate_summary(text: str, max_len: int = 300) -> str:
+def _truncate_summary(text: str, max_len: int = 3000) -> str:
     """Truncate summary at a sentence or word boundary.
     
     Priority: last sentence end (.) within limit > last word boundary > hard cut.
+    Targets ~500 words (3000 chars) for rich article preview cards.
     """
     if len(text) <= max_len:
         return text
@@ -64,7 +65,7 @@ def _truncate_summary(text: str, max_len: int = 300) -> str:
     if last_space > max_len * 0.5:
         return truncated[:last_space]
     
-    # Hard cut (very rare — would need 150+ char word)
+    # Hard cut (very rare — would need 1500+ char word)
     return truncated
 
 
@@ -586,8 +587,8 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 summary = clean_all.strip()
             
             # Smart truncation — cut at sentence or word boundary, not mid-word
-            if len(summary) > 300:
-                summary = _truncate_summary(summary, max_len=300)
+            if len(summary) > 3000:
+                summary = _truncate_summary(summary, max_len=3000)
                 
         if not summary:
             summary = f"Comprehensive review of the {specs.get('make', '')} {specs.get('model', '')}"
