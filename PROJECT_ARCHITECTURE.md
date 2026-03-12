@@ -19,7 +19,7 @@ This document provides a comprehensive overview of the FreshMotors platform arch
 - **Media**: Cloudinary (production CDN), local storage (dev)
 - **APIs**: YouTube Data API v3, Google Search Console API, Google OAuth 2.0, Pexels API
 - **Monitoring**: Sentry (error tracking)
-- **Testing**: pytest (1880+ tests, 73+ files), Playwright E2E (29 tests), GitHub Actions CI
+- **Testing**: pytest (2210+ tests, 91+ files), Playwright E2E (29 tests), GitHub Actions CI
 
 ### Frontend
 
@@ -65,7 +65,7 @@ AutoNews-AI/
 |-----------------|---------|
 | `auto_news_site/` | Django settings, URL routing, WSGI/ASGI config |
 | `news/models/` | DB schema package: `__init__.py` re-exports all models. Split into: `articles.py`, `categories_tags.py`, `vehicles.py`, `pending_articles.py`, `user_accounts.py`, `system.py` (BackendErrorLog, FrontendEventLog, AdminActionLog, Notification) |
-| `news/api_views/` | 22+ DRF ViewSets split by domain: `articles.py`, `auth.py`, `system.py`, `rss_feeds.py`, `youtube.py`, `vehicles.py`, `images.py`, etc. |
+| `news/api_views/` | 27+ DRF ViewSets split by domain: `articles.py`, `auth.py`, `system.py`, `rss_feeds.py`, `youtube.py`, `vehicles.py`, `images.py`, `feedback.py`, `system_graph.py`, `webauthn_views.py`, etc. |
 | `news/api_views/mixins/` | Mixin classes for ArticleViewSet: `ArticleGenerationMixin` (YouTube, RSS, reformat, regenerate), `ArticleEnrichmentMixin` (re-enrich specs), `ArticleEngagementMixin` (comments, ratings, favorites) |
 | `news/api_urls.py` | Router registrations and URL patterns (89+ endpoints) |
 | `news/serializers.py` | Data serialization layer (with A/B variant injection for public users) |
@@ -93,8 +93,10 @@ AutoNews-AI/
 | `ai_engine/modules/quality_scorer.py` | Content quality scoring for auto-publishing |
 | `ai_engine/modules/seo_helpers.py` | SEO keyword extraction and meta generation |
 | `ai_engine/modules/youtube_client.py` | YouTube channel monitoring and batch scanning |
+| `ai_engine/modules/content_recommender.py` | TF-IDF ML engine: tag/category prediction, similar articles, semantic search, newsletter selection, regex vehicle spec extraction |
+| `ai_engine/modules/rss_curator.py` | Smart RSS clustering: scan, cluster, score, preference ranking, merge into roundup articles |
 | `news/cache_signals.py` | Auto-invalidation of Redis + @cache_page on model changes |
-| `tests/` | pytest test suite (1880+ tests across 73+ test files) |
+| `tests/` | pytest test suite (2210+ tests across 91+ test files) |
 
 ### Frontend Structure (`/frontend-next`)
 
@@ -103,6 +105,7 @@ AutoNews-AI/
 | `app/(public)/` | Public pages: articles, categories, brands, profile, login |
 | `app/admin/` | Admin pages: 31+ management screens (incl. health dashboard) |
 | `app/admin/automation/` | Automation control panel |
+| `app/admin/publish-queue/` | Publish Queue — batch scheduler with staggered times, queue stats |
 | `app/admin/ab-testing/` | A/B testing management |
 | `app/admin/ads/` | Ad placement management |
 | `app/admin/users/` | User management |
@@ -142,6 +145,13 @@ AutoNews-AI/
 8. **Decision Logging**: Every decision logged in `AutoPublishLog` (published, drafted, skipped, failed)
 9. **ML Learning**: When user approves/rejects drafts, signal logs features for future ML training
 10. **Tag Suggestion**: `tag_suggester.py` suggests tags via keyword matching + historical patterns
+11. **Publish Queue**: Batch scheduler UI — select drafts, set start time + interval, auto-assign staggered `scheduled_publish_at` times
+
+### 2b. RSS Curator Enhancements
+
+- **Auto-Tags**: `_extract_auto_tags()` detects brands (50+), fuel types (Electric, Hybrid, Hydrogen), body types (SUV, Sedan, Truck, Coupe) from title + content
+- **SEO Description**: Auto-generated from article summary during generation
+- **Image Fallback**: Auto-searches Pexels/web for relevant photos when RSS source lacks images
 
 ### 3. A/B Testing System
 
@@ -204,7 +214,7 @@ AutoNews-AI/
 
 ## 🧪 Testing & CI
 
-### Test Suite (1880+ tests, 73+ files)
+### Test Suite (2210+ tests, 91+ files)
 
 | File | Tests | What it covers |
 |------|-------|----------------|
@@ -223,21 +233,25 @@ AutoNews-AI/
 | `test_brands_rss.py` | 15+ | Brand catalog API, RSS feed management |
 | `test_cars_api.py` | 10+ | Car specs API, vehicle specs |
 | `test_comments_ratings.py` | 15+ | Comments CRUD, ratings, moderation |
-| `test_content_formatter.py` | 8 | HTML formatting, image placement |
-| `test_publisher_helpers.py` | 10+ | Slug generation, metadata extraction |
-| `test_quality_scorer.py` | 8 | Quality scoring logic |
-| `test_rss_aggregator.py` | 12 | RSS parsing, deduplication |
-| `test_signals.py` | 10+ | Post-save signals, cache invalidation |
-| `test_spec_extractor.py` | 10+ | Spec extraction from content |
-| `test_spec_refill.py` | 5 | Auto-refill missing specs |
+| `test_rss_aggregator.py` | 30 | RSS parsing, hashing, similarity, dedup |
+| `test_rss_curator.py` | 28 | Scan, cluster, score, preference ranking |
+| `test_rss_enhancements.py` | 28 | Auto-tags, publish queue, batch schedule |
+| `test_webauthn.py` | 20 | Passkey helpers, model CRUD, API guards, list/delete |
+| `test_feedback_graph_images.py` | 17 | Feedback API, System Graph, Article Images |
+| `test_content_recommender.py` | 28 | TF-IDF helpers, regex vehicle spec extraction |
+| `test_engagement_scorer.py` | 6 | Scoring module re-export verification |
+| `test_signals.py` | 25 | Post-save signals, cache invalidation |
+| `test_spec_extractor.py` | 39 | Spec extraction from content |
 | `test_specs_enricher.py` | 16 | Enrichment pipeline |
 | `test_validators.py` | 9 | Title validation, content validators |
-| `test_views.py` | 10+ | Django views, robots.txt, health check |
-| + 3 more files | — | Provider tracker, AI main, user management |
+| `test_telegram_social.py` | 19 | Telegram auto-post, SocialPost model |
+| `test_security_auth.py` | 17 | 2FA setup, confirm, verify, disable |
+| `test_system_health.py` | 22 | Error logging, middleware, resolve |
+| + 60 more files | 1600+ | AI engine modules, management commands, user auth, cars, tags, SEO |
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
 
-- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (1880+ tests)
+- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (2210+ tests)
 - **Frontend**: `npm run lint` + `npx tsc --noEmit` + `npm run build`
 - **E2E**: Playwright → 29 tests against live site (continue-on-error)
 - **Security**: `safety check` for Python dependency vulnerabilities
@@ -260,6 +274,8 @@ AutoNews-AI/
 
 - **JWT Tokens**: Access (8h) + Refresh (7d) via SimpleJWT with rotation
 - **Google OAuth 2.0**: Social login with automatic account linking
+- **WebAuthn / Passkeys**: FIDO2 passwordless auth — register, authenticate, verify-pending (post-password), list/delete credentials. Cross-origin safe via Redis cache tokens
+- **2FA (TOTP)**: Time-based one-time passwords for admin accounts
 - **Email Verification**: 6-digit code for email changes
 - **Password Reset**: Token-based with email delivery
 - **Rate Limiting**: Per-IP and per-user throttles on all sensitive endpoints
@@ -283,4 +299,9 @@ AutoNews-AI/
 | `YOUTUBE_COOKIES_CONTENT` | yt-dlp YouTube bypass |
 | `PEXELS_API_KEY` | Stock photo search |
 | `SENTRY_DSN` | Error monitoring |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot for auto-posting articles |
+| `TELEGRAM_CHANNEL_ID` | Telegram channel for published articles |
+| `TELEGRAM_ADMIN_ID` | Admin alerts and daily reports |
+| `WEBAUTHN_RP_ID` | Passkey relying party ID (production: `freshmotors.net`) |
+| `WEBAUTHN_ORIGIN` | Passkey allowed origin (production: `https://www.freshmotors.net`) |
 | `RUNNING_IN_DOCKER` | Set to `1` in `docker-compose.yml` — prevents `.env.local` from overriding Docker service hostnames in `settings.py` |
