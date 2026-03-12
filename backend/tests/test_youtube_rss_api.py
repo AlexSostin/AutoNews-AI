@@ -93,13 +93,13 @@ class TestYouTubeChannelViewSet:
         }, format='json', **UA)
         assert resp.status_code == 400
 
-    @patch('ai_engine.main.create_pending_article')
-    def test_generate_pending_failure(self, mock_create, staff_client, youtube_channel):
-        mock_create.return_value = {'success': False, 'error': 'Failed'}
+    def test_generate_pending_returns_task_id(self, staff_client, youtube_channel):
+        """generate_pending is now async — always returns 200 with task_id."""
         resp = staff_client.post(f'{API}/youtube-channels/{youtube_channel.id}/generate_pending/', {
             'video_url': 'https://youtube.com/watch?v=123',
         }, format='json', **UA)
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert 'task_id' in resp.data
 
     @patch('subprocess.Popen')
     def test_scan_all_youtube(self, mock_popen, staff_client, youtube_channel):

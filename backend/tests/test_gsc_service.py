@@ -75,6 +75,9 @@ def test_sync_data_no_credentials():
 @pytest.mark.django_db(transaction=True)
 def test_sync_data_empty_rows(gsc_service):
     """If API returns empty rows, sync still returns True without errors."""
+    # Clean slate — transaction=True doesn't auto-rollback other tests' data
+    GSCReport.objects.all().delete()
+
     service, mock_gsc_client = gsc_service
 
     mock_empty_query = MagicMock()

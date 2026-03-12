@@ -7,8 +7,13 @@ If a property fails, Hypothesis shrinks the input to the smallest
 reproducible example.
 
 Run:  pytest tests/test_hypothesis_properties.py -v
+Requires: pip install hypothesis  (dev-only, see requirements-dev.txt)
 """
 import pytest
+
+# Skip entire module if hypothesis is not installed (CI uses requirements.txt only)
+hypothesis = pytest.importorskip('hypothesis', reason='hypothesis not installed (dev-only dep)')
+
 from hypothesis import given, settings, assume, HealthCheck
 from hypothesis import strategies as st
 
