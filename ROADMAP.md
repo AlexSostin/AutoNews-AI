@@ -11,6 +11,14 @@
 - Security audit (2FA, brute-force protection, prompt injection defense)
 - AI summary regeneration (clean_summaries Gemini pipeline)
 - www domain redirect (308 freshmotors.net → <www.freshmotors.net>)
+- Telegram auto-publishing (bot API, channel posting)
+- Smart RSS Curator (cluster + merge into roundup articles)
+- **Production error fixes (March 2026)**:
+  - React #419 SSR fallback → `fetchWithRetry` (2 retries, 3s timeout)
+  - `pushState` read-only crash → `replaceState({...state, slug})`
+  - `ChunkLoadError` stale JS → `ErrorBoundary` auto-reload
+  - PostgreSQL "too many clients" → `close_old_connections()` in scheduler finally
+  - RSS scan progress bar survives page navigation (on-mount resume check)
 
 ## 🔄 In Progress
 

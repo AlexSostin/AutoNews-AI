@@ -153,7 +153,62 @@ export default function RSSFeedsPage() {
     useEffect(() => {
         fetchFeeds();
         fetchStats();
+        // Re-attach progress polling if a scan was already running
+        // (e.g. user navigated away and came back mid-scan)
+        checkForActiveScan();
     }, []);
+
+    /** On mount: check if a scan is already in-progress on the server.
+     *  If so, restore the UI and re-start polling so the progress bar
+     *  reappears automatically without the user pressing Scan All again. */
+    const checkForActiveScan = async () => {
+        try {
+            const prog = await api.get('/rss-feeds/scan_progress/');
+            const data = prog.data;
+            // An active scan has total > 0 and is not finished
+            if (data && data.total > 0 && !data.finished) {
+                setScanningAll(true);
+                setScanProgress(data);
+                startProgressPolling();
+            }
+        } catch {
+            // No active scan or endpoint unavailable — silently ignore
+        }
+    };
+
+    /** Shared polling loop used by both Scan All and resume-from-navigate */
+    const startProgressPolling = () => {
+        const pollInterval = setInterval(async () => {
+            try {
+                const prog = await api.get('/rss-feeds/scan_progress/');
+                const data = prog.data;
+                setScanProgress(data);
+                if (data.finished && data.total > 0) {
+                    clearInterval(pollInterval);
+                    setScanningAll(false);
+                    showToast(`✅ Scan complete! Checked ${data.total} feeds.`);
+                    setTimeout(() => {
+                        setScanProgress(null);
+                        fetchFeeds();
+                    }, 3000);
+                }
+            } catch {
+                clearInterval(pollInterval);
+                setScanningAll(false);
+                setScanProgress(null);
+            }
+        }, 2000);
+
+        // Safety timeout: stop polling after 10 minutes
+        setTimeout(() => {
+            clearInterval(pollInterval);
+            setScanningAll(false);
+            setScanProgress(null);
+            fetchFeeds();
+        }, 600000);
+    };
+
+
 
     const fetchFeeds = async () => {
         try {
@@ -234,37 +289,7 @@ export default function RSSFeedsPage() {
         try {
             const response = await api.post('/rss-feeds/scan_all/');
             showToast(response.data.message, 'info');
-
-            // Poll progress every 2 seconds
-            const pollInterval = setInterval(async () => {
-                try {
-                    const prog = await api.get('/rss-feeds/scan_progress/');
-                    const data = prog.data;
-                    setScanProgress(data);
-                    if (data.finished && data.total > 0) {
-                        clearInterval(pollInterval);
-                        setScanningAll(false);
-                        showToast(`✅ Scan complete! Checked ${data.total} feeds.`);
-                        setTimeout(() => {
-                            setScanProgress(null);
-                            fetchFeeds();
-                        }, 3000);
-                    }
-                } catch {
-                    clearInterval(pollInterval);
-                    setScanningAll(false);
-                    setScanProgress(null);
-                }
-            }, 2000);
-
-            // Safety timeout: stop polling after 10 minutes
-            setTimeout(() => {
-                clearInterval(pollInterval);
-                setScanningAll(false);
-                setScanProgress(null);
-                fetchFeeds();
-            }, 600000);
-
+            startProgressPolling();
         } catch (error: any) {
             logCaughtError('rss_feeds_scan_all', error);
             showToast('Failed to start scan');
@@ -272,6 +297,7 @@ export default function RSSFeedsPage() {
             setScanProgress(null);
         }
     };
+
 
     const handleToggleEnabled = async (feed: RSSFeed) => {
         try {

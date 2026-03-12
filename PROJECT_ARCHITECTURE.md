@@ -2,7 +2,7 @@
 
 This document provides a comprehensive overview of the FreshMotors platform architecture, technology stack, and core workflows.
 
-**Last Updated**: 4 March 2026
+**Last Updated**: 12 March 2026
 
 ---
 
@@ -181,18 +181,20 @@ AutoNews-AI/
 
 ### 7. RSS Aggregation
 
-- **Feed Monitoring**: Periodic scan of brand RSS feeds
+- **Feed Monitoring**: Periodic background scan (Python `threading.Timer`) — works independently of user's browser session
 - **Safety Scoring**: Each feed rated for trustworthiness (human reviewed, copyright, contact info)
 - **Deduplication**: Title similarity + content hash to prevent duplicates
 - **Workflow**: New → Read → Generating → Generated (or Dismissed)
+- **Progress Persistence**: `/rss-feeds/scan_progress/` endpoint in Redis. Admin page re-attaches polling on mount if scan is mid-flight (survive page navigation)
+- **Connection Safety**: Scheduler explicitly calls `close_old_connections()` in `finally` block after each scan cycle to prevent PostgreSQL "too many clients" exhaustion
 
 ---
 
 ## 📰 Infinite Scroll (Article Detail)
 
-- **`[slug]/page.tsx`**: SSR fetches initial article → passes to `InfiniteArticleScroll`
+- **`[slug]/page.tsx`**: SSR fetches initial article (with `fetchWithRetry` — 2 retries, 3s timeout) → passes to `InfiniteArticleScroll`. On SSR failure falls through to `ClientArticleDetail` (CSR fallback).
 - **`InfiniteArticleScroll.tsx`**: Orchestrates article feed. IntersectionObserver sentinel triggers `next-article` API fetch. Posts `article-active-slug` custom event on article switch.
-- **`ArticleUnit.tsx`**: Renders each article. Fires `onBecameActive` when scrolled into view (updates URL via `pushState`, fires GA4 `page_view`).
+- **`ArticleUnit.tsx`**: Renders each article. Fires `onBecameActive` when scrolled into view (updates URL via `window.history.replaceState({...state, slug})` — preserves Next.js `__NA`/`__N` internal flags, fires GA4 `page_view`).
 - **`NextArticlePreview.tsx`**: Preview card shown before loading next article (countdown + skip).
 - **`NewArticleToast.tsx`**: Toast shown when user is 50%+ in the page footer while next article is fetching — avoids interrupting footer interactions.
 - **`BackToTop.tsx`**: Smart scroll button — single click scrolls to current article top (resolved via `data-article-slug` attr + custom event), double click scrolls to page top.
@@ -243,9 +245,20 @@ AutoNews-AI/
 
 ---
 
+## 🐛 Production Error Fixes (March 2026)
+
+| Error | Root Cause | Fix |
+|-------|-----------|-----|
+| React #419 (SSR Suspense fallback) | Railway API timeout caused SSR fetch to fail and React to log #419 in Sentry | `fetchWithRetry()` in `articles/[slug]/page.tsx` — 2 retries, 3s timeout |
+| `Cannot assign to read-only property pushState` | Direct `window.history.pushState()` conflicts with Next.js App Router hydration | Replaced with `window.history.replaceState({...state, slug})` — spreads existing state to preserve `__NA`/`__N` flags |
+| `Failed to load chunk` (ChunkLoadError) | Stale JS chunks in browser after new deploy | `ErrorBoundary` auto-reloads on `ChunkLoadError` or `Loading chunk` errors |
+| `FATAL: too many clients already` (PostgreSQL) | Scheduler threads held DB connections open (no cleanup after scan) | Added `close_old_connections()` in `finally` block of `_run_rss_scan()`; `CONN_MAX_AGE=0` always |
+
+---
+
 ## 🔒 Security & Authentication
 
-- **JWT Tokens**: Access (15min) + Refresh (7d) via SimpleJWT with rotation
+- **JWT Tokens**: Access (8h) + Refresh (7d) via SimpleJWT with rotation
 - **Google OAuth 2.0**: Social login with automatic account linking
 - **Email Verification**: 6-digit code for email changes
 - **Password Reset**: Token-based with email delivery
