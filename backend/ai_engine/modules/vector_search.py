@@ -15,7 +15,9 @@ import os
 import hashlib
 import threading
 import logging
+import time
 from typing import List, Dict, Optional
+from collections import deque
 from pathlib import Path
 
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -29,6 +31,14 @@ logger = logging.getLogger(__name__)
 # Redis key for storing the serialized FAISS index
 FAISS_REDIS_KEY = 'faiss_index_cache'
 FAISS_REDIS_TTL = 60 * 60 * 24 * 7  # 7 days
+
+# Embedding query cache (prevents repeated API calls for same search)
+EMBEDDING_CACHE_PREFIX = 'emb_cache:'
+EMBEDDING_CACHE_TTL = 60 * 60  # 1 hour
+
+# Throttle: max embedding API calls per window
+THROTTLE_MAX_CALLS = 40
+THROTTLE_WINDOW_SECONDS = 60
 
 
 class BM25Index:
@@ -98,9 +108,59 @@ class BM25Index:
             })
         return results
 
+
     @property
     def is_ready(self) -> bool:
         return self._bm25 is not None
+
+
+class ThrottledEmbeddings:
+    """Wrapper around GoogleGenerativeAIEmbeddings that enforces rate limiting.
+    
+    Prevents burst embedding calls from exceeding Gemini API rate limits.
+    Max THROTTLE_MAX_CALLS per THROTTLE_WINDOW_SECONDS (default: 40/min).
+    Also proxies all attributes so langchain/FAISS sees it as a normal embeddings object.
+    """
+
+    def __init__(self, embeddings, engine=None):
+        self._embeddings = embeddings
+        self._engine = engine  # Reference to VectorSearchEngine for shared timestamp deque
+        self._local_timestamps = deque()  # Fallback if no engine
+
+    @property
+    def _timestamps(self):
+        if self._engine is not None:
+            return self._engine._throttle_timestamps
+        return self._local_timestamps
+
+    def _throttle(self):
+        """Wait if we're exceeding rate limits."""
+        now = time.time()
+        # Clean old timestamps
+        while self._timestamps and self._timestamps[0] < now - THROTTLE_WINDOW_SECONDS:
+            self._timestamps.popleft()
+        
+        if len(self._timestamps) >= THROTTLE_MAX_CALLS:
+            wait_time = self._timestamps[0] + THROTTLE_WINDOW_SECONDS - now + 0.1
+            if wait_time > 0:
+                logger.info(f'⏳ Embedding throttle: waiting {wait_time:.1f}s ({len(self._timestamps)} calls in last {THROTTLE_WINDOW_SECONDS}s)')
+                time.sleep(wait_time)
+        
+        self._timestamps.append(time.time())
+
+    def embed_query(self, text: str) -> List[float]:
+        """Embed a single query with throttling."""
+        self._throttle()
+        return self._embeddings.embed_query(text)
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Embed multiple documents with throttling."""
+        self._throttle()
+        return self._embeddings.embed_documents(texts)
+
+    def __getattr__(self, name):
+        """Proxy all other attributes to the underlying embeddings model."""
+        return getattr(self._embeddings, name)
 
 
 
@@ -112,6 +172,7 @@ class VectorSearchEngine:
     def __init__(self):
         """Initialize the hybrid vector search engine"""
         self._lock = threading.Lock()  # Prevent concurrent rebuild races
+        self._throttle_timestamps = deque()  # Track recent API calls for throttling
         self.embedding_model = self._get_embedding_model()
         self.vector_store = None
         self.bm25 = BM25Index()
@@ -131,9 +192,12 @@ class VectorSearchEngine:
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable not set")
         
-        return GoogleGenerativeAIEmbeddings(
+        return ThrottledEmbeddings(
+            embeddings=GoogleGenerativeAIEmbeddings(
             model="models/gemini-embedding-001",
-            google_api_key=api_key
+                google_api_key=api_key
+            ),
+            engine=self,
         )
     
     def _load_index_from_redis(self) -> bool:
@@ -382,7 +446,11 @@ class VectorSearchEngine:
         return True
     
     def remove_article(self, article_id: int):
-        """Remove article from FAISS, BM25, and PostgreSQL."""
+        """Remove article from FAISS, BM25, and PostgreSQL.
+        
+        IMPORTANT: Rebuilds FAISS from stored vectors in PostgreSQL.
+        Does NOT re-embed via API — 0 Gemini API calls.
+        """
         self._remove_from_database(article_id)
 
         if self.vector_store is None:
@@ -399,11 +467,52 @@ class VectorSearchEngine:
             self.bm25 = BM25Index()
             return True
 
-        self.vector_store = FAISS.from_documents(all_docs, self.embedding_model)
+        # Rebuild from stored vectors (FREE — no API calls)
+        # Fetch stored embedding vectors from PostgreSQL
+        try:
+            from news.models import ArticleEmbedding
+            remaining_ids = [doc.metadata.get('article_id') for doc in all_docs]
+            stored = ArticleEmbedding.objects.filter(
+                article_id__in=remaining_ids
+            ).values_list('article_id', 'embedding_vector')
+            stored_map = {aid: vec for aid, vec in stored}
+
+            # Build text-embedding pairs from docs + stored vectors
+            text_embedding_pairs = []
+            metadatas = []
+            docs_without_vectors = []
+
+            for doc in all_docs:
+                aid = doc.metadata.get('article_id')
+                vec = stored_map.get(aid)
+                if vec is not None:
+                    text_embedding_pairs.append((doc.page_content, vec))
+                    metadatas.append(doc.metadata)
+                else:
+                    docs_without_vectors.append(doc)
+
+            if text_embedding_pairs:
+                self.vector_store = FAISS.from_embeddings(
+                    text_embedding_pairs,
+                    self.embedding_model,
+                    metadatas=metadatas,
+                )
+                # Add any docs without stored vectors (rare — needs API)
+                if docs_without_vectors:
+                    logger.warning(f'⚠️ {len(docs_without_vectors)} docs missing stored vectors, re-embedding')
+                    self.vector_store.add_documents(docs_without_vectors)
+                logger.info(f'✓ Removed article {article_id} from FAISS (0 API calls, {len(text_embedding_pairs)} stored vectors)')
+            else:
+                # No stored vectors at all — fallback to API (shouldn't happen)
+                logger.warning(f'⚠️ No stored vectors found, falling back to API re-embedding')
+                self.vector_store = FAISS.from_documents(all_docs, self.embedding_model)
+        except Exception as e:
+            logger.error(f'❌ Stored-vector rebuild failed, falling back to API: {e}')
+            self.vector_store = FAISS.from_documents(all_docs, self.embedding_model)
+
         self._save_index_to_disk()
         self._save_index_to_redis()
         self._rebuild_bm25_from_faiss()
-        logger.info(f'✓ Removed article {article_id} from FAISS + BM25')
         return True
     
     # ─────────────────────────────────────────────────────────────
@@ -425,16 +534,42 @@ class VectorSearchEngine:
         ]
         self.bm25.build(bm25_docs)
 
+    def _cached_embed_query(self, text: str) -> List[float]:
+        """Embed query text with Redis cache — avoids repeated API calls."""
+        cache_key = f"{EMBEDDING_CACHE_PREFIX}{hashlib.sha256(text.encode()).hexdigest()[:16]}"
+        try:
+            from django.core.cache import cache
+            cached = cache.get(cache_key)
+            if cached is not None:
+                logger.debug(f'✓ Embedding cache hit for query: {text[:50]}')
+                return cached
+        except Exception:
+            pass
+
+        # Cache miss — call API
+        embedding = self.embedding_model.embed_query(text)
+
+        try:
+            from django.core.cache import cache
+            cache.set(cache_key, embedding, EMBEDDING_CACHE_TTL)
+        except Exception:
+            pass
+
+        return embedding
+
     def search(self, query: str, k: int = 5, filter_metadata: Optional[Dict] = None) -> List[Dict]:
         """
         Pure semantic (FAISS vector) search.
+        Uses cached query embeddings to avoid repeated API calls.
         Prefer hybrid_search() for better relevance.
         """
         if self.vector_store is None:
             return []
 
         try:
-            results = self.vector_store.similarity_search_with_score(query, k=k)
+            # Use cached embedding instead of letting FAISS call the API directly
+            query_embedding = self._cached_embed_query(query)
+            results = self.vector_store.similarity_search_with_score_by_vector(query_embedding, k=k)
             formatted = []
             for doc, score in results:
                 result = {
@@ -445,7 +580,7 @@ class VectorSearchEngine:
                     "metadata": doc.metadata,
                 }
                 if filter_metadata:
-                    if all(doc.metadata.get(k) == v for k, v in filter_metadata.items()):
+                    if all(doc.metadata.get(fk) == fv for fk, fv in filter_metadata.items()):
                         formatted.append(result)
                 else:
                     formatted.append(result)
@@ -472,7 +607,9 @@ class VectorSearchEngine:
 
         # ── Step 2: FAISS vector search ──
         try:
-            vector_hits = self.vector_store.similarity_search_with_score(query, k=k * 4)
+            # Use cached embedding to avoid API call on every search
+            query_embedding = self._cached_embed_query(query)
+            vector_hits = self.vector_store.similarity_search_with_score_by_vector(query_embedding, k=k * 4)
         except Exception as e:
             print(f"❌ Vector search error: {e}")
             vector_hits = []
