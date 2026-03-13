@@ -8,6 +8,7 @@ import {
   Timer, Clock, Calendar, Trash2, ExternalLink, Loader2,
   ArrowUp, ArrowDown, Play, Send, GripVertical, CheckCircle2,
 } from 'lucide-react';
+import ScheduledTasksPanel from '@/components/admin/ScheduledTasksPanel';
 
 interface QueueArticle {
   id: number;
@@ -213,6 +214,9 @@ export default function PublishQueuePage() {
           </div>
         </div>
       )}
+
+      {/* Background Tasks Monitor */}
+      <ScheduledTasksPanel />
 
       {/* Batch Scheduler */}
       <div className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-2xl border border-indigo-100 p-5">

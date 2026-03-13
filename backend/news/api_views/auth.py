@@ -158,13 +158,22 @@ class RequestEmailChangeView(APIView):
             expires_at=timezone.now() + timedelta(minutes=15)
         )
         
-        # TODO: Send email with code
-        # For now, return code in response (DEV ONLY!)
-        print(f"🔑 Verification code for {new_email}: {code}")
+        # Send verification email
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            send_mail(
+                subject='FreshMotors — Email Verification Code',
+                message=f'Your verification code is: {code}\n\nThis code expires in 15 minutes.',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[new_email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to send verification email to {new_email}: {e}")
         
         return Response({
             'detail': f'Verification code sent to {new_email}',
-            'code': code,  # DEV ONLY - remove in production
             'expires_in': 900  # 15 minutes in seconds
         })
 
@@ -255,13 +264,26 @@ class PasswordResetRequestView(APIView):
             ip_address=get_client_ip(request)
         )
         
-        # TODO: Send email with reset link
-        reset_link = f"http://localhost:3000/reset-password?token={token}"
-        print(f"🔑 Password reset link for {email}: {reset_link}")
+        # Send password reset email
+        import os
+        site_url = os.getenv('SITE_URL', 'https://www.freshmotors.net')
+        reset_link = f"{site_url}/reset-password?token={token}"
+        
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            send_mail(
+                subject='FreshMotors — Password Reset',
+                message=f'Click the link to reset your password:\n\n{reset_link}\n\nThis link expires in 15 minutes.',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to send password reset email to {email}: {e}")
         
         return Response({
-            'detail': 'If email exists, password reset link has been sent',
-            'reset_link': reset_link  # DEV ONLY - remove in production
+            'detail': 'If email exists, password reset link has been sent'
         })
 
 class PasswordResetConfirmView(APIView):

@@ -24,7 +24,8 @@ from .api_views import (
     AdPlacementViewSet,
     AutomationSettingsView, AutomationStatsView, AutomationTriggerView,
     SiteThemeView, ThemeAnalyticsView, CapsuleFeedbackView,
-    AdminActionStatsView, FrontendEventLogViewSet, BackendErrorLogViewSet, HealthSummaryView, NavBadgesView
+    AdminActionStatsView, FrontendEventLogViewSet, BackendErrorLogViewSet, HealthSummaryView, NavBadgesView,
+    ScheduledTasksView,
 )
 from .health import health_check, health_check_detailed, readiness_check
 from .api_views.system_graph import SystemGraphView, EmbeddingStatsView
@@ -283,6 +284,7 @@ urlpatterns = [
     path('admin/action-stats/', AdminActionStatsView.as_view(), name='admin_action_stats'),
     path('admin/ai-costs/', AICostDashboardView.as_view(), name='admin_ai_costs'),
     path('admin/moderation/', ModerationQueueView.as_view(), name='admin_moderation'),
+    path('admin/scheduled-tasks/', ScheduledTasksView.as_view(), name='admin_scheduled_tasks'),
     
     # Nav badge counts (comments pending, feedback unresolved, new subscribers, rss pending)
     path('nav-badges/', NavBadgesView.as_view(), name='nav_badges'),

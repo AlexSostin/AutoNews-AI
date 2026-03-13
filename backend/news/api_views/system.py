@@ -1165,6 +1165,211 @@ class BackendErrorLogViewSet(viewsets.ModelViewSet):
         return Response({'resolved': backend_count + frontend_count})
 
 
+class ScheduledTasksView(APIView):
+    """
+    GET /api/v1/admin/scheduled-tasks/
+    Returns Celery Beat schedule with next-run times and last-run status.
+    Includes manual-only tasks so the admin can see everything in one place.
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from datetime import timedelta
+        from news.models import AutomationSettings
+
+        now = timezone.now()
+        settings = AutomationSettings.load()
+
+        # --- Compute next run for crontab-based tasks ---
+        def _next_cron(hour_pattern, minute, base=None):
+            """Estimate next run from simple crontab patterns."""
+            if base is None:
+                base = now
+            # Every N hours: */N
+            if isinstance(hour_pattern, str) and hour_pattern.startswith('*/'):
+                interval_h = int(hour_pattern[2:])
+                next_run = base.replace(minute=minute, second=0, microsecond=0)
+                while next_run <= now:
+                    next_run += timedelta(hours=interval_h)
+                return next_run
+            # Fixed hour (daily)
+            if isinstance(hour_pattern, (int, str)):
+                h = int(hour_pattern)
+                next_run = now.replace(hour=h, minute=minute, second=0, microsecond=0)
+                if next_run <= now:
+                    next_run += timedelta(days=1)
+                return next_run
+            return None
+
+        def _next_interval(minutes):
+            """Estimate next run for */N minute intervals."""
+            next_run = now.replace(second=0, microsecond=0)
+            current_min = next_run.minute
+            next_min = ((current_min // minutes) + 1) * minutes
+            if next_min >= 60:
+                next_run += timedelta(hours=1)
+                next_min = 0
+            next_run = next_run.replace(minute=next_min)
+            return next_run
+
+        tasks = [
+            {
+                'name': 'GSC Sync',
+                'task_id': 'gsc-sync-every-6h',
+                'schedule': 'Every 6 hours',
+                'schedule_detail': 'crontab(minute=0, hour=*/6)',
+                'next_run': _next_cron('*/6', 0),
+                'last_run': getattr(settings, 'gsc_last_run', None),
+                'last_status': getattr(settings, 'gsc_last_status', '—'),
+                'type': 'automated',
+                'icon': '📊',
+            },
+            {
+                'name': 'Currency Update',
+                'task_id': 'currency-update-daily',
+                'schedule': 'Daily at 3:30 AM',
+                'schedule_detail': 'crontab(minute=30, hour=3)',
+                'next_run': _next_cron(3, 30),
+                'last_run': getattr(settings, 'currency_last_run', None),
+                'last_status': getattr(settings, 'currency_last_status', '—'),
+                'type': 'automated',
+                'icon': '💱',
+            },
+            {
+                'name': 'RSS Scan',
+                'task_id': 'rss-scan',
+                'schedule': 'Every 30 min',
+                'schedule_detail': 'crontab(minute=*/30)',
+                'next_run': _next_interval(30),
+                'enabled': settings.rss_scan_enabled,
+                'last_run': settings.rss_last_run,
+                'last_status': settings.rss_last_status or '—',
+                'type': 'automated',
+                'icon': '📡',
+            },
+            {
+                'name': 'YouTube Scan',
+                'task_id': 'youtube-scan',
+                'schedule': 'Every 30 min',
+                'schedule_detail': 'crontab(minute=*/30)',
+                'next_run': _next_interval(30),
+                'enabled': settings.youtube_scan_enabled,
+                'last_run': settings.youtube_last_run,
+                'last_status': settings.youtube_last_status or '—',
+                'type': 'automated',
+                'icon': '📺',
+            },
+            {
+                'name': 'Auto Publish',
+                'task_id': 'auto-publish-check',
+                'schedule': 'Every 10 min',
+                'schedule_detail': 'crontab(minute=*/10)',
+                'next_run': _next_interval(10),
+                'enabled': settings.auto_publish_enabled,
+                'last_run': settings.auto_publish_last_run,
+                'last_status': f'Published today: {settings.auto_publish_today_count}',
+                'type': 'automated',
+                'icon': '🚀',
+            },
+            {
+                'name': 'Scheduled Publish',
+                'task_id': 'scheduled-publish-every-minute',
+                'schedule': 'Every minute',
+                'schedule_detail': 'crontab(minute=*)',
+                'next_run': _next_interval(1),
+                'last_run': None,
+                'last_status': 'Always active',
+                'type': 'automated',
+                'icon': '⏱',
+            },
+            {
+                'name': 'Deep Specs Backfill',
+                'task_id': 'deep-specs-backfill-every-6h',
+                'schedule': 'Every 6 hours',
+                'schedule_detail': 'crontab(minute=15, hour=*/6)',
+                'next_run': _next_cron('*/6', 15),
+                'enabled': getattr(settings, 'deep_specs_enabled', False),
+                'last_run': getattr(settings, 'deep_specs_last_run', None),
+                'last_status': getattr(settings, 'deep_specs_last_status', '—'),
+                'type': 'automated',
+                'icon': '🔧',
+            },
+            {
+                'name': 'A/B Lifecycle',
+                'task_id': 'ab-lifecycle-daily',
+                'schedule': 'Daily at 4:00 AM',
+                'schedule_detail': 'crontab(minute=0, hour=4)',
+                'next_run': _next_cron(4, 0),
+                'last_run': None,
+                'last_status': 'Checks/picks winners, cleans losers',
+                'type': 'automated',
+                'icon': '🧪',
+            },
+            {
+                'name': 'Stale Error Cleanup',
+                'task_id': 'stale-error-cleanup-every-6h',
+                'schedule': 'Every 6 hours',
+                'schedule_detail': 'crontab(minute=45, hour=*/6)',
+                'next_run': _next_cron('*/6', 45),
+                'last_run': None,
+                'last_status': 'Auto-resolves errors not repeated in 24h',
+                'type': 'automated',
+                'icon': '🧹',
+            },
+            # --- Manual-only tasks ---
+            {
+                'name': 'Bulk Enrichment',
+                'task_id': 'bulk-enrichment',
+                'schedule': 'Manual trigger only',
+                'schedule_detail': 'Admin panel → Retrain Now',
+                'next_run': None,
+                'last_run': (settings.enrichment_report or {}).get('last_run'),
+                'last_status': f'{(settings.enrichment_report or {}).get("articles_processed", 0)} articles processed' if settings.enrichment_report else 'Never run',
+                'type': 'manual',
+                'icon': '🏷',
+            },
+            {
+                'name': 'ML Content Recommender',
+                'task_id': 'ml-retrain',
+                'schedule': 'Manual trigger only',
+                'schedule_detail': 'Admin panel → Retrain Now',
+                'next_run': None,
+                'last_run': None,
+                'last_status': 'Retrain via admin panel',
+                'type': 'manual',
+                'icon': '🧠',
+            },
+            {
+                'name': 'Article Embeddings Index',
+                'task_id': 'index-articles',
+                'schedule': 'Manual trigger only',
+                'schedule_detail': 'Admin panel → Index Articles',
+                'next_run': None,
+                'last_run': None,
+                'last_status': 'Re-index via admin panel',
+                'type': 'manual',
+                'icon': '🔍',
+            },
+        ]
+
+        # Serialize datetime fields
+        for t in tasks:
+            if t.get('next_run'):
+                t['next_run'] = t['next_run'].isoformat()
+            if t.get('last_run'):
+                try:
+                    t['last_run'] = t['last_run'].isoformat() if hasattr(t['last_run'], 'isoformat') else t['last_run']
+                except Exception:
+                    t['last_run'] = str(t['last_run'])
+
+        return Response({
+            'tasks': tasks,
+            'server_time': now.isoformat(),
+            'total_automated': sum(1 for t in tasks if t['type'] == 'automated'),
+            'total_manual': sum(1 for t in tasks if t['type'] == 'manual'),
+        })
+
+
 class HealthSummaryView(APIView):
     """
     GET /api/v1/health/errors-summary/

@@ -173,8 +173,13 @@ BRAND_ALIASES = [
     ('DongFeng VOYAH', 'VOYAH', ''),
     ('Dongfeng VOYAH', 'VOYAH', ''),
     ('Dongfeng', 'VOYAH', ''),
-    # Huawei → Avatr
+    # Huawei → Avatr (Avatr is the brand, Huawei is tech partner)
     ('Huawei', 'Avatr', ''),
+    ('HUAWEI AVATAR', 'Avatr', ''),
+    ('Huawei Avatar', 'Avatr', ''),
+    ('Huawei Avatr', 'Avatr', ''),
+    ('Avatar', 'Avatr', ''),
+    ('AVATAR', 'Avatr', ''),
     # Great Wall → GWM
     ('Great Wall', 'GWM', ''),
     ('Great Wall Motors', 'GWM', ''),
