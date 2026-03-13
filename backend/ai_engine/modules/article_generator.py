@@ -982,6 +982,9 @@ GOLDEN RULE — TRUTH OVER COMPLETENESS
 CRITICAL REQUIREMENTS:
 1. **Title** — descriptive, engaging, unique
    Include: YEAR, BRAND, MODEL, and if available PRICE or VERSION
+   The title MUST hook the reader with the most impressive fact.
+   FORMAT: "[Year] [Brand] [Model]: [Engaging hook with standout spec or price]"
+   MINIMUM 50 characters. MAXIMUM 90 characters.
    NO static prefixes like "First Drive:". NO HTML entities.
    If the model name contains a NUMBER that represents a spec (e.g. "TANG 1240" where 1240 = range,
    "EX90" where 90 = battery kWh), EXPLAIN IT in the title or subtitle:

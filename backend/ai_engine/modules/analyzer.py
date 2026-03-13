@@ -52,7 +52,10 @@ Make: [Brand name]
 Model: [Base Model name, e.g. "SU7", "Golf"]
 Trim/Version: [Specific version or trim, e.g. "Ultra", "Performance", "GTI", "Standard"]
 Year: [Model Year]
-SEO Title: [Short, clear title - e.g. "2026 Tesla Model 3 Performance Review"]
+SEO Title: [Engaging title that hooks readers — include the most impressive spec or price.
+  GOOD: "2026 BYD Leopard 5: 680 hp DMO Hybrid Goes From 0-100 in 4.8 Seconds"
+  GOOD: "2025 Avatr 11 EREV: The 1,065 km SUV Disrupting the Premium Market"
+  BAD: "2026 Tesla Model 3 Performance Review" (too generic, no hook)]
 Engine: [Engine type/size - e.g., "1.5L Turbo" or "Electric motor" or "2.0L Turbocharged Inline-4"]
 Horsepower: [Number with unit - e.g., "300 hp" or "220 kW". ALWAYS specify hp or kW]
 Torque: [Torque with unit - e.g., "400 Nm" or "295 lb-ft". ALWAYS specify Nm or lb-ft]

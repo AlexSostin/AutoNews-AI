@@ -69,6 +69,148 @@ def _truncate_summary(text: str, max_len: int = 3000) -> str:
     return truncated
 
 
+def _generate_title_and_seo(article_html: str, specs: dict) -> dict:
+    """
+    Generate an engaging title and SEO description using a lightweight AI call.
+    
+    This runs AFTER article generation, so the AI can pick the most impressive
+    fact from the completed article for the title hook.
+    
+    Returns: {'title': str, 'seo_description': str} or None on failure.
+    """
+    import re as _re
+    
+    try:
+        from ai_engine.modules.ai_provider import get_light_provider
+    except ImportError:
+        from modules.ai_provider import get_light_provider
+    
+    # Extract key specs for the prompt
+    make = specs.get('make', '')
+    model = specs.get('model', '')
+    year = specs.get('year', '')
+    trim = specs.get('trim', '')
+    hp = specs.get('horsepower', '')
+    price = specs.get('price', '')
+    range_val = specs.get('range', '')
+    
+    if not make or make == 'Not specified' or not model or model == 'Not specified':
+        print("⚠️ Cannot generate AI title: missing make/model")
+        return None
+    
+    # Get first 2000 chars of article for context (enough for AI to find the hook)
+    article_preview = _re.sub(r'<[^>]+>', ' ', article_html)[:2000]
+    
+    year_str = f"{year} " if year else ""
+    trim_str = f" {trim}" if trim and trim != 'Not specified' else ""
+    hp_str = f", {hp} HP" if hp and str(hp) != 'Not specified' else ""
+    price_str = f", price: {price}" if price and price != 'Not specified' else ""
+    range_str = f", range: {range_val}" if range_val and range_val != 'Not specified' else ""
+    
+    prompt = f"""Generate a TITLE and SEO DESCRIPTION for this car article.
+
+CAR: {year_str}{make} {model}{trim_str}
+KEY SPECS: {hp_str}{price_str}{range_str}
+
+ARTICLE PREVIEW (first 2000 chars):
+{article_preview}
+
+═══ TITLE RULES ═══
+- LENGTH: 50-90 characters (STRICT — count carefully)
+- FORMAT: "[Year] [Brand] [Model]: [Engaging hook with standout spec or price]"
+- The hook MUST highlight the most impressive fact: price, range, power, speed, or unique feature
+- NEVER end with generic "Review", "Review & Specs", "Range & Specs"
+- NEVER use "Explore the..." or "Discover the..."
+
+GOOD TITLE EXAMPLES:
+✅ "2026 Zeekr 7X: A 421 hp Electric SUV That Starts Under $30,000"
+✅ "2025 Avatr 11 EREV: The 1,065 km Range-Extended SUV Disrupting the Premium Market"
+✅ "2026 BYD Leopard 5: 680 hp DMO Hybrid Goes From 0-100 in 4.8 Seconds"
+✅ "2026 BYD Seal 06: A 200 km Electric Range PHEV Sedan for $14,000"
+✅ "2026 BYD HAN DM i: 1,560 km Combined Range PHEV Sedan Starts at $22,500"
+
+BAD TITLE EXAMPLES (NEVER generate these):
+❌ "2026 BYD Seal 06 DM-i Review" (boring, no hook)
+❌ "2026 BYD Seal 06 DM-i: 2100km Range & Specs" (generic "Range & Specs" suffix)
+❌ "2026 BYD Seal 06 DM-i Review & Specs" (template garbage)
+
+═══ SEO DESCRIPTION RULES ═══  
+- LENGTH: 140-155 characters (STRICT — Google truncates at 155)
+- MUST include: car name, standout specs, and a reason to click
+- Write like a Google search result that makes people CLICK
+- Do NOT start with "Explore the..." or "Discover the..."
+- Include numbers: price, range, horsepower, 0-100 time
+
+GOOD SEO DESCRIPTION EXAMPLES:
+✅ "The 2026 Zeekr 7X packs 421 hp and 615 km range into a $29,400 SUV that outguns the Model Y. Full specs, pricing, and expert verdict inside."
+✅ "BYD's Seal 06 DM-i delivers 200 km electric range and 1,200 km total for just $14,000. We break down specs, driving feel, and value."
+
+BAD SEO DESCRIPTION EXAMPLES:
+❌ "Explore the 2026 BYD Seal 06 DM-i 175 HP. Full specs, pricing, range, performance data & expert review." (too short, template)
+
+═══ OUTPUT FORMAT (strict) ═══
+TITLE: [your title here]
+SEO_DESCRIPTION: [your description here]
+"""
+
+    try:
+        ai = get_light_provider()
+        result = ai.generate_completion(
+            prompt=prompt,
+            system_prompt="You are a senior automotive SEO specialist. Generate concise, engaging titles and meta descriptions that maximize click-through rates. Follow the character limits exactly.",
+            temperature=0.7,
+            max_tokens=300
+        )
+        
+        if not result:
+            return None
+        
+        # Parse the response
+        title = None
+        seo_desc = None
+        
+        for line in result.strip().split('\n'):
+            line = line.strip()
+            if line.upper().startswith('TITLE:'):
+                title = line.split(':', 1)[1].strip().strip('"').strip("'")
+            elif line.upper().startswith('SEO_DESCRIPTION:') or line.upper().startswith('SEO DESCRIPTION:'):
+                seo_desc = line.split(':', 1)[1].strip().strip('"').strip("'")
+        
+        # Validate title
+        if title:
+            # Remove any quotes AI may have added
+            title = title.strip('"').strip("'")
+            # Must be reasonable length
+            if len(title) < 20 or len(title) > 120:
+                print(f"⚠️ AI title rejected (length {len(title)}): {title}")
+                title = None
+            # Must not be generic
+            elif title.lower().endswith(('review', 'review & specs', 'range & specs')):
+                print(f"⚠️ AI title rejected (generic suffix): {title}")
+                title = None
+        
+        # Validate SEO description
+        if seo_desc:
+            seo_desc = seo_desc.strip('"').strip("'")
+            if len(seo_desc) < 80:
+                print(f"⚠️ AI SEO description rejected (too short: {len(seo_desc)}): {seo_desc}")
+                seo_desc = None
+            elif len(seo_desc) > 160:
+                # Truncate at word boundary
+                seo_desc = seo_desc[:155].rsplit(' ', 1)[0]
+                if not seo_desc.endswith('.'):
+                    seo_desc += '.'
+        
+        if title or seo_desc:
+            return {'title': title, 'seo_description': seo_desc}
+        
+        return None
+        
+    except Exception as e:
+        print(f"⚠️ _generate_title_and_seo failed: {e}")
+        return None
+
+
 def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None):
     """
     Internal function to generate article content without saving to DB.
@@ -443,32 +585,48 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         _timings['generation'] = round(_time.time() - _t_step, 1)
         send_progress(5, 75, "✓ Article generated")
         
-        # 4. Determine title — multi-layer validation
-        title = None
+        # 4. Determine title + SEO description — AI-powered generation
+        ai_title = None
+        ai_seo_desc = None
         
-        # Priority 1: SEO Title from Analysis (clean YouTube noise from it)
-        if specs.get('seo_title') and len(specs['seo_title']) > 5:
+        # Priority 0: AI-generated title + SEO description (best quality)
+        try:
+            ai_result = _generate_title_and_seo(article_html, specs)
+            if ai_result:
+                ai_title = ai_result.get('title')
+                ai_seo_desc = ai_result.get('seo_description')
+                if ai_title:
+                    print(f"🤖 AI-generated title: {ai_title}")
+                if ai_seo_desc:
+                    print(f"🤖 AI-generated SEO description ({len(ai_seo_desc)} chars): {ai_seo_desc}")
+        except Exception as e:
+            print(f"⚠️ AI title/SEO generation failed, using fallbacks: {e}")
+        
+        title = ai_title  # May be None if AI failed
+        
+        # Fallback 1: SEO Title from Analysis (clean YouTube noise from it)
+        if not title and specs.get('seo_title') and len(specs['seo_title']) > 5:
             candidate = specs['seo_title'].replace('"', '').replace("'", "")
             candidate = clean_video_title(candidate)  # strip "walk around" etc.
             if not _is_generic_header(candidate):
                 title = candidate
-                print(f"📌 Using SEO Title from Analysis: {title}")
+                print(f"📌 Fallback — SEO Title from Analysis: {title}")
             
-        # Priority 2: Extract from HTML <h2> (first non-generic header)
+        # Fallback 2: Extract from HTML <h2> (first non-generic header)
         if not title:
             extracted = extract_title(article_html)
             if extracted:
                 title = extracted
-                print(f"📌 Extracted Title from HTML: {title}")
+                print(f"📌 Fallback — Extracted Title from HTML: {title}")
         
-        # Priority 3: Construct from Specs (if Make/Model exist)
+        # Fallback 3: Construct from Specs (if Make/Model exist)
         if not title and specs.get('make') and specs.get('model') and specs['make'] != 'Not specified':
             year = specs.get('year', '')
             year_str = f"{year} " if year else ""
             trim = specs.get('trim', '')
             trim_str = f" {trim}" if trim and trim != 'Not specified' else ""
             title = f"{year_str}{specs['make']} {specs['model']}{trim_str} Review"
-            print(f"📌 Constructed Title from Specs: {title}")
+            print(f"📌 Fallback — Constructed Title from Specs: {title}")
             
         # Final validation — catches anything that slipped through
         title = validate_title(title, video_title=video_title, specs=specs)
@@ -593,22 +751,26 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         if not summary:
             summary = f"Comprehensive review of the {specs.get('make', '')} {specs.get('model', '')}"
         
-        # 6.1 Generate SEO description (concise, keyword-rich, max 155 chars for Google)
+        # 6.1 SEO description — use AI-generated if available, else template fallback
         seo_description = ''
-        make = specs.get('make', '')
-        model = specs.get('model', '')
-        year = specs.get('year', '')
-        hp = specs.get('horsepower', '')
-        if make and model and make != 'Not specified':
-            year_str = f"{year} " if year else ""
-            hp_str = f" {hp} HP" if hp and hp != 'Not specified' else ""
-            # Build a compact SEO description from key specs
-            seo_description = f"Explore the {year_str}{make} {model}{hp_str}. Full specs, pricing, range, performance data & expert review."
-            if len(seo_description) > 155:
-                seo_description = seo_description[:152] + '...'
-        if not seo_description:
-            # Fallback: truncate summary
-            seo_description = summary[:155].rsplit(' ', 1)[0] if len(summary) > 155 else summary
+        if ai_seo_desc and len(ai_seo_desc) >= 100:
+            seo_description = ai_seo_desc
+            print(f"✅ Using AI-generated SEO description ({len(seo_description)} chars)")
+        else:
+            # Fallback: template-based SEO description
+            make = specs.get('make', '')
+            model = specs.get('model', '')
+            year = specs.get('year', '')
+            hp = specs.get('horsepower', '')
+            if make and model and make != 'Not specified':
+                year_str = f"{year} " if year else ""
+                hp_str = f" {hp} HP" if hp and hp != 'Not specified' else ""
+                seo_description = f"Explore the {year_str}{make} {model}{hp_str}. Full specs, pricing, range, performance data & expert review."
+                if len(seo_description) > 155:
+                    seo_description = seo_description[:152] + '...'
+            if not seo_description:
+                seo_description = summary[:155].rsplit(' ', 1)[0] if len(summary) > 155 else summary
+            print(f"📌 Fallback SEO description ({len(seo_description)} chars)")
         
         # 6.5. Generate SEO keywords
         try:
