@@ -133,6 +133,12 @@ class Article(models.Model):
         help_text="When the engagement score was last recalculated"
     )
     
+    # Bulk Enrichment Tracking — skip already-enriched articles
+    last_enriched_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text="When this article was last bulk-enriched (Deep Specs + AB Titles + Tags)"
+    )
+    
     # Content Moderation Queue — human-in-the-loop review before publish
     MODERATION_STATUS_CHOICES = [
         ('pending_review', 'Pending Review'),

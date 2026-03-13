@@ -82,7 +82,16 @@ class TestReformatContent:
     @patch('ai_engine.modules.ai_provider.get_ai_provider')
     def test_reformat_success(self, mock_provider, staff_client, article):
         mock_ai = MagicMock()
-        mock_ai.generate_completion.return_value = '<h2>Tesla Model 3</h2><p>A great car.</p>' + '<p>Content. ' * 10 + '</p>'
+        # Mock must return text >= 60% of input length to pass truncation guard
+        mock_ai.generate_completion.return_value = (
+            '<h2>Tesla Model 3</h2>'
+            '<p>A great car with excellent performance and impressive range. '
+            'The Tesla Model 3 continues to set the standard for electric vehicles '
+            'in its segment, offering a compelling combination of range, technology, '
+            'and driving dynamics that few competitors can match.</p>'
+            '<p>The interior features a minimalist design centered around the 15-inch '
+            'touchscreen display. Build quality has improved significantly over the years.</p>'
+        )
         mock_provider.return_value = mock_ai
 
         resp = staff_client.post(

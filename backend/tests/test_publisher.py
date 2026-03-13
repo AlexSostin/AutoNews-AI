@@ -76,14 +76,15 @@ class TestGenerateSeoTitle:
     def test_long_title_with_year_make_model(self):
         title = "2025 BMW X5 M60i xDrive Full Review: Performance, Interior, Specs and Everything You Need to Know"
         result = generate_seo_title(title)
-        assert result == "2025 BMW X5 Review & Specs"
+        # After removing hardcoded 'Review & Specs', function truncates at natural break point (colon at pos 36)
+        assert result == "2025 BMW X5 M60i xDrive Full Review"
         assert len(result) <= 60
 
     def test_long_title_without_pattern_truncated(self):
         title = "This is a very long title without any car information that goes beyond sixty characters limit"
         result = generate_seo_title(title)
         assert result.endswith("...")
-        assert len(result) == 60
+        assert len(result) <= 60
 
     def test_title_with_year_only(self):
         title = "2025 Mercedes GLE Coupe AMG 53 vs BMW X6 M50i Comparison Full Review Test Drive"

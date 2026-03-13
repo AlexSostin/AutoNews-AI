@@ -66,6 +66,19 @@ export const favoriteAPI = {
     }
   },
 
+  // Get all favorited article IDs in one call (used by FavoritesProvider)
+  async getAllFavoriteIds(token: string): Promise<number[]> {
+    if (!token) return [];
+
+    try {
+      const data = await silentAuthFetch('/favorites/', []);
+      const favorites = Array.isArray(data) ? data : ((data as any).results || []);
+      return favorites.map((f: any) => f.article);
+    } catch {
+      return [];
+    }
+  },
+
   // Add to favorites
   async addFavorite(articleId: number, token: string): Promise<Favorite> {
     if (!token) throw new Error('Please log in to add favorites');

@@ -13,6 +13,16 @@ sys.path.insert(0, str(BASE_DIR))
 # Set Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auto_news_site.settings')
 
+# ── Patch file loggers before django.setup() if files aren't writable ──
+# (Prevents PermissionError when logs/ files are owned by root)
+import auto_news_site.settings as _settings
+if hasattr(_settings, 'LOGGING') and 'handlers' in _settings.LOGGING:
+    for _name, _handler in _settings.LOGGING['handlers'].items():
+        if _handler.get('class') == 'logging.FileHandler':
+            _logfile = _handler.get('filename', '')
+            if _logfile and not os.access(_logfile, os.W_OK):
+                _settings.LOGGING['handlers'][_name] = {'class': 'logging.NullHandler'}
+
 import django
 django.setup()
 

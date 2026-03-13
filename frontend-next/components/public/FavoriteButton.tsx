@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Heart } from 'lucide-react';
-import { favoriteAPI } from '@/lib/favorites';
+import { useFavorites } from '@/components/providers/FavoritesProvider';
 import { getToken } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 
@@ -21,24 +21,12 @@ export default function FavoriteButton({
   size = 'md',
   className = ''
 }: FavoriteButtonProps) {
-  const [isFavorited, setIsFavorited] = useState(initialIsFavorited);
+  const { isFavorited: contextIsFavorited, toggleFavorite, isLoaded } = useFavorites();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Check favorite status client-side on mount (works even when page is cached)
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-
-    favoriteAPI.checkFavorite(articleId, token)
-      .then(result => setIsFavorited(result.is_favorited))
-      .catch(() => { }); // silently fail — not critical
-  }, [articleId]);
-
-  // Also sync with server-provided value when it changes
-  useEffect(() => {
-    setIsFavorited(initialIsFavorited);
-  }, [initialIsFavorited]);
+  // Use context if loaded, otherwise fall back to server-provided initial value
+  const isFavorited = isLoaded ? contextIsFavorited(articleId) : initialIsFavorited;
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -52,8 +40,7 @@ export default function FavoriteButton({
 
     setIsLoading(true);
     try {
-      const result = await favoriteAPI.toggleFavorite(articleId, token);
-      setIsFavorited(result.is_favorited);
+      await toggleFavorite(articleId);
     } catch (error: any) {
       console.error('Failed to toggle favorite:', error);
       if (error?.message?.includes('Session expired') || error?.message?.includes('log in')) {

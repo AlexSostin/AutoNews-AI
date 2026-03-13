@@ -114,3 +114,40 @@ class FavoriteViewSet(viewsets.ModelViewSet):
         ).exists()
         
         return Response({'is_favorited': is_favorited})
+
+    @action(detail=False, methods=['get'], url_path='check-batch')
+    def check_batch(self, request):
+        """Check favorite status for multiple articles in one call.
+        
+        GET /favorites/check-batch/?articles=138,147,149
+        Returns: {"favorites": {"138": true, "147": false, "149": true}}
+        """
+        articles_param = request.query_params.get('articles', '')
+        
+        if not articles_param:
+            return Response(
+                {'detail': 'articles parameter is required (comma-separated IDs)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            article_ids = [int(x.strip()) for x in articles_param.split(',') if x.strip()]
+        except ValueError:
+            return Response(
+                {'detail': 'Invalid article IDs'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Cap at 50 to prevent abuse
+        article_ids = article_ids[:50]
+        
+        # Single query: get all favorited article IDs for this user
+        favorited_ids = set(
+            Favorite.objects.filter(
+                user=request.user,
+                article_id__in=article_ids
+            ).values_list('article_id', flat=True)
+        )
+        
+        result = {str(aid): aid in favorited_ids for aid in article_ids}
+        return Response({'favorites': result})

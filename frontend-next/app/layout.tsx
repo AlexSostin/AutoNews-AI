@@ -75,6 +75,7 @@ export const metadata: Metadata = {
 
 import GoogleAuthProvider from "@/components/auth/GoogleAuthProvider";
 import ErrorProvider from "@/components/providers/ErrorProvider";
+import FavoritesProvider from "@/components/providers/FavoritesProvider";
 
 export default async function RootLayout({
   children,
@@ -166,9 +167,11 @@ export default async function RootLayout({
                 },
               }}
             />
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
+            <FavoritesProvider>
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
+            </FavoritesProvider>
             <BackToTop />
             <CookieConsent />
             <WebVitals />

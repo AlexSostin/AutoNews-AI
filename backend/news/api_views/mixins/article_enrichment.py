@@ -338,12 +338,10 @@ class ArticleEnrichmentMixin:
         if mode == 'selected' and article_ids:
             articles = published.filter(id__in=article_ids)
         elif mode == 'missing':
-            articles_with_specs = VehicleSpecs.objects.values_list('article_id', flat=True)
-            articles_with_ab = ArticleTitleVariant.objects.values_list('article_id', flat=True)
-            articles = published.exclude(
-                id__in=set(articles_with_specs) & set(articles_with_ab)
-            )
+            # Skip articles already fully enriched (have last_enriched_at set)
+            articles = published.filter(last_enriched_at__isnull=True)
         else:
+            # 'all' mode — re-process everything but still respect per-step skips
             articles = published
 
         total_articles = articles.count()
@@ -393,9 +391,17 @@ class ArticleEnrichmentMixin:
                     'errors': [],
                 }
 
-                # Step 1: Web Search
+                # Step 1: Web Search — SKIP if article already has populated VehicleSpecs
                 specs_dict = None
                 web_context = ''
+                existing_vs = VehicleSpecs.objects.filter(article=article).first()
+                has_populated_specs = existing_vs and (existing_vs.power_hp or existing_vs.torque_nm) and existing_vs.length_mm
+                
+                if has_populated_specs and existing_vs.battery_kwh and existing_vs.battery_kwh < 50:
+                    if (existing_vs.range_km and existing_vs.range_km > 500) or \
+                       (existing_vs.range_cltc and existing_vs.range_cltc > 500):
+                        has_populated_specs = False
+
                 try:
                     car_spec = CarSpecification.objects.filter(article=article).first()
                     if car_spec and car_spec.make:
@@ -416,19 +422,20 @@ class ArticleEnrichmentMixin:
                     else:
                         specs_dict = self._parse_specs_from_title(article.title)
 
-                    if specs_dict and specs_dict.get('make'):
+                    # Only do web search if deep specs are MISSING
+                    if not has_populated_specs and specs_dict and specs_dict.get('make'):
                         try:
                             from ai_engine.modules.searcher import get_web_context
                             web_context = get_web_context(specs_dict)
                             article_result['steps']['web_search'] = True
                         except Exception:
                             pass
+                    elif has_populated_specs:
+                        article_result['steps']['web_search'] = 'skipped'
                 except Exception:
                     pass
 
-                # Step 2: Deep Specs
-                existing_vs = VehicleSpecs.objects.filter(article=article).first()
-                has_populated_specs = existing_vs and (existing_vs.power_hp or existing_vs.torque_nm) and existing_vs.length_mm
+                # Step 2: Deep Specs (existing_vs + has_populated_specs computed above)
                 
                 if has_populated_specs and existing_vs.battery_kwh and existing_vs.battery_kwh < 50:
                     if (existing_vs.range_km and existing_vs.range_km > 500) or \
@@ -508,24 +515,31 @@ class ArticleEnrichmentMixin:
                 else:
                     article_result['steps']['ab_titles'] = 'skipped'
 
-                # Step 4: Smart Auto-Tags
-                try:
-                    from news.auto_tags import auto_tag_article
-                    tag_result = auto_tag_article(article, use_ai=True)
-                    created_count = len(tag_result['created'])
-                    matched_count = len(tag_result['matched'])
-                    article_result['steps']['smart_tags'] = created_count + matched_count
-                    if tag_result['created']:
-                        article_result['steps']['tags_created'] = tag_result['created']
-                    if tag_result['ai_used']:
-                        article_result['steps']['ai_used'] = True
-                except Exception as e:
-                    article_result['errors'].append(f'Smart tags: {e}')
+                # Step 4: Smart Auto-Tags — SKIP if article already has >= 2 tags
+                existing_tag_count = article.tags.count()
+                if existing_tag_count < 2:
+                    try:
+                        from news.auto_tags import auto_tag_article
+                        tag_result = auto_tag_article(article, use_ai=True)
+                        created_count = len(tag_result['created'])
+                        matched_count = len(tag_result['matched'])
+                        article_result['steps']['smart_tags'] = created_count + matched_count
+                        if tag_result['created']:
+                            article_result['steps']['tags_created'] = tag_result['created']
+                        if tag_result['ai_used']:
+                            article_result['steps']['ai_used'] = True
+                    except Exception as e:
+                        article_result['errors'].append(f'Smart tags: {e}')
+                else:
+                    article_result['steps']['smart_tags'] = f'skipped ({existing_tag_count} tags)'
 
                 if article_result['errors']:
                     errors_total += 1
                 else:
                     success_total += 1
+                    # Mark article as enriched so future 'missing' runs skip it
+                    from django.utils import timezone as _tz
+                    Article.objects.filter(id=art_id).update(last_enriched_at=_tz.now())
 
                 all_results.append(article_result)
 

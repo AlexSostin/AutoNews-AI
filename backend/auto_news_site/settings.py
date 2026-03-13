@@ -547,8 +547,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/minute',   # ~1.6 req/sec — enough for real users, blocks scrapers
-        'user': '1000/hour'    # Authenticated users — generous but not unlimited
+        'anon': '200/minute',   # Doubled: N+1 favorites/check was burning 20 req on one page load
+        'user': '3000/hour'     # Tripled: admin dashboards load 5-10 endpoints per page
     }
 }
 
