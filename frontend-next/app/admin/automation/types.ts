@@ -110,6 +110,12 @@ export interface AutomationStats {
         tags_matched: number;
         duration_seconds: number;
         mode: string;
+        // Fallback fields from older/alternative report formats
+        current?: number;
+        total?: number;
+        elapsed_seconds?: number;
+        error_count?: number;
+        summary?: Record<string, unknown>;
     } | null;
     recent_social_posts?: SocialPostEntry[];
 }

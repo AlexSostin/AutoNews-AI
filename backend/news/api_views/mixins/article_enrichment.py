@@ -586,6 +586,42 @@ class ArticleEnrichmentMixin:
                 'summary': summary,
             }, timeout=3600)
 
+            # Persist report to DB so the dashboard card always has fresh data
+            # (Redis cache expires after 1 hour, but the JSONField persists)
+            try:
+                from datetime import datetime as _dt
+                from news.models import AutomationSettings as _AS
+
+                # Compute tags_created and tags_matched totals
+                total_tags_created = 0
+                total_tags_matched = 0
+                for r in all_results:
+                    steps = r.get('steps', {})
+                    tc = steps.get('tags_created')
+                    if isinstance(tc, list):
+                        total_tags_created += len(tc)
+                    smart = steps.get('smart_tags')
+                    if isinstance(smart, int):
+                        total_tags_matched += smart
+
+                db_report = {
+                    'last_run': _dt.utcnow().isoformat(),
+                    'articles_processed': success_total,
+                    'articles_total': total_articles,
+                    'errors': errors_total,
+                    'tags_created': total_tags_created,
+                    'tags_matched': total_tags_matched,
+                    'duration_seconds': elapsed,
+                    'mode': mode,
+                    'summary': summary,
+                }
+                settings_obj = _AS.load()
+                settings_obj.enrichment_report = db_report
+                settings_obj.save(update_fields=['enrichment_report'])
+                logger.info(f'[bulk_re_enrich] Report persisted to DB: {success_total}/{total_articles} in {elapsed}s')
+            except Exception as persist_err:
+                logger.warning(f'[bulk_re_enrich] Could not persist report to DB: {persist_err}')
+
             connection.close()
 
         thread = threading.Thread(target=_process_task, daemon=True)
