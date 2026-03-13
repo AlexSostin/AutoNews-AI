@@ -1,7 +1,12 @@
+import logging
+
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils.text import slugify
 from ..image_utils import optimize_image
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_make(make: str) -> str:
@@ -55,6 +60,28 @@ class Brand(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        """Warn admin if a similarly-named brand already exists."""
+        super().clean()
+        if not self.name:
+            return
+        name_lower = self.name.strip().lower()
+        # Check for near-duplicates (case-insensitive contains match)
+        similar = Brand.objects.filter(
+            Q(name__icontains=name_lower) | Q(name__icontains=name_lower.replace(' ', ''))
+        ).exclude(pk=self.pk)
+        # Also check if the new name is contained within an existing brand
+        for brand in Brand.objects.exclude(pk=self.pk):
+            existing_lower = brand.name.lower()
+            if (existing_lower in name_lower or name_lower in existing_lower) and existing_lower != name_lower:
+                similar = similar | Brand.objects.filter(pk=brand.pk)
+        if similar.exists():
+            names = ', '.join(similar.values_list('name', flat=True)[:5])
+            raise ValidationError(
+                f'Similar brand(s) already exist: {names}. '
+                f'Consider using Brand Aliases instead of creating a new brand.'
+            )
 
     def get_article_count(self):
         """Count articles for this brand only, case-insensitive."""
@@ -114,18 +141,58 @@ class BrandAlias(models.Model):
             return f"{self.alias} + model:{self.model_prefix}* → {self.canonical_name}"
         return f"{self.alias} → {self.canonical_name}"
 
+    # ── Cached alias lookups ──────────────────────────────────────
+    _simple_cache: dict | None = None   # {alias_lower: canonical_name}
+    _subbrand_cache: list | None = None  # [(alias_lower, prefix_lower, canonical, raw_prefix_len)]
+
+    @classmethod
+    def _load_cache(cls):
+        """Load all aliases into memory (called once per process)."""
+        if cls._simple_cache is not None:
+            return
+        simple = {}
+        subbrand = []
+        for a in cls.objects.all():
+            if a.model_prefix:
+                subbrand.append((
+                    a.alias.lower().strip(),
+                    a.model_prefix.lower().strip(),
+                    a.canonical_name,
+                    len(a.model_prefix),
+                ))
+            else:
+                simple[a.alias.lower().strip()] = a.canonical_name
+        cls._simple_cache = simple
+        cls._subbrand_cache = subbrand
+        logger.debug(f"BrandAlias cache loaded: {len(simple)} simple, {len(subbrand)} sub-brand rules")
+
+    @classmethod
+    def invalidate_cache(cls):
+        """Clear cache — call after creating/updating aliases."""
+        cls._simple_cache = None
+        cls._subbrand_cache = None
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        BrandAlias.invalidate_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        BrandAlias.invalidate_cache()
+
     @classmethod
     def resolve(cls, make):
         """Resolve a make name through simple aliases (no model_prefix).
-        Returns canonical name or original. Kept for backward compatibility."""
+        Uses cached dict — no DB query after first call."""
         if not make:
             return make
-        alias = cls.objects.filter(alias__iexact=make, model_prefix='').first()
-        return alias.canonical_name if alias else make
+        cls._load_cache()
+        return cls._simple_cache.get(make.lower().strip(), make)
 
     @classmethod
     def resolve_with_model(cls, make, model=''):
         """Resolve make+model through sub-brand rules then simple aliases.
+        Uses cached lookups — no DB queries after first call.
         
         Returns (resolved_make, resolved_model).
         
@@ -137,18 +204,20 @@ class BrandAlias(models.Model):
         if not make:
             return make, model
         
+        cls._load_cache()
+        make_lower = make.lower().strip()
+        
         # 1. Check sub-brand rules (model_prefix != '')
         if model:
-            sub_brand_aliases = cls.objects.exclude(model_prefix='')
-            for alias in sub_brand_aliases:
-                if (make.lower().strip() == alias.alias.lower().strip() and
-                        model.lower().strip().startswith(alias.model_prefix.lower().strip())):
-                    new_model = model[len(alias.model_prefix):].strip()
-                    return alias.canonical_name, new_model if new_model else model
+            model_lower = model.lower().strip()
+            for alias_lower, prefix_lower, canonical, raw_prefix_len in cls._subbrand_cache:
+                if make_lower == alias_lower and model_lower.startswith(prefix_lower):
+                    new_model = model[raw_prefix_len:].strip()
+                    return canonical, new_model if new_model else model
         
-        # 2. Fallback: simple name alias (existing behavior)
-        resolved_make = cls.resolve(make)
-        return resolved_make, model
+        # 2. Fallback: simple name alias
+        resolved = cls._simple_cache.get(make_lower, make)
+        return resolved, model
 
 class CarSpecification(models.Model):
     article = models.OneToOneField('news.Article', on_delete=models.CASCADE, related_name='specs')
@@ -176,8 +245,16 @@ class CarSpecification(models.Model):
         return f"Specs for {self.article.title}"
 
     def save(self, *args, **kwargs):
-        """Auto-normalize make to canonical display name before saving."""
-        if self.make:
+        """Resolve brand aliases then normalize to canonical display name."""
+        if self.make and not self.is_make_locked:
+            # Step 1: Resolve aliases (e.g., 'HUAWEI AVATAR' → 'Avatr')
+            resolved_make, resolved_model = BrandAlias.resolve_with_model(
+                self.make, self.model or ''
+            )
+            self.make = resolved_make
+            if resolved_model and not self.is_make_locked:
+                self.model = resolved_model
+            # Step 2: Normalize display name (e.g., 'zeekr' → 'ZEEKR')
             self.make = normalize_make(self.make)
         super().save(*args, **kwargs)
 
@@ -496,8 +573,16 @@ class VehicleSpecs(models.Model):
         return f"Specs: {label or 'Unnamed'}"
 
     def save(self, *args, **kwargs):
-        """Auto-normalize make to canonical display name before saving."""
+        """Resolve brand aliases then normalize to canonical display name."""
         if self.make:
+            # Step 1: Resolve aliases (e.g., 'HUAWEI AVATAR' → 'Avatr')
+            resolved_make, resolved_model = BrandAlias.resolve_with_model(
+                self.make, self.model_name or ''
+            )
+            self.make = resolved_make
+            if resolved_model:
+                self.model_name = resolved_model
+            # Step 2: Normalize display name (e.g., 'zeekr' → 'ZEEKR')
             self.make = normalize_make(self.make)
         super().save(*args, **kwargs)
 
