@@ -44,7 +44,9 @@ async function getSettings() {
 
 async function getArticles() {
   try {
-    const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, { next: { revalidate: 60 } });
+    const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
+      next: { revalidate: 60, tags: ['articles'] },
+    });
     if (!res.ok) return { results: [] };
     return await res.json();
   } catch { return { results: [] }; }
@@ -54,7 +56,10 @@ async function getCategories() {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${getApiUrl()}/categories/`, { next: { revalidate: 300 }, signal: controller.signal });
+    const res = await fetch(`${getApiUrl()}/categories/`, {
+      next: { revalidate: 300, tags: ['categories'] },
+      signal: controller.signal,
+    });
     clearTimeout(timeoutId);
     if (!res.ok) return [];
     const data = await res.json();

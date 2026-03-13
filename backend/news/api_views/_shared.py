@@ -32,6 +32,7 @@ def trigger_nextjs_revalidation(paths=None):
     """
     Tell Next.js to revalidate its ISR cache immediately.
     Runs in a background thread so it doesn't slow down the API response.
+    Tries FRONTEND_URL first, then falls back to production Vercel URL.
     """
     def _revalidate():
         import requests as http_requests
@@ -39,22 +40,33 @@ def trigger_nextjs_revalidation(paths=None):
             'FRONTEND_URL',
             'http://frontend:3000' if os.environ.get('RUNNING_IN_DOCKER') else 'http://localhost:3000'
         )
+        # Production Vercel fallback — if FRONTEND_URL is Docker-internal, also try public URL
+        vercel_url = os.environ.get('VERCEL_URL', 'https://www.freshmotors.net')
         secret = os.environ.get('REVALIDATION_SECRET', 'freshmotors-revalidate-2026')
-        try:
-            resp = http_requests.post(
-                f'{frontend_url}/api/revalidate',
-                json={
-                    'secret': secret,
-                    'paths': paths or ['/', '/articles', '/trending'],
-                },
-                timeout=5,
-            )
-            if resp.ok:
-                logger.info(f"Next.js revalidation triggered: {resp.json()}")
-            else:
-                logger.warning(f"Next.js revalidation failed ({resp.status_code}): {resp.text[:200]}")
-        except Exception as e:
-            logger.debug(f"Next.js revalidation skipped (frontend may not be running): {e}")
+        payload = {
+            'secret': secret,
+            'paths': paths or ['/', '/articles', '/trending'],
+        }
+
+        success = False
+        for url in [frontend_url, vercel_url]:
+            try:
+                resp = http_requests.post(
+                    f'{url}/api/revalidate',
+                    json=payload,
+                    timeout=8,
+                )
+                if resp.ok:
+                    logger.info(f"Next.js revalidation triggered via {url}: {resp.json()}")
+                    success = True
+                    break
+                else:
+                    logger.warning(f"Next.js revalidation via {url} failed ({resp.status_code}): {resp.text[:200]}")
+            except Exception as e:
+                logger.debug(f"Next.js revalidation via {url} skipped: {e}")
+
+        if not success:
+            logger.warning("Next.js revalidation failed on all URLs")
 
     threading.Thread(target=_revalidate, daemon=True).start()
 
