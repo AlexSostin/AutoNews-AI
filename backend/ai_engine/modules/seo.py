@@ -259,19 +259,47 @@ def generate_title_variants(article, provider='gemini'):
         except Exception:
             pass
         
-        prompt = f"""You are a headline writer for an automotive enthusiast website. Your job is to create titles that MAKE PEOPLE CLICK — like a friend texting you "dude you HAVE to see this car".
+        # Extract make/model for validation
+        make_name = ""
+        model_name = ""
+        try:
+            spec = CarSpecification.objects.filter(article=article).first()
+            if spec:
+                make_name = (spec.make or "").strip()
+                model_name = (spec.model or "").strip()
+        except Exception:
+            pass
+        
+        # Fallback: try to extract from title
+        if not make_name:
+            import re as _re
+            m = _re.search(r'(\d{4})\s+(\w+)\s+(\w+)', article.title)
+            if m:
+                make_name = m.group(2)
+                model_name = m.group(3)
+
+        prompt = f"""You are a headline writer for an automotive enthusiast website.
 
 Original title: "{article.title}"{spec_context}
 
-Write exactly 2 alternative headlines. Rules:
-- Use specific numbers from the specs when available (range, price, power, 0-100)
-- One headline should focus on VALUE/PRICE angle ("This Chinese EV costs less than a Corolla...")
-- One headline should focus on PERFORMANCE/WOW angle ("680 hp off-roader that costs...")
-- Use active voice, present tense
-- Max 80 characters each
-- Can start with a number ("700 km range...", "Under $15k...")
-- NO clickbait lies — only real facts from the specs
+Write exactly 2 alternative headlines. STRICT RULES:
+- MUST include the car brand name ({make_name or 'from the title'}) and model ({model_name or 'from the title'})
+- Use specific numbers from specs when available (range, price, power, 0-100)
+- FORMAT: "[Year] [Brand] [Model]: [Engaging hook with best spec]"
+- Max 90 characters each, minimum 40 characters
+- NO clickbait without car name — every title MUST identify which car it's about
 - English only
+
+GOOD examples:
+✅ "2026 BYD Seal 06 DM-i: 2,100 km Range Hybrid Starting at $14,000"
+✅ "2025 Avatr 11 EREV: 1,065 km Range SUV Disrupting Premium Market"
+✅ "2026 Zeekr 7X: 421 hp Electric SUV Under $30,000"
+
+BAD examples (NEVER generate these):
+❌ "Costs $13,100" (no car name!)
+❌ "610km range for under $30k" (no car name!)
+❌ "Under $20k beats Corolla" (no car name!)
+❌ "Blows past 100km/h in 3s" (no car name!)
 
 Reply with ONLY the two titles, one per line. No numbering, no quotes, no explanations."""
 
@@ -285,8 +313,21 @@ Reply with ONLY the two titles, one per line. No numbering, no quotes, no explan
         
         alt_titles = lines[:2]  # Max 2 alternatives
         
+        # Validate: each variant MUST contain the brand or model name
+        if make_name and len(make_name) > 1:
+            validated_titles = []
+            for t in alt_titles:
+                t_lower = t.lower()
+                has_brand = make_name.lower() in t_lower
+                has_model = model_name.lower() in t_lower if model_name else True
+                if has_brand or has_model:
+                    validated_titles.append(t)
+                else:
+                    print(f"  ⚠️ Rejected A/B variant (no brand/model): \"{t}\"")
+            alt_titles = validated_titles
+        
         if not alt_titles:
-            print(f"⚠️ AI returned no valid title alternatives")
+            print(f"⚠️ AI returned no valid title alternatives (all rejected by brand check)")
             return []
         
         # Create variant A (original)
