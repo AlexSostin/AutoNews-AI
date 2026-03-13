@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, filters
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import Avg, Case, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -104,12 +105,23 @@ class ArticleViewSet(
             if not is_admin:
                 queryset = queryset.filter(is_published=True)
             
-            # Apply search filter
+            # Apply search filter — PostgreSQL Full-Text Search with ranking
             if search_query:
-                queryset = queryset.filter(
-                    Q(title__icontains=search_query) |
-                    Q(content__icontains=search_query)
-                )
+                if len(search_query) >= 2:
+                    # Full-Text Search with weighted ranking: title A > summary B > content C
+                    search_vector = SearchVector('title', weight='A') + \
+                                    SearchVector('summary', weight='B') + \
+                                    SearchVector('content', weight='C')
+                    search_q = SearchQuery(search_query, search_type='websearch')
+                    queryset = queryset.annotate(
+                        search_rank=SearchRank(search_vector, search_q)
+                    ).filter(search_rank__gt=0.0).order_by('-search_rank')
+                else:
+                    # Fallback for single-character queries
+                    queryset = queryset.filter(
+                        Q(title__icontains=search_query) |
+                        Q(content__icontains=search_query)
+                    )
             
             # Apply tag filter
             tag_slug = self.request.query_params.get('tag')

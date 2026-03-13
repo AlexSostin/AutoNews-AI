@@ -179,6 +179,8 @@ from .search_analytics_views import (
     AnalyticsExtraStatsAPIView, ReaderEngagementView, CapsuleFeedbackSummaryView, ArticleComplaintsView
 )
 from .cars import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet, CarCompareView, CarPickerListView
+from .api_views.ai_costs import AICostDashboardView
+from .api_views.moderation import ModerationQueueView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -279,6 +281,8 @@ urlpatterns = [
     
     # Admin action analytics
     path('admin/action-stats/', AdminActionStatsView.as_view(), name='admin_action_stats'),
+    path('admin/ai-costs/', AICostDashboardView.as_view(), name='admin_ai_costs'),
+    path('admin/moderation/', ModerationQueueView.as_view(), name='admin_moderation'),
     
     # Nav badge counts (comments pending, feedback unresolved, new subscribers, rss pending)
     path('nav-badges/', NavBadgesView.as_view(), name='nav_badges'),

@@ -19,7 +19,7 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
-from news.sitemaps import ArticleSitemap, CategorySitemap
+from news.sitemaps import ArticleSitemap, CategorySitemap, BrandSitemap, TagSitemap
 from news.admin import CustomAdminSite
 
 # Create custom admin site instance
@@ -42,6 +42,8 @@ admin.site.index_title = "Welcome to AutoNews Management"
 sitemaps = {
     'articles': ArticleSitemap,
     'categories': CategorySitemap,
+    'brands': BrandSitemap,
+    'tags': TagSitemap,
 }
 
 urlpatterns = [

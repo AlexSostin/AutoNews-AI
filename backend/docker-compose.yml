@@ -99,6 +99,66 @@ services:
     networks:
       - autonews_network
 
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: autonews_celery_worker
+    env_file:
+      - .env
+    command: celery -A auto_news_site worker -l info --concurrency=2
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=True
+      - RUNNING_IN_DOCKER=1
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - POSTGRES_DB=autonews
+      - POSTGRES_USER=autonews_user
+      - POSTGRES_PASSWORD=SecurePass123
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - autonews_network
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: autonews_celery_beat
+    env_file:
+      - .env
+    command: celery -A auto_news_site beat -l info
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=True
+      - RUNNING_IN_DOCKER=1
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - POSTGRES_DB=autonews
+      - POSTGRES_USER=autonews_user
+      - POSTGRES_PASSWORD=SecurePass123
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - autonews_network
+
 volumes:
   postgres_data:
   static_volume:

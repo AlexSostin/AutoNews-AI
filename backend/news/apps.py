@@ -10,6 +10,7 @@ class NewsConfig(AppConfig):
         import news.cache_signals
         import news.signals  # Notification signals
         
-        # Start background scheduler (GSC sync, etc.)
-        from news.scheduler import start_scheduler
-        start_scheduler()
+        # Background tasks are now handled by Celery Beat.
+        # Old scheduler (threading.Timer) is kept for reference but not called.
+        # To start tasks: celery -A auto_news_site worker -l info
+        #                 celery -A auto_news_site beat -l info

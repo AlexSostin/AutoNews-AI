@@ -718,3 +718,65 @@ TELEGRAM_AUTO_POST = os.getenv('TELEGRAM_AUTO_POST', 'false').lower() == 'true'
 
 # Site URL for article links in Telegram posts
 SITE_URL = os.getenv('SITE_URL', 'https://www.freshmotors.net')
+
+# ================================================
+# CELERY CONFIGURATION
+# ================================================
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0'))
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Jerusalem'
+CELERY_ENABLE_UTC = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # Hard limit: 30 min per task
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # Soft limit: 25 min
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 50  # Restart worker after 50 tasks to prevent memory leaks
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # One task at a time (tasks are long-running)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Beat schedule — all periodic tasks
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # --- Fixed-interval tasks ---
+    'gsc-sync-every-6h': {
+        'task': 'news.tasks.gsc_sync',
+        'schedule': crontab(minute=0, hour='*/6'),
+    },
+    'currency-update-daily': {
+        'task': 'news.tasks.currency_update',
+        'schedule': crontab(minute=30, hour=3),  # 3:30 AM Israel time
+    },
+    'scheduled-publish-every-minute': {
+        'task': 'news.tasks.scheduled_publish',
+        'schedule': crontab(minute='*'),  # Every minute
+    },
+    'deep-specs-backfill-every-6h': {
+        'task': 'news.tasks.deep_specs_backfill',
+        'schedule': crontab(minute=15, hour='*/6'),
+    },
+    'ab-lifecycle-daily': {
+        'task': 'news.tasks.ab_lifecycle',
+        'schedule': crontab(minute=0, hour=4),  # 4 AM Israel time
+    },
+    'stale-error-cleanup-every-6h': {
+        'task': 'news.tasks.stale_error_cleanup',
+        'schedule': crontab(minute=45, hour='*/6'),
+    },
+    # --- Dynamic-interval tasks (check settings each run) ---
+    'rss-scan': {
+        'task': 'news.tasks.rss_scan',
+        'schedule': crontab(minute='*/30'),  # Check every 30 min, task itself checks settings
+    },
+    'youtube-scan': {
+        'task': 'news.tasks.youtube_scan',
+        'schedule': crontab(minute='*/30'),  # Check every 30 min, task itself checks settings
+    },
+    'auto-publish-check': {
+        'task': 'news.tasks.auto_publish',
+        'schedule': crontab(minute='*/10'),  # Every 10 min
+    },
+}
+

@@ -133,6 +133,32 @@ class Article(models.Model):
         help_text="When the engagement score was last recalculated"
     )
     
+    # Content Moderation Queue — human-in-the-loop review before publish
+    MODERATION_STATUS_CHOICES = [
+        ('pending_review', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('auto_approved', 'Auto-Approved'),
+    ]
+    moderation_status = models.CharField(
+        max_length=20, choices=MODERATION_STATUS_CHOICES,
+        default='auto_approved', db_index=True,
+        help_text="Moderation status: pending_review (needs human check), approved, rejected, auto_approved (bypassed)"
+    )
+    moderation_notes = models.TextField(
+        blank=True, default='',
+        help_text="Reviewer's notes on why article was approved/rejected"
+    )
+    moderation_reviewed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When moderator reviewed this article"
+    )
+    moderation_reviewed_by = models.ForeignKey(
+        'auth.User', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='moderated_articles',
+        help_text="Who reviewed this article"
+    )
+    
     image_source = models.CharField(
         max_length=20, choices=IMAGE_SOURCE_CHOICES, default='unknown',
         help_text="Where the article images came from (youtube, rss_original, pexels, uploaded)"

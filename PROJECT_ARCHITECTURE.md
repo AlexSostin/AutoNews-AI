@@ -2,7 +2,7 @@
 
 This document provides a comprehensive overview of the FreshMotors platform architecture, technology stack, and core workflows.
 
-**Last Updated**: 12 March 2026
+**Last Updated**: 13 March 2026
 
 ---
 
@@ -10,20 +10,20 @@ This document provides a comprehensive overview of the FreshMotors platform arch
 
 ### Backend
 
-- **Framework**: Django 6.0.1 / Django REST Framework 3.15
+- **Framework**: Django 6.0.3 / Django REST Framework 3.15.2
 - **Language**: Python 3.13
 - **Database**: PostgreSQL (Production via Railway, Local via Docker)
 - **Cache / Queue**: Redis (view tracking, caching, Celery broker, sessions)
-- **Task Queue**: Celery (background enrichment, auto-spec extraction, auto-publishing)
-- **AI Providers**: Google Gemini 2.0 Flash (primary), Groq Llama 3.3 70b (fallback)
+- **Task Queue**: Celery Beat (9 periodic tasks: GSC sync, currency update, RSS/YouTube scan, auto-publish, scheduled publish, deep specs backfill, A/B lifecycle, stale error cleanup)
+- **AI Providers**: Google Gemini 2.0 Flash (primary — complex tasks), Groq Llama 3.3 70b (lightweight tasks via `get_light_provider()`, fallback to Gemini)
 - **Media**: Cloudinary (production CDN), local storage (dev)
 - **APIs**: YouTube Data API v3, Google Search Console API, Google OAuth 2.0, Pexels API
 - **Monitoring**: Sentry (error tracking)
-- **Testing**: pytest (2210+ tests, 91+ files), Playwright E2E (29 tests), GitHub Actions CI
+- **Testing**: pytest (2335+ tests, 95 files), Playwright E2E (45 tests, 6 spec files), GitHub Actions CI
 
 ### Frontend
 
-- **Framework**: Next.js 16.1 (App Router, Server Components, SSR/SSG)
+- **Framework**: Next.js 16.1.3 (App Router, Server Components, SSR/SSG)
 - **Language**: TypeScript 5.0
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
@@ -32,7 +32,7 @@ This document provides a comprehensive overview of the FreshMotors platform arch
 
 ### Infrastructure
 
-- **Containerization**: Docker Compose (backend + Redis)
+- **Containerization**: Docker Compose (backend + Redis + Celery worker + Celery beat)
 - **Backend Hosting**: Railway (PostgreSQL + Redis + Django)
 - **Frontend Hosting**: Vercel (Next.js auto-deploy from GitHub)
 - **CI/CD**: GitHub Actions (pytest + lint + build) → Railway auto-deploy, Vercel auto-deploy
@@ -63,19 +63,21 @@ AutoNews-AI/
 
 | Directory / File | Purpose |
 |-----------------|---------|
-| `auto_news_site/` | Django settings, URL routing, WSGI/ASGI config |
+| `auto_news_site/` | Django settings, URL routing, WSGI/ASGI config, `celery.py` (app factory) |
 | `news/models/` | DB schema package: `__init__.py` re-exports all models. Split into: `articles.py`, `categories_tags.py`, `vehicles.py`, `pending_articles.py`, `user_accounts.py`, `system.py` (BackendErrorLog, FrontendEventLog, AdminActionLog, Notification) |
-| `news/api_views/` | 27+ DRF ViewSets split by domain: `articles.py`, `auth.py`, `system.py`, `rss_feeds.py`, `youtube.py`, `vehicles.py`, `images.py`, `feedback.py`, `system_graph.py`, `webauthn_views.py`, etc. |
+| `news/api_views/` | 30+ DRF ViewSets split by domain: `articles.py`, `auth.py`, `system.py`, `rss_feeds.py`, `youtube.py`, `vehicles.py`, `images.py`, `feedback.py`, `system_graph.py`, `webauthn_views.py`, `ai_costs.py`, `moderation.py`, etc. |
 | `news/api_views/mixins/` | Mixin classes for ArticleViewSet: `ArticleGenerationMixin` (YouTube, RSS, reformat, regenerate), `ArticleEnrichmentMixin` (re-enrich specs), `ArticleEngagementMixin` (comments, ratings, favorites) |
-| `news/api_urls.py` | Router registrations and URL patterns (89+ endpoints) |
+| `news/api_urls.py` | Router registrations and URL patterns (112+ endpoints) |
 | `news/serializers.py` | Data serialization layer (with A/B variant injection for public users) |
 | `news/signals.py` | Auto-notifications, car spec extraction triggers, tag learning signal, human review ML logging |
 | `news/error_capture.py` | ErrorCaptureMiddleware — auto-logs 500 errors to BackendErrorLog |
-| `news/management/commands/` | Custom commands: `verify_migrations` (startup DB schema check), `reformat_rss_articles`, `sync_views` |
+| `news/management/commands/` | 58+ custom commands: `verify_migrations`, `scan_rss_feeds`, `scan_youtube`, `sync_views`, `clean_summaries`, `backfill_car_specs`, `extract_all_specs`, `discover_rss_feeds`, `check_rss_license`, `telegram_daily_alert`, `train_content_model`, `train_quality_model`, `export_training_data`, `backup_database` (pg_dump + R2), etc. |
+| `news/tasks.py` | 9 Celery `@shared_task` functions — replaces threading.Timer scheduler |
+| `news/indexnow.py` | IndexNow API — instant search engine notification on article publish |
 | `news/admin.py` | Django Admin registrations |
 | `ai_engine/main.py` | AI pipeline orchestrator (transcript → analysis → generation → screenshots → AI editor) |
 | `ai_engine/modules/transcriber.py` | YouTube transcript retrieval (yt-dlp + oEmbed fallback) |
-| `ai_engine/modules/analyzer.py` | LLM content analysis and car specs extraction |
+| `ai_engine/modules/analyzer.py` | LLM content analysis and car specs extraction (categorization via Groq) |
 | `ai_engine/modules/article_generator.py` | RSS press release expansion into full articles |
 | `ai_engine/modules/entity_validator.py` | Anti-hallucination: entity extraction, validation, auto-fix, entity anchoring for prompts |
 | `ai_engine/modules/deep_specs.py` | Deep vehicle specs enrichment via AI + web search |
@@ -88,22 +90,34 @@ AutoNews-AI/
 | `ai_engine/modules/spec_refill.py` | Auto-refill missing car spec fields via AI |
 | `ai_engine/modules/specs_enricher.py` | Post-publish spec enrichment pipeline |
 | `ai_engine/modules/feed_discovery.py` | Auto-discover RSS feeds for brands |
-| `ai_engine/modules/license_checker.py` | RSS feed license/copyright validation |
+| `ai_engine/modules/license_checker.py` | RSS feed license/copyright validation (via Groq) |
 | `ai_engine/modules/provider_tracker.py` | AI provider usage tracking and fallback |
 | `ai_engine/modules/quality_scorer.py` | Content quality scoring for auto-publishing |
 | `ai_engine/modules/seo_helpers.py` | SEO keyword extraction and meta generation |
+| `ai_engine/modules/seo.py` | A/B title variant generation (via Groq) |
 | `ai_engine/modules/youtube_client.py` | YouTube channel monitoring and batch scanning |
 | `ai_engine/modules/content_recommender.py` | TF-IDF ML engine: tag/category prediction, similar articles, semantic search, newsletter selection, regex vehicle spec extraction |
+| `ai_engine/modules/content_sanitizer.py` | HTML sanitization and content cleanup |
 | `ai_engine/modules/rss_curator.py` | Smart RSS clustering: scan, cluster, score, preference ranking, merge into roundup articles |
+| `ai_engine/modules/currency_service.py` | Multi-currency price conversion (USD, CNY, EUR, GBP, etc.) |
+| `ai_engine/modules/fact_checker.py` | AI fact-checking of generated content |
+| `ai_engine/modules/telegram_publisher.py` | Automated Telegram channel posting |
+| `ai_engine/modules/translator.py` | Russian → English AI translation with SEO enhancement |
+| `ai_engine/modules/duplicate_checker.py` | Cross-article deduplication engine |
+| `ai_engine/modules/correction_memory.py` | Stores AI correction patterns for future prompts |
+| `ai_engine/modules/ai_provider.py` | AI provider factory: `get_ai_provider()` (Gemini) + `get_light_provider()` (Groq → Gemini fallback) |
+| `news/auto_tags.py` | AI-powered tag extraction from articles (via Groq) |
+| `news/spec_extractor.py` | Vehicle spec extraction from article content (via Groq) |
+| `news/rss_intelligence.py` | RSS feed classification and embedding generation (via Groq) |
 | `news/cache_signals.py` | Auto-invalidation of Redis + @cache_page on model changes |
-| `tests/` | pytest test suite (2210+ tests across 91+ test files) |
+| `tests/` | pytest test suite (2335+ tests across 95 test files) |
 
 ### Frontend Structure (`/frontend-next`)
 
 | Directory / File | Purpose |
 |-----------------|---------|
 | `app/(public)/` | Public pages: articles, categories, brands, profile, login |
-| `app/admin/` | Admin pages: 31+ management screens (incl. health dashboard) |
+| `app/admin/` | Admin pages: 34+ management screens (incl. health dashboard) |
 | `app/admin/automation/` | Automation control panel |
 | `app/admin/publish-queue/` | Publish Queue — batch scheduler with staggered times, queue stats |
 | `app/admin/ab-testing/` | A/B testing management |
@@ -126,7 +140,7 @@ AutoNews-AI/
 
 1. **Trigger**: Manual YouTube URL in admin, or batch scan of monitored channels
 2. **Transcription**: `transcriber.py` fetches subtitles via yt-dlp (with cookies bypass)
-3. **Analysis**: Gemini/Groq analyzes transcript → extracts car specs, pros/cons, key points
+3. **Analysis**: Gemini analyzes transcript → extracts car specs, pros/cons, key points. Groq handles categorization
 4. **Content Generation**: LLM generates full HTML article with SEO optimization
 5. **Screenshots**: ffmpeg captures 3 frames at 15%, 50%, 85% of video
 6. **AI Editor**: `article_reviewer.py` reviews and polishes the generated article
@@ -191,12 +205,12 @@ AutoNews-AI/
 
 ### 7. RSS Aggregation
 
-- **Feed Monitoring**: Periodic background scan (Python `threading.Timer`) — works independently of user's browser session
+- **Feed Monitoring**: Celery Beat periodic task (every 30 min) — checks `AutomationSettings` for enabled/disabled state
 - **Safety Scoring**: Each feed rated for trustworthiness (human reviewed, copyright, contact info)
 - **Deduplication**: Title similarity + content hash to prevent duplicates
 - **Workflow**: New → Read → Generating → Generated (or Dismissed)
 - **Progress Persistence**: `/rss-feeds/scan_progress/` endpoint in Redis. Admin page re-attaches polling on mount if scan is mid-flight (survive page navigation)
-- **Connection Safety**: Scheduler explicitly calls `close_old_connections()` in `finally` block after each scan cycle to prevent PostgreSQL "too many clients" exhaustion
+- **Connection Safety**: Celery tasks call `close_old_connections()` in `finally` block after each cycle
 
 ---
 
@@ -214,48 +228,76 @@ AutoNews-AI/
 
 ## 🧪 Testing & CI
 
-### Test Suite (2210+ tests, 91+ files)
+### Test Suite (2335+ tests, 95 files)
 
 | File | Tests | What it covers |
 |------|-------|----------------|
-| `test_analytics_api.py` | 8 | Analytics overview, top articles, timeline, growth |
-| `test_search_api.py` | 11 | Search, filters, sorting, pagination |
-| `test_article_generation.py` | 6 | Publishing, image distribution |
-| `test_seo_helpers.py` | 8 | SEO keyword generation, extraction |
-| `test_auto_publisher.py` | 8 | Safety gating, quality thresholds, rate limits |
-| `test_automation_api.py` | 8 | Settings CRUD, stats, auth |
-| `test_models.py` | 12 | Singleton, counters, RSS safety, status flow |
-| `test_ab_testing.py` | 10 | Variant serving, tracking, winner selection |
-| `test_publisher.py` | 24 | Article persistence, specs, tags, categories |
-| `test_scheduler.py` | 15 | RSS scan, YouTube scan, auto-publish scheduling |
-| `test_articles_crud.py` | 30+ | CRUD operations, permissions, filtering |
-| `test_auth.py` | 15+ | JWT, login, registration, password reset |
-| `test_brands_rss.py` | 15+ | Brand catalog API, RSS feed management |
-| `test_cars_api.py` | 10+ | Car specs API, vehicle specs |
-| `test_comments_ratings.py` | 15+ | Comments CRUD, ratings, moderation |
-| `test_rss_aggregator.py` | 30 | RSS parsing, hashing, similarity, dedup |
-| `test_rss_curator.py` | 28 | Scan, cluster, score, preference ranking |
-| `test_rss_enhancements.py` | 28 | Auto-tags, publish queue, batch schedule |
-| `test_webauthn.py` | 20 | Passkey helpers, model CRUD, API guards, list/delete |
-| `test_feedback_graph_images.py` | 17 | Feedback API, System Graph, Article Images |
-| `test_content_recommender.py` | 28 | TF-IDF helpers, regex vehicle spec extraction |
-| `test_engagement_scorer.py` | 6 | Scoring module re-export verification |
-| `test_signals.py` | 25 | Post-save signals, cache invalidation |
+| `test_boundary_mutations.py` | 80 | Boundary conditions, mutation testing |
+| `test_batch2_max.py` | 68 | auto_tags, models (max coverage) |
+| `test_ai_engine_core.py` | 63 | AI engine core functionality |
+| `test_five_modules_max.py` | 58 | utils, spec_refill, translator, specs_enricher, specs_extractor |
+| `test_zone_bd.py` | 53 | Zone B+D modules |
+| `test_api_views_remaining.py` | 53 | Remaining API view coverage |
+| `test_deep_specs_max.py` | 51 | Deep specs enrichment |
+| `test_zone_e.py` | 49 | Zone E modules |
+| `test_license_checker_max.py` | 49 | License checker (max coverage) |
+| `test_batch6_max.py` | 45 | Batch 6 coverage push |
+| `test_new_features.py` | 43 | Newest features |
+| `test_batch3_max.py` | 43 | Batch 3 models |
+| `test_api_views_batch36.py` | 42 | API views batch |
+| `test_batch1_max.py` | 41 | Batch 1 coverage push |
 | `test_spec_extractor.py` | 39 | Spec extraction from content |
-| `test_specs_enricher.py` | 16 | Enrichment pipeline |
-| `test_validators.py` | 9 | Title validation, content validators |
-| `test_telegram_social.py` | 19 | Telegram auto-post, SocialPost model |
-| `test_security_auth.py` | 17 | 2FA setup, confirm, verify, disable |
+| `test_critical_generators.py` | 38 | Article generator, RSS aggregator |
+| `test_zone_c.py` | 36 | Analyzer, article generator, translator, license checker |
+| `test_article_ai_deep_api.py` | 36 | Deep AI API endpoints |
+| `test_ai_modules.py` | 35 | AI module unit tests |
+| `test_zone_a.py` | 34 | Zone A modules |
+| `test_user_auth_api.py` | 34 | User auth API |
+| `test_medium_priority.py` | 34 | Medium-priority modules |
+| `test_main_max.py` | 33 | ai_engine/main.py (max coverage) |
+| `test_content_sanitizer.py` | 33 | HTML sanitization |
+| `test_ai_main.py` | 33 | AI main pipeline |
+| `test_scheduler.py` | 31 | RSS scan, YouTube scan, auto-publish scheduling |
+| `test_main_critical.py` | 31 | ai_engine/main.py critical paths |
+| `test_rss_aggregator.py` | 30 | RSS parsing, hashing, similarity, dedup |
+| `test_content_recommender.py` | 30 | TF-IDF ML engine, vehicle spec regex |
+| `test_tier1_utils.py` | 29 | Tier-1 utility functions |
+| `test_pending_feedback_api.py` | 29 | Pending articles, feedback API |
+| `test_rss_enhancements.py` | 28 | Auto-tags, publish queue, batch schedule |
+| `test_rss_curator.py` | 28 | Scan, cluster, score, preference ranking |
+| `test_article_quality.py` | 28 | Article quality validation |
+| `test_article_ai_api.py` | 28 | Article AI API endpoints |
+| `test_publisher_max.py` | 26 | Publisher (max coverage) |
+| `test_main_deep.py` | 26 | Deep pipeline tests |
+| `test_signals.py` | 25 | Post-save signals, cache invalidation |
+| `test_car_spec_dedup.py` | 25 | Car spec deduplication |
+| `test_publisher.py` | 24 | Article persistence, specs, tags, categories |
+| `test_article_crud_api.py` | 24 | CRUD operations, permissions |
+| `test_newsletter_ads_api.py` | 23 | Newsletter, ad placement |
 | `test_system_health.py` | 22 | Error logging, middleware, resolve |
-| + 60 more files | 1600+ | AI engine modules, management commands, user auth, cars, tags, SEO |
+| `test_hypothesis_properties.py` | 22 | Property-based testing |
+| `test_entity_validator.py` | 22 | Anti-hallucination entity validation |
+| `test_batch5_max.py` | 22 | Batch 5 coverage push |
+| + 50 more files | 800+ | Models, auth, webauthn, telegram, SEO, security, management commands |
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
 
-- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (2210+ tests)
+- **Backend**: PostgreSQL + Redis services → `pytest tests/ -v` (2335+ tests)
 - **Frontend**: `npm run lint` + `npx tsc --noEmit` + `npm run build`
-- **E2E**: Playwright → 29 tests against live site (continue-on-error)
+- **E2E**: Playwright → 45 tests across 6 spec files (admin, analytics, article-ux, auth, basic, search)
 - **Security**: `safety check` for Python dependency vulnerabilities
 - **Trigger**: Push to main, pull requests
+
+---
+
+## 🤖 AI Provider Load Balancing
+
+`get_light_provider()` in `ai_provider.py` routes lightweight tasks to **Groq** (fast, cheap), falling back to **Gemini** if Groq is unavailable.
+
+| Provider | Tasks |
+|----------|-------|
+| **Gemini** (quality) | Article generation, transcript analysis, deep specs, fact-checking, translation, AI editing, user-facing features |
+| **Groq** (speed) | Tag extraction, article categorization, license checking, SEO title variants, summary cleaning, RSS classification, spec extraction |
 
 ---
 
@@ -285,12 +327,74 @@ AutoNews-AI/
 
 ---
 
+## ⚡ Celery Beat — Background Task Scheduler
+
+Replaces the old `threading.Timer` scheduler with a production-grade Celery Beat setup. Redis serves as both broker and result backend.
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `gsc_sync` | Every 6h | Google Search Console data sync |
+| `currency_update` | Daily 3:30 AM | Exchange rates + USD price update |
+| `rss_scan` | Every 30 min | RSS feeds scan (checks AutomationSettings) |
+| `youtube_scan` | Every 30 min | YouTube channels (daytime-only mode) |
+| `auto_publish` | Every 10 min | Auto-publish eligible pending articles |
+| `scheduled_publish` | Every minute | Publish articles at their scheduled time |
+| `deep_specs_backfill` | Every 6h | Auto-generate VehicleSpecs cards |
+| `ab_lifecycle` | Daily 4 AM | A/B test cleanup + winner auto-pick |
+| `stale_error_cleanup` | Every 6h | Auto-resolve old errors (24h+ no recurrence) |
+
+**Docker services**: `celery_worker` (concurrency=2), `celery_beat` (scheduler).
+
+---
+
+## 🔍 PostgreSQL Full-Text Search
+
+Article search uses PostgreSQL native FTS with weighted GIN index:
+- **Weights**: Title (A), Summary (B), Content (C)
+- **Query**: `SearchVector` + `SearchRank` + `websearch` query type
+- **Fallback**: Short queries (< 3 chars) use `icontains`
+
+---
+
+## 📡 IndexNow — Instant Search Indexing
+
+- On article publish, Django signal fires `indexnow.py` → notifies Bing/Yandex/etc. in background thread
+- Key: `INDEXNOW_KEY` env var (currently: `freshmotors2026abc123`)
+- Verification file served at `/static/{INDEXNOW_KEY}.txt`
+
+---
+
+## 💰 AI Cost Dashboard
+
+- **Endpoint**: `GET /api/v1/admin/ai-costs/`
+- Aggregates AI provider usage from Redis (Gemini/Groq)
+- Shows daily breakdowns, per-provider costs, monthly projections
+
+---
+
+## 📋 Content Moderation Queue
+
+- **Endpoint**: `GET/POST /api/v1/admin/moderation/`
+- Model fields: `moderation_status` (pending/approved/rejected), `moderation_notes`, `moderation_reviewed_at/by`
+- Supports bulk approve/reject actions
+
+---
+
+## 💾 Backup Strategy
+
+- **Command**: `python manage.py backup_database`
+- Uses `pg_dump` + gzip compression
+- Optional upload to Cloudflare R2 (S3-compatible)
+- Retention: 7 daily + 4 weekly backups
+
+---
+
 ## 📋 Key Environment Variables
 
 | Variable | Purpose |
 |----------|---------|
-| `GEMINI_API_KEY` | Primary AI provider |
-| `GROQ_API_KEY` | Fallback AI provider |
+| `GEMINI_API_KEY` | Primary AI provider (complex tasks) |
+| `GROQ_API_KEY` | Lightweight AI tasks via `get_light_provider()`, fallback to Gemini |
 | `REDIS_URL` | Cache + view tracking + sessions |
 | `DATABASE_URL` | PostgreSQL connection (production) |
 | `CLOUDINARY_URL` | Media CDN (production) |
@@ -302,6 +406,9 @@ AutoNews-AI/
 | `TELEGRAM_BOT_TOKEN` | Telegram bot for auto-posting articles |
 | `TELEGRAM_CHANNEL_ID` | Telegram channel for published articles |
 | `TELEGRAM_ADMIN_ID` | Admin alerts and daily reports |
+| `INDEXNOW_KEY` | IndexNow instant search indexing key (`freshmotors2026abc123`) |
+| `SITE_URL` | Site URL for article links (default: `https://www.freshmotors.net`) |
+| `CELERY_BROKER_URL` | Celery broker (falls back to `REDIS_URL` automatically) |
 | `WEBAUTHN_RP_ID` | Passkey relying party ID (production: `freshmotors.net`) |
 | `WEBAUTHN_ORIGIN` | Passkey allowed origin (production: `https://www.freshmotors.net`) |
 | `RUNNING_IN_DOCKER` | Set to `1` in `docker-compose.yml` — prevents `.env.local` from overriding Docker service hostnames in `settings.py` |

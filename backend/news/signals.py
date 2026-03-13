@@ -744,3 +744,34 @@ def enrich_training_pair_quality(sender, instance, **kwargs):
 
     thread = threading.Thread(target=_enrich, daemon=True)
     transaction.on_commit(lambda: thread.start())
+
+
+# ═══════════════════════════════════════════════════════════════════
+# IndexNow: Instant Search Engine Notification
+# ═══════════════════════════════════════════════════════════════════
+# When an article is published, notify search engines (Bing, Yandex, Seznam)
+# for instant indexing via the IndexNow protocol.
+
+@receiver(post_save, sender=Article)
+def notify_search_engines_on_publish(sender, instance, **kwargs):
+    """Submit newly published articles to IndexNow for instant indexing."""
+    if not instance.is_published or instance.is_deleted:
+        return
+    
+    # Only trigger on actual publish (not every save of a published article)
+    update_fields = kwargs.get('update_fields')
+    if update_fields and 'is_published' not in update_fields:
+        return
+    
+    def _notify():
+        try:
+            from news.indexnow import notify_indexnow
+            article_path = f'/articles/{instance.slug}'
+            notify_indexnow(article_path)
+            logger.info(f"[INDEXNOW] Queued notification for: {instance.title[:50]}")
+        except Exception as e:
+            # Never break article save because of IndexNow failure
+            logger.warning(f"[INDEXNOW] Failed to notify: {e}")
+    
+    transaction.on_commit(_notify)
+

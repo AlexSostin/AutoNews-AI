@@ -4,6 +4,148 @@
 
 ---
 
+## 📅 13 Марта 2026
+
+### 🔬 Архитектурный аудит стека
+>
+> **Статус:** 💡 Аудит завершён, рекомендации записаны
+
+После обновления `PROJECT_ARCHITECTURE.md` (2335+ тестов, 95 файлов, 46 AI модулей, 112+ эндпоинтов) провёл полный анализ стека. Ниже — конкретные действия, отсортированные по приоритету.
+
+---
+
+### 🔴 Критично — нужно сделать
+
+#### 1. Backup Strategy (PostgreSQL)
+> Сейчас: ничего. Railway может подвести, данные потеряются.
+
+- [ ] **Automated daily pg_dump** → Cloudflare R2 (бесплатно 10 GB) или S3
+- [ ] Celery Beat задача: `pg_dump` → сжатие → upload (ночью, 3 AM)
+- [ ] Retention: 7 последних + 4 weekly
+- [ ] Тест восстановления раз в месяц
+
+**Сложность:** 🟢 Просто | **Время:** 2-3 часа | **Риск без этого:** 🔴 Критичный
+
+#### 2. Celery Beat вместо threading.Timer
+> Сейчас: RSS сканер на `threading.Timer` — умирает с процессом, нет retry, нет мониторинга.
+
+- [ ] Заменить `threading.Timer` в `scheduler.py` на Celery periodic tasks
+- [ ] Все периодические задачи (RSS scan, YouTube scan, auto-publish, daily reports) через `CELERY_BEAT_SCHEDULE`
+- [ ] Мониторинг задач через `django-celery-results`
+- [ ] Celery worker уже есть + Redis broker уже есть → минимальные изменения
+
+**Сложность:** 🟡 Средне | **Время:** 4-6 часов | **Риск без этого:** 🟡 Нестабильность планировщика
+
+#### 3. Sitemap + IndexNow
+> Сейчас: команда `submit_to_google` есть, но нет автоматического sitemap.xml.
+
+- [ ] Django `contrib.sitemaps` — автогенерация sitemap.xml (статьи, категории, бренды)
+- [ ] **IndexNow** webhook при публикации → мгновенная индексация в Bing/Yandex
+- [ ] Добавить `<lastmod>` в sitemap для приоритета свежего контента
+- [ ] Разбивка на sitemap index (>50k URL → несколько файлов)
+
+**Сложность:** 🟢 Просто | **Время:** 2-3 часа | **Риск без этого:** 🟡 SEO теряет потенциал
+
+---
+
+### 🟡 Важно — стоит сделать
+
+#### 4. Консолидация дублирующих модулей
+> 3 скорера, 2 SEO модуля, 2 spec-экстрактора с почти одинаковыми именами.
+
+| Дубль | Файлы | Решение |
+|-------|-------|---------|
+| **Scoring** | `quality_scorer.py` + `ml_quality_scorer.py` + `scoring.py` | Объединить в `quality_scorer.py` (основной) + `ml_quality_scorer.py` (ML). `scoring.py` → удалить или alias |
+| **SEO** | `seo.py` + `seo_helpers.py` | Merge: `seo.py` (A/B title generation) + `seo_helpers.py` (keyword extraction) → один `seo.py` |
+| **Spec extraction** | `ai_engine/modules/specs_extractor.py` + `news/spec_extractor.py` | Определить "главный", второй → import-обёртка |
+| **Content generation** | `content_generator.py` + `article_generator.py` | Проверить пересечение, `content_generator.py` скорее всего legacy |
+
+- [ ] Фаза 1: Аудит — проверить какие модули реально вызываются в production
+- [ ] Фаза 2: Объединение `seo.py` + `seo_helpers.py` (наименее рисковано)
+- [ ] Фаза 3: Spec extractors — объединить тесты, потом код
+- [ ] Фаза 4: Scoring — проверить кто вызывает `scoring.py`
+
+**Сложность:** 🟡 Средне | **Время:** 2-3 часа на фазу | **Риск:** 🟢 Низкий (рефакторинг)
+
+#### 5. Full-Text Search (PostgreSQL FTS или Meilisearch)
+> Сейчас: поиск через `icontains` — медленно, нет fuzzy matching, нет autocomplete.
+
+**Вариант A — PostgreSQL FTS (проще):**
+- [ ] `SearchVector` + `SearchQuery` + `SearchRank` на `Article.title` + `Article.content`
+- [ ] GIN index для скорости
+- [ ] Не нужен внешний сервис, 0 затрат
+
+**Вариант B — Meilisearch (лучше UX):**
+- [ ] Instant search, typo-tolerance, faceted filtering
+- [ ] Meilisearch Cloud (бесплатный tier) или self-host
+- [ ] Отдельный индекс — не нагружает PostgreSQL
+
+**Рекомендация:** Начать с **Вариант A** (1-2 часа), позже мигрировать на B.
+
+**Сложность:** 🟢/🟡 | **Время:** 2-4 часа | **Влияние:** 🟢 UX + SEO
+
+#### 6. APM / Performance Monitoring
+> Сейчас: только Sentry для ошибок. Нет метрик скорости запросов, AI latency, DB performance.
+
+- [ ] **Sentry Performance** (уже есть Sentry DSN — просто включить `traces_sample_rate`)
+- [ ] Или **django-silk** для dev — профилирование SQL запросов, N+1 detection
+- [ ] AI latency tracking уже есть в `provider_tracker.py` → вывести на dashboard
+
+**Сложность:** 🟢 Просто | **Время:** 30 минут | **Влияние:** 🟡 Видимость проблем
+
+---
+
+### 🟢 Nice to have — можно позже
+
+#### 7. AI Cost Dashboard
+> Данные уже собираются в `provider_tracker.py`. Нужно только вывести.
+
+- [ ] Новая страница в админке: `/admin/ai-costs/`
+- [ ] Расход по дням: Gemini calls, Groq calls, total tokens
+- [ ] Стоимость: Gemini ($0.075/1M input) vs Groq ($0.059/1M input)
+- [ ] Прогноз месячных затрат
+
+#### 8. Cleanup Management Commands
+> 57 команд — половина одноразовые `fix_*` и `backfill_*` скрипты.
+
+- [ ] Переместить одноразовые в `/scripts/` или удалить:
+  - `fix_brand_names.py`, `fix_fuel_types.py`, `fix_rss_logos.py`, `fix_tag_groups.py`, `fix_video_embeds.py`
+  - `backfill_authors.py`, `backfill_sources.py`, `backfill_seo_descriptions.py`
+- [ ] Оставить production-used: `scan_rss_feeds`, `scan_youtube`, `sync_views`, `clean_summaries`, `telegram_daily_alert`, `verify_migrations`
+
+#### 9. PWA + Web Push
+> Уже указано в Ideas 25 февраля. Докопировать:
+
+- [ ] `next-pwa` plugin + `manifest.json`
+- [ ] Service Worker с cache-first для статей
+- [ ] Web Push для breaking news (Telegram уже есть — добавить параллельно)
+
+#### 10. Internal Linking (SEO)
+> Уже указано в Ideas 25 февраля. Уточнение:
+
+- [ ] `seo_linker.py` уже существует в модулях! Проверить его статус.
+- [ ] Автоматически добавлять 2-3 ссылки на связанные статьи при генерации
+- [ ] Использовать `content_recommender.py` TF-IDF для поиска связанных статей
+
+---
+
+### 📊 Актуальная статистика (13 марта 2026)
+
+| Метрика | Значение |
+|---------|----------|
+| Python тесты | 2335+ (95 файлов) |
+| E2E Playwright | 45 тестов (6 spec файлов) |
+| API endpoints | 112+ |
+| Admin pages | 34+ |
+| AI modules | 46 |
+| Management commands | 57+ |
+| AI providers | Gemini (complex) + Groq (lightweight via `get_light_provider()`) |
+| Django | 6.0.3 / DRF 3.15.2 |
+| Next.js | 16.1.3 |
+| Python | 3.13.12 |
+
+---
+
 ## 📅 4 Марта 2026
 
 ### ✅ Реализовано сегодня
@@ -134,7 +276,7 @@
 >
 > **Статус:** ✅ Завершено
 
-- [x] **CI/CD пайплайн** — GitHub Actions: 391 pytest тестов (PostgreSQL + Redis), E2E Playwright, frontend lint + type check + build
+- [x] **CI/CD пайплайн** — GitHub Actions: 2335+ pytest тестов (PostgreSQL + Redis), E2E Playwright (45 тестов), frontend lint + type check + build
 - [x] **A/B тестирование заголовков** — бэкенд: модель, variant serving, tracking, auto/manual winner selection. 5 API endpoints.
 - [x] **Система автоматизации** — auto-publisher с quality scoring, safety gating, daily limits, decision logging
 - [x] **AI Image Generation** — Gemini image gen + Pexels photo search
@@ -176,9 +318,9 @@
 >
 > **Статус:** ✅ Частично реализовано
 
-- [x] **CI/CD пайплайн** — GitHub Actions с 391 pytest тестами + frontend checks
+- [x] **CI/CD пайплайн** — GitHub Actions с 2335+ pytest тестами + frontend checks
 - [ ] **Staging environment** — второй environment на Railway для тестов перед деплоем
-- [x] **E2E тесты** — Playwright: 14 тестов (homepage, articles, SEO, performance, mobile)
+- [x] **E2E тесты** — Playwright: 45 тестов (admin, analytics, article-ux, auth, basic, search)
 
 ### 📈 Аналитика сайта
 >

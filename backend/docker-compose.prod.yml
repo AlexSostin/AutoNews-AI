@@ -92,6 +92,56 @@ services:
     networks:
       - autonews_network_prod
 
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: autonews_celery_worker_prod
+    command: celery -A auto_news_site worker -l info --concurrency=2
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-autonews_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-autonews_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - autonews_network_prod
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: autonews_celery_beat_prod
+    command: celery -A auto_news_site beat -l info
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-autonews_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-autonews_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - autonews_network_prod
+
   nginx:
     image: nginx:alpine
     container_name: autonews_nginx_prod
