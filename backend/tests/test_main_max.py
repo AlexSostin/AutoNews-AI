@@ -632,7 +632,7 @@ class TestTitleVariantsEmpty:
             is_published=True,
         )
 
-        with patch('ai_engine.modules.ai_provider.get_ai_provider') as mock_ai:
+        with patch('ai_engine.modules.ai_provider.get_light_provider') as mock_ai:
             mock_provider = MagicMock()
             # Return only short lines < 10 chars or empty
             mock_provider.generate_completion.return_value = "OK\n\nHi\n"
@@ -653,7 +653,7 @@ class TestTitleVariantsEmpty:
             is_published=True,
         )
 
-        with patch('ai_engine.modules.ai_provider.get_ai_provider') as mock_ai:
+        with patch('ai_engine.modules.ai_provider.get_light_provider') as mock_ai:
             mock_provider = MagicMock()
             # Lines start with numbering → filtered, then short → filtered
             mock_provider.generate_completion.return_value = "1. Short\n2. Tiny\n"

@@ -81,7 +81,7 @@ Category: Reviews
         assert isinstance(result, str)
         assert len(result) > 0
 
-    @patch('ai_engine.modules.analyzer.get_ai_provider')
+    @patch('ai_engine.modules.analyzer.get_light_provider')
     def test_categorize_article(self, mock_provider):
         from ai_engine.modules.analyzer import categorize_article
         mock_ai = MagicMock()
