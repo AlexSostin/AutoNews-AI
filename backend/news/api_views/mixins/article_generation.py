@@ -396,42 +396,53 @@ class ArticleGenerationMixin:
             return Response({'success': False, 'message': 'Content too short to reformat'},
                           status=status.HTTP_400_BAD_REQUEST)
 
-        system_prompt = """You are an HTML formatter. Your ONLY job is to wrap text in proper HTML tags.
-You must NOT change, remove, shorten, or rewrite ANY text. Keep every single word exactly as-is.
+        # ── Smart skip: if HTML is already well-structured, don't send to AI ──
+        has_h2 = bool(re.search(r'<h2[^>]*>', content))
+        has_paragraphs = content.count('<p>') >= 3
+        has_lists = bool(re.search(r'<ul[^>]*>', content))
+        html_tag_count = len(re.findall(r'<[a-z][^>]*>', content, re.I))
+
+        if has_h2 and has_paragraphs and html_tag_count > 10:
+            # Already well-formatted — just clean up whitespace and empty tags
+            cleaned = content
+            cleaned = re.sub(r'<p>\s*</p>', '', cleaned)
+            cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+            cleaned = cleaned.strip()
+
+            if cleaned == content.strip():
+                return Response({
+                    'success': True,
+                    'content': cleaned,
+                    'original_length': len(content),
+                    'new_length': len(cleaned),
+                    'skipped': True,
+                    'message': 'Content already well-formatted, no AI changes needed.',
+                })
+
+        system_prompt = """You are an HTML article formatter for an automotive news website.
+Your job is to IMPROVE the HTML structure of an article while preserving EVERY SINGLE WORD of content.
 Return ONLY the formatted HTML — no markdown, no code fences, no explanation."""
 
-        format_prompt = f"""Take this article text and wrap it in proper HTML tags. 
+        format_prompt = f"""Reformat this automotive article's HTML structure. 
 
-⚠️ CRITICAL: Do NOT change the text content AT ALL. Every sentence, every word, every number 
-must remain EXACTLY as in the original. You are ONLY adding/fixing HTML tags.
+⚠️ ABSOLUTE RULES — VIOLATION = FAILURE:
+1. PRESERVE every single word, sentence, paragraph, and section. Do NOT remove, shorten, or rewrite ANY text.
+2. The output must contain ALL sections from the original — from the title to the very last paragraph.
+3. If HTML tags already exist, KEEP them — only fix or improve tag choices where needed.
 
-FORMATTING RULES:
-- Wrap section titles in <h2> tags (or <h3> for sub-sections)
-- Wrap paragraphs in <p> tags
-- Wrap bullet-point lists in <ul><li> tags
-- Use <strong> ONLY for: brand names (BMW, Tesla), model names (Model Y), and key specs (680 HP, $36,000)
-- Do NOT bold years, generic terms, or adjectives
-- Keep the article title as the first <h2>
+FORMATTING GUIDELINES:
+- Use <h2> for main section titles, <h3> for sub-sections
+- Wrap text paragraphs in <p> tags
+- Wrap bullet-point lists in <ul><li> tags, numbered lists in <ol><li> tags
+- Use <strong> ONLY for: brand names, model names, and key numeric specs (HP, km, price)
+- Do NOT bold years, generic adjectives, or common words
+- Keep all <img> tags exactly as-is
+- Remove any stray markdown formatting (**, ##, etc.) and replace with proper HTML
 
-DO NOT:
-- Remove ANY sections, paragraphs, or sentences
-- Shorten or summarize ANY text
-- Change wording, rephrase, or "improve" anything
-- Add new information or commentary
-- Remove inline styles from existing tags if present
-- Change the article language
+INPUT HTML:
+{sanitize_for_prompt(content, max_length=20000)}
 
-PRESERVE:
-- ALL text content word-for-word
-- ALL sections including pricing, availability, market info
-- ALL images (<img> tags) as-is
-- The original article structure and order
-
-TEXT TO FORMAT:
-{sanitize_for_prompt(content, max_length=15000)}
-
-
-Return ONLY the HTML-formatted version with every word preserved."""
+OUTPUT: Return the COMPLETE reformatted HTML with every word preserved. Do NOT truncate."""
 
         try:
             from ai_engine.modules.ai_provider import get_ai_provider
@@ -440,7 +451,7 @@ Return ONLY the HTML-formatted version with every word preserved."""
                 format_prompt,
                 system_prompt=system_prompt,
                 temperature=0.1,
-                max_tokens=12000,
+                max_tokens=16000,
             )
 
             # Clean up potential markdown code fences
@@ -462,10 +473,35 @@ Return ONLY the HTML-formatted version with every word preserved."""
             cleaned = re.sub(r'<p>\s*</p>', '', cleaned)
             cleaned = cleaned.strip()
 
+            # ── Safety: Validate AI output ──
             if not cleaned or len(cleaned) < 50:
                 return Response({
                     'success': False,
                     'message': 'AI returned empty or too short content',
+                }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            
+            # Check that output isn't drastically shorter than input (truncation detection)
+            input_text_len = len(re.sub(r'<[^>]+>', '', content))  # text-only length
+            output_text_len = len(re.sub(r'<[^>]+>', '', cleaned))
+            
+            if output_text_len < input_text_len * 0.6:
+                logger.warning(
+                    f'Reformat truncation detected: input text={input_text_len}, '
+                    f'output text={output_text_len} ({output_text_len/input_text_len*100:.0f}%). '
+                    f'Rejecting AI result, returning original.'
+                )
+                return Response({
+                    'success': False,
+                    'message': f'AI truncated the content ({output_text_len/input_text_len*100:.0f}% of original). '
+                               f'Original preserved. Try again or edit manually.',
+                }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            
+            # Check that output contains HTML tags (not plain text)
+            if not re.search(r'<(h[1-6]|p|ul|ol|li|strong|em|div)\b', cleaned):
+                logger.warning('Reformat returned plain text without HTML tags, rejecting.')
+                return Response({
+                    'success': False,
+                    'message': 'AI returned plain text without HTML formatting. Try again.',
                 }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
             # Log successful reformat
