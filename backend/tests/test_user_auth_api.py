@@ -6,6 +6,7 @@ Covers: CurrentUserView, ChangePasswordView, EmailPreferencesView,
         UserViewSet.me, UserViewSet.register
 """
 import pytest
+from unittest.mock import patch
 from rest_framework.test import APIClient
 from django.contrib.auth.models import User
 
@@ -149,13 +150,14 @@ class TestEmailPreferencesView:
 
 class TestRequestEmailChangeView:
 
-    def test_request_email_change(self, auth_client):
+    @patch('django.core.mail.send_mail')
+    def test_request_email_change(self, mock_send_mail, auth_client):
         resp = auth_client.post(f'{API}/auth/email/request-change/', {
             'new_email': 'newemail@test.com',
         }, format='json')
         assert resp.status_code == 200
-        assert 'code' in resp.data  # DEV mode returns code
         assert resp.data['expires_in'] == 900
+        assert 'code' not in resp.data  # Code should NOT be in response
 
     def test_request_email_change_empty(self, auth_client):
         resp = auth_client.post(f'{API}/auth/email/request-change/', {
@@ -183,12 +185,17 @@ class TestRequestEmailChangeView:
 
 class TestVerifyEmailChangeView:
 
-    def test_verify_code_success(self, auth_client, user):
-        # First request a change to get a code
+    @patch('django.core.mail.send_mail')
+    def test_verify_code_success(self, mock_send_mail, auth_client, user):
+        from news.models import EmailVerification
+        # First request a change
         resp = auth_client.post(f'{API}/auth/email/request-change/', {
             'new_email': 'verified@test.com',
         }, format='json')
-        code = resp.data['code']
+        assert resp.status_code == 200
+        # Get code from DB instead of response
+        verification = EmailVerification.objects.filter(user=user).latest('created_at')
+        code = verification.code
 
         # Verify
         resp = auth_client.post(f'{API}/auth/email/verify-code/', {
@@ -218,12 +225,14 @@ class TestVerifyEmailChangeView:
 
 class TestPasswordResetRequestView:
 
-    def test_request_reset_existing_user(self, anon_client, user):
+    @patch('django.core.mail.send_mail')
+    def test_request_reset_existing_user(self, mock_send_mail, anon_client, user):
         resp = anon_client.post(f'{API}/auth/password/reset-request/', {
             'email': user.email,
         }, format='json')
         assert resp.status_code == 200
-        assert 'reset_link' in resp.data  # DEV mode
+        assert 'reset_link' not in resp.data  # Should NOT expose reset link
+        assert 'detail' in resp.data
 
     def test_request_reset_nonexistent_email(self, anon_client):
         resp = anon_client.post(f'{API}/auth/password/reset-request/', {
@@ -246,14 +255,17 @@ class TestPasswordResetRequestView:
 
 class TestPasswordResetConfirmView:
 
-    def test_reset_confirm_success(self, anon_client, user):
-        # First request reset to get a token
+    @patch('django.core.mail.send_mail')
+    def test_reset_confirm_success(self, mock_send_mail, anon_client, user):
+        from news.models import PasswordResetToken
+        # First request reset
         resp = anon_client.post(f'{API}/auth/password/reset-request/', {
             'email': user.email,
         }, format='json')
-        # Extract token from reset_link
-        reset_link = resp.data['reset_link']
-        token = reset_link.split('token=')[1]
+        assert resp.status_code == 200
+        # Get token from DB instead of response
+        reset_obj = PasswordResetToken.objects.filter(user=user).latest('created_at')
+        token = reset_obj.token
 
         # Confirm reset
         resp = anon_client.post(f'{API}/auth/password/reset-confirm/', {

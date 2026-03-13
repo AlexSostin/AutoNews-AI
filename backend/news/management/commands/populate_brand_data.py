@@ -82,11 +82,14 @@ AUTOMOTIVE_GROUPS = [
         'children': [],
     },
     {
-        'name': 'Avatr',
+        'name': 'Huawei',
         'country': 'China',
-        'website': 'https://www.avatr.com',
-        'description': 'Premium EV brand by Changan, Huawei, and CATL.',
-        'children': [],
+        'website': 'https://www.huawei.com',
+        'description': 'Huawei Smart Car Solutions — tech partner for premium NEV brands. Parent of AITO (with Seres) and Avatr (with Changan and CATL).',
+        'children': [
+            {'name': 'AITO', 'country': 'China', 'website': 'https://www.aito.com', 'description': 'Smart EV brand by Huawei and Seres (Chongqing Sokon).'},
+            {'name': 'Avatr', 'country': 'China', 'website': 'https://www.avatr.com', 'description': 'Premium EV brand by Changan, Huawei, and CATL.'},
+        ],
     },
     {
         'name': 'ArcFox',
@@ -107,7 +110,6 @@ AUTOMOTIVE_GROUPS = [
 
     # ──── Other Global Brands (standalone, no children) ────
     {'name': 'Acura', 'country': 'Japan', 'children': []},
-    {'name': 'AITO', 'country': 'China', 'children': [], 'description': 'Smart EV brand by Huawei and Seres (Chongqing Sokon).'},
     {'name': 'Alfa Romeo', 'country': 'Italy', 'children': []},
     {'name': 'Aston Martin', 'country': 'UK', 'children': []},
     {'name': 'Audi', 'country': 'Germany', 'children': []},
@@ -127,7 +129,6 @@ AUTOMOTIVE_GROUPS = [
     {'name': 'GMC', 'country': 'USA', 'children': []},
     {'name': 'Honda', 'country': 'Japan', 'children': []},
     {'name': 'Hongqi', 'country': 'China', 'children': [], 'description': 'Luxury brand by FAW Group.'},
-    {'name': 'HUAWEI AITO', 'country': 'China', 'children': []},
     {'name': 'Hyptec', 'country': 'China', 'children': [], 'description': 'Premium EV brand by GAC Aion.'},
     {'name': 'Hyundai', 'country': 'South Korea', 'children': []},
     {'name': 'Jaguar', 'country': 'UK', 'children': []},
@@ -173,11 +174,12 @@ BRAND_ALIASES = [
     ('DongFeng VOYAH', 'VOYAH', ''),
     ('Dongfeng VOYAH', 'VOYAH', ''),
     ('Dongfeng', 'VOYAH', ''),
-    # Huawei → Avatr (Avatr is the brand, Huawei is tech partner)
-    ('Huawei', 'Avatr', ''),
+    # Huawei → AITO or Avatr (Huawei is tech partner for both brands)
+    ('Huawei AITO', 'AITO', ''),
+    ('HUAWEI AITO', 'AITO', ''),
+    ('Huawei Avatr', 'Avatr', ''),
     ('HUAWEI AVATAR', 'Avatr', ''),
     ('Huawei Avatar', 'Avatr', ''),
-    ('Huawei Avatr', 'Avatr', ''),
     ('Avatar', 'Avatr', ''),
     ('AVATAR', 'Avatr', ''),
     # Great Wall → GWM
