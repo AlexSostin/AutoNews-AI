@@ -299,7 +299,7 @@ class TestFindTosPage:
 
 class TestAnalyzeTosWithAi:
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     def test_successful_analysis(self, mock_ai):
         """L350-359: AI returns valid JSON analysis."""
         from ai_engine.modules.license_checker import _analyze_tos_with_ai
@@ -313,7 +313,7 @@ class TestAnalyzeTosWithAi:
         result = _analyze_tos_with_ai('Terms of service text here...')
         assert result['status'] == 'green'
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     def test_ai_exception(self, mock_ai):
         """L361-367: AI provider crashes → yellow with error message."""
         from ai_engine.modules.license_checker import _analyze_tos_with_ai
@@ -357,7 +357,7 @@ class TestCheckImageRights:
         assert result['passed'] is False
         assert 'Pexels' in result['detail']
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     def test_ai_allows_images(self, mock_ai):
         """L432-439: AI says images_allowed=True → passed."""
         from ai_engine.modules.license_checker import _check_image_rights
@@ -375,7 +375,7 @@ class TestCheckImageRights:
         assert result['passed'] is True
         assert 'allowed' in result['detail'].lower()
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     def test_ai_restricts_images(self, mock_ai):
         """L440-444: AI says images_allowed=False → restricted."""
         from ai_engine.modules.license_checker import _check_image_rights
@@ -393,7 +393,7 @@ class TestCheckImageRights:
         assert result['passed'] is False
         assert 'restricted' in result['detail'].lower()
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     def test_ai_exception(self, mock_ai):
         """L445-450: AI crashes → default to Pexels."""
         from ai_engine.modules.license_checker import _check_image_rights
@@ -413,7 +413,7 @@ class TestCheckImageRights:
 
 class TestAnalyzeHomepage:
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     @patch('ai_engine.modules.license_checker.requests.get')
     def test_successful_homepage_analysis(self, mock_get, mock_ai):
         """L453-472: Homepage fetched, AI analyzes."""

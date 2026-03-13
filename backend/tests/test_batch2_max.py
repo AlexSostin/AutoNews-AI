@@ -263,7 +263,7 @@ class TestExtractTagsFromTitle:
 
 class TestExtractTagsWithAI:
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     def test_successful_ai_extraction(self, mock_ai_provider):
         """L391-454: AI returns valid JSON → tags extracted."""
         from news.auto_tags import extract_tags_with_ai
@@ -283,7 +283,7 @@ class TestExtractTagsWithAI:
         tag_names = [t[0] for t in tags]
         assert 'BYD' in tag_names
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     def test_ai_extraction_markdown_response(self, mock_ai_provider):
         """L427-429: AI wraps JSON in markdown."""
         from news.auto_tags import extract_tags_with_ai
@@ -297,7 +297,7 @@ class TestExtractTagsWithAI:
         tags = extract_tags_with_ai(article)
         assert any(t[0] == 'Tesla' for t in tags)
 
-    @patch('ai_engine.modules.ai_provider.get_ai_provider')
+    @patch('ai_engine.modules.ai_provider.get_light_provider')
     def test_ai_extraction_failure(self, mock_ai_provider):
         """L456-458: AI exception → empty list."""
         from news.auto_tags import extract_tags_with_ai
