@@ -462,19 +462,27 @@ def extract_summary(content, target_words=500):
 
 
 def generate_seo_title(title):
-    """Генерирует SEO-оптимизированный title (до 60 символов)."""
-    # Если title уже короткий, используем как есть
+    """Generates SEO-optimized title (max 60 characters).
+    
+    Note: The primary title generation is now AI-powered in content_generator.py.
+    This function serves as a safety net for truncation only.
+    """
+    if not title:
+        return "New Car Review"
+    
+    # If title fits, use as-is
     if len(title) <= 60:
         return title
     
-    # Извлекаем основную информацию: марку, модель, год
-    match = re.search(r'(\d{4})\s+(\w+)\s+(\w+)', title)
-    if match:
-        year, make, model = match.groups()
-        return f"{year} {make} {model} Review & Specs"
+    # Smart truncation: try to cut at a natural break point (colon, dash, comma)
+    for sep in [':', ' —', ' –', ' -', ',']:
+        pos = title.find(sep)
+        if 25 < pos <= 58:  # Keep at least 25 chars, fit in 60
+            return title[:pos]
     
-    # Если не нашли паттерн, обрезаем title
-    return title[:57] + "..."
+    # Fall back to word boundary truncation
+    truncated = title[:57].rsplit(' ', 1)[0]
+    return truncated + "..."
 
 
 def _add_spec_based_tags(article, specs):
