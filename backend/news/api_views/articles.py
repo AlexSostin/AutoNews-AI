@@ -283,7 +283,7 @@ class ArticleViewSet(
                 except Exception:
                     pass
                 
-                # Selectively invalidate cache
+                # Selectively invalidate cache + trigger Vercel revalidation (incl. article path)
                 try:
                     invalidate_article_cache(
                         article_id=instance.id,

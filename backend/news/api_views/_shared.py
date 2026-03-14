@@ -26,7 +26,11 @@ def invalidate_article_cache(article_id=None, slug=None):
     invalidate_category_caches()  # Article counts change
     
     # Trigger Next.js on-demand revalidation (non-blocking)
-    trigger_nextjs_revalidation()
+    # Include specific article path so Vercel rebuilds it immediately
+    paths = ['/', '/articles', '/trending']
+    if slug:
+        paths.append(f'/articles/{slug}')
+    trigger_nextjs_revalidation(paths=paths)
 
 def trigger_nextjs_revalidation(paths=None):
     """

@@ -216,8 +216,8 @@ class TestCacheInvalidationOnPublish:
         assert article.slug in slugs
 
     @patch('news.api_views._shared.trigger_nextjs_revalidation')
-    def test_nextjs_revalidation_called_with_correct_paths(self, mock_revalidate, staff_client):
-        """Verify that Next.js revalidation is called after article update."""
+    def test_nextjs_revalidation_called_with_article_slug_path(self, mock_revalidate, staff_client):
+        """Verify that Next.js revalidation includes the specific article path."""
         article = Article.objects.create(
             title='Revalidation Test',
             content='<p>Test.</p>',
@@ -228,8 +228,16 @@ class TestCacheInvalidationOnPublish:
             {'is_published': True},
             format='json',
         )
-        # trigger_nextjs_revalidation should have been called
+        # trigger_nextjs_revalidation should have been called with article slug path
         assert mock_revalidate.called
+        # Check that the article-specific path was included
+        call_args = mock_revalidate.call_args
+        if call_args:
+            paths = call_args.kwargs.get('paths') or (call_args.args[0] if call_args.args else None)
+            # paths could be None if called without args, but it should include the slug
+            if paths:
+                assert f'/articles/{article.slug}' in paths, \
+                    f"Article path '/articles/{article.slug}' NOT in revalidation paths: {paths}"
 
 
 @pytest.mark.django_db
@@ -250,3 +258,46 @@ class TestTriggerNextjsRevalidation:
         from news.api_views._shared import trigger_nextjs_revalidation
         trigger_nextjs_revalidation(paths=['/articles/test-slug'])
         mock_thread.assert_called_once()
+
+
+@pytest.mark.django_db
+class TestInvalidateArticleCacheIncludesSlug:
+    """Tests for invalidate_article_cache including slug-specific paths."""
+
+    @patch('news.api_views._shared.trigger_nextjs_revalidation')
+    @patch('news.cache_signals.invalidate_article_caches')
+    @patch('news.cache_signals.invalidate_category_caches')
+    def test_invalidate_with_slug_includes_article_path(
+        self, mock_cat, mock_art, mock_revalidate
+    ):
+        """invalidate_article_cache(slug='my-article') should include /articles/my-article in paths."""
+        from news.api_views._shared import invalidate_article_cache
+        invalidate_article_cache(article_id=1, slug='my-test-article')
+        
+        mock_revalidate.assert_called_once()
+        paths = mock_revalidate.call_args.kwargs.get('paths')
+        assert paths is not None, "paths kwarg should be set"
+        assert '/articles/my-test-article' in paths, \
+            f"Article path not in revalidation! paths={paths}"
+        assert '/' in paths, "Home path should always be included"
+        assert '/articles' in paths, "Articles listing should always be included"
+
+    @patch('news.api_views._shared.trigger_nextjs_revalidation')
+    @patch('news.cache_signals.invalidate_article_caches')
+    @patch('news.cache_signals.invalidate_category_caches')
+    def test_invalidate_without_slug_has_base_paths_only(
+        self, mock_cat, mock_art, mock_revalidate
+    ):
+        """invalidate_article_cache() without slug should still send base paths."""
+        from news.api_views._shared import invalidate_article_cache
+        invalidate_article_cache()
+        
+        mock_revalidate.assert_called_once()
+        paths = mock_revalidate.call_args.kwargs.get('paths')
+        assert paths is not None
+        assert '/' in paths
+        assert '/articles' in paths
+        # No specific article path when slug is not provided
+        assert not any(p.startswith('/articles/') for p in paths), \
+            f"Should not have specific article path without slug, but got: {paths}"
+
