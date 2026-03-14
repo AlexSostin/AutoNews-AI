@@ -51,8 +51,8 @@ def main():
     
     if db_url:
         try:
-            import psycopg2
-            conn = psycopg2.connect(db_url)
+            import psycopg
+            conn = psycopg.connect(db_url)
             cur = conn.cursor()
             cur.execute("SELECT name, channel_url, channel_id FROM news_youtubechannel WHERE is_enabled = true LIMIT 1")
             row = cur.fetchone()
@@ -137,8 +137,8 @@ def main():
     existing_urls = set()
     if db_url:
         try:
-            import psycopg2
-            conn = psycopg2.connect(db_url)
+            import psycopg
+            conn = psycopg.connect(db_url)
             cur = conn.cursor()
             cur.execute("SELECT youtube_url FROM news_article WHERE youtube_url IS NOT NULL AND youtube_url != ''")
             existing_urls = {row[0] for row in cur.fetchall()}
