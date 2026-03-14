@@ -243,6 +243,13 @@ class ArticleViewSet(
             request.data['content'] = cleaned
             logger.info(f"[UPDATE] Stripped entity-mismatch-warning from article content")
 
+        # Snapshot publish state BEFORE update (to detect draft→published transition)
+        try:
+            _pre_instance = self.get_object()
+            was_published_before = _pre_instance.is_published
+        except Exception:
+            was_published_before = None
+
         # Perform update in atomic transaction
         try:
             from django.db import transaction
@@ -291,6 +298,45 @@ class ArticleViewSet(
                     )
                 except Exception as cache_err:
                     logger.warning(f"Failed to invalidate article cache: {cache_err}")
+                
+                # Submit to Google Indexing API (on publish or update of published article)
+                if instance.is_published:
+                    try:
+                        from news.models import AutomationSettings
+                        auto_settings = AutomationSettings.load()
+                        if auto_settings.google_indexing_enabled:
+                            def _submit_google_indexing(slug, title):
+                                try:
+                                    from news.management.commands.submit_to_google import submit_url_to_google
+                                    from django.db.models import F as DbF
+                                    from django.utils import timezone as tz
+                                    site_url = os.environ.get('SITE_URL', 'https://www.freshmotors.net')
+                                    article_url = f"{site_url}/articles/{slug}"
+                                    result = submit_url_to_google(article_url)
+                                    if result['success']:
+                                        logger.info(f"🔍 Google Indexing: submitted {article_url}")
+                                        AutomationSettings.objects.filter(pk=1).update(
+                                            google_indexing_last_run=tz.now(),
+                                            google_indexing_last_status=f"✅ {title[:60]}",
+                                            google_indexing_today_count=DbF('google_indexing_today_count') + 1,
+                                        )
+                                    else:
+                                        err = result.get('error', 'unknown')[:80]
+                                        logger.warning(f"🔍 Google Indexing failed: {err}")
+                                        AutomationSettings.objects.filter(pk=1).update(
+                                            google_indexing_last_run=tz.now(),
+                                            google_indexing_last_status=f"❌ {err}",
+                                        )
+                                except Exception as idx_err:
+                                    logger.warning(f"Google Indexing error: {idx_err}")
+                            import threading
+                            threading.Thread(
+                                target=_submit_google_indexing,
+                                args=(instance.slug, instance.title),
+                                daemon=True
+                            ).start()
+                    except Exception as idx_err:
+                        logger.warning(f"Google Indexing setup error: {idx_err}")
                 
                 # Log admin action
                 try:
