@@ -4,7 +4,7 @@ import { TaskModules } from './TaskModules';
 import { AutomationSettings, AutomationStats } from '../types';
 
 describe('TaskModules Component', () => {
-    const defaultSettings: AutomationSettings = {
+    const defaultSettings = {
         rss_scan_enabled: true,
         rss_scan_interval_minutes: 60,
         rss_max_articles_per_scan: 10,
@@ -28,9 +28,9 @@ describe('TaskModules Component', () => {
         deep_specs_max_per_cycle: 5,
         comparison_enabled: true,
         comparison_max_per_week: 2,
-    };
+    } as AutomationSettings;
 
-    const defaultStats: AutomationStats = {
+    const defaultStats = {
         eligible: { total: 100, safe: 80, review: 15, unsafe: 5 },
         ml_model: {
             trained: true,
@@ -41,7 +41,7 @@ describe('TaskModules Component', () => {
         },
         enrichment_report: null,
         recent_social_posts: [],
-    };
+    } as unknown as AutomationStats;
 
     it('renders all key automation modules', () => {
         render(
