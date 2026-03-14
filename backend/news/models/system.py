@@ -920,6 +920,32 @@ class AutomationSettings(models.Model):
         help_text="Last bulk_enrich run summary: last_run, articles_processed, tags_created, etc."
     )
 
+    # === Comparison Articles Auto-Generation ===
+    comparison_enabled = models.BooleanField(
+        default=False, help_text="Auto-generate 'X vs Y' comparison articles weekly"
+    )
+    comparison_max_per_week = models.IntegerField(
+        default=2, help_text="Max comparison articles to generate per week (2-5)"
+    )
+    comparison_provider = models.CharField(
+        max_length=20, default='gemini',
+        help_text="AI provider for comparison generation: gemini or groq"
+    )
+    comparison_last_run = models.DateTimeField(
+        null=True, blank=True, help_text="When comparison auto-generation last ran"
+    )
+    comparison_last_status = models.CharField(
+        max_length=500, blank=True, default='', help_text="Last comparison generation result"
+    )
+    comparison_this_week_count = models.IntegerField(
+        default=0, help_text="Comparisons generated this week"
+    )
+    comparison_week_start = models.DateField(
+        null=True, blank=True, help_text="Start of current comparison week (for weekly reset)"
+    )
+    comparison_lock = models.BooleanField(default=False)
+    comparison_lock_at = models.DateTimeField(null=True, blank=True)
+
     # === Counters reset tracking ===
     counters_reset_date = models.DateField(
         null=True, blank=True, help_text="Last date counters were reset"

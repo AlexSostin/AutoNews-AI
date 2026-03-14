@@ -33,6 +33,8 @@ class Command(BaseCommand):
                             help='AI provider: gemini or groq (default: gemini)')
         parser.add_argument('--brands', type=str, default=None,
                             help='Comma-separated brand filter, e.g. BYD,Tesla,ZEEKR')
+        parser.add_argument('--auto', action='store_true',
+                            help='Automated mode: check AutomationSettings, respect weekly limits, enforce diversity')
 
     def handle(self, *args, **options):
         from news.models import VehicleSpecs, Article, CarSpecification, Category, Tag
@@ -44,9 +46,49 @@ class Command(BaseCommand):
         fuel = options['fuel']
         provider = options['provider']
         brands_filter = options['brands']
+        auto_mode = options['auto']
 
         if provider not in ('gemini', 'groq'):
             provider = 'gemini'
+
+        # === Auto mode: check settings ===
+        if auto_mode:
+            from news.models.system import AutomationSettings
+            from django.utils import timezone
+            from datetime import timedelta
+
+            settings = AutomationSettings.load()
+
+            if not settings.comparison_enabled:
+                self.stdout.write(self.style.WARNING('⏸️ Comparison automation is disabled.'))
+                return
+
+            # Weekly reset
+            today = timezone.now().date()
+            week_start = today - timedelta(days=today.weekday())  # Monday
+            if settings.comparison_week_start != week_start:
+                settings.comparison_this_week_count = 0
+                settings.comparison_week_start = week_start
+                settings.save(update_fields=['comparison_this_week_count', 'comparison_week_start'])
+
+            remaining = settings.comparison_max_per_week - settings.comparison_this_week_count
+            if remaining <= 0:
+                self.stdout.write(self.style.WARNING(
+                    f'⏸️ Weekly limit reached ({settings.comparison_this_week_count}/{settings.comparison_max_per_week})'
+                ))
+                return
+
+            # Acquire lock
+            if not AutomationSettings.acquire_lock('comparison'):
+                self.stdout.write(self.style.WARNING('🔒 Another comparison task is running.'))
+                return
+
+            # Override settings from automation config
+            execute = True
+            limit = min(limit, remaining)
+            provider = settings.comparison_provider or 'gemini'
+
+            self.stdout.write(f'🤖 AUTO MODE: {remaining} comparisons remaining this week')
 
         self.stdout.write(f"\n{'🚀 EXECUTE MODE' if execute else '👀 DRY-RUN PREVIEW'}")
         self.stdout.write(f"Provider: {provider}, Limit: {limit}\n")
@@ -142,7 +184,45 @@ class Command(BaseCommand):
         self.stdout.write(f"\n{len(filtered_pairs)} pairs available (after excluding existing articles)")
         if not filtered_pairs:
             self.stdout.write(self.style.WARNING("No new pairs to generate!"))
+            if auto_mode:
+                AutomationSettings.release_lock('comparison')
             return
+
+        # ── Step 5b: Diversity — skip vehicles already used this week ──
+        if auto_mode:
+            from django.utils import timezone
+            from datetime import timedelta
+            today = timezone.now().date()
+            week_start = today - timedelta(days=today.weekday())
+
+            recent_comparisons = Article.objects.filter(
+                categories__name='Comparisons',
+                created_at__date__gte=week_start,
+                is_deleted=False,
+            )
+            used_vehicles = set()
+            for art in recent_comparisons:
+                meta = art.generation_metadata or {}
+                if meta.get('spec_a'):
+                    used_vehicles.add(meta['spec_a'])
+                if meta.get('spec_b'):
+                    used_vehicles.add(meta['spec_b'])
+
+            diverse_pairs = []
+            used_in_batch = set()
+            for score, a, b in filtered_pairs:
+                name_a = f"{a.make} {a.model_name}"
+                name_b = f"{b.make} {b.model_name}"
+                if name_a in used_vehicles or name_b in used_vehicles:
+                    continue  # Already compared this week
+                if name_a in used_in_batch or name_b in used_in_batch:
+                    continue  # Already in this batch
+                diverse_pairs.append((score, a, b))
+                used_in_batch.add(name_a)
+                used_in_batch.add(name_b)
+
+            self.stdout.write(f"{len(diverse_pairs)} diverse pairs (after weekly diversity filter)")
+            filtered_pairs = diverse_pairs
 
         # ── Step 5: Preview or generate ──
         to_generate = filtered_pairs[:limit]
@@ -257,3 +337,16 @@ class Command(BaseCommand):
         self.stdout.write(f"\n{'='*60}")
         self.stdout.write(f"Done! Created: {created}, Errors: {errors}")
         self.stdout.write(f"Articles saved as DRAFTS — review in admin before publishing.\n")
+
+        # === Auto mode: update settings ===
+        if auto_mode:
+            from news.models.system import AutomationSettings
+            from django.utils import timezone
+            settings = AutomationSettings.load()
+            settings.comparison_this_week_count += created
+            settings.comparison_last_run = timezone.now()
+            settings.comparison_last_status = f'Generated {created} articles, {errors} errors'
+            settings.save(update_fields=[
+                'comparison_this_week_count', 'comparison_last_run', 'comparison_last_status'
+            ])
+            AutomationSettings.release_lock('comparison')

@@ -273,19 +273,72 @@ Write the comparison article now:"""
     word_count = len(content_text.split())
     print(f"✅ Comparison generated: {title} ({word_count} words)")
 
-    # Step 11: Get images from linked articles
+    # Step 11: Get images + photo credit from linked articles
     image_url_a = None
     image_url_b = None
-    try:
-        if spec_a.article and spec_a.article.image:
-            image_url_a = spec_a.article.image.url
-    except Exception:
-        pass
-    try:
-        if spec_b.article and spec_b.article.image:
-            image_url_b = spec_b.article.image.url
-    except Exception:
-        pass
+    photo_credit = None
+    review_links = []
+
+    for label, spec in [('a', spec_a), ('b', spec_b)]:
+        try:
+            art = spec.article
+            if art:
+                # Image URL
+                if art.image:
+                    if label == 'a':
+                        image_url_a = art.image.url
+                    else:
+                        image_url_b = art.image.url
+
+                    # Photo credit: detect YouTube source
+                    if not photo_credit and getattr(art, 'image_source', '') == 'youtube':
+                        # Try to find channel name from generation_metadata
+                        meta = art.generation_metadata or {}
+                        channel = meta.get('source_channel') or meta.get('youtube_channel', '')
+                        if not channel:
+                            # Try from pending article link
+                            try:
+                                pending = art.carspecification_set.first()
+                                if pending and hasattr(pending, 'pending_article'):
+                                    channel = getattr(pending.pending_article, 'youtube_channel', None)
+                                    if channel:
+                                        channel = str(channel)
+                            except Exception:
+                                pass
+                        if not channel:
+                            channel = 'Source'
+                        photo_credit = channel
+
+                # Internal link to original review
+                if art.is_published and art.slug:
+                    spec_name = f"{spec.make} {spec.model_name}"
+                    review_links.append({
+                        'name': spec_name,
+                        'slug': art.slug,
+                        'title': art.title,
+                    })
+        except Exception:
+            pass
+
+    # Step 12: Insert photo credit into content
+    if photo_credit:
+        credit_html = f'<p class="photo-credit" style="font-size: 0.8em; color: #888; margin-top: -8px; margin-bottom: 16px;">Photo: {photo_credit} / YouTube</p>'
+        # Insert after specs table
+        table_end = content.find('</table>')
+        if table_end != -1:
+            insert_pos = table_end + len('</table>')
+            content = content[:insert_pos] + '\n' + credit_html + content[insert_pos:]
+
+    # Step 13: Append internal links to original reviews
+    if review_links:
+        links_html = '\n<div class="related-reviews" style="margin-top: 32px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4f46e5;">'
+        links_html += '\n<h3 style="margin-top: 0;">\U0001f4d6 Read Our Full Reviews</h3>'
+        links_html += '\n<ul style="margin-bottom: 0;">'
+        for link in review_links:
+            links_html += f'\n<li><a href="/articles/{link["slug"]}">{link["name"]} — Full Review \u2192</a></li>'
+        links_html += '\n</ul>'
+        links_html += '\n</div>'
+        content += links_html
 
     return {
         'title': title,
@@ -296,4 +349,6 @@ Write the comparison article now:"""
         'word_count': word_count,
         'image_url_a': image_url_a,
         'image_url_b': image_url_b,
+        'photo_credit': photo_credit,
+        'review_links': review_links,
     }

@@ -48,6 +48,14 @@ export interface AutomationSettings {
     telegram_last_run: string | null;
     telegram_last_status: string;
     telegram_today_count: number;
+    // Comparisons
+    comparison_enabled: boolean;
+    comparison_max_per_week: number;
+    comparison_provider: string;
+    comparison_last_run: string | null;
+    comparison_last_status: string;
+    comparison_this_week_count: number;
+    comparison_lock: boolean;
 }
 
 export interface DecisionEntry {
