@@ -1,4 +1,4 @@
-export function timeAgo(dateStr: string | null): string {
+export function timeAgo(dateStr: string | null | undefined): string {
     if (!dateStr) return 'Never';
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);

@@ -72,8 +72,8 @@ export function TaskModules({
             />
             
             <QualityScoringCard 
-                settings={settings} saving={saving} triggering={triggering} 
-                triggerTask={triggerTask} updateSetting={updateSetting} 
+                settings={settings} triggering={triggering} 
+                triggerTask={triggerTask} 
             />
             
             <MlRecommenderCard 

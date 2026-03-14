@@ -5,8 +5,6 @@ import { test, expect, Page } from '@playwright/test';
 // Covers: Infinite Scroll, Capsule Voting, View increment tracking
 // ═══════════════════════════════════════════════════════════════════════════
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
 /** 
  * Helper: navigate to the first published article. 
  * Returns the initial URL, or null if no articles exist.

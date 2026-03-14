@@ -3,7 +3,6 @@ import { ActionCard } from './ui';
 
 interface Props {
     settings: AutomationSettings;
-    saving: boolean;
     triggering: string | null;
     triggerTask: (taskType: string) => void;
 }
