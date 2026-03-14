@@ -26,6 +26,7 @@ interface SpecSummary {
   currency: string | null;
   price_display: string;
   acceleration_0_100: number | null;
+  image_url: string | null;
 }
 
 interface DataHealth {
@@ -301,24 +302,36 @@ export default function ComparisonsPage() {
 
                   {/* Car A */}
                   <div className="flex-1 p-4 border-r border-dashed border-gray-200">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-bold text-gray-900">{pair.spec_a.make}</div>
-                        <div className="text-sm text-gray-600">{pair.spec_a.model_name}</div>
-                        {pair.spec_a.trim_name && (
-                          <div className="text-xs text-gray-400">{pair.spec_a.trim_name}</div>
-                        )}
-                      </div>
-                      <HealthBar health={healthA} />
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      <SpecBadge label="HP" value={pair.spec_a.power_hp} />
-                      <SpecBadge label="Range" value={pair.spec_a.range_wltp || pair.spec_a.range_km} unit=" km" />
-                      {pair.spec_a.price_display !== 'N/A' && (
-                        <span className="inline-flex px-1.5 py-0.5 bg-green-50 border border-green-200 rounded text-[10px] text-green-700 font-medium">
-                          {pair.spec_a.price_display}
-                        </span>
+                    <div className="flex items-start gap-3">
+                      {pair.spec_a.image_url ? (
+                        <img src={pair.spec_a.image_url} alt={`${pair.spec_a.make} ${pair.spec_a.model_name}`}
+                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-gray-200" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 font-bold text-sm flex-shrink-0 border border-gray-200">
+                          {pair.spec_a.make.charAt(0)}
+                        </div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-bold text-gray-900">{pair.spec_a.make}</div>
+                            <div className="text-sm text-gray-600">{pair.spec_a.model_name}</div>
+                            {pair.spec_a.trim_name && (
+                              <div className="text-xs text-gray-400">{pair.spec_a.trim_name}</div>
+                            )}
+                          </div>
+                          <HealthBar health={healthA} />
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <SpecBadge label="HP" value={pair.spec_a.power_hp} />
+                          <SpecBadge label="Range" value={pair.spec_a.range_wltp || pair.spec_a.range_km} unit=" km" />
+                          {pair.spec_a.price_display !== 'N/A' && (
+                            <span className="inline-flex px-1.5 py-0.5 bg-green-50 border border-green-200 rounded text-[10px] text-green-700 font-medium">
+                              {pair.spec_a.price_display}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -331,24 +344,36 @@ export default function ComparisonsPage() {
 
                   {/* Car B */}
                   <div className="flex-1 p-4 border-l border-dashed border-gray-200">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-bold text-gray-900">{pair.spec_b.make}</div>
-                        <div className="text-sm text-gray-600">{pair.spec_b.model_name}</div>
-                        {pair.spec_b.trim_name && (
-                          <div className="text-xs text-gray-400">{pair.spec_b.trim_name}</div>
-                        )}
-                      </div>
-                      <HealthBar health={healthB} />
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      <SpecBadge label="HP" value={pair.spec_b.power_hp} />
-                      <SpecBadge label="Range" value={pair.spec_b.range_wltp || pair.spec_b.range_km} unit=" km" />
-                      {pair.spec_b.price_display !== 'N/A' && (
-                        <span className="inline-flex px-1.5 py-0.5 bg-green-50 border border-green-200 rounded text-[10px] text-green-700 font-medium">
-                          {pair.spec_b.price_display}
-                        </span>
+                    <div className="flex items-start gap-3">
+                      {pair.spec_b.image_url ? (
+                        <img src={pair.spec_b.image_url} alt={`${pair.spec_b.make} ${pair.spec_b.model_name}`}
+                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-gray-200" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 font-bold text-sm flex-shrink-0 border border-gray-200">
+                          {pair.spec_b.make.charAt(0)}
+                        </div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-bold text-gray-900">{pair.spec_b.make}</div>
+                            <div className="text-sm text-gray-600">{pair.spec_b.model_name}</div>
+                            {pair.spec_b.trim_name && (
+                              <div className="text-xs text-gray-400">{pair.spec_b.trim_name}</div>
+                            )}
+                          </div>
+                          <HealthBar health={healthB} />
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <SpecBadge label="HP" value={pair.spec_b.power_hp} />
+                          <SpecBadge label="Range" value={pair.spec_b.range_wltp || pair.spec_b.range_km} unit=" km" />
+                          {pair.spec_b.price_display !== 'N/A' && (
+                            <span className="inline-flex px-1.5 py-0.5 bg-green-50 border border-green-200 rounded text-[10px] text-green-700 font-medium">
+                              {pair.spec_b.price_display}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

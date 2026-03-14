@@ -994,6 +994,12 @@ RULES:
 
     def _spec_summary(self, spec):
         """Lightweight spec dict for the pairs response."""
+        image_url = None
+        try:
+            if spec.article and spec.article.image:
+                image_url = spec.article.image.url
+        except Exception:
+            pass
         return {
             'id': spec.id,
             'make': spec.make,
@@ -1012,6 +1018,7 @@ RULES:
             'currency': spec.currency,
             'price_display': spec.get_price_display(),
             'acceleration_0_100': spec.acceleration_0_100,
+            'image_url': image_url,
         }
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated],
@@ -1025,7 +1032,7 @@ RULES:
         from itertools import combinations
         from django.utils.text import slugify
 
-        qs = VehicleSpecs.objects.exclude(make='').exclude(model_name='').filter(
+        qs = VehicleSpecs.objects.select_related('article').exclude(make='').exclude(model_name='').filter(
             body_type__isnull=False,
             fuel_type__isnull=False,
         )
@@ -1185,6 +1192,21 @@ RULES:
                 name='Comparisons', defaults={'slug': 'comparisons'},
             )
             article.categories.add(comp_cat)
+
+            # Set featured image from spec_a's source article
+            image_url = result.get('image_url_a') or result.get('image_url_b')
+            if image_url:
+                # For Cloudinary, the image field stores the cloud path
+                # Try to copy from the source article directly
+                for sp in (spec_a, spec_b):
+                    try:
+                        if sp.article and sp.article.image:
+                            article.image = sp.article.image
+                            article.image_source = 'uploaded'
+                            article.save(update_fields=['image', 'image_source'])
+                            break
+                    except Exception:
+                        pass
 
             # Auto-assign brand tags
             for spec in (spec_a, spec_b):

@@ -143,6 +143,18 @@ def generate_comparison(spec_a, spec_b, provider='gemini') -> dict:
     body_type = spec_a.get_body_type_display() if spec_a.body_type else 'vehicle'
     fuel_type = spec_a.get_fuel_type_display() if spec_a.fuel_type else ''
 
+    # Build key stats for prompt context
+    stats_summary = []
+    for n, sp in [(name_a, spec_a), (name_b, spec_b)]:
+        parts = [n]
+        if sp.power_hp:
+            parts.append(f"{sp.power_hp} HP")
+        if sp.range_wltp or sp.range_km:
+            parts.append(f"{sp.range_wltp or sp.range_km} km range")
+        if sp.price_from:
+            parts.append(f"from {sp.get_price_display()}")
+        stats_summary.append(' | '.join(parts))
+
     prompt = f"""You are a senior automotive journalist for FreshMotors.net.
 
 Write a COMPARISON article between {name_a} and {name_b} ({fuel_type} {body_type} segment).
@@ -173,8 +185,11 @@ CRITICAL RULES:
    "buckle up", "hitting the road", "at the end of the day"
 6. Be specific and analytical. Compare actual numbers, not vague statements.
 7. Mention both cars' names in the <h1> title.
-8. After the article, on a NEW LINE write: SUMMARY: [2-3 sentence comparison summary for cards]
-9. Do NOT include "Source:" or "Disclaimer:" sections.
+8. Do NOT include "Source:" or "Disclaimer:" sections.
+
+AFTER the article HTML, on separate lines, write these (NOT inside HTML tags):
+SUMMARY: [Write a specific, engaging 2-3 sentence summary that mentions actual specs like power, range, or price. Example: "The {name_a} delivers {spec_a.power_hp or '???'} HP with {spec_a.range_wltp or spec_a.range_km or '???'} km range, while the {name_b} counters with... Both compete in the ??-?? price range." Don't be generic — include numbers!]
+SEO_DESCRIPTION: [Write a 120-150 character Google meta description. Must mention both car names and a key differentiator. Example: "Compare {name_a} vs {name_b}: specs, range, pricing and verdict. Which {body_type} is the better buy in 2026?"]
 
 Write the comparison article now:"""
 
@@ -199,12 +214,22 @@ Write the comparison article now:"""
         title = f"{name_a} vs {name_b}: Head-to-Head Comparison"
         content = raw
 
-    # Step 6: Extract summary
-    summary = f"{name_a} vs {name_b} — a detailed comparison of specs, performance, and value."
+    # Step 6: Extract summary (with better fallback)
     summary_match = re.search(r'SUMMARY:\s*(.+)', raw, re.IGNORECASE)
     if summary_match:
         summary = summary_match.group(1).strip()[:250]
-        content = re.sub(r'\n*SUMMARY:.*$', '', content, flags=re.IGNORECASE | re.MULTILINE).strip()
+        content = re.sub(r'\n*SUMMARY:.*', '', content, flags=re.IGNORECASE).strip()
+    else:
+        # Fallback with actual specs instead of generic text
+        parts = []
+        if spec_a.power_hp and spec_b.power_hp:
+            parts.append(f"{spec_a.power_hp} HP vs {spec_b.power_hp} HP")
+        if (spec_a.range_wltp or spec_a.range_km) and (spec_b.range_wltp or spec_b.range_km):
+            r_a = spec_a.range_wltp or spec_a.range_km
+            r_b = spec_b.range_wltp or spec_b.range_km
+            parts.append(f"{r_a} km vs {r_b} km range")
+        detail = f" ({', '.join(parts)})" if parts else ''
+        summary = f"Head-to-head comparison of the {name_a} and {name_b}{detail}. Which {fuel_type} {body_type} is the better buy?"
 
     # Step 7: Clean and insert specs table
     content = re.sub(r'^```html\s*', '', content.strip())
@@ -226,16 +251,41 @@ Write the comparison article now:"""
     # Step 8: Post-processing
     content = post_process_article(content)
 
-    # Step 9: SEO description
-    content_plain = re.sub(r'<[^>]+>', '', content).strip()
-    seo_description = content_plain[:157].rsplit(' ', 1)[0] + '...' if len(content_plain) > 160 else content_plain
+    # Step 9: SEO description — extract from AI output, NOT from table HTML
+    seo_match = re.search(r'SEO_DESCRIPTION:\s*(.+)', raw, re.IGNORECASE)
+    if seo_match:
+        seo_description = seo_match.group(1).strip()[:160]
+        content = re.sub(r'\n*SEO_DESCRIPTION:.*', '', content, flags=re.IGNORECASE).strip()
+    else:
+        # Fallback: build from non-table content
+        # Strip the specs table first, then extract text
+        content_no_table = re.sub(r'<table[^>]*>.*?</table>', '', content, flags=re.DOTALL)
+        content_plain = re.sub(r'<[^>]+>', '', content_no_table).strip()
+        seo_description = content_plain[:157].rsplit(' ', 1)[0] + '...' if len(content_plain) > 160 else content_plain
 
     # Step 10: Slug
     from django.utils.text import slugify
     slug = slugify(f"{spec_a.make}-{spec_a.model_name}-vs-{spec_b.make}-{spec_b.model_name}-comparison")[:200]
 
-    word_count = len(content_plain.split())
+    # Word count (from non-table content)
+    content_no_table = re.sub(r'<table[^>]*>.*?</table>', '', content, flags=re.DOTALL)
+    content_text = re.sub(r'<[^>]+>', '', content_no_table).strip()
+    word_count = len(content_text.split())
     print(f"✅ Comparison generated: {title} ({word_count} words)")
+
+    # Step 11: Get images from linked articles
+    image_url_a = None
+    image_url_b = None
+    try:
+        if spec_a.article and spec_a.article.image:
+            image_url_a = spec_a.article.image.url
+    except Exception:
+        pass
+    try:
+        if spec_b.article and spec_b.article.image:
+            image_url_b = spec_b.article.image.url
+    except Exception:
+        pass
 
     return {
         'title': title,
@@ -244,4 +294,6 @@ Write the comparison article now:"""
         'seo_description': seo_description,
         'slug': slug,
         'word_count': word_count,
+        'image_url_a': image_url_a,
+        'image_url_b': image_url_b,
     }
