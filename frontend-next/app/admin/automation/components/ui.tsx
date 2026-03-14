@@ -72,6 +72,60 @@ export function ModuleCard({
     );
 }
 
+export function ActionCard({
+    title,
+    lastRun,
+    lastStatus,
+    children,
+    onTrigger,
+    triggering,
+    actionButtonText = '▶️ Run Now',
+    actionButtonLoadingText = '⏳ Running...'
+}: {
+    title: string;
+    lastRun?: string | null;
+    lastStatus?: string;
+    children: React.ReactNode;
+    onTrigger?: () => void;
+    triggering?: boolean;
+    actionButtonText?: string;
+    actionButtonLoadingText?: string;
+}) {
+    return (
+        <div className="bg-white rounded-lg shadow-md border-2 border-gray-200 p-5 transition-colors flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-black text-gray-900">{title}</h3>
+                {onTrigger && (
+                    <button
+                        onClick={onTrigger}
+                        disabled={triggering}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${triggering
+                            ? 'bg-gray-100 text-gray-400 cursor-wait'
+                            : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                            }`}
+                    >
+                        {triggering ? actionButtonLoadingText : actionButtonText}
+                    </button>
+                )}
+            </div>
+
+            {/* Status bar */}
+            {(lastStatus !== undefined || lastRun !== undefined) && (
+                <div className="flex items-center justify-between text-xs font-bold bg-gray-50 rounded-lg px-3 py-2 mb-4 border border-gray-100">
+                    <span className="text-gray-600">{lastStatus || 'No runs yet'}</span>
+                    <span className="text-gray-500">{timeAgo(lastRun || null)}</span>
+                </div>
+            )}
+
+            {/* Settings */}
+            <div className="flex flex-col gap-3 flex-1">
+                {children}
+            </div>
+        </div>
+    );
+}
+
 export function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div className="flex items-center justify-between gap-4">
