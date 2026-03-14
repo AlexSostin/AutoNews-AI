@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   GitCompareArrows, Search, Loader2, Sparkles,
-  ChevronDown, Filter, RefreshCw, CheckCircle2, Eye
+  ChevronDown, Filter, RefreshCw, CheckCircle2, Eye,
+  Clock, FileText, ExternalLink
 } from 'lucide-react';
 import api from '@/lib/api';
 import Link from 'next/link';
@@ -58,6 +59,19 @@ interface PairsResponse {
   pairs: ComparisonPair[];
 }
 
+interface RecentComparison {
+  id: number;
+  title: string;
+  slug: string;
+  is_published: boolean;
+  created_at: string | null;
+  image_url: string | null;
+  spec_a: string;
+  spec_b: string;
+  word_count: number;
+  provider: string;
+}
+
 function HealthBar({ health }: { health: DataHealth }) {
   const pct = Math.round((health.filled / health.total) * 100);
   const color = pct >= 75 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-400';
@@ -80,6 +94,20 @@ function SpecBadge({ label, value, unit }: { label: string; value: number | null
   );
 }
 
+function formatTimeAgo(iso: string | null): string {
+  if (!iso) return 'Unknown';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'Unknown';
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
 export default function ComparisonsPage() {
   const [data, setData] = useState<PairsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,14 +117,21 @@ export default function ComparisonsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [provider, setProvider] = useState('gemini');
   const [limit, setLimit] = useState(30);
-  const [generatedArticles, setGeneratedArticles] = useState<Record<string, ExistingArticle>>({});
+  const [generatedKeys, setGeneratedKeys] = useState<Set<string>>(new Set());
+
+  // Active generation state (pinned card at top)
+  const [activePair, setActivePair] = useState<ComparisonPair | null>(null);
+  const [activeResult, setActiveResult] = useState<ExistingArticle | null>(null);
+
+  // Recently generated comparisons (from backend)
+  const [recentComparisons, setRecentComparisons] = useState<RecentComparison[]>([]);
+  const [showRecent, setShowRecent] = useState(true);
 
   const fetchPairs = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (segmentFilter) {
-        // Split "EV SUV" into fuel and segment
         const parts = segmentFilter.split(' ');
         if (parts.length >= 2) {
           params.set('fuel', parts[0]);
@@ -112,11 +147,26 @@ export default function ComparisonsPage() {
     setLoading(false);
   }, [segmentFilter, limit]);
 
-  useEffect(() => { fetchPairs(); }, [fetchPairs]);
+  const fetchRecentComparisons = useCallback(async () => {
+    try {
+      const { data } = await api.get('/vehicle-specs/recent-comparisons/');
+      setRecentComparisons(data.articles || []);
+    } catch (err) {
+      console.error('Failed to fetch recent comparisons:', err);
+    }
+  }, []);
+
+  useEffect(() => { fetchPairs(); fetchRecentComparisons(); }, [fetchPairs, fetchRecentComparisons]);
 
   const handleGenerate = async (pair: ComparisonPair) => {
     const key = `${pair.spec_a.id}-${pair.spec_b.id}`;
     setGenerating(key);
+    setActivePair(pair);
+    setActiveResult(null);
+
+    // Scroll to top so user sees the pinned card
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     try {
       const { data: result } = await api.post('/vehicle-specs/generate-comparison/', {
         spec_a_id: pair.spec_a.id,
@@ -124,26 +174,33 @@ export default function ComparisonsPage() {
         provider,
       });
       if (result.success) {
-        setGeneratedArticles(prev => ({
-          ...prev,
-          [key]: {
-            id: result.article.id,
-            slug: result.article.slug,
-            is_published: false,
-            title: result.article.title,
-          },
-        }));
+        const article: ExistingArticle = {
+          id: result.article.id,
+          slug: result.article.slug,
+          is_published: false,
+          title: result.article.title,
+        };
+        setActiveResult(article);
+        // Remove from pairs list
+        setGeneratedKeys(prev => new Set(prev).add(key));
+        // Refresh recent comparisons
+        fetchRecentComparisons();
       } else {
         alert(`Generation failed: ${result.error}`);
+        setActivePair(null);
       }
     } catch (err) {
       console.error('Generation failed:', err);
       alert('Generation failed. Check console.');
+      setActivePair(null);
     }
     setGenerating(null);
   };
 
+  // Filter out already generated pairs
   const filteredPairs = (data?.pairs || []).filter(pair => {
+    const key = `${pair.spec_a.id}-${pair.spec_b.id}`;
+    if (generatedKeys.has(key)) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return pair.spec_a.make.toLowerCase().includes(q)
@@ -176,7 +233,7 @@ export default function ComparisonsPage() {
           >
             <Filter size={15} /> Filters
           </button>
-          <button onClick={fetchPairs} disabled={loading}
+          <button onClick={() => { fetchPairs(); fetchRecentComparisons(); }} disabled={loading}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50">
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -222,6 +279,111 @@ export default function ComparisonsPage() {
         </div>
       )}
 
+      {/* ══════════════════════════════════════════════
+          PINNED: Active Generation Card
+         ══════════════════════════════════════════════ */}
+      {activePair && (
+        <div className={`border-2 rounded-xl shadow-lg overflow-hidden transition-all ${
+          generating ? 'border-indigo-400 bg-indigo-50/50 animate-pulse' : 'border-green-400 bg-green-50/50'
+        }`}>
+          <div className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center gap-2">
+            {generating ? (
+              <><Loader2 size={14} className="animate-spin" /> Generating comparison...</>
+            ) : (
+              <><CheckCircle2 size={14} /> Comparison generated!</>
+            )}
+          </div>
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="font-bold text-gray-900">
+                  {activePair.spec_a.make} {activePair.spec_a.model_name}
+                </div>
+                <span className="text-xs font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">VS</span>
+                <div className="font-bold text-gray-900">
+                  {activePair.spec_b.make} {activePair.spec_b.model_name}
+                </div>
+              </div>
+              {activeResult && (
+                <div className="flex items-center gap-2">
+                  <Link href={`/admin/articles/${activeResult.id}/edit`}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200 transition-colors">
+                    <FileText size={13} /> Edit Draft
+                  </Link>
+                  <Link href={`/articles/${activeResult.slug}`} target="_blank"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-200 transition-colors">
+                    <ExternalLink size={13} /> Preview
+                  </Link>
+                  <button onClick={() => { setActivePair(null); setActiveResult(null); }}
+                    className="text-xs text-gray-400 hover:text-gray-600 ml-2">✕ Close</button>
+                </div>
+              )}
+            </div>
+            {activeResult && (
+              <div className="mt-2 text-sm text-gray-600">
+                📝 <strong>{activeResult.title}</strong>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          Recently Generated Comparisons
+         ══════════════════════════════════════════════ */}
+      {recentComparisons.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <button onClick={() => setShowRecent(!showRecent)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-indigo-600" />
+              <span className="font-bold text-gray-900 text-sm">Recently Generated</span>
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
+                {recentComparisons.length}
+              </span>
+            </div>
+            <ChevronDown size={16} className={`text-gray-400 transition-transform ${showRecent ? 'rotate-180' : ''}`} />
+          </button>
+          {showRecent && (
+            <div className="border-t border-gray-100 divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+              {recentComparisons.map((comp) => (
+                <div key={comp.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors">
+                  {comp.image_url ? (
+                    <img src={comp.image_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-gray-200" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs flex-shrink-0">
+                      VS
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 truncate">{comp.spec_a} vs {comp.spec_b}</div>
+                    <div className="text-xs text-gray-400 flex items-center gap-2">
+                      <span>{formatTimeAgo(comp.created_at)}</span>
+                      <span>·</span>
+                      <span>{comp.word_count} words</span>
+                      {comp.provider && <><span>·</span><span className="capitalize">{comp.provider}</span></>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      comp.is_published
+                        ? 'bg-green-100 text-green-700 border border-green-200'
+                        : 'bg-amber-100 text-amber-700 border border-amber-200'
+                    }`}>
+                      {comp.is_published ? '✅ Published' : '📝 Draft'}
+                    </span>
+                    <Link href={`/admin/articles/${comp.id}/edit`}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                      Edit
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stats */}
       {data && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -238,9 +400,7 @@ export default function ComparisonsPage() {
             <div className="text-xs text-gray-500 font-medium">Segments</div>
           </div>
           <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-            <div className="text-2xl font-bold text-green-600">
-              {filteredPairs.filter(p => p.existing_article || generatedArticles[`${p.spec_a.id}-${p.spec_b.id}`]).length}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{recentComparisons.length}</div>
             <div className="text-xs text-gray-500 font-medium">Generated</div>
           </div>
         </div>
@@ -280,7 +440,7 @@ export default function ComparisonsPage() {
           filteredPairs.map((pair) => {
             const key = `${pair.spec_a.id}-${pair.spec_b.id}`;
             const isGenerating = generating === key;
-            const existingArticle = generatedArticles[key] || pair.existing_article;
+            const existingArticle = pair.existing_article;
             const healthA = pair.data_health.a;
             const healthB = pair.data_health.b;
             const avgHealth = Math.round(((healthA.filled + healthB.filled) / (healthA.total + healthB.total)) * 100);

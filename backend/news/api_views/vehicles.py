@@ -1235,3 +1235,39 @@ RULES:
                 'error': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated],
+            url_path='recent-comparisons')
+    def recent_comparisons(self, request):
+        """
+        GET /api/v1/vehicle-specs/recent-comparisons/
+        Returns the 20 most recent comparison articles for the "Recently Generated" panel.
+        """
+        articles = Article.objects.filter(
+            categories__name='Comparisons',
+            is_deleted=False,
+        ).order_by('-created_at')[:20]
+
+        results = []
+        for art in articles:
+            meta = art.generation_metadata or {}
+            image_url = None
+            if art.image:
+                try:
+                    image_url = art.image.url if hasattr(art.image, 'url') else str(art.image)
+                except Exception:
+                    pass
+            results.append({
+                'id': art.id,
+                'title': art.title,
+                'slug': art.slug,
+                'is_published': art.is_published,
+                'created_at': art.created_at.isoformat() if art.created_at else None,
+                'image_url': image_url,
+                'spec_a': meta.get('spec_a', ''),
+                'spec_b': meta.get('spec_b', ''),
+                'word_count': meta.get('word_count', 0),
+                'provider': meta.get('provider', ''),
+            })
+
+        return Response({'articles': results})
+
