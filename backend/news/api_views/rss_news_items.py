@@ -566,7 +566,7 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 # self.generate() uses self.get_object() which needs pk in URL kwargs
                 # Since curator_decision is detail=False, we must inject pk manually
                 self.kwargs['pk'] = str(item_id)
-                generate_response = self.generate(request._request, pk=item_id)
+                generate_response = self.generate(request, pk=item_id)
                 if hasattr(generate_response, 'data'):
                     if generate_response.data.get('pending_article_id'):
                         generated_article_id = generate_response.data['pending_article_id']
