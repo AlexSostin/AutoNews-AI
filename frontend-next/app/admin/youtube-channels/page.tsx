@@ -12,6 +12,7 @@ import {
   Loader2,
   X,
   Check,
+  CheckCircle2,
   Clock,
   FileText,
   Rss
@@ -51,6 +52,7 @@ interface Video {
   thumbnail: string;
   published_at: string;
   url: string;
+  article_status?: 'published' | 'pending' | null;
   status?: 'idle' | 'loading' | 'success' | 'error';
   errorMsg?: string;
   articleId?: number;
@@ -720,7 +722,20 @@ export default function YouTubeChannelsPage() {
                         </p>
                       </div>
                       <div className="flex flex-col justify-center items-end min-w-[140px]">
-                        {video.status === 'success' ? (
+                        {video.article_status === 'published' ? (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200">
+                            <CheckCircle2 size={16} />
+                            <span className="font-bold text-xs uppercase tracking-wider">Published</span>
+                          </div>
+                        ) : video.article_status === 'pending' ? (
+                          <Link
+                            href="/admin/youtube-channels/pending"
+                            className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors"
+                          >
+                            <Clock size={16} />
+                            <span className="font-bold text-xs uppercase tracking-wider">Pending</span>
+                          </Link>
+                        ) : video.status === 'success' ? (
                           <div className="flex flex-col gap-2 min-w-[150px]">
                             <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg border border-green-200">
                               <Check size={16} />

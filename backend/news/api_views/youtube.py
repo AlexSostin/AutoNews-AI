@@ -100,6 +100,42 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             # Fetch latest 10 videos
             videos = client.get_latest_videos(identifier, max_results=10)
             
+            # Enrich with article status (published / pending / null)
+            if videos:
+                from news.models import Article
+                from news.models.content import PendingArticle
+                
+                video_ids = [v.get('id', '') for v in videos if v.get('id')]
+                
+                # Check PendingArticle by video_id
+                pending_ids = set(
+                    PendingArticle.objects.filter(
+                        video_id__in=video_ids
+                    ).exclude(
+                        status='rejected'
+                    ).values_list('video_id', flat=True)
+                )
+                
+                # Check published Articles by youtube_url containing video_id
+                published_ids = set()
+                for vid in video_ids:
+                    if vid and Article.objects.filter(
+                        youtube_url__contains=vid,
+                        is_published=True,
+                        is_deleted=False
+                    ).exists():
+                        published_ids.add(vid)
+                
+                # Annotate each video
+                for v in videos:
+                    vid = v.get('id', '')
+                    if vid in published_ids:
+                        v['article_status'] = 'published'
+                    elif vid in pending_ids:
+                        v['article_status'] = 'pending'
+                    else:
+                        v['article_status'] = None
+            
             return Response({
                 'channel': channel.name,
                 'videos': videos
