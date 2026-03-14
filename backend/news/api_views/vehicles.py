@@ -1208,6 +1208,19 @@ RULES:
                     except Exception:
                         pass
 
+            # Set image_2 from the other vehicle's article
+            try:
+                if article.image and spec_b.article and spec_b.article.image:
+                    if str(article.image) != str(spec_b.article.image):
+                        article.image_2 = spec_b.article.image
+                        article.save(update_fields=['image_2'])
+                elif article.image and spec_a.article and spec_a.article.image:
+                    if str(article.image) != str(spec_a.article.image):
+                        article.image_2 = spec_a.article.image
+                        article.save(update_fields=['image_2'])
+            except Exception:
+                pass
+
             # Auto-assign brand tags
             for spec in (spec_a, spec_b):
                 brand_tag = Tag.objects.filter(name__iexact=spec.make).first()

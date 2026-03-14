@@ -165,10 +165,22 @@ class CarPickerListView(APIView):
     @method_decorator(cache_page(600, key_prefix='cars_picker'))  # Cache for 10 minutes
     def get(self, request):
         from ..models import VehicleSpecs
+        from django.db.models import Q
 
-        # Get all unique make/model combinations
+        # Only include vehicles that have at least some meaningful spec data
+        # (power, battery, or range) — otherwise they're useless for comparison
+        has_specs = (
+            Q(power_hp__isnull=False) |
+            Q(battery_kwh__isnull=False) |
+            Q(range_wltp__isnull=False) |
+            Q(range_km__isnull=False) |
+            Q(acceleration_0_100__isnull=False)
+        )
+
+        # Get all unique make/model combinations with specs
         combos = (
             VehicleSpecs.objects
+            .filter(has_specs)
             .exclude(make='')
             .exclude(model_name='')
             .values('make', 'model_name')

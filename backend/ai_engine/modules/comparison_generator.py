@@ -29,10 +29,39 @@ def _fmt(val, suffix='', fallback='N/A'):
     return f"{val:,}{suffix}" if isinstance(val, (int, float)) else f"{val}{suffix}"
 
 
+# Winner logic: which fields higher/lower is better
+_HIGHER_IS_BETTER = {
+    'power_hp', 'torque_nm', 'top_speed_kmh', 'battery_kwh',
+    'range_wltp', 'range_cltc', 'range_km', 'charging_power_max_kw',
+    'cargo_liters', 'ground_clearance_mm', 'seats', 'wheelbase_mm',
+}
+_LOWER_IS_BETTER = {
+    'acceleration_0_100', 'weight_kg',
+}
+
+
+def _determine_winner(field_key, raw_a, raw_b):
+    """Return 'a', 'b', 'tie', or None if non-numeric or both N/A."""
+    if raw_a is None or raw_b is None:
+        return None
+    try:
+        va, vb = float(raw_a), float(raw_b)
+    except (ValueError, TypeError):
+        return None
+    if va == vb:
+        return 'tie'
+    if field_key in _HIGHER_IS_BETTER:
+        return 'a' if va > vb else 'b'
+    if field_key in _LOWER_IS_BETTER:
+        return 'a' if va < vb else 'b'
+    return None
+
+
 def build_specs_table(spec_a, spec_b) -> str:
     """
     Build an HTML comparison table from two VehicleSpecs objects.
     No AI needed — pure data formatting from the database.
+    Adds 🏆 and green highlight to the winner cell.
 
     Returns HTML string with a comparison table.
     """
@@ -45,42 +74,65 @@ def build_specs_table(spec_a, spec_b) -> str:
 
     rows = []
 
-    def add_row(label, val_a, val_b):
-        if val_a != 'N/A' or val_b != 'N/A':
-            rows.append(f"<tr><td><strong>{label}</strong></td><td>{val_a}</td><td>{val_b}</td></tr>")
+    def add_row(label, val_a, val_b, field_key=None, raw_a=None, raw_b=None):
+        if val_a == 'N/A' and val_b == 'N/A':
+            return
+        winner = _determine_winner(field_key, raw_a, raw_b) if field_key else None
+        win_style = 'style="background: #ecfdf5; color: #047857; font-weight: bold;"'
+        trophy = ' 🏆'
+        td_a = f'<td {win_style}>{val_a}{trophy}</td>' if winner == 'a' else f'<td>{val_a}</td>'
+        td_b = f'<td {win_style}>{val_b}{trophy}</td>' if winner == 'b' else f'<td>{val_b}</td>'
+        rows.append(f"<tr><td><strong>{label}</strong></td>{td_a}{td_b}</tr>")
 
     # Body & Type
     add_row("Body Type", _fmt(spec_a.get_body_type_display() if spec_a.body_type else None),
             _fmt(spec_b.get_body_type_display() if spec_b.body_type else None))
     add_row("Fuel Type", _fmt(spec_a.get_fuel_type_display() if spec_a.fuel_type else None),
             _fmt(spec_b.get_fuel_type_display() if spec_b.fuel_type else None))
-    add_row("Seats", _fmt(spec_a.seats), _fmt(spec_b.seats))
+    add_row("Seats", _fmt(spec_a.seats), _fmt(spec_b.seats),
+            'seats', spec_a.seats, spec_b.seats)
 
     # Performance
-    add_row("Power", _fmt(spec_a.power_hp, ' HP'), _fmt(spec_b.power_hp, ' HP'))
-    add_row("Torque", _fmt(spec_a.torque_nm, ' Nm'), _fmt(spec_b.torque_nm, ' Nm'))
-    add_row("0-100 km/h", _fmt(spec_a.acceleration_0_100, 's'), _fmt(spec_b.acceleration_0_100, 's'))
-    add_row("Top Speed", _fmt(spec_a.top_speed_kmh, ' km/h'), _fmt(spec_b.top_speed_kmh, ' km/h'))
+    add_row("Power", _fmt(spec_a.power_hp, ' HP'), _fmt(spec_b.power_hp, ' HP'),
+            'power_hp', spec_a.power_hp, spec_b.power_hp)
+    add_row("Torque", _fmt(spec_a.torque_nm, ' Nm'), _fmt(spec_b.torque_nm, ' Nm'),
+            'torque_nm', spec_a.torque_nm, spec_b.torque_nm)
+    add_row("0-100 km/h", _fmt(spec_a.acceleration_0_100, 's'), _fmt(spec_b.acceleration_0_100, 's'),
+            'acceleration_0_100', spec_a.acceleration_0_100, spec_b.acceleration_0_100)
+    add_row("Top Speed", _fmt(spec_a.top_speed_kmh, ' km/h'), _fmt(spec_b.top_speed_kmh, ' km/h'),
+            'top_speed_kmh', spec_a.top_speed_kmh, spec_b.top_speed_kmh)
     add_row("Drivetrain", _fmt(spec_a.drivetrain), _fmt(spec_b.drivetrain))
 
     # EV / Battery
-    add_row("Battery", _fmt(spec_a.battery_kwh, ' kWh'), _fmt(spec_b.battery_kwh, ' kWh'))
-    add_row("Range (WLTP)", _fmt(spec_a.range_wltp, ' km'), _fmt(spec_b.range_wltp, ' km'))
-    add_row("Range (CLTC)", _fmt(spec_a.range_cltc, ' km'), _fmt(spec_b.range_cltc, ' km'))
-    add_row("Range", _fmt(spec_a.range_km, ' km'), _fmt(spec_b.range_km, ' km'))
+    add_row("Battery", _fmt(spec_a.battery_kwh, ' kWh'), _fmt(spec_b.battery_kwh, ' kWh'),
+            'battery_kwh', spec_a.battery_kwh, spec_b.battery_kwh)
+    add_row("Range (WLTP)", _fmt(spec_a.range_wltp, ' km'), _fmt(spec_b.range_wltp, ' km'),
+            'range_wltp', spec_a.range_wltp, spec_b.range_wltp)
+    add_row("Range (CLTC)", _fmt(spec_a.range_cltc, ' km'), _fmt(spec_b.range_cltc, ' km'),
+            'range_cltc', spec_a.range_cltc, spec_b.range_cltc)
+    add_row("Range", _fmt(spec_a.range_km, ' km'), _fmt(spec_b.range_km, ' km'),
+            'range_km', spec_a.range_km, spec_b.range_km)
     add_row("Fast Charging", _fmt(spec_a.charging_time_fast), _fmt(spec_b.charging_time_fast))
     add_row("Max Charging Power", _fmt(spec_a.charging_power_max_kw, ' kW'),
-            _fmt(spec_b.charging_power_max_kw, ' kW'))
+            _fmt(spec_b.charging_power_max_kw, ' kW'),
+            'charging_power_max_kw', spec_a.charging_power_max_kw, spec_b.charging_power_max_kw)
 
     # Dimensions
-    add_row("Length", _fmt(spec_a.length_mm, ' mm'), _fmt(spec_b.length_mm, ' mm'))
-    add_row("Width", _fmt(spec_a.width_mm, ' mm'), _fmt(spec_b.width_mm, ' mm'))
-    add_row("Height", _fmt(spec_a.height_mm, ' mm'), _fmt(spec_b.height_mm, ' mm'))
-    add_row("Wheelbase", _fmt(spec_a.wheelbase_mm, ' mm'), _fmt(spec_b.wheelbase_mm, ' mm'))
-    add_row("Weight", _fmt(spec_a.weight_kg, ' kg'), _fmt(spec_b.weight_kg, ' kg'))
-    add_row("Cargo", _fmt(spec_a.cargo_liters, ' L'), _fmt(spec_b.cargo_liters, ' L'))
+    add_row("Length", _fmt(spec_a.length_mm, ' mm'), _fmt(spec_b.length_mm, ' mm'),
+            'length_mm', spec_a.length_mm, spec_b.length_mm)
+    add_row("Width", _fmt(spec_a.width_mm, ' mm'), _fmt(spec_b.width_mm, ' mm'),
+            'width_mm', spec_a.width_mm, spec_b.width_mm)
+    add_row("Height", _fmt(spec_a.height_mm, ' mm'), _fmt(spec_b.height_mm, ' mm'),
+            'height_mm', spec_a.height_mm, spec_b.height_mm)
+    add_row("Wheelbase", _fmt(spec_a.wheelbase_mm, ' mm'), _fmt(spec_b.wheelbase_mm, ' mm'),
+            'wheelbase_mm', spec_a.wheelbase_mm, spec_b.wheelbase_mm)
+    add_row("Weight", _fmt(spec_a.weight_kg, ' kg'), _fmt(spec_b.weight_kg, ' kg'),
+            'weight_kg', spec_a.weight_kg, spec_b.weight_kg)
+    add_row("Cargo", _fmt(spec_a.cargo_liters, ' L'), _fmt(spec_b.cargo_liters, ' L'),
+            'cargo_liters', spec_a.cargo_liters, spec_b.cargo_liters)
     add_row("Ground Clearance", _fmt(spec_a.ground_clearance_mm, ' mm'),
-            _fmt(spec_b.ground_clearance_mm, ' mm'))
+            _fmt(spec_b.ground_clearance_mm, ' mm'),
+            'ground_clearance_mm', spec_a.ground_clearance_mm, spec_b.ground_clearance_mm)
 
     # Pricing
     price_a = spec_a.get_price_display()
@@ -173,7 +225,7 @@ ARTICLE STRUCTURE (output HTML only):
 4. <h2>Performance & Powertrain</h2> — Power, acceleration, drivetrain analysis
 5. <h2>Battery & Range</h2> — EV range, charging, battery tech (skip for non-EVs)
 6. <h2>Pricing & Value</h2> — Price comparison, value proposition
-7. <h2>Verdict</h2> — Clear recommendation with reasoning. Who should buy which?
+7. <h2>Verdict</h2> — Clear recommendation with reasoning. MUST include a complete conclusion for BOTH cars. Do NOT cut off mid-sentence.
 
 CRITICAL RULES:
 1. Use EXACTLY the numbers from the specs table. Do NOT invent or change any specifications.
@@ -186,10 +238,14 @@ CRITICAL RULES:
 6. Be specific and analytical. Compare actual numbers, not vague statements.
 7. Mention both cars' names in the <h1> title.
 8. Do NOT include "Source:" or "Disclaimer:" sections.
+9. VERY IMPORTANT: If two values are IDENTICAL (e.g. both cars have the same length, width, or height), 
+   say they are "identical" or "the same". Do NOT claim one is larger/smaller when they are equal.
+   Do NOT invent differences that don't exist in the data.
+10. The Verdict section MUST be complete — do NOT end mid-sentence or mid-paragraph.
 
 AFTER the article HTML, on separate lines, write these (NOT inside HTML tags):
-SUMMARY: [Write a specific, engaging 2-3 sentence summary that mentions actual specs like power, range, or price. Example: "The {name_a} delivers {spec_a.power_hp or '???'} HP with {spec_a.range_wltp or spec_a.range_km or '???'} km range, while the {name_b} counters with... Both compete in the ??-?? price range." Don't be generic — include numbers!]
-SEO_DESCRIPTION: [Write a 120-150 character Google meta description. Must mention both car names and a key differentiator. Example: "Compare {name_a} vs {name_b}: specs, range, pricing and verdict. Which {body_type} is the better buy in 2026?"]
+SUMMARY: [Write a specific, engaging 2-3 sentence summary that mentions actual specs like power, range, or price. Example: "Head-to-head comparison of the {name_a} and {name_b} ({spec_a.power_hp or '???'} HP vs {spec_b.power_hp or '???'} HP, {spec_a.range_wltp or spec_a.range_km or '???'} km vs {spec_b.range_wltp or spec_b.range_km or '???'} km range). Which {fuel_type} {body_type} is the better buy?" Don't be generic — include numbers!]
+SEO_DESCRIPTION: [Write a STANDALONE 120-150 character Google meta description. Do NOT copy from the intro paragraph. Must mention both car names and a key differentiator. Example: "Compare {name_a} vs {name_b}: {spec_a.power_hp or '???'} HP vs {spec_b.power_hp or '???'} HP, range, pricing. Which {body_type} wins in 2026?"]
 
 Write the comparison article now:"""
 
