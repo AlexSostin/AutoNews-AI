@@ -167,8 +167,8 @@ class CarPickerListView(APIView):
         from ..models import VehicleSpecs
         from django.db.models import Q
 
-        # Only include vehicles that have at least some meaningful spec data
-        # (power, battery, or range) — otherwise they're useless for comparison
+        # Only include vehicles linked to an article AND with some spec data.
+        # This removes 650+ garbage CarSpecs imports ('Acura Rsx Also', etc.)
         has_specs = (
             Q(power_hp__isnull=False) |
             Q(battery_kwh__isnull=False) |
@@ -177,9 +177,10 @@ class CarPickerListView(APIView):
             Q(acceleration_0_100__isnull=False)
         )
 
-        # Get all unique make/model combinations with specs
+        # Get all unique make/model combinations with articles + specs
         combos = (
             VehicleSpecs.objects
+            .filter(article__isnull=False)
             .filter(has_specs)
             .exclude(make='')
             .exclude(model_name='')
