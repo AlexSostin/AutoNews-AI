@@ -28,8 +28,9 @@ import TableOfContents, { TocHeading } from '@/components/public/TableOfContents
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 function formatDate(dateString: string) {
+    // Force UTC to prevent hydration mismatch between server (UTC) and client (local time)
     return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
+        year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
     });
 }
 

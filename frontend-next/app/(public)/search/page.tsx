@@ -211,7 +211,7 @@ function SearchContent() {
                                     {/* Meta */}
                                     <div className="flex items-center justify-between text-xs text-gray-500">
                                         <span>👁️ {article.views} views</span>
-                                        <span>{new Date(article.created_at).toLocaleDateString()}</span>
+                                        <span>{new Date(article.created_at).toLocaleDateString('en-US', { timeZone: 'UTC' })}</span>
                                     </div>
                                 </div>
                             </Link>
