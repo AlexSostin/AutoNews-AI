@@ -979,3 +979,237 @@ RULES:
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
 
+    # ── Comparison endpoints ─────────────────────────────────────────────────
+
+    DATA_HEALTH_FIELDS = [
+        'power_hp', 'torque_nm', 'acceleration_0_100', 'top_speed_kmh',
+        'battery_kwh', 'range_wltp', 'range_km', 'price_from',
+        'length_mm', 'weight_kg', 'cargo_liters', 'drivetrain',
+    ]
+
+    def _spec_health(self, spec):
+        """Count how many key comparison fields are filled."""
+        filled = sum(1 for f in self.DATA_HEALTH_FIELDS if getattr(spec, f, None) is not None)
+        return {'filled': filled, 'total': len(self.DATA_HEALTH_FIELDS)}
+
+    def _spec_summary(self, spec):
+        """Lightweight spec dict for the pairs response."""
+        return {
+            'id': spec.id,
+            'make': spec.make,
+            'model_name': spec.model_name,
+            'trim_name': spec.trim_name,
+            'body_type': spec.body_type,
+            'body_type_display': spec.get_body_type_display() if spec.body_type else None,
+            'fuel_type': spec.fuel_type,
+            'fuel_type_display': spec.get_fuel_type_display() if spec.fuel_type else None,
+            'power_hp': spec.power_hp,
+            'battery_kwh': spec.battery_kwh,
+            'range_wltp': spec.range_wltp,
+            'range_km': spec.range_km,
+            'price_from': spec.price_from,
+            'price_to': spec.price_to,
+            'currency': spec.currency,
+            'price_display': spec.get_price_display(),
+            'acceleration_0_100': spec.acceleration_0_100,
+        }
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated],
+            url_path='comparison-pairs')
+    def comparison_pairs(self, request):
+        """
+        GET /api/v1/vehicle-specs/comparison-pairs/
+        Returns scored vehicle pairs for comparison articles.
+        Query params: ?segment=SUV&fuel=EV&brands=BYD,Tesla&limit=30
+        """
+        from itertools import combinations
+        from django.utils.text import slugify
+
+        qs = VehicleSpecs.objects.exclude(make='').exclude(model_name='').filter(
+            body_type__isnull=False,
+            fuel_type__isnull=False,
+        )
+
+        # Apply filters
+        segment = request.query_params.get('segment')
+        fuel = request.query_params.get('fuel')
+        brands = request.query_params.get('brands')
+        limit = int(request.query_params.get('limit', 30))
+
+        if segment:
+            qs = qs.filter(body_type__iexact=segment)
+        if fuel:
+            qs = qs.filter(fuel_type__iexact=fuel)
+        if brands:
+            brand_list = [b.strip() for b in brands.split(',') if b.strip()]
+            qs = qs.filter(make__in=brand_list)
+
+        all_specs = list(qs)
+
+        # Group by segment
+        segments_map = {}
+        for spec in all_specs:
+            key = (spec.body_type, spec.fuel_type)
+            segments_map.setdefault(key, []).append(spec)
+
+        # Generate and score pairs
+        raw_pairs = []
+        for (bt, ft), specs in segments_map.items():
+            if len(specs) < 2:
+                continue
+            for a, b in combinations(specs, 2):
+                if a.make.lower() == b.make.lower():
+                    continue  # No intra-brand comparisons
+
+                score = 0
+                for spec in (a, b):
+                    if spec.power_hp:
+                        score += 2
+                    if spec.price_from:
+                        score += 3
+                    if spec.range_km or spec.range_wltp:
+                        score += 2
+                    if spec.battery_kwh:
+                        score += 1
+                    if spec.acceleration_0_100:
+                        score += 2
+                    if spec.length_mm:
+                        score += 1
+
+                if a.price_from and b.price_from:
+                    ratio = min(a.price_from, b.price_from) / max(a.price_from, b.price_from)
+                    if ratio >= 0.6:
+                        score += 5
+
+                raw_pairs.append((score, a, b))
+
+        raw_pairs.sort(key=lambda x: -x[0])
+
+        # Check for existing comparison articles
+        pairs = []
+        for score, a, b in raw_pairs[:limit]:
+            slug_a = slugify(f"{a.make}-{a.model_name}-vs-{b.make}-{b.model_name}-comparison")[:200]
+            slug_b = slugify(f"{b.make}-{b.model_name}-vs-{a.make}-{a.model_name}-comparison")[:200]
+
+            existing = Article.objects.filter(
+                slug__in=[slug_a, slug_b], is_deleted=False,
+            ).values('id', 'slug', 'is_published', 'title').first()
+
+            pairs.append({
+                'score': score,
+                'spec_a': self._spec_summary(a),
+                'spec_b': self._spec_summary(b),
+                'data_health': {
+                    'a': self._spec_health(a),
+                    'b': self._spec_health(b),
+                },
+                'existing_article': existing,
+                'segment': f"{a.fuel_type} {a.get_body_type_display()}" if a.body_type else '',
+            })
+
+        # Segment summary
+        seg_summary = {}
+        for (bt, ft), specs in segments_map.items():
+            label = f"{ft} {bt}"
+            seg_summary[label] = len(specs)
+
+        return Response({
+            'total_vehicles': len(all_specs),
+            'total_pairs': len(raw_pairs),
+            'showing': len(pairs),
+            'segments': seg_summary,
+            'pairs': pairs,
+        })
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated],
+            url_path='generate-comparison')
+    def generate_comparison(self, request):
+        """
+        POST /api/v1/vehicle-specs/generate-comparison/
+        Body: { "spec_a_id": 1, "spec_b_id": 2, "provider": "gemini" }
+        Generates a comparison article and saves as draft.
+        """
+        spec_a_id = request.data.get('spec_a_id')
+        spec_b_id = request.data.get('spec_b_id')
+        provider = request.data.get('provider', 'gemini')
+
+        if not spec_a_id or not spec_b_id:
+            return Response({'error': 'spec_a_id and spec_b_id are required'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if provider not in ('gemini', 'groq'):
+            provider = 'gemini'
+
+        try:
+            spec_a = VehicleSpecs.objects.get(id=spec_a_id)
+            spec_b = VehicleSpecs.objects.get(id=spec_b_id)
+        except VehicleSpecs.DoesNotExist:
+            return Response({'error': 'One or both VehicleSpecs not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            from ai_engine.modules.comparison_generator import generate_comparison as gen_comp
+
+            result = gen_comp(spec_a, spec_b, provider=provider)
+
+            # Ensure unique slug
+            slug = result['slug']
+            base_slug = slug
+            counter = 1
+            while Article.objects.filter(slug=slug, is_deleted=False).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            # Create draft article
+            article = Article.objects.create(
+                title=result['title'],
+                slug=slug,
+                content=result['content'],
+                content_original=result['content'],
+                summary=result['summary'],
+                seo_description=result['seo_description'][:160],
+                is_published=False,
+                is_news_only=False,
+                generation_metadata={
+                    'source': 'comparison_generator',
+                    'provider': provider,
+                    'spec_a': f"{spec_a.make} {spec_a.model_name}",
+                    'spec_b': f"{spec_b.make} {spec_b.model_name}",
+                    'word_count': result['word_count'],
+                },
+            )
+
+            # Assign Comparisons category
+            from news.models import Category, Tag
+            comp_cat, _ = Category.objects.get_or_create(
+                name='Comparisons', defaults={'slug': 'comparisons'},
+            )
+            article.categories.add(comp_cat)
+
+            # Auto-assign brand tags
+            for spec in (spec_a, spec_b):
+                brand_tag = Tag.objects.filter(name__iexact=spec.make).first()
+                if brand_tag:
+                    article.tags.add(brand_tag)
+
+            # CarSpecification for primary vehicle
+            CarSpecification.objects.update_or_create(
+                article=article,
+                defaults={'make': spec_a.make, 'model': spec_a.model_name, 'trim': spec_a.trim_name or ''},
+            )
+
+            from ..serializers import ArticleListSerializer
+            return Response({
+                'success': True,
+                'article': ArticleListSerializer(article).data,
+                'word_count': result['word_count'],
+                'message': f'Generated: {result["title"]}',
+            })
+
+        except Exception as e:
+            logger.error(f'Comparison generation failed: {e}', exc_info=True)
+            return Response({
+                'success': False,
+                'error': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

@@ -35,6 +35,7 @@ import {
   Activity,
   Waypoints,
   Timer,
+  GitCompareArrows,
   LucideIcon
 } from 'lucide-react';
 import { logout, isSuperuser } from '@/lib/auth';
@@ -81,6 +82,7 @@ const menuSections: MenuSection[] = [
       { href: '/admin/brand-aliases', icon: ArrowRightLeft, label: 'Brand Aliases' },
       { href: '/admin/car-specs', icon: Car, label: 'Car Specs' },
       { href: '/admin/vehicle-specs', icon: Wrench, label: 'Vehicle Specs' },
+      { href: '/admin/comparisons', icon: GitCompareArrows, label: 'Comparisons' },
     ],
   },
   {
