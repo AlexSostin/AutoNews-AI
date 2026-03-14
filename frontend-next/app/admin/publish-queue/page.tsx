@@ -149,6 +149,17 @@ export default function PublishQueuePage() {
     }
   };
 
+  const handleDeleteDraft = async (articleId: number) => {
+    if (!confirm('Delete this draft? It will be soft-deleted and can be recovered.')) return;
+    try {
+      await api.patch(`/articles/${articleId}/`, { is_deleted: true });
+      toast.success('Draft deleted');
+      fetchQueue();
+    } catch {
+      toast.error('Delete failed');
+    }
+  };
+
   const handleMoveSchedule = async (articleId: number, direction: 'earlier' | 'later') => {
     const article = articles.find(a => a.id === articleId);
     if (!article?.scheduled_publish_at) return;
@@ -433,6 +444,13 @@ export default function PublishQueuePage() {
                     title="Edit article"
                   >
                     <ExternalLink size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteDraft(article.id)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete draft"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>

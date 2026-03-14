@@ -100,20 +100,20 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             # Fetch latest 10 videos
             videos = client.get_latest_videos(identifier, max_results=10)
             
-            # Enrich with article status (published / pending / null)
+            # Enrich with article status (published / draft / pending / null)
             if videos:
                 from news.models import Article
                 from news.models.content import PendingArticle
                 
                 video_ids = [v.get('id', '') for v in videos if v.get('id')]
                 
-                # Check PendingArticle by video_id
-                pending_ids = set(
+                # Get PendingArticle statuses keyed by video_id
+                pending_map = dict(
                     PendingArticle.objects.filter(
                         video_id__in=video_ids
                     ).exclude(
                         status='rejected'
-                    ).values_list('video_id', flat=True)
+                    ).values_list('video_id', 'status')
                 )
                 
                 # Check published Articles by youtube_url containing video_id
@@ -126,13 +126,28 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
                     ).exists():
                         published_ids.add(vid)
                 
-                # Annotate each video
+                # Also check draft Articles (approved but not yet published)
+                draft_ids = set()
+                for vid in video_ids:
+                    if vid and vid not in published_ids and Article.objects.filter(
+                        youtube_url__contains=vid,
+                        is_published=False,
+                        is_deleted=False
+                    ).exists():
+                        draft_ids.add(vid)
+                
+                # Annotate each video with correct status
                 for v in videos:
                     vid = v.get('id', '')
                     if vid in published_ids:
                         v['article_status'] = 'published'
-                    elif vid in pending_ids:
+                    elif vid in draft_ids:
+                        v['article_status'] = 'draft'
+                    elif pending_map.get(vid) == 'pending':
                         v['article_status'] = 'pending'
+                    elif pending_map.get(vid) in ('approved', 'published'):
+                        # PendingArticle was approved → article exists as draft
+                        v['article_status'] = 'draft'
                     else:
                         v['article_status'] = None
             

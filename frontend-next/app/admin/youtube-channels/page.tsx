@@ -52,7 +52,7 @@ interface Video {
   thumbnail: string;
   published_at: string;
   url: string;
-  article_status?: 'published' | 'pending' | null;
+  article_status?: 'published' | 'pending' | 'draft' | null;
   status?: 'idle' | 'loading' | 'success' | 'error';
   errorMsg?: string;
   articleId?: number;
@@ -727,6 +727,14 @@ export default function YouTubeChannelsPage() {
                             <CheckCircle2 size={16} />
                             <span className="font-bold text-xs uppercase tracking-wider">Published</span>
                           </div>
+                        ) : video.article_status === 'draft' ? (
+                          <Link
+                            href="/admin/publish-queue"
+                            className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
+                          >
+                            <FileText size={16} />
+                            <span className="font-bold text-xs uppercase tracking-wider">Draft</span>
+                          </Link>
                         ) : video.article_status === 'pending' ? (
                           <Link
                             href="/admin/youtube-channels/pending"
