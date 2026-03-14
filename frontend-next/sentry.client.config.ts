@@ -6,10 +6,6 @@ Sentry.init({
   // Browser tracing integration
   integrations: [
     Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
   ],
   
   // Trace propagation targets
@@ -19,8 +15,8 @@ Sentry.init({
   tracesSampleRate: 1.0, // 100% для development, 0.1 для production
   
   // Session replay
-  replaysOnErrorSampleRate: 1.0,
-  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 0,
+  replaysSessionSampleRate: 0,
   
   // Отладка в dev режиме
   debug: false,
