@@ -998,6 +998,10 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             # Telegram Publishing
             'telegram_enabled', 'telegram_channel_id', 'telegram_post_with_image',
             'telegram_last_run', 'telegram_last_status', 'telegram_today_count',
+            # Comparison Articles
+            'comparison_enabled', 'comparison_max_per_week', 'comparison_provider',
+            'comparison_last_run', 'comparison_last_status', 'comparison_this_week_count',
+            'comparison_lock',
             # Task locks
             'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock', 'deep_specs_lock',
         ]
@@ -1009,6 +1013,8 @@ class AutomationSettingsSerializer(serializers.ModelSerializer):
             'google_indexing_last_run', 'google_indexing_last_status', 'google_indexing_today_count',
             'deep_specs_last_run', 'deep_specs_last_status', 'deep_specs_today_count',
             'telegram_last_run', 'telegram_last_status', 'telegram_today_count',
+            'comparison_last_run', 'comparison_last_status', 'comparison_this_week_count',
+            'comparison_lock',
             'rss_lock', 'youtube_lock', 'auto_publish_lock', 'score_lock', 'deep_specs_lock',
         ]
 
