@@ -757,6 +757,27 @@ def _clean_source_typos(html: str) -> str:
     return html
 
 
+def post_process_article(html: str) -> str:
+    """
+    Run the full post-processing pipeline on generated HTML.
+
+    Includes: HTML cleanup, banned phrase removal, repetition reduction,
+    price validation, duplicate paragraph detection, self-consistency,
+    car name shortening, and source typo fixes.
+
+    This is the single entry-point for callers (RSS generate, merge, publisher, etc.)
+    """
+    html = ensure_html_only(html)
+    html = _clean_banned_phrases(html)
+    html = _reduce_repetition(html)
+    html = _validate_prices(html)
+    html = _detect_duplicate_paragraphs(html)
+    html = _check_self_consistency(html)
+    html = _shorten_car_names(html)
+    html = _clean_source_typos(html)
+    return html
+
+
 def enhance_existing_article(existing_html: str, specs: dict = None, provider='gemini'):
     """
     Enhance an existing article by enriching it with web search data.

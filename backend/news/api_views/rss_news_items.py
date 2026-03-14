@@ -149,12 +149,33 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             if provider not in ('groq', 'gemini'):
                 provider = 'gemini'
             
+            # Web search for fact-checking and enrichment
+            web_context = None
+            try:
+                from ai_engine.modules.searcher import search_car_details
+                # Extract brand/model from title for search query
+                title_tags = _extract_auto_tags(news_item.title, '')
+                brand = next((t for t in title_tags if t in _BRAND_MAP.values()), '')
+                if brand:
+                    # Extract model name: words after brand in title
+                    import re as _re
+                    brand_rx = _re.compile(r'\b' + _re.escape(brand) + r'\b\s+([\w\-]+(?:\s+[\w\-]+)?)',
+                                           _re.IGNORECASE)
+                    m = brand_rx.search(news_item.title)
+                    model_name = m.group(1) if m else ''
+                    if model_name:
+                        web_context = search_car_details(brand, model_name)
+                        logger.info(f'[RSS generate] Web search for "{brand} {model_name}": {len(web_context)} chars')
+            except Exception as ws_err:
+                logger.warning(f'[RSS generate] Web search failed: {ws_err}')
+            
             # Expand with AI
             expanded_content = expand_press_release(
                 press_release_text=plain_text,
                 source_url=news_item.source_url,
                 provider=provider,
-                source_title=news_item.title
+                source_title=news_item.title,
+                web_context=web_context,
             )
             
             # Extract and validate title
@@ -635,10 +656,10 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
             item.save(update_fields=['status'])
 
         try:
-            from ai_engine.modules.ai_provider import get_ai_provider
-            import json as _json
+            from ai_engine.modules.article_generator import expand_press_release, post_process_article
+            from ai_engine.main import extract_title, validate_title, _is_generic_header
 
-            # Build source summaries
+            # Build combined source text (like a "press release" for the AI)
             source_parts = []
             source_urls = []
             all_images = []
@@ -650,78 +671,59 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 source_parts.append(
                     f"SOURCE {idx}: {item.title}\n"
                     f"Feed: {item.rss_feed.name if item.rss_feed else 'Unknown'}\n"
-                    f"Content: {plain_text[:1200]}"
+                    f"Content: {plain_text[:2500]}"
                 )
                 if item.source_url:
                     source_urls.append(item.source_url)
                 if item.image_url:
                     all_images.append(item.image_url)
 
-            sources_text = "\n\n---\n\n".join(source_parts)
+            combined_text = (
+                f"ROUNDUP — Synthesize the following {len(items)} sources about the SAME topic "
+                f"into ONE cohesive article. Do NOT mention 'roundup' or 'sources' in the text.\n\n"
+                + "\n\n---\n\n".join(source_parts)
+            )
 
-            prompt = f"""You are a senior automotive journalist for FreshMotors.net — a premium car news site focused on Chinese EVs, new models, and automotive technology.
+            # Web search for fact-checking and enrichment
+            web_context = None
+            try:
+                from ai_engine.modules.searcher import search_car_details
+                title_tags = _extract_auto_tags(items[0].title, '')
+                brand = next((t for t in title_tags if t in _BRAND_MAP.values()), '')
+                if brand:
+                    import re as _re
+                    brand_rx = _re.compile(
+                        r'\b' + _re.escape(brand) + r'\b\s+([\w\-]+(?:\s+[\w\-]+)?)',
+                        _re.IGNORECASE
+                    )
+                    m = brand_rx.search(items[0].title)
+                    model_name = m.group(1) if m else ''
+                    if model_name:
+                        web_context = search_car_details(brand, model_name)
+                        logger.info(f'[RSS merge] Web search for "{brand} {model_name}": {len(web_context)} chars')
+            except Exception as ws_err:
+                logger.warning(f'[RSS merge] Web search failed: {ws_err}')
 
-You are writing a ROUNDUP article that combines information from {len(items)} different news sources about the same topic.
+            # Use the same high-quality pipeline as single generate
+            expanded_content = expand_press_release(
+                press_release_text=combined_text,
+                source_url=source_urls[0] if source_urls else '',
+                provider=provider,
+                source_title=items[0].title,
+                web_context=web_context,
+            )
 
-Here are the sources:
+            # Full post-processing pipeline (banned phrases, dedup, prices, etc.)
+            expanded_content = post_process_article(expanded_content)
 
-{sources_text}
-
-Write a comprehensive, engaging roundup article in HTML format. Follow these rules:
-
-1. **TITLE**: Start with a single <h1> tag containing a compelling, specific headline (NOT generic like "Why This Matters" or "Roundup"). Include the car brand/model name and the key news. Example: "BYD Great Tang: 950km Electric SUV Targets Premium Segment"
-
-2. **STRUCTURE**: Use <h2> sections. Cover: Key News, Specifications (if available), Analysis, Market Impact. Do NOT use markdown headers (##), use HTML tags.
-
-3. **CONTENT**: Synthesize all sources into ONE cohesive narrative. Don't repeat information. Add expert analysis. Minimum 600 words.
-
-4. **EXCERPT**: After the article, on a NEW LINE, write: EXCERPT: [1-2 sentence summary for article cards, 120-160 chars]
-
-5. **TONE**: Professional, analytical, engaging. Write for car enthusiasts and industry watchers.
-
-6. Do NOT include "Source:" attributions in the text. Do NOT mention "according to sources" or "multiple reports".
-
-Write the article now:"""
-
-            ai = get_ai_provider(provider)
-            raw_response = ai.generate_completion(prompt, max_tokens=3000, temperature=0.7)
-
-            # Extract title from <h1> tag
-            h1_match = re.search(r'<h1[^>]*>(.*?)</h1>', raw_response, re.IGNORECASE | re.DOTALL)
-            if h1_match:
-                ai_title = re.sub(r'<[^>]+>', '', h1_match.group(1)).strip()
-                # Remove the h1 from content (PendingArticle stores title separately)
-                expanded_content = raw_response[:h1_match.start()] + raw_response[h1_match.end():]
-            else:
-                # Fallback: try first line or first heading
-                lines = raw_response.strip().split('\n')
-                ai_title = re.sub(r'[#*<>]', '', lines[0]).strip()[:150]
-                expanded_content = '\n'.join(lines[1:])
+            # Extract and validate title
+            ai_title = extract_title(expanded_content)
+            if not ai_title or _is_generic_header(ai_title):
+                ai_title = items[0].title
+            ai_title = validate_title(ai_title)
 
             if not ai_title or len(ai_title) < 10:
-                ai_title = f"{items[0].title} — Multi-Source Roundup"
-
-            # Extract excerpt
-            excerpt = f"Roundup covering {len(items)} sources"
-            excerpt_match = re.search(r'EXCERPT:\s*(.+)', raw_response, re.IGNORECASE)
-            if excerpt_match:
-                excerpt = excerpt_match.group(1).strip()[:200]
-                # Remove EXCERPT line from content
-                expanded_content = re.sub(r'\n*EXCERPT:.*$', '', expanded_content, flags=re.IGNORECASE | re.MULTILINE).strip()
-
-            # Clean up any remaining markdown if AI slipped
-            if '###' in expanded_content and '<h2>' not in expanded_content:
-                try:
-                    import markdown
-                    expanded_content = markdown.markdown(
-                        expanded_content, extensions=['fenced_code', 'tables']
-                    )
-                except Exception:
-                    pass
-
-            # Strip markdown code fences if present
-            expanded_content = re.sub(r'^```html\s*', '', expanded_content.strip())
-            expanded_content = re.sub(r'\s*```$', '', expanded_content.strip())
+                ai_title = f"{items[0].title}"
 
             word_count = len(re.sub(r'<[^>]+>', '', expanded_content).split())
             if word_count < 150:
@@ -732,6 +734,16 @@ Write the article now:"""
                     {'error': f'Roundup too short ({word_count} words), try again'},
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
+
+            # Auto excerpt from content (NOT hardcoded)
+            content_plain = re.sub(r'<[^>]+>', '', expanded_content).strip()
+            if content_plain:
+                if len(content_plain) > 200:
+                    excerpt = content_plain[:197].rsplit(' ', 1)[0] + '...'
+                else:
+                    excerpt = content_plain
+            else:
+                excerpt = ai_title
 
             # Choose first feed's image policy
             feed = items[0].rss_feed
@@ -764,7 +776,6 @@ Write the article now:"""
                 img_source = 'unknown'
 
             # Auto SEO description from content (max 160 chars)
-            content_plain = re.sub(r'<[^>]+>', '', expanded_content).strip()
             seo_description = ''
             if content_plain:
                 if len(content_plain) > 160:
