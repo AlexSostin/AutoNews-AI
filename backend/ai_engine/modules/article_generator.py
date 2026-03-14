@@ -1023,6 +1023,26 @@ CRITICAL REQUIREMENTS:
    - After that: use SHORT forms → "the TANG 1240", "the TANG", "this SUV", "it", "the car"
    - NEVER start 3 consecutive paragraphs with "The [Year] [Brand] [Model]"
 
+3c. **BRAND vs TECHNOLOGY PARTNER — CRITICAL NAMING RULE**:
+   YouTube titles often mix car brand names with technology partner names (e.g. "HUAWEI AVATR", "CATL BYD", "Qualcomm Mercedes").
+   YOU MUST use your automotive knowledge and web context to CORRECTLY distinguish:
+   - The **CAR BRAND** (the manufacturer/marque that appears on the badge) — use this as the brand name
+   - **Technology partners** (companies that supply software, batteries, chips, platforms) — mention ONLY in relevant technical context
+
+   RULES:
+   - Use ONLY the official car brand name in the title, H2 headings, and specs block
+   - Technology partners should be mentioned ONLY when discussing their specific contribution (e.g. "Huawei's ADS system", "CATL-supplied battery")
+   - NEVER combine brand + partner as the car name (e.g. "Avatr HUAWEI 07" is WRONG → "Avatr 07" is correct)
+   - NEVER use a technology partner name as if it were the car brand
+
+   EXAMPLES:
+   ✅ "2026 Avatr 07 REV" — Avatr is the car brand
+   ✅ "powered by Huawei's ADS 2.0 autonomous driving system" — Huawei mentioned for their tech contribution
+   ✅ "equipped with a 40 kWh CATL battery pack" — CATL mentioned as battery supplier
+   ❌ "2026 Avatr HUAWEI 07 REV" — HUAWEI is NOT part of the car name
+   ❌ "The HUAWEI 07 REV delivers 343 hp" — HUAWEI is not the brand, Avatr is
+   ❌ "The CATL BYD Seal" — CATL is a supplier, not the brand name
+
 4. **Competitor comparisons** — use them ONLY when you have REAL data:
    - 1-2 well-chosen comparisons are better than 4 forced ones
    - ONLY compare specs you are confident about
@@ -1726,6 +1746,10 @@ Content Guidelines:
   Extract universal car facts from region-specific reviews.
 
 ⚠️ MODEL ACCURACY: Use the EXACT car model name from the press release.
+⚠️ BRAND vs TECHNOLOGY PARTNER: YouTube titles and press releases often mix car brands with technology partners.
+   Use ONLY the official car brand name (the badge on the car) in the title and headings.
+   Technology partners (Huawei, CATL, Qualcomm, etc.) should be mentioned ONLY when discussing their specific contribution.
+   ❌ "Avatr HUAWEI 07" → ✅ "Avatr 07" (Huawei is a tech partner, not the brand)
 
 {f'FINAL CHECK: The vehicle name MUST be exactly as specified in the MANDATORY VEHICLE IDENTITY section above. If you wrote a different model name or number, your article is WRONG.' if entity_anchor else ''}
 
