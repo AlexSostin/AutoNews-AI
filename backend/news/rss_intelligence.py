@@ -20,16 +20,36 @@ logger = logging.getLogger(__name__)
 
 # Words that follow a brand but are NOT model names
 GENERIC_MODEL_WORDS = frozenset({
+    # Verbs / actions
     'review', 'reviews', 'preview', 'test', 'drive', 'reveals', 'revealed',
     'launches', 'launched', 'announces', 'announced', 'unveils', 'unveiled',
-    'the', 'new', 'all', 'its', 'first', 'electric', 'hybrid', 'ev',
+    'adds', 'added', 'approves', 'became', 'becomes', 'began', 'begins',
+    'brings', 'brought', 'calls', 'cancels', 'celebrates', 'changes',
+    'completes', 'confirms', 'considers', 'crashes', 'cuts', 'debuts',
+    'delivers', 'demands', 'did', 'does', 'drops', 'enters', 'faces',
+    'gave', 'goes', 'going', 'got', 'gathered', 'hears', 'hits', 'holds',
+    'introduces', 'just', 'leads', 'loses', 'makes', 'need', 'needs',
+    'offers', 'overcame', 'overtakes', 'partners', 'plans', 'puts',
+    'recalls', 'recall', 'says', 'shows', 'takes', 'tops', 'tracks',
+    'updates', 'wants', 'wins', 'won',
+    # Pronouns / determiners / prepositions
+    'the', 'new', 'all', 'its', 'first', 'also', 'only', 'that', 'this',
     'is', 'to', 'in', 'at', 'on', 'of', 'for', 'and', 'with', 'has',
-    'will', 'may', 'could', 'gets', 'aims', 'plans', 'wants', 'faces',
-    'recalls', 'recall', 'says', 'confirms', 'shows', 'hits', 'tops',
-    'beats', 'loses', 'cuts', 'drops', 'price', 'prices', 'sales',
+    'will', 'may', 'could', 'gets', 'aims',
+    # People / roles
     'ceo', 'cto', 'boss', 'chief', 'owner', 'owners', 'fans', 'buyers',
-    'workers', 'employees', 'factory', 'plant', 'dealer', 'dealers',
-    'suv', 'sedan', 'coupe', 'truck', 'pickup', 'van', 'mpv', 'crossover',
+    'workers', 'employees', 'brand', 'ambassador',
+    # Business / industry
+    'factory', 'plant', 'dealer', 'dealers', 'sales', 'price', 'prices',
+    'production', 'collaboration', 'alliance', 'annual', 'media',
+    # Types — handled elsewhere
+    'electric', 'hybrid', 'ev', 'suv', 'sedan', 'coupe', 'truck',
+    'pickup', 'van', 'mpv', 'crossover', 'hatchback', 'wagon',
+    # Descriptors / noise
+    'after', 'bucks', 'clown', 'competitor', 'chip', 'demand',
+    'engine', 'exterior', 'following', 'hands-free', 'ingenuity',
+    'look', 'na', 'radical', 'rendered', 'run', 'shoe', 'still',
+    'team', 'work',
 })
 
 
