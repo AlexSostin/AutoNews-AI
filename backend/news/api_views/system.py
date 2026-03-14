@@ -1414,6 +1414,72 @@ class HealthSummaryView(APIView):
             overall_status = 'degraded'
         else:
             overall_status = 'critical'
+            
+        # Infrastructure Health Checks
+        infrastructure = {
+            'database': 'offline',
+            'redis': 'offline',
+            'celery': {'status': 'offline', 'jobs': 0},
+            'youtube': 'active'
+        }
+        
+        # 1. Database Ping
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                row = cursor.fetchone()
+                if row and row[0] == 1:
+                    infrastructure['database'] = 'online'
+        except Exception as e:
+            logger.error(f"Health check: Database ping failed: {e}")
+            overall_status = 'critical'
+            
+        # 2. Redis Ping
+        try:
+            from django.core.cache import cache
+            cache.set('health_ping', '1', 5)
+            if cache.get('health_ping') == '1':
+                infrastructure['redis'] = 'online'
+        except Exception as e:
+            logger.error(f"Health check: Redis ping failed: {e}")
+            overall_status = 'critical'
+            
+        # 3. Celery Queue
+        try:
+            from django.conf import settings
+            import redis
+            celery_url = getattr(settings, 'CELERY_BROKER_URL', '')
+            if celery_url:
+                r = redis.Redis.from_url(celery_url, socket_connect_timeout=1)
+                r.ping()
+                queue_len = r.llen('celery')
+                infrastructure['celery']['status'] = 'online'
+                infrastructure['celery']['jobs'] = queue_len
+        except Exception as e:
+            logger.error(f"Health check: Celery ping failed: {e}")
+            overall_status = 'critical'
+            
+        # 4. YouTube Quota Limit
+        try:
+            from ..models.system import AutomationSettings
+            # Check for definitive failure (quota exceeded errors in the last 6 hours)
+            last_6h = now - timedelta(hours=6)
+            quota_errors = backend_qs.filter(
+                source='api', 
+                last_seen__gte=last_6h, 
+                message__icontains='quotaExceeded'
+            ).exists()
+            
+            if quota_errors:
+                infrastructure['youtube'] = 'quota_exceeded'
+            else:
+                # Check soft limit based on articles processed today
+                auto_settings = AutomationSettings.load()
+                if auto_settings.youtube_articles_today >= 50:
+                    infrastructure['youtube'] = 'near_quota'
+        except Exception as e:
+            logger.error(f"Health check: YouTube quota check failed: {e}")
 
         # 7-day trend
         trend = []
@@ -1452,6 +1518,7 @@ class HealthSummaryView(APIView):
                 'unresolved': frontend_unresolved,
                 'last_24h': frontend_24h,
             },
+            'infrastructure': infrastructure,
             'overall_status': overall_status,
             'total_unresolved': total_unresolved,
             'trend': trend,

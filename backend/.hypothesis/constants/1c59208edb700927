@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/export_training_data.py
+# hypothesis_version: 6.151.9
+
+[0.0, 500, '--min-quality', '--output', '--type', '-created_at', '-o', 'all', 'article', 'capsule_score', 'generation', 'min_quality', 'output', 'text_input', 'title', 'titles', 'training_data.jsonl', 'type', 'utf-8', 'w']

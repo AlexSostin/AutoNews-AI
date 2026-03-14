@@ -3,10 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Bell, User, Menu, MessageSquare, UserPlus, FileText, Youtube,
-  AlertTriangle, Info, Check, CheckCheck, X, Loader2, Activity,
+  AlertTriangle, Info, Check, CheckCheck, Loader2, Activity,
   Server, Zap, Globe
 } from 'lucide-react';
-import api, { getApiUrl } from '@/lib/api';
+import api from '@/lib/api';
 
 interface Notification {
   id: number;
@@ -44,6 +44,17 @@ const notificationIcons: Record<string, React.ReactNode> = {
   info: <Info size={16} className="text-gray-500" />,
 };
 
+const CATEGORY_MAP: Record<string, { label: string; color: string }> = {
+  system: { label: 'System', color: 'bg-amber-100 text-amber-700' },
+  video_error: { label: 'System', color: 'bg-amber-100 text-amber-700' },
+  ai_error: { label: 'System', color: 'bg-amber-100 text-amber-700' },
+  article: { label: 'Content', color: 'bg-purple-100 text-purple-700' },
+  video_pending: { label: 'Content', color: 'bg-purple-100 text-purple-700' },
+  comment: { label: 'Community', color: 'bg-blue-100 text-blue-700' },
+  subscriber: { label: 'Community', color: 'bg-green-100 text-green-700' },
+  info: { label: 'General', color: 'bg-gray-100 text-gray-700' },
+};
+
 const priorityColors: Record<string, string> = {
   high: 'border-l-red-500',
   normal: 'border-l-blue-500',
@@ -65,8 +76,8 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
       const response = await api.get('/notifications/?limit=10');
       setNotifications(response.data.notifications || []);
       setUnreadCount(response.data.unread_count || 0);
-    } catch (error) {
-      // Silently fail
+    } catch { 
+      // silent fail
     }
   };
 
@@ -204,11 +215,14 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
               className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
               title="Notifications & System Health"
             >
-              <Bell size={18} className="sm:w-5 sm:h-5 text-gray-700" />
+              <Bell size={18} className={`sm:w-5 sm:h-5 ${totalBadge > 0 ? 'text-indigo-600' : 'text-gray-700'}`} />
               {totalBadge > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                  {totalBadge > 99 ? '99+' : totalBadge}
-                </span>
+                <>
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black tracking-tighter rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 z-10 shadow-sm border-2 border-white">
+                    {totalBadge > 99 ? '99+' : totalBadge}
+                  </span>
+                  <span className="absolute -top-1 -right-1 bg-red-400 rounded-full min-w-[18px] h-[18px] animate-ping opacity-75"></span>
+                </>
               )}
             </button>
 
@@ -281,36 +295,42 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                           <p className="text-sm">We&apos;ll notify you about important updates</p>
                         </div>
                       ) : (
-                        notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            onClick={() => handleNotificationClick(notification)}
-                            className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${priorityColors[notification.priority]} ${!notification.is_read ? 'bg-blue-50/50' : ''
-                              }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="mt-0.5">
-                                {notificationIcons[notification.notification_type] || notificationIcons.info}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className={`text-sm font-medium truncate ${!notification.is_read ? 'text-gray-900' : 'text-gray-600'}`}>
+                        notifications.map((notification) => {
+                          const catInfo = CATEGORY_MAP[notification.notification_type] || CATEGORY_MAP['info'];
+                          return (
+                            <div
+                              key={notification.id}
+                              onClick={() => handleNotificationClick(notification)}
+                              className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${priorityColors[notification.priority]} ${!notification.is_read ? 'bg-indigo-50/30' : ''
+                                }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`mt-0.5 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${!notification.is_read ? 'bg-indigo-100' : 'bg-gray-100'}`}>
+                                  {notificationIcons[notification.notification_type] || notificationIcons.info}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${catInfo.color}`}>
+                                      {catInfo.label}
+                                    </span>
+                                    {!notification.is_read && (
+                                      <span className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  <p className={`text-sm font-semibold truncate ${!notification.is_read ? 'text-gray-900' : 'text-gray-600'}`}>
                                     {notification.title}
                                   </p>
-                                  {!notification.is_read && (
-                                    <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
-                                  )}
+                                  <p className="text-xs text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
+                                    {notification.time_ago}
+                                  </p>
                                 </div>
-                                <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
-                                  {notification.message}
-                                </p>
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {notification.time_ago}
-                                </p>
                               </div>
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </>
                   )}

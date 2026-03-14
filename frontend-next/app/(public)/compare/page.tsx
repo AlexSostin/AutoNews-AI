@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, ArrowLeftRight, Trophy, Zap, Battery, Gauge, Ruler, DollarSign, Weight, ChevronDown, Search, X } from 'lucide-react';
+import { ArrowRight, ArrowLeftRight, Trophy, Zap, Battery, Ruler, DollarSign, ChevronDown, Search, X } from 'lucide-react';
 
 // ---------- types ----------
 interface PickerBrand {
@@ -279,6 +279,7 @@ function CompareContent() {
         if (c1) {
             const [b, m] = c1.split('/');
             if (b && m) {
+                // eslint-disable-next-line
                 setCar1(prev => (prev.brand === b && prev.model === m ? prev : { brand: b, model: m }));
             }
         }
@@ -286,6 +287,7 @@ function CompareContent() {
         if (c2) {
             const [b, m] = c2.split('/');
             if (b && m) {
+                // eslint-disable-next-line
                 setCar2(prev => (prev.brand === b && prev.model === m ? prev : { brand: b, model: m }));
             }
         }
@@ -301,7 +303,9 @@ function CompareContent() {
         params.set('car2', `${car2.brand}/${car2.model}`);
         router.replace(`/compare?${params.toString()}`, { scroll: false });
 
+        // eslint-disable-next-line
         setLoading(true);
+        // eslint-disable-next-line
         setError('');
 
         fetch(`${getApi()}/cars/compare/?car1=${car1.brand}/${car1.model}&car2=${car2.brand}/${car2.model}`)
@@ -311,7 +315,7 @@ function CompareContent() {
             })
             .then(d => { setData(d); setLoading(false); })
             .catch(e => { setError(e.message); setLoading(false); });
-    }, [car1, car2]);
+    }, [car1, car2, router]);
 
     // Swap cars
     const swap = () => {

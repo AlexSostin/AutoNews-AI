@@ -9,11 +9,19 @@ import {
 import toast from 'react-hot-toast';
 
 // ── Types ───────────────────────────────────────────────────────────
+interface InfrastructureStatus {
+    database: 'online' | 'offline';
+    redis: 'online' | 'offline';
+    celery: { status: 'online' | 'offline'; jobs: number };
+    youtube: 'active' | 'near_quota' | 'quota_exceeded';
+}
+
 interface HealthSummary {
     backend_errors: { total: number; unresolved: number; last_24h: number };
     api_errors: { unresolved: number; last_24h: number };
     scheduler_errors: { unresolved: number; last_24h: number };
     frontend_errors: { total: number; unresolved: number; last_24h: number };
+    infrastructure?: InfrastructureStatus;
     overall_status: 'healthy' | 'degraded' | 'critical';
     total_unresolved: number;
     trend?: TrendDay[];
@@ -581,6 +589,71 @@ export default function SystemHealthPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Infrastructure Health */}
+            {summary?.infrastructure && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    {/* Database */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                <Server className="w-3.5 h-3.5" /> Database
+                            </span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className={`w-2.5 h-2.5 rounded-full ${summary.infrastructure.database === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse'}`} />
+                                <span className={`text-sm font-bold ${summary.infrastructure.database === 'online' ? 'text-gray-900' : 'text-red-700'}`}>
+                                    {summary.infrastructure.database === 'online' ? 'Online' : 'Offline'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Redis */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                <Zap className="w-3.5 h-3.5" /> Redis Cache
+                            </span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className={`w-2.5 h-2.5 rounded-full ${summary.infrastructure.redis === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse'}`} />
+                                <span className={`text-sm font-bold ${summary.infrastructure.redis === 'online' ? 'text-gray-900' : 'text-red-700'}`}>
+                                    {summary.infrastructure.redis === 'online' ? 'Online' : 'Offline'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Celery */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                <Activity className="w-3.5 h-3.5" /> Celery Queue
+                            </span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className={`w-2.5 h-2.5 rounded-full ${summary.infrastructure.celery.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse'}`} />
+                                <span className={`text-sm font-bold ${summary.infrastructure.celery.status === 'online' ? 'text-gray-900' : 'text-red-700'}`}>
+                                    {summary.infrastructure.celery.status === 'online' ? `${summary.infrastructure.celery.jobs} jobs pending` : 'Offline'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* YouTube Limit */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+                        <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                <Globe className="w-3.5 h-3.5" /> YouTube API
+                            </span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className={`w-2.5 h-2.5 rounded-full ${summary.infrastructure.youtube === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : summary.infrastructure.youtube === 'near_quota' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse'}`} />
+                                <span className={`text-sm font-bold ${summary.infrastructure.youtube === 'active' ? 'text-gray-900' : summary.infrastructure.youtube === 'near_quota' ? 'text-amber-700' : 'text-red-700'}`}>
+                                    {summary.infrastructure.youtube === 'active' ? 'Active' : summary.infrastructure.youtube === 'near_quota' ? 'Near Quota' : 'Quota Exceeded'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Status Cards */}
             {summary && (

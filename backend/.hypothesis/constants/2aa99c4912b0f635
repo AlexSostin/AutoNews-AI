@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0111_training_pair.py
+# hypothesis_version: 6.151.9
+
+[500, '-created_at', 'ID', 'Manual', 'RSS Feed', 'Title A/B Winner', 'Training Pair', 'Training Pairs', 'TrainingPair', 'YouTube', 'article', 'created_at', 'generation', 'id', 'indexes', 'input_text', 'input_title', 'manual', 'news', 'news.article', 'output_text', 'output_title', 'pair_type', 'quality_signals', 'rss', 'source_type', 'title_ab', 'training_pairs', 'trainingpair', 'updated_at', 'verbose_name', 'verbose_name_plural', 'youtube']

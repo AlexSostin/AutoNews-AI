@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0110_update_embedding_model_to_v2.py
+# hypothesis_version: 6.151.9
+
+[100, 'articleembedding', 'model_name', 'news']

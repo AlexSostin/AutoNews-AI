@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/auto_news_site/urls.py
+# hypothesis_version: 6.151.9
+
+['AutoNews Admin', '^media/(?P<path>.*)$', 'admin/', 'api/v1/', 'articles', 'brands', 'categories', 'custom_admin', 'document_root', 'media', 'news.api_urls', 'news.urls', 'sitemap.xml', 'sitemaps', 'tags']

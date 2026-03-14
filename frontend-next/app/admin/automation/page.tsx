@@ -63,8 +63,9 @@ export default function AutomationPage() {
             await api.post(`/automation/trigger/${taskType}/`);
             toast.success(`${taskType} triggered!`);
             // Data will refresh on next 30s auto-refresh cycle
-        } catch (err: any) {
-            const status = err?.response?.status;
+        } catch (err: unknown) {
+            const apiErr = err as { response?: { status?: number } };
+            const status = apiErr?.response?.status;
             if (status === 409) {
                 toast.error(`${taskType} is already running`);
             } else {

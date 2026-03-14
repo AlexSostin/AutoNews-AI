@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getToken, getUserFromStorage } from '@/lib/auth';
 import { Heart, ArrowLeft, Loader2 } from 'lucide-react';
@@ -14,7 +14,7 @@ export default function FavoritesPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const loadFavorites = async () => {
+  const loadFavorites = useCallback(async () => {
     const token = getToken();
     if (!token) {
       router.push('/login');
@@ -31,7 +31,7 @@ export default function FavoritesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     const user = getUserFromStorage();
@@ -41,7 +41,7 @@ export default function FavoritesPage() {
     }
 
     loadFavorites();
-  }, []);
+  }, [router, loadFavorites]);
 
   const handleRemove = async (favoriteId: number) => {
     const token = getToken();

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/seo.py
+# hypothesis_version: 6.151.9
+
+[0.85, 7.2, 200, 500, '"', '#', "'", '*', ',', ', ', '-', '-created_at', '1.', '2.', '<[^>]+>', 'A', 'B', 'C', 'EV', 'Not specified', 'SUV', 'Unknown', '\\b', '\\b[a-z]{2,}\\b', '^\\d+[\\)\\.]\\s*', 'a', 'an', 'and', 'are', 'as', 'at', 'automotive', 'be', 'been', 'but', 'by', 'can', 'car review', 'category', 'could', 'did', 'do', 'does', 'electric', 'electric vehicle', 'ev', 'for', 'from', 'gemini', 'had', 'has', 'have', 'he', 'html.parser', 'hybrid', 'hybrid car', 'i', 'in', 'is', 'it', 'make', 'may', 'might', 'model', 'must', 'new model', 'of', 'on', 'or', 'p', 'performance', 'performance car', 'she', 'should', 'sports', 'sports car', 'suv', 'that', 'the', 'these', 'they', 'this', 'those', 'to', 'was', 'we', 'were', 'will', 'with', 'would', 'year', 'you', 'автомобиль', 'бренд', 'новинка', 'электромобиль']

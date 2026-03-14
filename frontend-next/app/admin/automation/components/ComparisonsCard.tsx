@@ -5,7 +5,7 @@ import { ModuleCard, SettingRow, NumberInput } from './ui';
 interface Props {
     settings: AutomationSettings;
     saving: boolean;
-    updateSetting: (key: string, value: any) => void;
+    updateSetting: (key: string, value: unknown) => void;
 }
 
 export function ComparisonsCard({

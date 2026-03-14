@@ -1,0 +1,159 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - heading "FM Admin" [level=2] [ref=e5]
+        - button "Collapse Sidebar" [ref=e7]:
+          - img [ref=e8]
+      - navigation [ref=e10]:
+        - link "View Public Site" [ref=e11] [cursor=pointer]:
+          - /url: /
+          - img [ref=e12]
+          - generic [ref=e15]: View Public Site
+        - generic [ref=e16]:
+          - generic [ref=e18]: Overview
+          - link "Dashboard" [ref=e19] [cursor=pointer]:
+            - /url: /admin
+            - img [ref=e20]
+            - generic [ref=e25]: Dashboard
+          - link "Analytics" [ref=e26] [cursor=pointer]:
+            - /url: /admin/analytics
+            - img [ref=e27]
+            - generic [ref=e32]: Analytics
+          - link "Notifications" [ref=e33] [cursor=pointer]:
+            - /url: /admin/notifications
+            - img [ref=e34]
+            - generic [ref=e37]: Notifications
+        - generic [ref=e38]:
+          - generic [ref=e40]: Content
+          - link "Articles" [ref=e41] [cursor=pointer]:
+            - /url: /admin/articles
+            - img [ref=e42]
+            - generic [ref=e48]: Articles
+          - link "Categories" [ref=e49] [cursor=pointer]:
+            - /url: /admin/categories
+            - img [ref=e50]
+            - generic [ref=e52]: Categories
+          - link "Tags" [ref=e53] [cursor=pointer]:
+            - /url: /admin/tags
+            - img [ref=e54]
+            - generic [ref=e57]: Tags
+          - link "Pages" [ref=e58] [cursor=pointer]:
+            - /url: /admin/pages
+            - img [ref=e59]
+            - generic [ref=e63]: Pages
+          - link "Publish Queue" [ref=e64] [cursor=pointer]:
+            - /url: /admin/publish-queue
+            - img [ref=e65]
+            - generic [ref=e69]: Publish Queue
+          - link "Translate & Enhance" [ref=e70] [cursor=pointer]:
+            - /url: /admin/translate
+            - img [ref=e71]
+            - generic [ref=e78]: Translate & Enhance
+        - generic [ref=e79]:
+          - generic [ref=e81]: Automotive
+          - link "Brands" [ref=e82] [cursor=pointer]:
+            - /url: /admin/brands
+            - img [ref=e83]
+            - generic [ref=e87]: Brands
+          - link "Brand Aliases" [ref=e88] [cursor=pointer]:
+            - /url: /admin/brand-aliases
+            - img [ref=e89]
+            - generic [ref=e94]: Brand Aliases
+          - link "Car Specs" [ref=e95] [cursor=pointer]:
+            - /url: /admin/car-specs
+            - img [ref=e96]
+            - generic [ref=e101]: Car Specs
+          - link "Vehicle Specs" [ref=e102] [cursor=pointer]:
+            - /url: /admin/vehicle-specs
+            - img [ref=e103]
+            - generic [ref=e105]: Vehicle Specs
+          - link "Comparisons" [ref=e106] [cursor=pointer]:
+            - /url: /admin/comparisons
+            - img [ref=e107]
+            - generic [ref=e114]: Comparisons
+        - generic [ref=e115]:
+          - generic [ref=e117]: Sources
+          - link "RSS Feeds" [ref=e118] [cursor=pointer]:
+            - /url: /admin/rss-feeds
+            - img [ref=e119]
+            - generic [ref=e123]: RSS Feeds
+          - link "RSS News" [ref=e124] [cursor=pointer]:
+            - /url: /admin/rss-pending
+            - img [ref=e125]
+            - generic [ref=e129]: RSS News
+          - link "YouTube Channels" [ref=e130] [cursor=pointer]:
+            - /url: /admin/youtube-channels
+            - img [ref=e131]
+            - generic [ref=e134]: YouTube Channels
+        - generic [ref=e135]:
+          - generic [ref=e137]: Audience
+          - link "Comments" [ref=e138] [cursor=pointer]:
+            - /url: /admin/comments
+            - img [ref=e139]
+            - generic [ref=e141]: Comments
+          - link "Feedback" [ref=e142] [cursor=pointer]:
+            - /url: /admin/feedback
+            - img [ref=e143]
+            - generic [ref=e147]: Feedback
+          - link "Subscribers" [ref=e148] [cursor=pointer]:
+            - /url: /admin/subscribers
+            - img [ref=e149]
+            - generic [ref=e152]: Subscribers
+        - generic [ref=e153]:
+          - generic [ref=e155]: Tools
+          - link "Automation" [ref=e156] [cursor=pointer]:
+            - /url: /admin/automation
+            - img [ref=e157]
+            - generic [ref=e164]: Automation
+          - link "A/B Testing" [ref=e165] [cursor=pointer]:
+            - /url: /admin/ab-testing
+            - img [ref=e166]
+            - generic [ref=e170]: A/B Testing
+          - link "Ads / Sponsors" [ref=e171] [cursor=pointer]:
+            - /url: /admin/ads
+            - img [ref=e172]
+            - generic [ref=e176]: Ads / Sponsors
+          - link "System Health" [ref=e177] [cursor=pointer]:
+            - /url: /admin/health
+            - img [ref=e178]
+            - generic [ref=e180]: System Health
+          - link "System Graph" [ref=e181] [cursor=pointer]:
+            - /url: /admin/system-graph
+            - img [ref=e182]
+            - generic [ref=e190]: System Graph
+        - generic [ref=e191]:
+          - generic [ref=e193]: Settings
+          - link "Site Settings" [ref=e194] [cursor=pointer]:
+            - /url: /admin/settings
+            - img [ref=e195]
+            - generic [ref=e198]: Site Settings
+          - link "Account Settings" [ref=e199] [cursor=pointer]:
+            - /url: /admin/account
+            - img [ref=e200]
+            - generic [ref=e212]: Account Settings
+          - link "Users" [ref=e213] [cursor=pointer]:
+            - /url: /admin/users
+            - img [ref=e214]
+            - generic [ref=e219]: Users
+      - button "Logout" [ref=e221]:
+        - img [ref=e222]
+        - generic [ref=e226]: Logout
+    - generic [ref=e227]:
+      - banner [ref=e228]:
+        - generic [ref=e229]:
+          - heading "Admin Dashboard" [level=1] [ref=e231]
+          - generic [ref=e232]:
+            - button "Notifications & System Health" [ref=e234]:
+              - img [ref=e235]
+            - generic [ref=e238]:
+              - img [ref=e239]
+              - generic [ref=e242]: Admin
+      - main [ref=e243]
+  - button "Open Next.js Dev Tools" [ref=e251] [cursor=pointer]:
+    - img [ref=e252]
+  - alert [ref=e256]
+```

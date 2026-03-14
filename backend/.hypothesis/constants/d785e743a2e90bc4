@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/indexnow.py
+# hypothesis_version: 6.151.9
+
+[200, 202, 422, 429, '/', 'Content-Type', 'INDEXNOW_KEY', 'SITE_URL', 'application/json', 'host', 'http://', 'https://', 'key', 'url', 'urlList']

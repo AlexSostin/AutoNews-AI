@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/moderation.py
+# hypothesis_version: 6.151.9
+
+[200, '-created_at', 'action', 'approve', 'approved', 'approved_today', 'article_ids', 'article_ids required', 'articles', 'auto_publish', 'categories', 'content_length', 'created_at', 'error', 'has_images', 'has_price', 'http', 'id', 'image', 'is_published', 'make', 'model', 'moderation_notes', 'moderation_status', 'name', 'notes', 'pending', 'pending_review', 'provider', 'quality_score', 'reject', 'rejected', 'rejected_today', 'slug', 'specs', 'stats', 'status', 'success', 'summary', 'tags', 'title', 'total_approved', 'total_pending', 'total_rejected', 'updated_count']

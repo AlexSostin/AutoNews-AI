@@ -1,0 +1,56 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - link "Fresh Motors" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - img "Fresh Motors" [ref=e7]
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]: Username
+        - textbox "Username" [ref=e11]
+      - generic [ref=e12]:
+        - generic [ref=e13]: Password
+        - textbox "Password" [ref=e14]
+        - button "Show password" [ref=e15]:
+          - img [ref=e16]
+      - button "Login" [ref=e19]
+    - generic [ref=e24]: Or continue with
+    - generic [ref=e28]:
+      - button "להמשיך עם Google. פתיחה בכרטיסייה חדשה" [ref=e30] [cursor=pointer]:
+        - generic [ref=e32]:
+          - img [ref=e34]
+          - generic [ref=e41]: להמשיך עם Google
+      - iframe
+    - generic [ref=e42]:
+      - paragraph [ref=e43]:
+        - text: Don't have an account?
+        - link "Register here" [ref=e44] [cursor=pointer]:
+          - /url: /register
+      - link "← Back to Home" [ref=e45] [cursor=pointer]:
+        - /url: /
+  - button "Open Next.js Dev Tools" [ref=e51] [cursor=pointer]:
+    - img [ref=e52]
+  - alert [ref=e55]: Fresh Motors - Latest Automotive News & Reviews
+  - generic [ref=e59]:
+    - generic [ref=e61]:
+      - img [ref=e63]
+      - generic [ref=e65]:
+        - heading "Cookie Settings" [level=3] [ref=e66]
+        - paragraph [ref=e67]: We value your privacy
+    - generic [ref=e68]:
+      - paragraph [ref=e69]: We use cookies to enhance your browsing experience, analyze site traffic, and personalize content. By clicking "Accept All", you consent to our use of cookies. You can customize your preferences or reject non-essential cookies.
+      - generic [ref=e70]:
+        - button "Accept All" [ref=e71]:
+          - img [ref=e72]
+          - text: Accept All
+        - button "Necessary Only" [ref=e74]
+        - button "Customize" [ref=e75]:
+          - img [ref=e76]
+          - text: Customize
+      - paragraph [ref=e79]:
+        - text: Learn more in our
+        - link "Privacy Policy" [ref=e80] [cursor=pointer]:
+          - /url: /privacy-policy
+```

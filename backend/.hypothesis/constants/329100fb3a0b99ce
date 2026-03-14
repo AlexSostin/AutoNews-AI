@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0113_article_moderation_fields.py
+# hypothesis_version: 6.151.9
+
+['Approved', 'Auto-Approved', 'Pending Review', 'Rejected', 'approved', 'article', 'auto_approved', 'moderated_articles', 'moderation_notes', 'moderation_status', 'news', 'pending_review', 'rejected']

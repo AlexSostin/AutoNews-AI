@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/vector_search.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.1, 1.0, 500, 1024, 'GEMINI_API_KEY', '[\\w]+', 'article', 'article_id', 'bm25_rank', 'bm25_score', 'db_embeddings', 'emb_cache:', 'embedding_vector', 'empty', 'faiss_idx', 'faiss_index_cache', 'id', 'index.faiss', 'index_size_mb', 'metadata', 'model_name', 'rank', 'ready', 'score', 'slug', 'status', 'summary', 'text', 'text_hash', 'title', 'total_articles', 'updated_at', 'vector_rank']

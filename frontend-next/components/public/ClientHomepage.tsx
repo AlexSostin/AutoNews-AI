@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Hero from '@/components/public/Hero';
 import EmptyState from '@/components/public/EmptyState';
 import InfiniteArticleList from '@/components/public/InfiniteArticleList';
@@ -126,9 +127,9 @@ export default function ClientHomepage() {
                                     href={`/cars/${brand.slug}`}
                                     className="group flex items-center gap-3 bg-white/70 backdrop-blur-md border border-gray-200 rounded-xl px-4 py-3 transition-all duration-300 hover:border-purple-400 hover:shadow-lg hover:-translate-y-0.5"
                                 >
-                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center text-lg group-hover:from-purple-200 group-hover:to-indigo-200 transition-all overflow-hidden flex-shrink-0">
+                                    <div className="relative w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center text-lg group-hover:from-purple-200 group-hover:to-indigo-200 transition-all overflow-hidden flex-shrink-0">
                                         {brand.image ? (
-                                            <img src={fixImageUrl(brand.image)} alt={`${brand.name} logo`} className="w-full h-full object-cover rounded-lg" />
+                                            <Image src={fixImageUrl(brand.image)} alt={`${brand.name} logo`} fill sizes="40px" className="object-cover rounded-lg" />
                                         ) : (
                                             <span>🚗</span>
                                         )}

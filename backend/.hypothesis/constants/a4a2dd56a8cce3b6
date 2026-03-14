@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/auto_news_site/celery.py
+# hypothesis_version: 6.151.9
+
+['CELERY', 'auto_news_site', 'django.conf:settings']

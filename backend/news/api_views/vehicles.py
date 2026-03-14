@@ -1047,11 +1047,12 @@ RULES:
             qs = qs.filter(body_type__iexact=segment)
         if fuel:
             qs = qs.filter(fuel_type__iexact=fuel)
-        if brands:
-            brand_list = [b.strip() for b in brands.split(',') if b.strip()]
-            qs = qs.filter(make__in=brand_list)
 
         all_specs = list(qs)
+        
+        brand_list = []
+        if brands:
+            brand_list = [b.strip().lower() for b in brands.split(',') if b.strip()]
 
         # Group by segment
         segments_map = {}
@@ -1067,6 +1068,11 @@ RULES:
             for a, b in combinations(specs, 2):
                 if a.make.lower() == b.make.lower():
                     continue  # No intra-brand comparisons
+
+                # If brands filter is active, AT LEAST ONE car must match the selected brands
+                if brand_list:
+                    if a.make.lower() not in brand_list and b.make.lower() not in brand_list:
+                        continue
 
                 score = 0
                 for spec in (a, b):

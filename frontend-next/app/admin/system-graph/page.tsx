@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     ReactFlow,
     Background,
@@ -15,36 +15,14 @@ import {
     type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import dagre from 'dagre';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
     RefreshCw, Loader2, AlertTriangle, CheckCircle, XCircle, Info, X,
 } from 'lucide-react';
 
-// ── Progress Bar Component ──────────────────────────────────────────
-function ProgressBar({ value, max, showLabel = true }: {
-    value: number; max: number; showLabel?: boolean;
-}) {
-    const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-    const barColor =
-        pct >= 80 ? 'bg-emerald-500' :
-            pct >= 50 ? 'bg-amber-500' :
-                'bg-red-500';
-    return (
-        <div className="w-full">
-            <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-0.5">
-                {showLabel && <span>{value.toLocaleString()} / {max.toLocaleString()}</span>}
-                <span className={pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600'}>{pct}%</span>
-            </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                    className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                    style={{ width: `${pct}%` }}
-                />
-            </div>
-        </div>
-    );
-}
+
 
 // ── Types ──────────────────────────────────────────────────────────
 interface GraphNode {
@@ -125,47 +103,38 @@ function EntityNode({ data }: { data: any }) {
 const nodeTypes = { entity: EntityNode };
 
 // ── Layout ─────────────────────────────────────────────────────────
-// Manual positions for clean dagre-like layout
-const NODE_POSITIONS: Record<string, { x: number; y: number }> = {
-    // Sources (left column)
-    rss_feeds: { x: 50, y: 60 },
-    rss_items: { x: 280, y: 60 },
-    youtube: { x: 50, y: 200 },
-    // Content (middle)
-    pending_articles: { x: 520, y: 60 },
-    articles: { x: 760, y: 60 },
-    article_images: { x: 760, y: 200 },
-    // Vehicles (right column)
-    brands: { x: 1000, y: 60 },
-    brand_aliases: { x: 1000, y: 200 },
-    car_specs: { x: 1000, y: 340 },
-    vehicle_specs: { x: 1000, y: 480 },
-    // Taxonomy (bottom-middle)
-    categories: { x: 520, y: 350 },
-    tag_groups: { x: 520, y: 490 },
-    tags: { x: 760, y: 350 },
-    // Interactions (bottom-left)
-    comments: { x: 50, y: 380 },
-    ratings: { x: 280, y: 380 },
-    favorites: { x: 50, y: 520 },
-    feedback: { x: 280, y: 520 },
-    // ML (top-right)
-    embeddings: { x: 760, y: 490 },
-    ab_tests: { x: 520, y: 200 },
-    // System (far right bottom)
-    subscribers: { x: 280, y: 200 },
-    errors: { x: 50, y: 660 },
-};
 
-// ── Edge Styles ────────────────────────────────────────────────────
-const EDGE_STYLE = {
-    stroke: '#94a3b8',
-    strokeWidth: 1.5,
-};
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-const ANIMATED_EDGE_STYLE = {
-    stroke: '#6366f1',
-    strokeWidth: 2,
+const nodeWidth = 200;
+const nodeHeight = 120;
+
+const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => {
+    dagreGraph.setGraph({ rankdir: direction, nodesep: 40, ranksep: 120 });
+
+    nodes.forEach((node) => {
+        dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    });
+
+    edges.forEach((edge) => {
+        dagreGraph.setEdge(edge.source, edge.target);
+    });
+
+    dagre.layout(dagreGraph);
+
+    nodes.forEach((node) => {
+        const nodeWithPosition = dagreGraph.node(node.id);
+        node.targetPosition = Position.Left;
+        node.sourcePosition = Position.Right;
+
+        node.position = {
+            x: nodeWithPosition.x - nodeWidth / 2,
+            y: nodeWithPosition.y - nodeHeight / 2,
+        };
+    });
+
+    return { nodes, edges };
 };
 
 // ── Warning Badge (top-level to avoid remount on each parent re-render) ──
@@ -204,10 +173,10 @@ export default function SystemGraphPage() {
             setGraphData(data);
 
             // Build React Flow nodes
-            const rfNodes: Node[] = data.nodes.map((n: GraphNode) => ({
+            const initialNodes: Node[] = data.nodes.map((n: GraphNode) => ({
                 id: n.id,
                 type: 'entity',
-                position: NODE_POSITIONS[n.id] || { x: 600, y: 300 },
+                position: { x: 0, y: 0 },
                 data: {
                     ...n,
                     nodeData: n,
@@ -216,23 +185,38 @@ export default function SystemGraphPage() {
                 },
             }));
 
-            // Build React Flow edges
-            const rfEdges: Edge[] = data.edges.map((e: GraphEdge, i: number) => ({
-                id: `e-${i}`,
-                source: e.from,
-                target: e.to,
-                label: e.count > 0 ? `${e.label} (${e.count})` : e.label,
-                type: 'default',
-                animated: e.count > 100,
-                style: e.count > 100 ? ANIMATED_EDGE_STYLE : EDGE_STYLE,
-                labelStyle: { fontSize: 10, fontWeight: 600, fill: '#64748b' },
-                labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.9 },
-                labelBgPadding: [4, 2] as [number, number],
-                markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
-            }));
+            // Build React Flow edges with dynamic thickness
+            const maxVolume = Math.max(1, ...data.edges.map((e: GraphEdge) => e.count));
 
-            setNodes(rfNodes);
-            setEdges(rfEdges);
+            const initialEdges: Edge[] = data.edges.map((e: GraphEdge, i: number) => {
+                const thickness = e.count > 0 ? Math.max(1.5, Math.min(8, (e.count / maxVolume) * 10)) : 1.5;
+                const isAnimated = e.count > 50;
+                
+                return {
+                    id: `e-${i}`,
+                    source: e.from,
+                    target: e.to,
+                    label: e.count > 0 ? `${e.label} (${e.count.toLocaleString()})` : e.label,
+                    type: 'default',
+                    animated: isAnimated,
+                    style: {
+                        stroke: isAnimated ? '#6366f1' : '#94a3b8',
+                        strokeWidth: thickness,
+                    },
+                    labelStyle: { fontSize: 10, fontWeight: 600, fill: '#64748b' },
+                    labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.9 },
+                    labelBgPadding: [4, 2] as [number, number],
+                    markerEnd: { type: MarkerType.ArrowClosed, color: isAnimated ? '#6366f1' : '#94a3b8', width: 16, height: 16 },
+                };
+            });
+
+            const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+                initialNodes,
+                initialEdges
+            );
+
+            setNodes(layoutedNodes);
+            setEdges(layoutedEdges);
         } catch (err) {
             console.error('Failed to load graph data:', err);
             if (!silent) toast.error('Failed to load system graph');

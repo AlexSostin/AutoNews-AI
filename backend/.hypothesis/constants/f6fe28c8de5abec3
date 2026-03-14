@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/sitemaps.py
+# hypothesis_version: 6.151.9
+
+[0.4, 0.6, 0.7, 0.8, '-created_at', 'monthly', 'weekly']

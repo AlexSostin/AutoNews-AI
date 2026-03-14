@@ -1,7 +1,4 @@
-'use client';
-
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ArticleCard from '@/components/public/ArticleCard';
@@ -10,132 +7,76 @@ import { ArticleGridSkeleton } from '@/components/public/Skeletons';
 import TagsDropdown from '@/components/public/TagsDropdown';
 import CategoriesDropdown from '@/components/public/CategoriesDropdown';
 import SearchInput from '@/components/public/SearchInput';
-import { usePageAnalytics, trackEvent } from '@/hooks/usePageAnalytics';
 import { Article, Category, Tag } from '@/types';
+import PageAnalyticsTracker from '@/components/public/PageAnalyticsTracker';
 
-// Runtime API URL detection for client components
+// Runtime API URL detection for server components
 const getApiUrl = () => {
-  if (typeof window === 'undefined') return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api/v1';
-  }
-  return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+    if (process.env.API_INTERNAL_URL) return process.env.API_INTERNAL_URL;
+    if (process.env.RAILWAY_ENVIRONMENT === 'production') return 'https://heroic-healing-production-2365.up.railway.app/api/v1';
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 };
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
-function ArticlesContent() {
-  const searchParams = useSearchParams();
+async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const resolvedParams = await searchParams;
+  const pageStr = typeof resolvedParams.page === 'string' ? resolvedParams.page : '1';
+  const page = parseInt(pageStr) || 1;
+  const category = typeof resolvedParams.category === 'string' ? resolvedParams.category : '';
+  const tag = typeof resolvedParams.tag === 'string' ? resolvedParams.tag : '';
+  const search = typeof resolvedParams.search === 'string' ? resolvedParams.search : '';
 
-  usePageAnalytics('articles');
+  let articles: Article[] = [];
+  let totalCount = 0;
+  let categories: Category[] = [];
+  let tagsObj: Tag[] = [];
 
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  try {
+    const apiUrl = getApiUrl();
+    
+    // Fetch articles
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('page_size', '12');
+    queryParams.append('is_published', 'true');
+    if (category) queryParams.append('category', category);
+    if (tag) queryParams.append('tag', tag);
+    if (search) queryParams.append('search', search);
 
-  const page = parseInt(searchParams.get('page') || '1');
-  const category = searchParams.get('category') || '';
-  const tag = searchParams.get('tag') || '';
-  const search = searchParams.get('search') || '';
+    const [articlesRes, categoriesRes, tagsRes] = await Promise.all([
+      fetch(`${apiUrl}/articles/?${queryParams.toString()}`, { next: { revalidate: 60 } }),
+      fetch(`${apiUrl}/categories/`, { next: { revalidate: 300 } }),
+      fetch(`${apiUrl}/tags/`, { next: { revalidate: 300 } })
+    ]);
+
+    if (articlesRes.ok) {
+        const articlesData = await articlesRes.json();
+        articles = articlesData.results || [];
+        totalCount = articlesData.count || 0;
+    }
+
+    if (categoriesRes.ok) {
+        const categoriesData = await categoriesRes.json();
+        categories = Array.isArray(categoriesData) ? categoriesData : categoriesData.results || [];
+    }
+
+    if (tagsRes.ok) {
+        const tagsData = await tagsRes.json();
+        tagsObj = Array.isArray(tagsData) ? tagsData : tagsData.results || [];
+    }
+  } catch (error) {
+    console.error('Error fetching data for Articles API:', error);
+  }
 
   const totalPages = Math.ceil(totalCount / 12);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadData() {
-      setLoading(true);
-
-      try {
-        // Fetch articles
-        const params = new URLSearchParams();
-        params.append('page', page.toString());
-        params.append('page_size', '12');
-        if (category) params.append('category', category);
-        if (tag) params.append('tag', tag);
-        if (search) params.append('search', search);
-
-        const articlesRes = await fetch(`${getApiUrl()}/articles/?${params.toString()}`);
-        if (articlesRes.ok && isMounted) {
-          const articlesData = await articlesRes.json();
-          setArticles(articlesData.results || []);
-          setTotalCount(articlesData.count || 0);
-        }
-      } catch (error) {
-        console.error('Error loading articles:', error);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    loadData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [page, category, tag, search]);
-
-  // Track search and filter usage for analytics
-  useEffect(() => {
-    if (search) {
-      trackEvent('search', 'articles', { query: search, results_count: totalCount });
-    }
-    if (category) {
-      trackEvent('filter_use', 'articles', { filter_type: 'category', filter_value: category });
-    }
-    if (tag) {
-      trackEvent('filter_use', 'articles', { filter_type: 'tag', filter_value: tag });
-    }
-  }, [category, tag, search, totalCount]);
-
-  // Load categories and tags only once
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadFilters() {
-      try {
-        const apiUrl = getApiUrl();
-        const [categoriesRes, tagsRes] = await Promise.all([
-          fetch(`${apiUrl}/categories/`),
-          fetch(`${apiUrl}/tags/`)
-        ]);
-
-        if (categoriesRes.ok && isMounted) {
-          const categoriesData = await categoriesRes.json();
-          setCategories(Array.isArray(categoriesData) ? categoriesData : categoriesData.results || []);
-        }
-
-        if (tagsRes.ok && isMounted) {
-          const tagsData = await tagsRes.json();
-          setTags(Array.isArray(tagsData) ? tagsData : tagsData.results || []);
-        }
-      } catch (error) {
-        console.error('Error loading filters:', error);
-      }
-    }
-
-    loadFilters();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <main className="flex-1 bg-gray-50">
-        <div className="container mx-auto px-4 py-12">
-          <ArticleGridSkeleton />
-        </div>
-      </main>
-    );
-  }
-
   return (
     <>
+      {/* Client-side tracking logic */}
+      <PageAnalyticsTracker pageType="articles" />
+      
       <main className="flex-1 bg-gray-50">
         {/* Hero Header — full-width outside container */}
         <section className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-800 text-white py-16 relative overflow-hidden">
@@ -178,7 +119,7 @@ function ArticlesContent() {
               <div>
                 <label className="block text-sm font-black text-gray-950 mb-3">Tag</label>
                 <TagsDropdown
-                  tags={tags}
+                  tags={tagsObj}
                   currentTag={tag}
                   currentCategory={category}
                 />
@@ -213,7 +154,7 @@ function ArticlesContent() {
                       href={`/articles?${category ? `category=${category}&` : ''}${search ? `search=${search}` : ''}`}
                       className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
-                      {tags.find((t: Tag) => t.slug === tag)?.name} ✕
+                      {tagsObj.find((t: Tag) => t.slug === tag)?.name} ✕
                     </Link>
                   )}
                   {search && (
@@ -340,10 +281,10 @@ function ArticlesContent() {
   );
 }
 
-export default function ArticlesPage() {
+export default function ArticlesPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   return (
     <Suspense fallback={<ArticleGridSkeleton />}>
-      <ArticlesContent />
+      <ArticlesContent searchParams={searchParams} />
     </Suspense>
   );
 }

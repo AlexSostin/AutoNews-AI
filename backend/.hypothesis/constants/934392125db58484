@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/cars/compare_views.py
+# hypothesis_version: 6.151.9
+
+[400, 404, 600, '-id', '/', '_model_slugs', 'acceleration_0_100', 'article', 'article_slug', 'battery_kwh', 'car1', 'car2', 'cargo_liters', 'cargo_liters_max', 'cars_picker', 'combined_range_km', 'error', 'ground_clearance_mm', 'image', 'make', 'model_name', 'models', 'name', 'power_hp', 'power_kw', 'price_usd_from', 'range_cltc', 'range_epa', 'range_km', 'range_wltp', 'seats', 'slug', 'tie', 'top_speed_kmh', 'torque_nm', 'towing_capacity_kg', 'voltage_architecture', 'weight_kg', 'wheelbase_mm', 'winners']

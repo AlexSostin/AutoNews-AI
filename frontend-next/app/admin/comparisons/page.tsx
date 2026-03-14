@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   GitCompareArrows, Search, Loader2, Sparkles,
   ChevronDown, Filter, RefreshCw, CheckCircle2, Eye,
-  Clock, FileText, ExternalLink
+  Clock, FileText, ExternalLink, Check, X
 } from 'lucide-react';
 import api from '@/lib/api';
 import Link from 'next/link';
@@ -72,15 +72,153 @@ interface RecentComparison {
   provider: string;
 }
 
-function HealthBar({ health }: { health: DataHealth }) {
+function BrandMultiSelect({
+  brandsOptions,
+  brandFilter,
+  setBrandFilter
+}: {
+  brandsOptions: { name: string; article_count: number }[];
+  brandFilter: string[];
+  setBrandFilter: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleBrand = (name: string) => {
+    if (brandFilter.includes(name)) {
+      setBrandFilter(brandFilter.filter(b => b !== name));
+    } else {
+      setBrandFilter([...brandFilter, name]);
+    }
+  };
+
+  const removeBrand = (e: React.MouseEvent, name: string) => {
+    e.stopPropagation();
+    setBrandFilter(brandFilter.filter(b => b !== name));
+  };
+
+  return (
+    <div className="relative min-w-[200px]" ref={containerRef}>
+      <label className="block text-xs font-semibold text-gray-600 mb-1">Brands Filter</label>
+      <div 
+        onClick={() => setOpen(!open)}
+        className={`flex items-center justify-between px-3 py-2 border rounded-xl text-sm bg-white cursor-pointer transition-colors ${
+          open ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-gray-200 hover:border-indigo-300'
+        }`}
+      >
+        <div className="flex flex-wrap gap-1 items-center flex-1 max-w-[200px] overflow-hidden">
+          {brandFilter.length === 0 ? (
+            <span className="text-gray-500">All Brands</span>
+          ) : brandFilter.length <= 2 ? (
+            brandFilter.map(b => (
+              <span key={b} className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg text-xs font-medium border border-indigo-100">
+                {b}
+                <X size={12} className="cursor-pointer hover:text-indigo-900" onClick={(e) => removeBrand(e, b)} />
+              </span>
+            ))
+          ) : (
+             <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg text-xs font-medium border border-indigo-100">
+               {brandFilter.length} Selected
+             </span>
+          )}
+        </div>
+        <ChevronDown size={14} className={`text-gray-400 ml-2 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </div>
+
+      {open && (
+        <div className="absolute z-50 w-[240px] mt-2 bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] max-h-72 overflow-y-auto p-1 left-0">
+          {brandFilter.length > 0 && (
+             <button onClick={() => setBrandFilter([])} className="w-full text-left px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg mb-1 transition-colors">
+               Clear All Selections
+             </button>
+          )}
+          {brandsOptions.map(b => (
+            <div 
+              key={b.name} 
+              onClick={() => toggleBrand(b.name)}
+              className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors ${
+                brandFilter.includes(b.name) ? 'bg-indigo-50/80 text-indigo-800 font-semibold' : 'hover:bg-gray-50 text-gray-700'
+              }`}
+            >
+              <div className="flex items-center gap-2 truncate">
+                <div className={`w-4 h-4 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${
+                  brandFilter.includes(b.name) ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
+                }`}>
+                  {brandFilter.includes(b.name) && <Check size={12} className="text-white" strokeWidth={3} />}
+                </div>
+                <span className="truncate">{b.name}</span>
+              </div>
+              <span className={`text-xs tabular-nums flex-shrink-0 ml-2 ${brandFilter.includes(b.name) ? 'text-indigo-600' : 'text-gray-400'}`}>
+                {b.article_count}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HealthBar({ health, spec }: { health: DataHealth; spec: SpecSummary }) {
+  const [showTooltip, setShowTooltip] = useState(false);
   const pct = Math.round((health.filled / health.total) * 100);
   const color = pct >= 75 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-400';
+
+  const healthFields: (keyof SpecSummary)[] = [
+    'power_hp', 'acceleration_0_100',
+    'battery_kwh', 'range_wltp', 'range_km', 'price_from',
+    'body_type', 'fuel_type'
+  ];
+
   return (
-    <div className="flex items-center gap-1.5">
+    <div 
+      className="relative flex items-center gap-1.5 cursor-help"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
       <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
         <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-[10px] text-gray-500 font-medium">{health.filled}/{health.total}</span>
+      
+      {showTooltip && (
+        <div className="absolute top-full right-0 mt-2 z-50 w-56 bg-white/90 backdrop-blur-xl text-gray-800 text-xs p-3 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-white/20 ring-1 ring-gray-900/5 pointer-events-none transform origin-top-right transition-all animate-in fade-in zoom-in duration-200">
+          <div className="font-bold text-gray-900 mb-2 pb-2 border-b border-gray-100/50 flex items-center gap-1.5">
+            <Sparkles size={14} className="text-indigo-500" /> Data Completeness
+          </div>
+          <div className="space-y-1.5">
+            {healthFields.map(field => {
+              const hasValue = spec[field] !== null && spec[field] !== undefined && spec[field] !== '';
+              return (
+                <div key={field} className="flex justify-between items-center group">
+                  <span className="text-gray-500 capitalize group-hover:text-gray-700 transition-colors">
+                    {field.replace(/_/g, ' ')}
+                  </span>
+                  {hasValue ? (
+                    <div className="bg-emerald-50 text-emerald-500 p-0.5 rounded-md">
+                      <Check size={12} strokeWidth={3} />
+                    </div>
+                  ) : (
+                    <div className="bg-red-50 text-red-500 p-0.5 rounded-md">
+                      <X size={12} strokeWidth={3} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -114,14 +252,14 @@ export default function ComparisonsPage() {
   const [generating, setGenerating] = useState<string | null>(null); // "specAid-specBid"
   const [search, setSearch] = useState('');
   const [segmentFilter, setSegmentFilter] = useState('');
+  const [brandFilter, setBrandFilter] = useState<string[]>([]);
+  const [brandsOptions, setBrandsOptions] = useState<{name: string, article_count: number}[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [provider, setProvider] = useState('gemini');
   const [limit, setLimit] = useState(30);
-  const [generatedKeys, setGeneratedKeys] = useState<Set<string>>(new Set());
 
-  // Active generation state (pinned card at top)
-  const [activePair, setActivePair] = useState<ComparisonPair | null>(null);
-  const [activeResult, setActiveResult] = useState<ExistingArticle | null>(null);
+  // Inline generation results mapping: key -> ExistingArticle
+  const [inlineResults, setInlineResults] = useState<Record<string, ExistingArticle>>({});
 
   // Recently generated comparisons (from backend)
   const [recentComparisons, setRecentComparisons] = useState<RecentComparison[]>([]);
@@ -138,6 +276,9 @@ export default function ComparisonsPage() {
           params.set('segment', parts.slice(1).join(' '));
         }
       }
+      if (brandFilter.length > 0) {
+        params.set('brands', brandFilter.join(','));
+      }
       params.set('limit', String(limit));
       const { data } = await api.get(`/vehicle-specs/comparison-pairs/?${params.toString()}`);
       setData(data);
@@ -145,7 +286,20 @@ export default function ComparisonsPage() {
       console.error('Failed to fetch pairs:', err);
     }
     setLoading(false);
-  }, [segmentFilter, limit]);
+  }, [segmentFilter, brandFilter, limit]);
+
+  const fetchBrands = useCallback(async () => {
+    try {
+      const { data } = await api.get('/brand-aliases/brand-tree/');
+      const options = data.tree.map((b: {name: string, article_count: number}) => ({
+        name: b.name,
+        article_count: b.article_count
+      })).sort((a: {article_count: number}, b: {article_count: number}) => b.article_count - a.article_count);
+      setBrandsOptions(options);
+    } catch (err) {
+      console.error('Failed to fetch brands:', err);
+    }
+  }, []);
 
   const fetchRecentComparisons = useCallback(async () => {
     try {
@@ -156,16 +310,11 @@ export default function ComparisonsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchPairs(); fetchRecentComparisons(); }, [fetchPairs, fetchRecentComparisons]);
+  useEffect(() => { fetchPairs(); fetchRecentComparisons(); fetchBrands(); }, [fetchPairs, fetchRecentComparisons, fetchBrands]);
 
   const handleGenerate = async (pair: ComparisonPair) => {
     const key = `${pair.spec_a.id}-${pair.spec_b.id}`;
     setGenerating(key);
-    setActivePair(pair);
-    setActiveResult(null);
-
-    // Scroll to top so user sees the pinned card
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
       const { data: result } = await api.post('/vehicle-specs/generate-comparison/', {
@@ -180,27 +329,24 @@ export default function ComparisonsPage() {
           is_published: false,
           title: result.article.title,
         };
-        setActiveResult(article);
-        // Remove from pairs list
-        setGeneratedKeys(prev => new Set(prev).add(key));
+        
+        // Show success inline
+        setInlineResults(prev => ({ ...prev, [key]: article }));
+        
         // Refresh recent comparisons
         fetchRecentComparisons();
       } else {
         alert(`Generation failed: ${result.error}`);
-        setActivePair(null);
       }
     } catch (err) {
       console.error('Generation failed:', err);
       alert('Generation failed. Check console.');
-      setActivePair(null);
     }
     setGenerating(null);
   };
 
-  // Filter out already generated pairs
+  // Filter out pairs that already have an existing article initially, UNLESS we just generated it inline
   const filteredPairs = (data?.pairs || []).filter(pair => {
-    const key = `${pair.spec_a.id}-${pair.spec_b.id}`;
-    if (generatedKeys.has(key)) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return pair.spec_a.make.toLowerCase().includes(q)
@@ -258,6 +404,11 @@ export default function ComparisonsPage() {
               ))}
             </select>
           </div>
+          <BrandMultiSelect 
+            brandsOptions={brandsOptions}
+            brandFilter={brandFilter}
+            setBrandFilter={setBrandFilter}
+          />
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">AI Provider</label>
             <select value={provider} onChange={e => setProvider(e.target.value)}
@@ -279,54 +430,7 @@ export default function ComparisonsPage() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          PINNED: Active Generation Card
-         ══════════════════════════════════════════════ */}
-      {activePair && (
-        <div className={`border-2 rounded-xl shadow-lg overflow-hidden transition-all ${
-          generating ? 'border-indigo-400 bg-indigo-50/50 animate-pulse' : 'border-green-400 bg-green-50/50'
-        }`}>
-          <div className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center gap-2">
-            {generating ? (
-              <><Loader2 size={14} className="animate-spin" /> Generating comparison...</>
-            ) : (
-              <><CheckCircle2 size={14} /> Comparison generated!</>
-            )}
-          </div>
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="font-bold text-gray-900">
-                  {activePair.spec_a.make} {activePair.spec_a.model_name}
-                </div>
-                <span className="text-xs font-black text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">VS</span>
-                <div className="font-bold text-gray-900">
-                  {activePair.spec_b.make} {activePair.spec_b.model_name}
-                </div>
-              </div>
-              {activeResult && (
-                <div className="flex items-center gap-2">
-                  <Link href={`/admin/articles/${activeResult.id}/edit`}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200 transition-colors">
-                    <FileText size={13} /> Edit Draft
-                  </Link>
-                  <Link href={`/articles/${activeResult.slug}`} target="_blank"
-                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-200 transition-colors">
-                    <ExternalLink size={13} /> Preview
-                  </Link>
-                  <button onClick={() => { setActivePair(null); setActiveResult(null); }}
-                    className="text-xs text-gray-400 hover:text-gray-600 ml-2">✕ Close</button>
-                </div>
-              )}
-            </div>
-            {activeResult && (
-              <div className="mt-2 text-sm text-gray-600">
-                📝 <strong>{activeResult.title}</strong>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+
 
       {/* ══════════════════════════════════════════════
           Recently Generated Comparisons
@@ -446,12 +550,12 @@ export default function ComparisonsPage() {
             const avgHealth = Math.round(((healthA.filled + healthB.filled) / (healthA.total + healthB.total)) * 100);
 
             return (
-              <div key={key} className={`bg-white border rounded-xl shadow-sm overflow-hidden transition-all hover:shadow-md ${
+              <div key={key} className={`bg-white border rounded-xl shadow-sm transition-all hover:shadow-md ${
                 existingArticle ? 'border-green-200 bg-green-50/30' : 'border-gray-200'
               }`}>
                 <div className="flex items-stretch">
                   {/* Score badge */}
-                  <div className={`flex flex-col items-center justify-center px-4 border-r ${
+                  <div className={`flex flex-col items-center justify-center px-4 border-r rounded-l-xl ${
                     pair.score >= 25 ? 'bg-gradient-to-b from-green-500 to-emerald-600 text-white' :
                     pair.score >= 18 ? 'bg-gradient-to-b from-yellow-400 to-amber-500 text-white' :
                     'bg-gray-100 text-gray-600'
@@ -480,7 +584,7 @@ export default function ComparisonsPage() {
                               <div className="text-xs text-gray-400">{pair.spec_a.trim_name}</div>
                             )}
                           </div>
-                          <HealthBar health={healthA} />
+                          <HealthBar health={healthA} spec={pair.spec_a} />
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
                           <SpecBadge label="HP" value={pair.spec_a.power_hp} />
@@ -522,7 +626,7 @@ export default function ComparisonsPage() {
                               <div className="text-xs text-gray-400">{pair.spec_b.trim_name}</div>
                             )}
                           </div>
-                          <HealthBar health={healthB} />
+                          <HealthBar health={healthB} spec={pair.spec_b} />
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
                           <SpecBadge label="HP" value={pair.spec_b.power_hp} />
@@ -538,8 +642,22 @@ export default function ComparisonsPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col items-center justify-center gap-2 px-4 bg-gray-50/50 border-l border-gray-200">
-                    {existingArticle ? (
+                  <div className="flex flex-col items-center justify-center gap-2 px-4 bg-gray-50/50 border-l border-gray-200 rounded-r-xl">
+                    {inlineResults[key] ? (
+                      <div className="flex flex-col gap-2 w-full">
+                        <div className="text-[10px] font-bold text-green-600 flex items-center justify-center gap-1">
+                          <CheckCircle2 size={12} /> Generated
+                        </div>
+                        <Link href={`/admin/articles/${inlineResults[key].id}/edit`}
+                          className="flex items-center justify-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200 transition-colors w-full text-center">
+                          <FileText size={13} /> Edit
+                        </Link>
+                        <Link href={`/articles/${inlineResults[key].slug}`} target="_blank"
+                          className="flex items-center justify-center gap-1 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors w-full text-center">
+                          <ExternalLink size={13} /> View
+                        </Link>
+                      </div>
+                    ) : existingArticle ? (
                       <>
                         <Link href={`/admin/articles/${existingArticle.id}/edit`}
                           className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200 transition-colors">
@@ -555,9 +673,9 @@ export default function ComparisonsPage() {
                       <button onClick={() => handleGenerate(pair)} disabled={isGenerating || generating !== null}
                         className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-sm">
                         {isGenerating ? (
-                          <><Loader2 size={13} className="animate-spin" /> Generating...</>
+                          <><Loader2 size={13} className="animate-spin" /> ...</>
                         ) : (
-                          <><Sparkles size={13} /> Generate</>
+                          <><Sparkles size={13} /> Gen</>
                         )}
                       </button>
                     )}

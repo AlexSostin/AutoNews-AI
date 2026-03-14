@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { fixImageUrl } from '@/lib/config';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
@@ -91,7 +92,7 @@ export function ClientModelFallback({ brandSlug, modelSlug }: { brandSlug: strin
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900" />
                 {heroImage && (
                     <div className="absolute inset-0 opacity-35">
-                        <img src={heroImage} alt="" className="w-full h-full object-cover" />
+                        <Image src={heroImage} alt="" fill className="object-cover" priority />
                     </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
@@ -139,8 +140,8 @@ export function ClientModelFallback({ brandSlug, modelSlug }: { brandSlug: strin
             {/* Featured Car Image */}
             {heroImage && (
                 <section className="container mx-auto px-4 -mt-6 relative z-10 mb-8">
-                    <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
-                        <img src={heroImage} alt={data.full_name || data.model} className="w-full aspect-[21/9] object-cover" />
+                    <div className="relative w-full aspect-[21/9] rounded-2xl overflow-hidden shadow-2xl border border-gray-200 bg-gray-100">
+                        <Image src={heroImage} alt={data.full_name || data.model} fill className="object-cover" priority />
                     </div>
                 </section>
             )}
@@ -237,11 +238,14 @@ export function ClientModelFallback({ brandSlug, modelSlug }: { brandSlug: strin
                                     <h2 className="text-xl font-bold text-white">📷 Gallery ({data.images.length} photos)</h2>
                                 </div>
                                 <div className="p-4 space-y-2">
-                                    <img src={fixImageUrl(data.images[0])} alt={`${data.full_name} — main`} className="w-full aspect-video object-cover rounded-xl" />
+                                    <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100">
+                                        <Image src={fixImageUrl(data.images[0])} alt={`${data.full_name} — main`} fill className="object-cover" />
+                                    </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                         {data.images.slice(1).map((img: string, i: number) => (
-                                            <img key={i} src={fixImageUrl(img)} alt={`${data.full_name} photo ${i + 2}`}
-                                                className="w-full aspect-video object-cover rounded-lg hover:opacity-90 transition-opacity" />
+                                            <div key={i} className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity">
+                                                <Image src={fixImageUrl(img)} alt={`${data.full_name} photo ${i + 2}`} fill className="object-cover" sizes="(max-width: 640px) 50vw, 33vw" />
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
@@ -340,8 +344,8 @@ export function ClientCategoryFallback({ slug }: { slug: string }) {
                         <Link key={article.id || article.slug} href={`/articles/${article.slug}`}
                             className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow group">
                             {article.image && (
-                                <div className="h-48 overflow-hidden">
-                                    <img src={fixImageUrl(article.image)} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                <div className="relative h-48 w-full overflow-hidden bg-gray-100">
+                                    <Image src={fixImageUrl(article.image)} alt={article.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform" />
                                 </div>
                             )}
                             <div className="p-4">

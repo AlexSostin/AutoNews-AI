@@ -1,0 +1,417 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e4]:
+      - link "Fresh Motors" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Fresh Motors" [ref=e6]
+      - generic [ref=e7]:
+        - button "Search" [ref=e8]:
+          - img [ref=e9]
+        - button "Change color theme" [ref=e13]:
+          - img [ref=e14]
+        - button "Open menu" [ref=e20]:
+          - img [ref=e21]
+  - main [ref=e22]:
+    - article [ref=e25]:
+      - generic [ref=e26]:
+        - 'img "BYD FCB Titanium 3 vs XPENG G9: Which Electric SUV Wins in 2026?" [ref=e27]'
+        - link "Comparisons" [ref=e29] [cursor=pointer]:
+          - /url: /categories/comparisons
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - img [ref=e33]
+            - generic [ref=e36]: 6 min read
+          - generic [ref=e37]:
+            - img [ref=e38]
+            - generic [ref=e40]: March 14, 2026
+        - generic [ref=e41]:
+          - 'heading "BYD FCB Titanium 3 vs XPENG G9: Which Electric SUV Wins in 2026?" [level=1] [ref=e42]':
+            - 'link "BYD FCB Titanium 3 vs XPENG G9: Which Electric SUV Wins in 2026?" [ref=e43] [cursor=pointer]':
+              - /url: /articles/byd-fcb-titanium-3-vs-xpeng-g9-comparison
+          - button "Add to favorites" [ref=e44]:
+            - img [ref=e45]
+        - paragraph [ref=e47]: Head-to-head comparison of the BYD FCB Titanium 3 and XPENG G9 (320 HP vs 543 HP, 550 km vs 570 km range). Which Electric Vehicle SUV is the better buy?
+      - button "In this article" [ref=e50]:
+        - generic [ref=e51]:
+          - img [ref=e52]
+          - text: In this article
+        - img [ref=e54]
+      - generic [ref=e56]:
+        - generic [ref=e59]:
+          - heading "Introduction" [level=2] [ref=e60]
+          - paragraph [ref=e61]: The premium electric SUV market is expanding rapidly, with automakers pushing the boundaries of battery technology, software integration, and raw performance. Two of the most compelling options in this segment are the BYD FCB Titanium 3 Ultra and the XPENG G9. Both vehicles are built on advanced 800-volt architectures, ensuring rapid charging and efficient power delivery. However, they target distinctly different buyer demographics.
+          - paragraph [ref=e62]: The BYD FCB Titanium 3 Ultra aims to capture the upper-mid-range market by offering a balanced blend of efficiency, proven platform reliability, and aggressive pricing. In contrast, the XPENG G9 is positioned as a flagship technology showcase, prioritizing maximum performance, expansive interior space, and cutting-edge autonomous driving capabilities. This comparison breaks down the exact specifications to determine which electric SUV represents the better investment for prospective buyers.
+          - table [ref=e63]:
+            - rowgroup [ref=e64]:
+              - row "Specification BYD FCB Titanium 3 Ultra XPENG G9" [ref=e65]:
+                - columnheader "Specification" [ref=e66]
+                - columnheader "BYD FCB Titanium 3 Ultra" [ref=e67]
+                - columnheader "XPENG G9" [ref=e68]
+            - rowgroup [ref=e69]:
+              - row "Body Type SUV SUV" [ref=e70]:
+                - cell "Body Type" [ref=e71]:
+                  - strong [ref=e72]: Body Type
+                - cell "SUV" [ref=e73]
+                - cell "SUV" [ref=e74]
+              - row "Fuel Type Electric Vehicle Electric Vehicle" [ref=e75]:
+                - cell "Fuel Type" [ref=e76]:
+                  - strong [ref=e77]: Fuel Type
+                - cell "Electric Vehicle" [ref=e78]
+                - cell "Electric Vehicle" [ref=e79]
+              - row "Seats 5 5" [ref=e80]:
+                - cell "Seats" [ref=e81]:
+                  - strong [ref=e82]: Seats
+                - cell "5" [ref=e83]
+                - cell "5" [ref=e84]
+              - row "Power 320 HP 543 HP" [ref=e85]:
+                - cell "Power" [ref=e86]:
+                  - strong [ref=e87]: Power
+                - cell "320 HP" [ref=e88]
+                - cell "543 HP" [ref=e89]
+              - row "Torque 500 Nm 717 Nm" [ref=e90]:
+                - cell "Torque" [ref=e91]:
+                  - strong [ref=e92]: Torque
+                - cell "500 Nm" [ref=e93]
+                - cell "717 Nm" [ref=e94]
+              - row "0-100 km/h 5.0s 3.9s" [ref=e95]:
+                - cell "0-100 km/h" [ref=e96]:
+                  - strong [ref=e97]: 0-100 km/h
+                - cell "5.0s" [ref=e98]
+                - cell "3.9s" [ref=e99]
+              - row "Top Speed 200 km/h 200 km/h" [ref=e100]:
+                - cell "Top Speed" [ref=e101]:
+                  - strong [ref=e102]: Top Speed
+                - cell "200 km/h" [ref=e103]
+                - cell "200 km/h" [ref=e104]
+              - row "Drivetrain AWD AWD" [ref=e105]:
+                - cell "Drivetrain" [ref=e106]:
+                  - strong [ref=e107]: Drivetrain
+                - cell "AWD" [ref=e108]
+                - cell "AWD" [ref=e109]
+              - row "Battery 82.5 kWh 98.0 kWh" [ref=e110]:
+                - cell "Battery" [ref=e111]:
+                  - strong [ref=e112]: Battery
+                - cell "82.5 kWh" [ref=e113]
+                - cell "98.0 kWh" [ref=e114]
+              - row "Range (CLTC) 650 km 702 km" [ref=e115]:
+                - cell "Range (CLTC)" [ref=e116]:
+                  - strong [ref=e117]: Range (CLTC)
+                - cell "650 km" [ref=e118]
+                - cell "702 km" [ref=e119]
+              - row "Range 550 km 570 km" [ref=e120]:
+                - cell "Range" [ref=e121]:
+                  - strong [ref=e122]: Range
+                - cell "550 km" [ref=e123]
+                - cell "570 km" [ref=e124]
+              - row "Fast Charging 28 min to 80% 20 min (10-80%)" [ref=e125]:
+                - cell "Fast Charging" [ref=e126]:
+                  - strong [ref=e127]: Fast Charging
+                - cell "28 min to 80%" [ref=e128]
+                - cell "20 min (10-80%)" [ref=e129]
+              - row "Max Charging Power 180 kW 300 kW" [ref=e130]:
+                - cell "Max Charging Power" [ref=e131]:
+                  - strong [ref=e132]: Max Charging Power
+                - cell "180 kW" [ref=e133]
+                - cell "300 kW" [ref=e134]
+              - row "Length 4,750 mm 4,750 mm" [ref=e135]:
+                - cell "Length" [ref=e136]:
+                  - strong [ref=e137]: Length
+                - cell "4,750 mm" [ref=e138]
+                - cell "4,750 mm" [ref=e139]
+              - row "Width 1,920 mm 1,920 mm" [ref=e140]:
+                - cell "Width" [ref=e141]:
+                  - strong [ref=e142]: Width
+                - cell "1,920 mm" [ref=e143]
+                - cell "1,920 mm" [ref=e144]
+              - row "Height 1,680 mm 1,680 mm" [ref=e145]:
+                - cell "Height" [ref=e146]:
+                  - strong [ref=e147]: Height
+                - cell "1,680 mm" [ref=e148]
+                - cell "1,680 mm" [ref=e149]
+              - row "Wheelbase 2,900 mm 2,998 mm" [ref=e150]:
+                - cell "Wheelbase" [ref=e151]:
+                  - strong [ref=e152]: Wheelbase
+                - cell "2,900 mm" [ref=e153]
+                - cell "2,998 mm" [ref=e154]
+              - row "Weight 2,100 kg 2,340 kg" [ref=e155]:
+                - cell "Weight" [ref=e156]:
+                  - strong [ref=e157]: Weight
+                - cell "2,100 kg" [ref=e158]
+                - cell "2,340 kg" [ref=e159]
+              - row "Cargo 550 L 660 L" [ref=e160]:
+                - cell "Cargo" [ref=e161]:
+                  - strong [ref=e162]: Cargo
+                - cell "550 L" [ref=e163]
+                - cell "660 L" [ref=e164]
+              - row "Ground Clearance 180 mm N/A" [ref=e165]:
+                - cell "Ground Clearance" [ref=e166]:
+                  - strong [ref=e167]: Ground Clearance
+                - cell "180 mm" [ref=e168]
+                - cell "N/A" [ref=e169]
+              - row "Price ¥280,000 – ¥350,000 ¥359,900 – ¥469,900" [ref=e170]:
+                - cell "Price" [ref=e171]:
+                  - strong [ref=e172]: Price
+                - cell "¥280,000 – ¥350,000" [ref=e173]
+                - cell "¥359,900 – ¥469,900" [ref=e174]
+              - row "Platform e-Platform 3.0 SEPA 2.0" [ref=e175]:
+                - cell "Platform" [ref=e176]:
+                  - strong [ref=e177]: Platform
+                - cell "e-Platform 3.0" [ref=e178]
+                - cell "SEPA 2.0" [ref=e179]
+              - row "Voltage Architecture 800V 800V" [ref=e180]:
+                - cell "Voltage Architecture" [ref=e181]:
+                  - strong [ref=e182]: Voltage Architecture
+                - cell "800V" [ref=e183]
+                - cell "800V" [ref=e184]
+          - heading "Design & Dimensions" [level=2] [ref=e185]
+          - paragraph [ref=e186]: Physical footprint plays a crucial role in both driving dynamics and interior comfort, and here the two SUVs diverge significantly. The XPENG G9 is the noticeably larger vehicle, measuring 4,750 mm in length compared to the BYD FCB Titanium 3’s 4,750 mm. This extra 141 mm allows the G9 to offer a more strong visual impact on the road.
+          - paragraph [ref=e187]: Width is closely matched, with the G9 measuring 1,920 mm and the Titanium 3 at 1,920 mm. Both vehicles share an identical height of 1,680 mm. However, the wheelbase reveals where the XPENG gains its interior advantage. The G9 features a 2,998 mm wheelbase, providing nearly 100 mm more space between the axles than the BYD’s 2,900 mm wheelbase. This translates directly to increased rear-seat legroom and a larger cargo capacity.
+          - paragraph [ref=e188]: For practicality, the XPENG G9 provides a generous 660 liters of cargo space, easily accommodating family luggage for extended trips. The BYD FCB Titanium 3 offers a respectable but smaller 550 liters. The trade-off for the G9's extra size and capacity is weight; it tips the scales at 2,340 kg, while the BYD is noticeably lighter at 2,100 kg. The BYD also specifies a ground clearance of 180 mm, making it suitable for mild uneven terrain, though both remain primarily road-focused SUVs.
+          - heading "Performance & Powertrain" [level=2] [ref=e189]
+          - paragraph [ref=e190]: When analyzing acceleration and power output, the XPENG G9 demonstrates a clear advantage. Equipped with an all-wheel-drive (AWD) dual-motor setup, the G9 delivers a massive 543 HP and 717 Nm of torque. This propels the heavy 2,340 kg SUV from 0 to 100 km/h in just 3.9 seconds, placing it firmly in high-performance territory.
+          - paragraph [ref=e191]: The BYD FCB Titanium 3 Ultra, also utilizing an AWD drivetrain, produces a more conservative 320 HP and 500 Nm of torque. While it cannot match the sheer thrust of the XPENG, its 0-100 km/h time of 5.0 seconds is still exceptionally quick for a daily-driven family SUV. Both vehicles electronically limit their top speed to 200 km/h, which is standard for electric vehicles in this class to preserve battery efficiency at sustained highway speeds.
+          - paragraph [ref=e192]: The BYD’s lighter curb weight (2,100 kg) helps offset its lower power output in everyday driving scenarios, potentially offering a slightly more nimble feel in tight urban environments compared to the larger, heavier G9.
+          - heading "Battery & Range" [level=2] [ref=e193]
+          - paragraph [ref=e194]: Both manufacturers have equipped these SUVs with 800-volt electrical architectures, but their battery capacities and charging capabilities differ. The XPENG G9 houses a large 98.0 kWh battery pack, which yields a claimed CLTC range of 702 km. In more realistic driving conditions, this translates to a solid 570 km of range.
+          - paragraph [ref=e195]: The BYD FCB Titanium 3 utilizes an 82.5 kWh battery on its e-Platform 3.0. It achieves a CLTC rating of 650 km, with a real-world range expectation of 550 km. Despite having a battery pack that is 15.5 kWh smaller than the G9's, the BYD only loses 20 km in real-world range estimates, highlighting the efficiency of its lighter chassis and powertrain management.
+          - paragraph [ref=e196]: Charging speed is a critical metric for long-distance travel. The XPENG G9’s SEPA 2.0 platform supports a maximum charging power of 300 kW, allowing the battery to replenish from 10% to 80% in a mere 20 minutes. The BYD FCB Titanium 3 peaks at 180 kW, requiring 28 minutes to reach an 80% charge. While the BYD is highly capable, the XPENG offers superior charging infrastructure utilization for buyers who frequently rely on ultra-fast public chargers.
+          - heading "Technology & Software Integration" [level=2] [ref=e197]
+          - paragraph [ref=e198]: Software and advanced driver assistance systems (ADAS) are major selling points for both brands. XPENG has positioned the G9 as a pioneer in autonomous driving. Notably, the G9 became the first unmodified commercial vehicle in China to qualify for autonomous driving testing as a robotaxi on public roads in Guangzhou. This indicates that the standard sensor suite and computing power sold to consumers are robust enough to handle complex, driverless navigation without requiring aftermarket hardware retrofits.
+          - paragraph [ref=e199]: BYD takes a highly consumer-centric approach to software, focusing heavily on continuous over-the-air (OTA) updates to refine the user experience based on customer feedback. Recent updates across BYD’s lineup have introduced features like wireless Apple CarPlay and intuitive blind controls for the climate system, allowing drivers to adjust fan speed and temperature with simple screen swipes rather than navigating menus. This commitment to refining the daily driving experience adds significant long-term value to the Titanium 3.
+          - heading "Pricing & Value" [level=2] [ref=e200]
+          - paragraph [ref=e201]: The specification differences between these two SUVs are directly reflected in their pricing structures. The BYD FCB Titanium 3 is priced between ¥280,000 and ¥350,000. Even the top-tier Ultra trim tested here undercuts the base model of its rival.
+          - paragraph [ref=e202]: The XPENG G9 commands a premium, with prices ranging from ¥359,900 to ¥469,900. Buyers opting for the G9 are paying a minimum ¥80,000 premium over the BYD. This extra capital secures the larger 98.0 kWh battery, 300 kW ultra-fast charging, an additional 223 HP, and advanced autonomous driving hardware.
+          - heading "Verdict" [level=2] [ref=e203]
+          - paragraph [ref=e204]: Choosing between the BYD FCB Titanium 3 Ultra and the XPENG G9 depends entirely on budget and priority.
+          - paragraph [ref=e205]: The BYD FCB Titanium 3 is the pragmatic choice. At ¥280,
+          - generic [ref=e206]:
+            - heading "📖 Read Our Full Reviews" [level=3] [ref=e207]
+            - list [ref=e208]:
+              - listitem [ref=e209]:
+                - text: ▸
+                - link "BYD FCB Titanium 3 — Full Review →" [ref=e210] [cursor=pointer]:
+                  - /url: ../../../articles/first-drive-2025-byd-fcb-chamba-3-affordable-global-electric-vehicle-ba04b9
+              - listitem [ref=e211]:
+                - text: ▸
+                - link "XPENG G9 — Full Review →" [ref=e212] [cursor=pointer]:
+                  - /url: ../../../articles/2026-xpeng-g9-ev-review-3f4cb1
+        - generic [ref=e213]:
+          - heading "Vehicle Gallery" [level=3] [ref=e214]
+          - generic [ref=e215]:
+            - button "Open image 1" [ref=e217]:
+              - 'img "BYD FCB Titanium 3 vs XPENG G9: Which Electric SUV Wins in 2026? - View 1" [ref=e218]'
+              - img [ref=e220]
+              - generic [ref=e223]: 1 / 1
+            - paragraph [ref=e224]: ← Swipe to see more →
+        - generic [ref=e225]:
+          - heading "📢 Share this article" [level=3] [ref=e226]
+          - generic [ref=e227]:
+            - link "Facebook" [ref=e228] [cursor=pointer]:
+              - /url: https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.freshmotors.net%2Farticles%2Fbyd-fcb-titanium-3-vs-xpeng-g9-comparison&quote=BYD%20FCB%20Titanium%203%20vs%20XPENG%20G9%3A%20Which%20Electric%20SUV%20Wins%20in%202026%3F
+              - img [ref=e229]
+              - text: Facebook
+            - link "X" [ref=e231] [cursor=pointer]:
+              - /url: https://x.com/intent/tweet?url=https%3A%2F%2Fwww.freshmotors.net%2Farticles%2Fbyd-fcb-titanium-3-vs-xpeng-g9-comparison&text=BYD%20FCB%20Titanium%203%20vs%20XPENG%20G9%3A%20Which%20Electric%20SUV%20Wins%20in%202026%3F&via=FreshMotorsNet
+              - img [ref=e232]
+              - text: X
+            - link "Reddit" [ref=e234] [cursor=pointer]:
+              - /url: https://www.reddit.com/submit?url=https%3A%2F%2Fwww.freshmotors.net%2Farticles%2Fbyd-fcb-titanium-3-vs-xpeng-g9-comparison&title=BYD%20FCB%20Titanium%203%20vs%20XPENG%20G9%3A%20Which%20Electric%20SUV%20Wins%20in%202026%3F&type=link
+              - img [ref=e235]
+              - text: Reddit
+            - link "LinkedIn" [ref=e237] [cursor=pointer]:
+              - /url: https://www.linkedin.com/shareArticle?mini=true&url=https%3A%2F%2Fwww.freshmotors.net%2Farticles%2Fbyd-fcb-titanium-3-vs-xpeng-g9-comparison&title=BYD%20FCB%20Titanium%203%20vs%20XPENG%20G9%3A%20Which%20Electric%20SUV%20Wins%20in%202026%3F&source=FreshMotors
+              - img [ref=e238]
+              - text: LinkedIn
+            - link "WhatsApp" [ref=e240] [cursor=pointer]:
+              - /url: https://wa.me/?text=BYD%20FCB%20Titanium%203%20vs%20XPENG%20G9%3A%20Which%20Electric%20SUV%20Wins%20in%202026%3F%0A%0Ahttps%3A%2F%2Fwww.freshmotors.net%2Farticles%2Fbyd-fcb-titanium-3-vs-xpeng-g9-comparison
+              - img [ref=e241]
+              - text: WhatsApp
+            - link "Telegram" [ref=e243] [cursor=pointer]:
+              - /url: https://t.me/share/url?url=https%3A%2F%2Fwww.freshmotors.net%2Farticles%2Fbyd-fcb-titanium-3-vs-xpeng-g9-comparison&text=BYD%20FCB%20Titanium%203%20vs%20XPENG%20G9%3A%20Which%20Electric%20SUV%20Wins%20in%202026%3F
+              - img [ref=e244]
+              - text: Telegram
+            - link "Email" [ref=e246] [cursor=pointer]:
+              - /url: mailto:?subject=BYD%20FCB%20Titanium%203%20vs%20XPENG%20G9%3A%20Which%20Electric%20SUV%20Wins%20in%202026%3F&body=Check%20out%20this%20article%3A%0A%0ABYD%20FCB%20Titanium%203%20vs%20XPENG%20G9%3A%20Which%20Electric%20SUV%20Wins%20in%202026%3F%0A%0Ahttps%3A%2F%2Fwww.freshmotors.net%2Farticles%2Fbyd-fcb-titanium-3-vs-xpeng-g9-comparison%0A%0A%E2%80%94%20FreshMotors.net
+              - img [ref=e247]
+              - text: Email
+            - button "Copy Link" [ref=e250]:
+              - img [ref=e251]
+              - text: Copy Link
+        - generic [ref=e256]:
+          - img "Alexander Sostin" [ref=e259]
+          - generic [ref=e261]:
+            - paragraph [ref=e262]: Written & Edited by
+            - heading "Alexander Sostin" [level=3] [ref=e263]
+            - paragraph [ref=e264]: CEO & Editor-in-Chief
+            - paragraph [ref=e265]: Automotive journalist and entrepreneur. Covering the global EV market, emerging Chinese brands, and the future of mobility.
+      - generic [ref=e266]:
+        - generic [ref=e267]:
+          - generic [ref=e268]:
+            - generic [ref=e269]: 🎯
+            - heading "Rate this article" [level=3] [ref=e270]
+          - generic [ref=e271]:
+            - generic [ref=e272]:
+              - generic [ref=e273]:
+                - button [ref=e274] [cursor=pointer]:
+                  - img [ref=e275]
+                - button [ref=e277] [cursor=pointer]:
+                  - img [ref=e278]
+                - button [ref=e280] [cursor=pointer]:
+                  - img [ref=e281]
+                - button [ref=e283] [cursor=pointer]:
+                  - img [ref=e284]
+                - button [ref=e286] [cursor=pointer]:
+                  - img [ref=e287]
+              - generic [ref=e289]:
+                - generic [ref=e290]: "0.0"
+                - generic [ref=e291]: (0 votes)
+            - paragraph [ref=e292]: Click a star to rate
+          - generic [ref=e293]:
+            - paragraph [ref=e294]: What was good?
+            - generic [ref=e295]:
+              - button "📊 Accurate Specs" [ref=e296] [cursor=pointer]:
+                - generic [ref=e297]: 📊
+                - generic [ref=e298]: Accurate Specs
+              - button "✍️ Well Written" [ref=e299] [cursor=pointer]:
+                - generic [ref=e300]: ✍️
+                - generic [ref=e301]: Well Written
+              - button "📸 Great Photos" [ref=e302] [cursor=pointer]:
+                - generic [ref=e303]: 📸
+                - generic [ref=e304]: Great Photos
+              - button "⚖️ Fair Review" [ref=e305] [cursor=pointer]:
+                - generic [ref=e306]: ⚖️
+                - generic [ref=e307]: Fair Review
+              - button "💡 Useful Info" [ref=e308] [cursor=pointer]:
+                - generic [ref=e309]: 💡
+                - generic [ref=e310]: Useful Info
+          - generic [ref=e311]:
+            - paragraph [ref=e312]: What could improve?
+            - generic [ref=e313]:
+              - button "📊 Wrong Specs" [ref=e314] [cursor=pointer]:
+                - generic [ref=e315]: 📊
+                - generic [ref=e316]: Wrong Specs
+              - button "✍️ Too Long" [ref=e317] [cursor=pointer]:
+                - generic [ref=e318]: ✍️
+                - generic [ref=e319]: Too Long
+              - button "📸 Need Photos" [ref=e320] [cursor=pointer]:
+                - generic [ref=e321]: 📸
+                - generic [ref=e322]: Need Photos
+              - button "💰 Missing Price" [ref=e323] [cursor=pointer]:
+                - generic [ref=e324]: 💰
+                - generic [ref=e325]: Missing Price
+              - button "❌ Inaccurate" [ref=e326] [cursor=pointer]:
+                - generic [ref=e327]: ❌
+                - generic [ref=e328]: Inaccurate
+        - button "Report an issue with this article" [ref=e329] [cursor=pointer]:
+          - img [ref=e330]
+          - text: Found an error? Let us know
+        - generic [ref=e332]:
+          - generic [ref=e333]:
+            - heading "💬 Comments" [level=3] [ref=e334]
+            - generic [ref=e335]: "0"
+          - generic [ref=e336]:
+            - heading "Leave a Comment" [level=4] [ref=e337]:
+              - img [ref=e338]
+              - text: Leave a Comment
+            - generic [ref=e340]:
+              - generic [ref=e341]:
+                - generic [ref=e342]:
+                  - generic [ref=e343]:
+                    - img [ref=e344]
+                    - text: Name *
+                  - textbox "Your name" [ref=e347]
+                - generic [ref=e348]:
+                  - generic [ref=e349]:
+                    - img [ref=e350]
+                    - text: Email * (won't be published)
+                  - textbox "your@email.com" [ref=e353]
+              - generic [ref=e354]:
+                - generic [ref=e355]: Comment *
+                - textbox "Share your thoughts..." [ref=e356]
+              - button "Submit Comment" [ref=e357]:
+                - img [ref=e358]
+                - text: Submit Comment
+          - generic [ref=e361]:
+            - generic [ref=e362]: 💭
+            - heading "No comments yet" [level=4] [ref=e363]
+            - paragraph [ref=e364]: Be the first to share your thoughts!
+  - contentinfo [ref=e366]:
+    - generic [ref=e367]:
+      - generic [ref=e369]:
+        - img [ref=e370]
+        - heading "Subscribe to Our Newsletter" [level=3] [ref=e373]
+        - paragraph [ref=e374]: Get the latest automotive news, reviews, and exclusive content delivered straight to your inbox.
+        - generic [ref=e375]:
+          - textbox "Enter your email" [ref=e376]
+          - button "Subscribe" [ref=e377]
+      - generic [ref=e378]:
+        - generic [ref=e379]:
+          - heading "Fresh Motors" [level=3] [ref=e380]
+          - paragraph [ref=e381]: Your source for the latest automotive news, reviews, and insights.
+          - link "info@freshmotors.net" [ref=e382] [cursor=pointer]:
+            - /url: mailto:info@freshmotors.net
+            - img [ref=e383]
+            - text: info@freshmotors.net
+        - generic [ref=e386]:
+          - heading "Quick Links" [level=4] [ref=e387]
+          - list [ref=e388]:
+            - listitem [ref=e389]:
+              - link "Home" [ref=e390] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e391]:
+              - link "All Articles" [ref=e392] [cursor=pointer]:
+                - /url: /articles
+            - listitem [ref=e393]:
+              - link "News" [ref=e394] [cursor=pointer]:
+                - /url: /categories/news
+            - listitem [ref=e395]:
+              - link "Reviews" [ref=e396] [cursor=pointer]:
+                - /url: /categories/reviews
+        - generic [ref=e397]:
+          - heading "Categories" [level=4] [ref=e398]
+          - list [ref=e399]:
+            - listitem [ref=e400]:
+              - link "EVs" [ref=e401] [cursor=pointer]:
+                - /url: /categories/evs
+            - listitem [ref=e402]:
+              - link "Industry" [ref=e403] [cursor=pointer]:
+                - /url: /categories/industry
+            - listitem [ref=e404]:
+              - link "News" [ref=e405] [cursor=pointer]:
+                - /url: /categories/news
+            - listitem [ref=e406]:
+              - link "Reviews" [ref=e407] [cursor=pointer]:
+                - /url: /categories/reviews
+            - listitem [ref=e408]:
+              - link "Technology" [ref=e409] [cursor=pointer]:
+                - /url: /categories/technology
+        - generic [ref=e410]:
+          - heading "Company" [level=4] [ref=e411]
+          - list [ref=e412]:
+            - listitem [ref=e413]:
+              - link "About Us" [ref=e414] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=e415]:
+              - link "For Authors" [ref=e416] [cursor=pointer]:
+                - /url: /for-authors
+            - listitem [ref=e417]:
+              - link "Contact Us" [ref=e418] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=e419]:
+              - link "Privacy Policy" [ref=e420] [cursor=pointer]:
+                - /url: /privacy-policy
+            - listitem [ref=e421]:
+              - link "Terms of Service" [ref=e422] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=e423]:
+              - link "RSS Feed" [ref=e424] [cursor=pointer]:
+                - /url: /feed.xml
+      - paragraph [ref=e426]: © 2026 Fresh Motors. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=e432] [cursor=pointer]:
+    - img [ref=e433]
+  - alert [ref=e436]
+```

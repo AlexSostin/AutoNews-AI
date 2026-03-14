@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Eye, Search, Zap, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import api from '@/lib/api';
 
 interface Article {
@@ -120,21 +121,7 @@ export default function ArticlesPage() {
       setEnrichProgress(null);
     }
   };
-
-  useEffect(() => {
-    fetchArticles();
-  }, [filter, currentPage, itemsPerPage, searchTerm]);
-
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setCurrentPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     try {
       setLoading(true);
       const params: Record<string, string | number> = {
@@ -161,7 +148,20 @@ export default function ArticlesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, filter, searchTerm]);
+
+  useEffect(() => {
+    fetchArticles();
+  }, [fetchArticles]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const handleDelete = async (id: number, slug: string) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
@@ -370,7 +370,7 @@ export default function ArticlesPage() {
                     }
                     lines.push(`\n--- Per Article ---`);
                     bulkResults.results?.forEach((r: EnrichResult) => {
-                      const steps = Object.entries(r.steps || {}).map(([k, v]: [string, any]) =>
+                      const steps = Object.entries(r.steps || {}).map(([k, v]: [string, unknown]) =>
                         `${k}: ${v === true ? '✅' : v === 'skipped' ? '⏭️' : typeof v === 'number' ? `+${v}` : v === 'no_specs' ? '⚠️' : '❌'}`
                       ).join(' | ');
                       let line = `#${r.id} ${r.title}\n  ${steps}`;
@@ -541,10 +541,12 @@ export default function ArticlesPage() {
                     <td className="px-2 py-3">
                       <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                         {article.image ? (
-                          <img
+                          <Image
                             src={article.image}
                             alt={article.title}
-                            className="w-full h-full object-cover"
+                            fill
+                            sizes="56px"
+                            className="object-cover"
                           />
                         ) : (
                           <span className="text-gray-400 text-xs">—</span>

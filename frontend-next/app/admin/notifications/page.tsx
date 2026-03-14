@@ -11,12 +11,10 @@ import {
     Info,
     Check,
     CheckCheck,
-    X,
     Loader2,
     Trash2,
     ExternalLink
 } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
 import { authenticatedFetch } from '@/lib/authenticatedFetch';
 
 interface Notification {
@@ -43,12 +41,22 @@ const notificationIcons: Record<string, React.ReactNode> = {
     info: <Info size={20} className="text-gray-500" />,
 };
 
+type NotificationCategory = 'all' | 'system' | 'content' | 'community' | 'general';
+
+const CATEGORY_MAP: Record<NotificationCategory, { label: string; icon: React.ReactNode; types: string[] }> = {
+    all: { label: 'All Types', icon: <Bell size={18} />, types: [] },
+    system: { label: 'System & Alerts', icon: <AlertTriangle size={18} />, types: ['system', 'video_error', 'ai_error'] },
+    content: { label: 'Content', icon: <FileText size={18} />, types: ['article', 'video_pending'] },
+    community: { label: 'Community', icon: <MessageSquare size={18} />, types: ['comment', 'subscriber'] },
+    general: { label: 'General', icon: <Info size={18} />, types: ['info'] }
+};
+
 export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [markingAll, setMarkingAll] = useState(false);
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
-    const [selectedType, setSelectedType] = useState<string>('all');
+    const [selectedCategory, setSelectedCategory] = useState<NotificationCategory>('all');
 
     const fetchNotifications = async () => {
         try {
@@ -113,16 +121,21 @@ export default function NotificationsPage() {
         fetchNotifications();
     }, []);
 
-    // Get counts for each type
-    const typeCounts = notifications.reduce((acc, n) => {
-        acc[n.notification_type] = (acc[n.notification_type] || 0) + 1;
+    // Get counts for each category
+    const categoryCounts = Object.keys(CATEGORY_MAP).reduce((acc, cat) => {
+        if (cat === 'all') {
+            acc[cat] = notifications.length;
+        } else {
+            const types = CATEGORY_MAP[cat as NotificationCategory].types;
+            acc[cat] = notifications.filter(n => types.includes(n.notification_type)).length;
+        }
         return acc;
     }, {} as Record<string, number>);
 
     const filteredNotifications = notifications.filter(n => {
         const matchesFilter = filter === 'all' || !n.is_read;
-        const matchesType = selectedType === 'all' || n.notification_type === selectedType;
-        return matchesFilter && matchesType;
+        const matchesCategory = selectedCategory === 'all' || CATEGORY_MAP[selectedCategory].types.includes(n.notification_type);
+        return matchesFilter && matchesCategory;
     });
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -135,7 +148,7 @@ export default function NotificationsPage() {
         );
     }
 
-    const availableTypes = Object.entries(notificationIcons).filter(([type]) => typeCounts[type] > 0);
+    const availableCategories = Object.keys(CATEGORY_MAP) as NotificationCategory[];
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-12 px-4 sm:px-0">
@@ -189,35 +202,31 @@ export default function NotificationsPage() {
                 </button>
             </div>
 
-            {/* Type Filters */}
+            {/* Category Filters */}
             <div className="flex gap-2 pb-2 overflow-x-auto no-scrollbar scroll-smooth">
-                <button
-                    onClick={() => setSelectedType('all')}
-                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${selectedType === 'all'
-                        ? 'bg-gray-900 text-white border-gray-900 shadow-md'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                        }`}
-                >
-                    All Types ({notifications.length})
-                </button>
-
-                {availableTypes.map(([type, icon]) => (
-                    <button
-                        key={type}
-                        onClick={() => setSelectedType(type)}
-                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${selectedType === type
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                {availableCategories.map(cat => {
+                    const { label, icon } = CATEGORY_MAP[cat];
+                    const isSelected = selectedCategory === cat;
+                    return (
+                        <button
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
+                                isSelected
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                             }`}
-                    >
-                        {icon}
-                        <span className="capitalize">{type.replace('_', ' ')}</span>
-                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${selectedType === type ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                        >
+                            {icon}
+                            <span>{label}</span>
+                            <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
                             }`}>
-                            {typeCounts[type]}
-                        </span>
-                    </button>
-                ))}
+                                {categoryCounts[cat]}
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* List */}

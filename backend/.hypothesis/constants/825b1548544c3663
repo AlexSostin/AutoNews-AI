@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0112_article_fts_gin_index.py
+# hypothesis_version: 6.151.9
+
+['0111_training_pair', 'news']

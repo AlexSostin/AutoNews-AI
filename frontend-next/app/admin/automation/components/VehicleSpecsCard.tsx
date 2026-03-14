@@ -5,7 +5,7 @@ interface Props {
     settings: AutomationSettings;
     saving: boolean;
     triggering: string | null;
-    updateSetting: (key: string, value: any) => void;
+    updateSetting: (key: string, value: unknown) => void;
     triggerTask: (taskType: string) => void;
 }
 

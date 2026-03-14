@@ -1,0 +1,807 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - heading "FM Admin" [level=2] [ref=e5]
+        - button "Collapse Sidebar" [ref=e7]:
+          - img [ref=e8]
+      - navigation [ref=e10]:
+        - link "View Public Site" [ref=e11] [cursor=pointer]:
+          - /url: /
+          - img [ref=e12]
+          - generic [ref=e15]: View Public Site
+        - generic [ref=e16]:
+          - generic [ref=e18]: Overview
+          - link "Dashboard" [ref=e19] [cursor=pointer]:
+            - /url: /admin
+            - img [ref=e20]
+            - generic [ref=e25]: Dashboard
+          - link "Analytics" [ref=e26] [cursor=pointer]:
+            - /url: /admin/analytics
+            - img [ref=e27]
+            - generic [ref=e32]: Analytics
+          - link "Notifications" [ref=e33] [cursor=pointer]:
+            - /url: /admin/notifications
+            - img [ref=e34]
+            - generic [ref=e37]: Notifications
+        - generic [ref=e38]:
+          - generic [ref=e40]: Content
+          - link "Articles" [ref=e41] [cursor=pointer]:
+            - /url: /admin/articles
+            - img [ref=e42]
+            - generic [ref=e48]: Articles
+          - link "Categories" [ref=e49] [cursor=pointer]:
+            - /url: /admin/categories
+            - img [ref=e50]
+            - generic [ref=e52]: Categories
+          - link "Tags" [ref=e53] [cursor=pointer]:
+            - /url: /admin/tags
+            - img [ref=e54]
+            - generic [ref=e57]: Tags
+          - link "Pages" [ref=e58] [cursor=pointer]:
+            - /url: /admin/pages
+            - img [ref=e59]
+            - generic [ref=e63]: Pages
+          - link "Publish Queue" [ref=e64] [cursor=pointer]:
+            - /url: /admin/publish-queue
+            - img [ref=e65]
+            - generic [ref=e69]: Publish Queue
+          - link "Translate & Enhance" [ref=e70] [cursor=pointer]:
+            - /url: /admin/translate
+            - img [ref=e71]
+            - generic [ref=e78]: Translate & Enhance
+        - generic [ref=e79]:
+          - generic [ref=e81]: Automotive
+          - link "Brands" [ref=e82] [cursor=pointer]:
+            - /url: /admin/brands
+            - img [ref=e83]
+            - generic [ref=e87]: Brands
+          - link "Brand Aliases" [ref=e88] [cursor=pointer]:
+            - /url: /admin/brand-aliases
+            - img [ref=e89]
+            - generic [ref=e94]: Brand Aliases
+          - link "Car Specs" [ref=e95] [cursor=pointer]:
+            - /url: /admin/car-specs
+            - img [ref=e96]
+            - generic [ref=e101]: Car Specs
+          - link "Vehicle Specs" [ref=e102] [cursor=pointer]:
+            - /url: /admin/vehicle-specs
+            - img [ref=e103]
+            - generic [ref=e105]: Vehicle Specs
+          - link "Comparisons" [ref=e106] [cursor=pointer]:
+            - /url: /admin/comparisons
+            - img [ref=e107]
+            - generic [ref=e114]: Comparisons
+        - generic [ref=e115]:
+          - generic [ref=e117]: Sources
+          - link "RSS Feeds" [ref=e118] [cursor=pointer]:
+            - /url: /admin/rss-feeds
+            - img [ref=e119]
+            - generic [ref=e123]: RSS Feeds
+          - link "RSS News 99+" [ref=e124] [cursor=pointer]:
+            - /url: /admin/rss-pending
+            - img [ref=e125]
+            - generic [ref=e129]: RSS News
+            - generic [ref=e130]: 99+
+          - link "YouTube Channels" [ref=e131] [cursor=pointer]:
+            - /url: /admin/youtube-channels
+            - img [ref=e132]
+            - generic [ref=e135]: YouTube Channels
+        - generic [ref=e136]:
+          - generic [ref=e138]: Audience
+          - link "Comments" [ref=e139] [cursor=pointer]:
+            - /url: /admin/comments
+            - img [ref=e140]
+            - generic [ref=e142]: Comments
+          - link "Feedback" [ref=e143] [cursor=pointer]:
+            - /url: /admin/feedback
+            - img [ref=e144]
+            - generic [ref=e148]: Feedback
+          - link "Subscribers" [ref=e149] [cursor=pointer]:
+            - /url: /admin/subscribers
+            - img [ref=e150]
+            - generic [ref=e153]: Subscribers
+        - generic [ref=e154]:
+          - generic [ref=e156]: Tools
+          - link "Automation" [ref=e157] [cursor=pointer]:
+            - /url: /admin/automation
+            - img [ref=e158]
+            - generic [ref=e165]: Automation
+          - link "A/B Testing" [ref=e166] [cursor=pointer]:
+            - /url: /admin/ab-testing
+            - img [ref=e167]
+            - generic [ref=e171]: A/B Testing
+          - link "Ads / Sponsors" [ref=e172] [cursor=pointer]:
+            - /url: /admin/ads
+            - img [ref=e173]
+            - generic [ref=e177]: Ads / Sponsors
+          - link "System Health 1" [ref=e178] [cursor=pointer]:
+            - /url: /admin/health
+            - img [ref=e179]
+            - generic [ref=e181]: System Health
+            - generic [ref=e182]: "1"
+          - link "System Graph" [ref=e183] [cursor=pointer]:
+            - /url: /admin/system-graph
+            - img [ref=e184]
+            - generic [ref=e192]: System Graph
+        - generic [ref=e193]:
+          - generic [ref=e195]: Settings
+          - link "Site Settings" [ref=e196] [cursor=pointer]:
+            - /url: /admin/settings
+            - img [ref=e197]
+            - generic [ref=e200]: Site Settings
+          - link "Account Settings" [ref=e201] [cursor=pointer]:
+            - /url: /admin/account
+            - img [ref=e202]
+            - generic [ref=e214]: Account Settings
+          - link "Users" [ref=e215] [cursor=pointer]:
+            - /url: /admin/users
+            - img [ref=e216]
+            - generic [ref=e221]: Users
+      - button "Logout" [ref=e223]:
+        - img [ref=e224]
+        - generic [ref=e228]: Logout
+    - generic [ref=e229]:
+      - banner [ref=e230]:
+        - generic [ref=e231]:
+          - heading "Admin Dashboard" [level=1] [ref=e233]
+          - generic [ref=e234]:
+            - button "99+" [ref=e236]:
+              - img [ref=e237]
+              - generic [ref=e240]: 99+
+            - generic [ref=e242]:
+              - img [ref=e243]
+              - generic [ref=e246]: Admin
+      - main [ref=e247]:
+        - generic [ref=e248]:
+          - generic [ref=e249]:
+            - heading "📊 Analytics Dashboard" [level=1] [ref=e250]
+            - paragraph [ref=e251]: Real-time stats, reader engagement, AI insights & SEO performance
+          - generic [ref=e252]:
+            - heading "Site Usage" [level=2] [ref=e253]
+            - generic [ref=e254]:
+              - generic [ref=e255]:
+                - generic [ref=e256]:
+                  - img [ref=e258]
+                  - generic [ref=e261]:
+                    - img [ref=e262]
+                    - text: "-21.9%"
+                - paragraph [ref=e265]: "114"
+                - paragraph [ref=e266]: Total Views
+              - generic [ref=e267]:
+                - generic [ref=e268]:
+                  - img [ref=e270]
+                  - generic [ref=e276]:
+                    - img [ref=e277]
+                    - text: "-28.9%"
+                - paragraph [ref=e280]: "77"
+                - paragraph [ref=e281]: Articles
+              - generic [ref=e282]:
+                - generic [ref=e283]:
+                  - img [ref=e285]
+                  - generic [ref=e287]:
+                    - img [ref=e288]
+                    - text: 0%
+                - paragraph [ref=e291]: "0"
+                - paragraph [ref=e292]: Comments
+              - generic [ref=e293]:
+                - generic [ref=e294]:
+                  - img [ref=e296]
+                  - generic [ref=e299]:
+                    - img [ref=e300]
+                    - text: "-100%"
+                - paragraph [ref=e303]: "2"
+                - paragraph [ref=e304]: Subscribers
+          - generic [ref=e305]:
+            - heading "📖 Reader QualityDwell time, scroll depth & feedback from real sessions" [level=2] [ref=e306]
+            - generic [ref=e307]:
+              - generic [ref=e308]:
+                - generic [ref=e309]:
+                  - img [ref=e311]
+                  - generic [ref=e314]:
+                    - heading "Reader Quality" [level=3] [ref=e315]
+                    - paragraph [ref=e316]: 190 sessions tracked
+                - generic [ref=e317]:
+                  - generic [ref=e318]:
+                    - paragraph [ref=e319]: 2m 56s
+                    - paragraph [ref=e320]: Avg. Read Time
+                  - generic [ref=e321]:
+                    - paragraph [ref=e322]: 77.2%
+                    - paragraph [ref=e323]: Avg. Scroll
+                  - generic [ref=e324]:
+                    - paragraph [ref=e325]: 2.1%
+                    - paragraph [ref=e326]: Bounce Rate
+                - generic [ref=e327]:
+                  - paragraph [ref=e328]:
+                    - img [ref=e329]
+                    - text: Scroll Depth Funnel
+                  - generic [ref=e332]:
+                    - generic [ref=e334]:
+                      - generic [ref=e335]: 25% scroll
+                      - generic [ref=e336]: 87.9%
+                    - generic [ref=e340]:
+                      - generic [ref=e341]: 50% scroll
+                      - generic [ref=e342]: 80%
+                    - generic [ref=e346]:
+                      - generic [ref=e347]: 75% scroll
+                      - generic [ref=e348]: 72.6%
+                    - generic [ref=e352]:
+                      - generic [ref=e353]: Full read
+                      - generic [ref=e354]: 37.4%
+              - generic [ref=e357]:
+                - generic [ref=e358]:
+                  - img [ref=e360]
+                  - generic [ref=e365]:
+                    - heading "Most-Read Articles" [level=3] [ref=e366]
+                    - paragraph [ref=e367]: By average reading time
+                - generic [ref=e368]:
+                  - generic [ref=e369]:
+                    - generic [ref=e370]: "#1"
+                    - generic [ref=e371]:
+                      - link "2026 Xpeng G9 EV Review" [ref=e372] [cursor=pointer]:
+                        - /url: /admin/articles?slug=2026-xpeng-g9-ev-review-3f4cb1
+                      - paragraph [ref=e373]: 2 sessions · 100% avg scroll
+                    - generic [ref=e374]: 7m 22s
+                  - generic [ref=e375]:
+                    - generic [ref=e376]: "#2"
+                    - generic [ref=e377]:
+                      - 'link "First Drive: 2026 XPeng G9 - Advanced Electric SUV with Cutting-Edge Tech" [ref=e378] [cursor=pointer]':
+                        - /url: /admin/articles?slug=first-drive-2026-xpeng-g9-advanced-electric-suv-with-cutting-edge-tech
+                      - paragraph [ref=e379]: 2 sessions · 100% avg scroll
+                    - generic [ref=e380]: 7m 6s
+                  - generic [ref=e381]:
+                    - generic [ref=e382]: "#3"
+                    - generic [ref=e383]:
+                      - 'link "First Drive: 2026 Xpeng G6 - Tech-Forward Electric SUV" [ref=e384] [cursor=pointer]':
+                        - /url: /admin/articles?slug=first-drive-2026-xpeng-g6-tech-forward-electric-suv
+                      - paragraph [ref=e385]: 2 sessions · 74.5% avg scroll
+                    - generic [ref=e386]: 6m 59s
+                  - generic [ref=e387]:
+                    - generic [ref=e388]: "#4"
+                    - generic [ref=e389]:
+                      - link "Hongqi HS6 Sets Two Guinness World Records for Hybrid Range, Challenges Established Automakers" [ref=e390] [cursor=pointer]:
+                        - /url: /admin/articles?slug=hongqi-hs6-hybrid-world-records
+                      - paragraph [ref=e391]: 12 sessions · 85.1% avg scroll
+                    - generic [ref=e392]: 6m 20s
+                  - generic [ref=e393]:
+                    - generic [ref=e394]: "#5"
+                    - generic [ref=e395]:
+                      - 'link "Geely and Mercedes-Benz Smart #6: A 429-HP Hybrid Sedan Redefining the Brand" [ref=e396] [cursor=pointer]':
+                        - /url: /admin/articles?slug=geely-mercedes-smart-6-hybrid-sedan
+                      - paragraph [ref=e397]: 22 sessions · 83.9% avg scroll
+                    - generic [ref=e398]: 4m 37s
+                  - generic [ref=e399]:
+                    - generic [ref=e400]: "#6"
+                    - generic [ref=e401]:
+                      - link "2026 XPENG G9 EV 725km Range" [ref=e402] [cursor=pointer]:
+                        - /url: /admin/articles?slug=2026-xpeng-g9-ev-725km-range
+                      - paragraph [ref=e403]: 4 sessions · 75% avg scroll
+                    - generic [ref=e404]: 4m 11s
+                  - generic [ref=e405]:
+                    - generic [ref=e406]: "#7"
+                    - generic [ref=e407]:
+                      - link "2025 GWM Tank 700 PHEV AWD Review" [ref=e408] [cursor=pointer]:
+                        - /url: /admin/articles?slug=2025-gwm-tank-700-phev-awd-review-5d9295
+                      - paragraph [ref=e409]: 1 sessions · 87% avg scroll
+                    - generic [ref=e410]: 3m 2s
+                  - generic [ref=e411]:
+                    - generic [ref=e412]: "#8"
+                    - generic [ref=e413]:
+                      - 'link "2026 Toyota bZ7 Review: Japanese Flagship EV with Chinese Tech" [ref=e414] [cursor=pointer]':
+                        - /url: /admin/articles?slug=2026-toyota-bz7-review-japanese-flagship-ev-with-chinese-tech
+                      - paragraph [ref=e415]: 31 sessions · 76% avg scroll
+                    - generic [ref=e416]: 2m 58s
+                  - generic [ref=e417]:
+                    - generic [ref=e418]: "#9"
+                    - generic [ref=e419]:
+                      - link "2026 NIO ONVO L90 EV Review" [ref=e420] [cursor=pointer]:
+                        - /url: /admin/articles?slug=2026-nio-onvo-l90-ev-review-44a9ed
+                      - paragraph [ref=e421]: 1 sessions · 94% avg scroll
+                    - generic [ref=e422]: 2m 54s
+                  - generic [ref=e423]:
+                    - generic [ref=e424]: "#10"
+                    - generic [ref=e425]:
+                      - link "2026 NIO ONVO L60 EV" [ref=e426] [cursor=pointer]:
+                        - /url: /admin/articles?slug=2026-nio-onvo-l60-ev
+                      - paragraph [ref=e427]: 1 sessions · 94% avg scroll
+                    - generic [ref=e428]: 2m 51s
+            - generic [ref=e429]:
+              - generic [ref=e430]:
+                - generic [ref=e431]:
+                  - generic [ref=e432]:
+                    - img [ref=e434]
+                    - generic [ref=e437]:
+                      - heading "Reader Capsule Votes" [level=3] [ref=e438]
+                      - paragraph [ref=e439]: 0 total votes
+                  - generic [ref=e440]:
+                    - paragraph [ref=e441]: 0%
+                    - paragraph [ref=e442]: positive
+                - generic [ref=e444]:
+                  - generic [ref=e445]:
+                    - img [ref=e446]
+                    - text: "0"
+                  - generic [ref=e449]:
+                    - text: "0"
+                    - img [ref=e450]
+                - paragraph [ref=e455]: Most Voted
+              - generic [ref=e456]:
+                - generic [ref=e457]:
+                  - generic [ref=e458]:
+                    - img [ref=e460]
+                    - generic [ref=e463]:
+                      - heading "Article Complaints" [level=3] [ref=e464]
+                      - paragraph [ref=e465]: 0 reports from readers
+                  - generic [ref=e466]:
+                    - generic [ref=e467]:
+                      - paragraph [ref=e468]: "0"
+                      - paragraph [ref=e469]: Open
+                    - generic [ref=e470]:
+                      - paragraph [ref=e471]: "0"
+                      - paragraph [ref=e472]: Resolved
+                - paragraph [ref=e473]: ✅ No complaints yet!
+          - generic [ref=e474]:
+            - heading "📈 Content & Engagement" [level=2] [ref=e475]
+            - generic [ref=e476]:
+              - generic [ref=e477]:
+                - heading "Articles Published (Last 30 Days)" [level=3] [ref=e478]:
+                  - img [ref=e479]
+                  - text: Articles Published (Last 30 Days)
+                - img [ref=e485]
+              - generic [ref=e486]:
+                - heading "Articles by Category" [level=3] [ref=e487]:
+                  - img [ref=e488]
+                  - text: Articles by Category
+                - img [ref=e495]
+            - generic [ref=e496]:
+              - generic [ref=e497]:
+                - generic [ref=e498]:
+                  - img [ref=e499]
+                  - heading "🔥 Top 10 Articles by Views" [level=2] [ref=e504]
+                - table [ref=e506]:
+                  - rowgroup [ref=e507]:
+                    - row "Rank Article Views Published" [ref=e508]:
+                      - columnheader "Rank" [ref=e509]
+                      - columnheader "Article" [ref=e510]
+                      - columnheader "Views" [ref=e511]
+                      - columnheader "Published" [ref=e512]
+                  - rowgroup [ref=e513]:
+                    - 'row "1 2027 Toyota Highlander BEV: Electrifying the Family SUV Segment 12 2/11/2026" [ref=e514]':
+                      - cell "1" [ref=e515]:
+                        - generic [ref=e516]: "1"
+                      - 'cell "2027 Toyota Highlander BEV: Electrifying the Family SUV Segment" [ref=e517]':
+                        - 'link "2027 Toyota Highlander BEV: Electrifying the Family SUV Segment" [ref=e518] [cursor=pointer]':
+                          - /url: /article/2027-toyota-highlander-bev
+                      - cell "12" [ref=e519]
+                      - cell "2/11/2026" [ref=e520]
+                    - 'row "2 First Drive: 2025 BYD FCB Titanium 3 - Affordable Global Electric Vehicle 10 2/2/2026" [ref=e521]':
+                      - cell "2" [ref=e522]:
+                        - generic [ref=e523]: "2"
+                      - 'cell "First Drive: 2025 BYD FCB Titanium 3 - Affordable Global Electric Vehicle" [ref=e524]':
+                        - 'link "First Drive: 2025 BYD FCB Titanium 3 - Affordable Global Electric Vehicle" [ref=e525] [cursor=pointer]':
+                          - /url: /article/first-drive-2025-byd-fcb-chamba-3-affordable-global-electric-vehicle-ba04b9
+                      - cell "10" [ref=e526]
+                      - cell "2/2/2026" [ref=e527]
+                    - row "3 2026 Geely Galaxy M9 PHEV Review 10 2/11/2026" [ref=e528]:
+                      - cell "3" [ref=e529]:
+                        - generic [ref=e530]: "3"
+                      - cell "2026 Geely Galaxy M9 PHEV Review" [ref=e531]:
+                        - link "2026 Geely Galaxy M9 PHEV Review" [ref=e532] [cursor=pointer]:
+                          - /url: /article/2026-geely-galaxy-m9-phev-review-89d34d
+                      - cell "10" [ref=e533]
+                      - cell "2/11/2026" [ref=e534]
+                    - row "4 BYD Seal 06 GT Electric Hatchback 10 2/10/2026" [ref=e535]:
+                      - cell "4" [ref=e536]:
+                        - generic [ref=e537]: "4"
+                      - cell "BYD Seal 06 GT Electric Hatchback" [ref=e538]:
+                        - link "BYD Seal 06 GT Electric Hatchback" [ref=e539] [cursor=pointer]:
+                          - /url: /article/byd-seal-06-gt-electric-hatchback
+                      - cell "10" [ref=e540]
+                      - cell "2/10/2026" [ref=e541]
+                    - row "5 2026 SAIC IM LS6 EREV Review 10 2/19/2026" [ref=e542]:
+                      - cell "5" [ref=e543]:
+                        - generic [ref=e544]: "5"
+                      - cell "2026 SAIC IM LS6 EREV Review" [ref=e545]:
+                        - link "2026 SAIC IM LS6 EREV Review" [ref=e546] [cursor=pointer]:
+                          - /url: /article/2026-saic-im-ls6-erev-review-42cbac
+                      - cell "10" [ref=e547]
+                      - cell "2/19/2026" [ref=e548]
+                    - row "6 2026 ZEEKR 007GT EV Review 10 2/14/2026" [ref=e549]:
+                      - cell "6" [ref=e550]:
+                        - generic [ref=e551]: "6"
+                      - cell "2026 ZEEKR 007GT EV Review" [ref=e552]:
+                        - link "2026 ZEEKR 007GT EV Review" [ref=e553] [cursor=pointer]:
+                          - /url: /article/2026-zeekr-007gt-ev-review-246142
+                      - cell "10" [ref=e554]
+                      - cell "2/14/2026" [ref=e555]
+                    - row "7 2026 BYD Han DM-i Review 10 2/14/2026" [ref=e556]:
+                      - cell "7" [ref=e557]:
+                        - generic [ref=e558]: "7"
+                      - cell "2026 BYD Han DM-i Review" [ref=e559]:
+                        - link "2026 BYD Han DM-i Review" [ref=e560] [cursor=pointer]:
+                          - /url: /article/2026-byd-han-dm-i-review-9357c2
+                      - cell "10" [ref=e561]
+                      - cell "2/14/2026" [ref=e562]
+                    - row "8 2025 BYD Yuan Up EV Review 10 2/13/2026" [ref=e563]:
+                      - cell "8" [ref=e564]:
+                        - generic [ref=e565]: "8"
+                      - cell "2025 BYD Yuan Up EV Review" [ref=e566]:
+                        - link "2025 BYD Yuan Up EV Review" [ref=e567] [cursor=pointer]:
+                          - /url: /article/2025-byd-yuan-up-ev-review-c58bb8
+                      - cell "10" [ref=e568]
+                      - cell "2/13/2026" [ref=e569]
+                    - 'row "9 GAC Hyptec SSR Shatters World Drift Record: China''s Hypercar Ascends 10 2/17/2026" [ref=e570]':
+                      - cell "9" [ref=e571]:
+                        - generic [ref=e572]: "9"
+                      - 'cell "GAC Hyptec SSR Shatters World Drift Record: China''s Hypercar Ascends" [ref=e573]':
+                        - 'link "GAC Hyptec SSR Shatters World Drift Record: China''s Hypercar Ascends" [ref=e574] [cursor=pointer]':
+                          - /url: /article/gac-hyptec-ssr-world-drift-record
+                      - cell "10" [ref=e575]
+                      - cell "2/17/2026" [ref=e576]
+                    - 'row "10 First Drive: 2026 Zeekr 7X EV - Impressive Electric Vehicle with 802 km Range 10 1/22/2026" [ref=e577]':
+                      - cell "10" [ref=e578]:
+                        - generic [ref=e579]: "10"
+                      - 'cell "First Drive: 2026 Zeekr 7X EV - Impressive Electric Vehicle with 802 km Range" [ref=e580]':
+                        - 'link "First Drive: 2026 Zeekr 7X EV - Impressive Electric Vehicle with 802 km Range" [ref=e581] [cursor=pointer]':
+                          - /url: /article/first-drive-2026-zeekr-7x-ev-impressive-electric-vehicle-with-802-km-range
+                      - cell "10" [ref=e582]
+                      - cell "1/22/2026" [ref=e583]
+              - generic [ref=e584]:
+                - heading "🏎️ Popular Car Models" [level=2] [ref=e585]
+                - generic [ref=e586]:
+                  - heading "Top Models by Views" [level=3] [ref=e587]:
+                    - img [ref=e588]
+                    - text: Top Models by Views
+                  - paragraph [ref=e593]: Aggregated from CarSpecification make + model fields
+                  - img [ref=e595]
+          - generic [ref=e596]:
+            - heading "🧠 ML Model HealthMaturity level and per-feature scores" [level=2] [ref=e597]
+            - generic [ref=e598]:
+              - generic [ref=e599]:
+                - generic [ref=e600]:
+                  - generic [ref=e601]:
+                    - generic [ref=e602]:
+                      - generic [ref=e603]: 🥈
+                      - generic [ref=e604]:
+                        - 'heading "Level 2: Learning" [level=3] [ref=e605]'
+                        - paragraph [ref=e606]: Recommendations work, dedup detection active
+                    - generic [ref=e607]:
+                      - paragraph [ref=e608]: 75%
+                      - paragraph [ref=e609]: Overall Score
+                  - paragraph [ref=e613]:
+                    - img [ref=e614]
+                    - text: 123 more articles to reach 🥇 Competent
+                - generic [ref=e616]:
+                  - generic [ref=e617]:
+                    - paragraph [ref=e618]: "77"
+                    - paragraph [ref=e619]: Articles
+                  - generic [ref=e620]:
+                    - paragraph [ref=e621]: "71"
+                    - paragraph [ref=e622]: VehicleSpecs
+                  - generic [ref=e623]:
+                    - paragraph [ref=e624]: 89.6%
+                    - paragraph [ref=e625]: Spec Coverage
+                  - generic [ref=e626]:
+                    - paragraph [ref=e627]: 78.6%
+                    - paragraph [ref=e628]: Completeness
+              - generic [ref=e629]:
+                - generic [ref=e630]:
+                  - generic [ref=e631]:
+                    - img [ref=e633]
+                    - generic [ref=e636]: recommendations
+                  - generic [ref=e637]:
+                    - generic [ref=e638]: 🟡
+                    - generic [ref=e639]: 20%
+                  - paragraph [ref=e642]: 77 articles available but not yet indexed — run "Train ML model" to activate
+                - generic [ref=e643]:
+                  - generic [ref=e644]:
+                    - img [ref=e646]
+                    - generic [ref=e649]: tag prediction
+                  - generic [ref=e650]:
+                    - generic [ref=e651]: 🟢
+                    - generic [ref=e652]: 100%
+                  - paragraph [ref=e655]: 316 tags, 0 articles for similarity
+                - generic [ref=e656]:
+                  - generic [ref=e657]:
+                    - img [ref=e659]
+                    - generic [ref=e674]: spec extraction
+                  - generic [ref=e675]:
+                    - generic [ref=e676]: 🟢
+                    - generic [ref=e677]: 100%
+                  - paragraph [ref=e680]: 79% fields filled across 71 specs
+                - generic [ref=e681]:
+                  - generic [ref=e682]:
+                    - img [ref=e684]
+                    - generic [ref=e686]: duplicate detection
+                  - generic [ref=e687]:
+                    - generic [ref=e688]: 🟢
+                    - generic [ref=e689]: 100%
+                  - paragraph [ref=e692]: 71 specs, 86 brands for comparison
+                - generic [ref=e693]:
+                  - generic [ref=e694]:
+                    - img [ref=e696]
+                    - generic [ref=e700]: brand detection
+                  - generic [ref=e701]:
+                    - generic [ref=e702]: 🟢
+                    - generic [ref=e703]: 100%
+                  - paragraph [ref=e706]: 86 brands, 25 aliases
+                - generic [ref=e707]:
+                  - generic [ref=e708]:
+                    - img [ref=e710]
+                    - generic [ref=e712]: data validation
+                  - generic [ref=e713]:
+                    - generic [ref=e714]: 🟢
+                    - generic [ref=e715]: 94%
+                  - paragraph [ref=e718]: 75 CarSpecs + 69 VehicleSpecs for cross-check
+                - generic [ref=e719]:
+                  - generic [ref=e720]:
+                    - img [ref=e722]
+                    - generic [ref=e725]: semantic search
+                  - generic [ref=e726]:
+                    - generic [ref=e727]: 🟡
+                    - generic [ref=e728]: 20%
+                  - paragraph [ref=e731]: Powered by same TF-IDF model (0 articles)
+          - generic [ref=e732]:
+            - heading "🤖 AI Pipeline HealthHow well AI enriches your content" [level=2] [ref=e733]
+            - generic [ref=e734]:
+              - generic [ref=e735]:
+                - heading "Enrichment Coverage" [level=3] [ref=e736]:
+                  - img [ref=e737]
+                  - text: Enrichment Coverage
+                - paragraph [ref=e740]: Out of 77 published articles
+                - generic [ref=e741]:
+                  - generic [ref=e743]:
+                    - generic [ref=e744]:
+                      - img [ref=e745]
+                      - generic [ref=e750]: Deep Specs (VehicleSpecs)
+                    - generic [ref=e751]:
+                      - text: "67"
+                      - generic [ref=e752]: (87%)
+                  - generic [ref=e756]:
+                    - generic [ref=e757]:
+                      - img [ref=e758]
+                      - generic [ref=e764]: A/B Title Variants
+                    - generic [ref=e765]:
+                      - text: "56"
+                      - generic [ref=e766]: (73%)
+                  - generic [ref=e770]:
+                    - generic [ref=e771]:
+                      - img [ref=e772]
+                      - generic [ref=e775]: Tags Assigned
+                    - generic [ref=e776]:
+                      - text: "77"
+                      - generic [ref=e777]: (100%)
+                  - generic [ref=e781]:
+                    - generic [ref=e782]:
+                      - img [ref=e783]
+                      - generic [ref=e798]: Car Specifications
+                    - generic [ref=e799]:
+                      - text: "68"
+                      - generic [ref=e800]: (88%)
+                  - generic [ref=e804]:
+                    - generic [ref=e805]:
+                      - img [ref=e806]
+                      - generic [ref=e809]: Featured Images
+                    - generic [ref=e810]:
+                      - text: "72"
+                      - generic [ref=e811]: (94%)
+              - generic [ref=e814]:
+                - heading "Article Sources" [level=3] [ref=e815]:
+                  - img [ref=e816]
+                  - text: Article Sources
+                - generic [ref=e831]:
+                  - img [ref=e833]
+                  - generic [ref=e834]:
+                    - generic [ref=e835]:
+                      - img [ref=e836]
+                      - paragraph [ref=e839]: "63"
+                      - paragraph [ref=e840]: YouTube
+                    - generic [ref=e841]:
+                      - img [ref=e842]
+                      - paragraph [ref=e846]: "0"
+                      - paragraph [ref=e847]: RSS
+                    - generic [ref=e848]:
+                      - img [ref=e849]
+                      - paragraph [ref=e856]: "14"
+                      - paragraph [ref=e857]: Translated
+            - generic [ref=e858]:
+              - heading "🏷️ Top Tags by Views" [level=3] [ref=e859]:
+                - img [ref=e860]
+                - text: 🏷️ Top Tags by Views
+              - img [ref=e864]
+            - generic [ref=e865]:
+              - heading "⚙️ AI Generation Quality" [level=2] [ref=e866]
+              - generic [ref=e867]:
+                - generic [ref=e868]:
+                  - heading "Spec Field Coverage" [level=3] [ref=e869]:
+                    - img [ref=e870]
+                    - text: Spec Field Coverage
+                  - paragraph [ref=e872]:
+                    - text: "68 / 77 articles have specs · Overall:"
+                    - generic [ref=e873]: 85.9%
+                  - img [ref=e875]
+                - generic [ref=e876]:
+                  - generic [ref=e877]:
+                    - heading "Generation → Publish" [level=3] [ref=e878]:
+                      - img [ref=e879]
+                      - text: Generation → Publish
+                    - paragraph [ref=e883]: No generation metadata available yet
+                  - generic [ref=e884]:
+                    - heading "Content Editing" [level=3] [ref=e885]:
+                      - img [ref=e886]
+                      - text: Content Editing
+                    - generic [ref=e889]:
+                      - generic [ref=e890]:
+                        - generic [ref=e891]: Avg Edit %
+                        - generic [ref=e892]: 27.1%
+                      - generic [ref=e893]:
+                        - generic [ref=e894]: Median
+                        - generic [ref=e895]: 1.9%
+                      - generic [ref=e896]:
+                        - generic [ref=e897]: Untouched
+                        - generic [ref=e898]: 4 articles
+                      - paragraph [ref=e899]: ℹ️ 10 articles with AI originals
+          - generic [ref=e901]:
+            - generic [ref=e902]:
+              - generic [ref=e903]:
+                - heading "🔍 Google Search Console Performance" [level=2] [ref=e904]
+                - paragraph [ref=e905]: Showing last 30 days
+              - generic [ref=e906]:
+                - button "1d" [ref=e907]
+                - button "7d" [ref=e908]
+                - button "30d" [ref=e909]
+                - button "3mo" [ref=e910]
+            - generic [ref=e912]: "Last GSC Sync: 3/13/2026, 8:38:07 AM"
+            - generic [ref=e913]:
+              - generic [ref=e914]:
+                - generic [ref=e915]: 📈
+                - generic [ref=e916]: ↑ 267%
+                - generic [ref=e917]: "11"
+                - generic [ref=e918]: Search Clicks
+              - generic [ref=e919]:
+                - generic [ref=e920]: 👁️
+                - generic [ref=e921]: ↑ 2115%
+                - generic [ref=e922]: 1,041
+                - generic [ref=e923]: Search Impressions
+              - generic [ref=e924]:
+                - generic [ref=e925]: 📊
+                - generic [ref=e926]: ↓ 83%
+                - generic [ref=e927]: 1.06%
+                - generic [ref=e928]: Avg. CTR
+              - generic [ref=e929]:
+                - generic [ref=e930]: 📍
+                - generic [ref=e931]: ↑ 10%
+                - generic [ref=e932]: "12.3"
+                - generic [ref=e933]: Avg. Position
+          - generic [ref=e935]:
+            - button "65 tests loaded" [ref=e936]:
+              - generic [ref=e937]: 65 tests loaded
+              - img [ref=e938]
+            - generic [ref=e940]:
+              - generic [ref=e942]:
+                - img [ref=e944]
+                - generic [ref=e948]:
+                  - paragraph [ref=e949]: "65"
+                  - paragraph [ref=e950]: Total Tests
+              - generic [ref=e952]:
+                - img [ref=e954]
+                - generic [ref=e957]:
+                  - paragraph [ref=e958]: "65"
+                  - paragraph [ref=e959]: Active
+              - generic [ref=e961]:
+                - img [ref=e963]
+                - generic [ref=e970]:
+                  - paragraph [ref=e971]: "1"
+                  - paragraph [ref=e972]: Winners Picked
+          - generic [ref=e973]:
+            - heading "⚙️ Platform OverviewSubscribers, RSS feeds & system health" [level=2] [ref=e974]
+            - generic [ref=e975]:
+              - generic [ref=e976]:
+                - generic [ref=e977]:
+                  - generic [ref=e978]:
+                    - img [ref=e980]
+                    - generic [ref=e985]:
+                      - heading "Subscribers" [level=3] [ref=e986]
+                      - paragraph [ref=e987]: Newsletter growth
+                  - generic [ref=e988]:
+                    - paragraph [ref=e989]: "2"
+                    - paragraph [ref=e990]: Active
+                - generic [ref=e991]:
+                  - 'generic "Jan 2026: 2 new" [ref=e994]'
+                  - generic [ref=e995]:
+                    - generic [ref=e996]: Jan 2026
+                    - generic [ref=e997]: Jan 2026
+                  - generic [ref=e998]:
+                    - img [ref=e999]
+                    - generic [ref=e1002]: 2 new this month
+              - generic [ref=e1003]:
+                - generic [ref=e1004]:
+                  - generic [ref=e1005]:
+                    - img [ref=e1007]
+                    - generic [ref=e1011]:
+                      - heading "RSS Feeds" [level=3] [ref=e1012]
+                      - paragraph [ref=e1013]: Content pipeline
+                  - link "Manage" [ref=e1014] [cursor=pointer]:
+                    - /url: /admin/rss-feeds
+                    - text: Manage
+                    - img [ref=e1015]
+                - generic [ref=e1018]:
+                  - generic [ref=e1019]:
+                    - paragraph [ref=e1020]: "66"
+                    - paragraph [ref=e1021]: Active
+                  - generic [ref=e1022]:
+                    - paragraph [ref=e1023]: 3,096
+                    - paragraph [ref=e1024]: Entries
+                  - generic [ref=e1025]:
+                    - paragraph [ref=e1026]: "66"
+                    - paragraph [ref=e1027]: 24h Active
+                - generic [ref=e1028]:
+                  - generic [ref=e1029]: "brand: 13"
+                  - generic [ref=e1030]: "blog: 29"
+                  - generic [ref=e1031]: "media: 24"
+                - generic [ref=e1032]:
+                  - generic [ref=e1034]:
+                    - generic [ref=e1035]: Autoblog News
+                    - generic [ref=e1036]: "305"
+                  - generic [ref=e1040]:
+                    - generic [ref=e1041]: Carscoops
+                    - generic [ref=e1042]: "302"
+                  - generic [ref=e1046]:
+                    - generic [ref=e1047]: Jalopnik
+                    - generic [ref=e1048]: "245"
+              - generic [ref=e1051]:
+                - generic [ref=e1052]:
+                  - generic [ref=e1053]:
+                    - img [ref=e1055]
+                    - generic [ref=e1059]:
+                      - heading "System Health" [level=3] [ref=e1060]
+                      - paragraph [ref=e1061]: Issues require attention
+                  - link "Details" [ref=e1062] [cursor=pointer]:
+                    - /url: /admin/health
+                    - text: Details
+                    - img [ref=e1063]
+                - generic [ref=e1066]:
+                  - generic [ref=e1067]:
+                    - paragraph [ref=e1068]: "1"
+                    - paragraph [ref=e1069]: Frontend Active
+                  - generic [ref=e1070]:
+                    - paragraph [ref=e1071]: "0"
+                    - paragraph [ref=e1072]: Backend 24h
+                - generic [ref=e1073]:
+                  - paragraph [ref=e1074]: Active Issues
+                  - generic [ref=e1075]:
+                    - generic [ref=e1076]: ×1
+                    - generic [ref=e1077]:
+                      - paragraph [ref=e1078]: "API 404 Not Found: http://localhost:8000/api/v1/api/v1/categories/"
+                      - paragraph [ref=e1079]: api_4xx
+  - button "Open Next.js Dev Tools" [ref=e1085] [cursor=pointer]:
+    - generic [ref=e1088]:
+      - text: Compiling
+      - generic [ref=e1089]:
+        - generic [ref=e1090]: .
+        - generic [ref=e1091]: .
+        - generic [ref=e1092]: .
+  - alert [ref=e1093]
+  - generic [ref=e1097]:
+    - generic [ref=e1099]:
+      - img [ref=e1101]
+      - generic [ref=e1108]:
+        - heading "Cookie Settings" [level=3] [ref=e1109]
+        - paragraph [ref=e1110]: We value your privacy
+    - generic [ref=e1111]:
+      - paragraph [ref=e1112]: We use cookies to enhance your browsing experience, analyze site traffic, and personalize content. By clicking "Accept All", you consent to our use of cookies. You can customize your preferences or reject non-essential cookies.
+      - generic [ref=e1113]:
+        - button "Accept All" [ref=e1114]:
+          - img [ref=e1115]
+          - text: Accept All
+        - button "Necessary Only" [ref=e1117]
+        - button "Customize" [ref=e1118]:
+          - img [ref=e1119]
+          - text: Customize
+      - paragraph [ref=e1122]:
+        - text: Learn more in our
+        - link "Privacy Policy" [ref=e1123] [cursor=pointer]:
+          - /url: /privacy-policy
+```

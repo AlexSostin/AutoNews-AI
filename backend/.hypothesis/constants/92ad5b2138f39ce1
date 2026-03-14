@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/auth.py
+# hypothesis_version: 6.151.9
+
+[150, 900, 100000, 999999, '5/h', 'Email is required', 'POST', 'SITE_URL', 'code', 'created_at', 'date_joined', 'detail', 'email', 'email_changed', 'expires_in', 'first_name', 'id', 'is_staff', 'is_superuser', 'last_name', 'new_email', 'new_password', 'new_password1', 'new_password2', 'old_password', 'password_changed', 'post', 'token', 'user', 'username']

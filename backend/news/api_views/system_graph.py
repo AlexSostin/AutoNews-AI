@@ -26,7 +26,7 @@ class SystemGraphView(APIView):
             Brand, BrandAlias, CarSpecification, VehicleSpecs,
             RSSFeed, RSSNewsItem, YouTubeChannel,
             Subscriber, ArticleEmbedding, ArticleTitleVariant,
-            FrontendEventLog, BackendErrorLog,
+            FrontendEventLog, BackendErrorLog, AdminNotification
         )
 
         nodes = []
@@ -425,13 +425,42 @@ class SystemGraphView(APIView):
         except Exception:
             pass
 
-        # ── Admin Notifications ───────────────────────────────────
+        # ── Admin Notifications (In-App) ──────────────────────────
+        try:
+            admin_notifs = AdminNotification.objects.aggregate(
+                total=Count('id'),
+                unread=Count('id', filter=Q(is_read=False))
+            )
+            
+            types_counts = AdminNotification.objects.values('notification_type').annotate(count=Count('id'))
+            t_map = {tc['notification_type']: tc['count'] for tc in types_counts}
+            
+            nodes.append({
+                'id': 'in_app_notifications', 'label': 'In-App Alerts', 'group': 'system',
+                'icon': '🔔', 'count': admin_notifs['total'],
+                'breakdown': {
+                    'system_alerts': t_map.get('system', 0) + t_map.get('video_error', 0) + t_map.get('ai_error', 0),
+                    'content': t_map.get('article', 0) + t_map.get('video_pending', 0),
+                    'community': t_map.get('comment', 0) + t_map.get('subscriber', 0),
+                    'general': t_map.get('info', 0),
+                    'unread': admin_notifs['unread'],
+                },
+                'health': 'warning' if admin_notifs['unread'] > 50 else 'healthy',
+            })
+            # Edges
+            edges.append({'from': 'articles', 'to': 'in_app_notifications', 'label': 'alerts', 'count': t_map.get('article', 0)})
+            edges.append({'from': 'comments', 'to': 'in_app_notifications', 'label': 'alerts', 'count': t_map.get('comment', 0)})
+            edges.append({'from': 'errors', 'to': 'in_app_notifications', 'label': 'alerts', 'count': t_map.get('system', 0) + t_map.get('ai_error', 0) + t_map.get('video_error', 0)})
+        except Exception:
+            pass
+
+        # ── Telegram Alerts ───────────────────────────────────────
         try:
             import os
             admin_id_set = bool(os.environ.get('TELEGRAM_ADMIN_ID', ''))
             nodes.append({
-                'id': 'admin_notifications', 'label': 'Admin Alerts', 'group': 'social',
-                'icon': '🔔', 'count': 0,
+                'id': 'telegram_alerts', 'label': 'Telegram Alerts', 'group': 'social',
+                'icon': '📢', 'count': 0,
                 'breakdown': {
                     'daily_report': '✅ ready',
                     'publish_alerts': '✅ ready',
@@ -440,8 +469,8 @@ class SystemGraphView(APIView):
                 },
                 'health': 'healthy' if admin_id_set else 'warning',
             })
-            edges.append({'from': 'ai_pipeline', 'to': 'admin_notifications', 'label': 'alerts', 'count': 0})
-            edges.append({'from': 'errors', 'to': 'admin_notifications', 'label': 'error alerts', 'count': 0})
+            edges.append({'from': 'ai_pipeline', 'to': 'telegram_alerts', 'label': 'alerts', 'count': 0})
+            edges.append({'from': 'errors', 'to': 'telegram_alerts', 'label': 'alerts', 'count': 0})
         except Exception:
             pass
 

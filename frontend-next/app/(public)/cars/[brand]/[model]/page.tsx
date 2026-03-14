@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ClientModelFallback } from '@/components/public/ClientPageFallbacks';
 import type { Metadata } from 'next';
 import { fixImageUrl } from '@/lib/config';
+import Image from 'next/image';
 import VehicleSpecsTable from '@/components/public/VehicleSpecsTable';
 
 export const revalidate = 3600; // revalidate every hour
@@ -179,7 +180,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
 
                 {heroImage && (
                     <div className="absolute inset-0 opacity-35">
-                        <img src={heroImage} alt="" className="w-full h-full object-cover" />
+                        <Image src={heroImage} alt="" fill className="object-cover" priority />
                     </div>
                 )}
 
@@ -238,11 +239,13 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
             {/* Featured Car Image — visible, not just background */}
             {heroImage && (
                 <section className="container mx-auto px-4 -mt-6 relative z-10 mb-8">
-                    <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
-                        <img
+                    <div className="relative w-full aspect-[21/9] rounded-2xl overflow-hidden shadow-2xl border border-gray-200 bg-gray-100">
+                        <Image
                             src={heroImage}
                             alt={data.full_name}
-                            className="w-full aspect-[21/9] object-cover"
+                            fill
+                            className="object-cover"
+                            priority
                         />
                     </div>
                 </section>
@@ -353,21 +356,27 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                                 </div>
                                 <div className="p-4 space-y-2">
                                     {/* Featured — first image large */}
-                                    <img
-                                        src={galleryImages[0]}
-                                        alt={`${data.full_name} — main photo`}
-                                        className="w-full aspect-video object-cover rounded-xl"
-                                    />
+                                    <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100">
+                                        <Image
+                                            src={galleryImages[0]}
+                                            alt={`${data.full_name} — main photo`}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    </div>
                                     {/* Rest as smaller grid */}
                                     {galleryImages.length > 1 && (
                                         <div className={`grid gap-2 ${galleryImages.length === 2 ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}>
                                             {galleryImages.slice(1).map((img, i) => (
-                                                <img
-                                                    key={i}
-                                                    src={img}
-                                                    alt={`${data.full_name} photo ${i + 2}`}
-                                                    className="w-full aspect-video object-cover rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
-                                                />
+                                                <div key={i} className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity cursor-pointer">
+                                                    <Image
+                                                        src={img}
+                                                        alt={`${data.full_name} photo ${i + 2}`}
+                                                        fill
+                                                        sizes="(max-width: 640px) 50vw, 33vw"
+                                                        className="object-cover"
+                                                    />
+                                                </div>
                                             ))}
                                         </div>
                                     )}
