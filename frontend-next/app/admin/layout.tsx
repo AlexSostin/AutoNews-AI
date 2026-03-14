@@ -56,6 +56,8 @@ export default function AdminLayout({
       // ── Token liveness check ──────────────────────────────────────
       // Verify the access token is actually valid (catches zombie state
       // after backend restart / Docker rebuild / deploy).
+      // If access token is expired, try to refresh it first (like proper
+      // auth flows in production apps) before kicking the user out.
       try {
         const { getApiUrl } = await import('@/lib/api');
         const accessToken = document.cookie
@@ -71,13 +73,44 @@ export default function AdminLayout({
           body: JSON.stringify({ token: accessToken }),
         });
 
-        if (!res.ok) throw new Error('token invalid');
+        if (!res.ok) {
+          // Access token expired — try to refresh before giving up
+          const refreshToken = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('refresh_token='))
+            ?.split('=')[1]
+            || localStorage.getItem('refresh_token');
+
+          if (!refreshToken) throw new Error('no refresh token');
+
+          const refreshRes = await fetch(`${getApiUrl()}/token/refresh/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh: refreshToken }),
+          });
+
+          if (!refreshRes.ok) throw new Error('refresh failed');
+
+          const { access: newAccess, refresh: newRefresh } = await refreshRes.json();
+
+          // Update tokens everywhere
+          const isSecure = window.location.protocol === 'https:';
+          const secureFlag = isSecure ? '; Secure' : '';
+          document.cookie = `access_token=${newAccess}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax${secureFlag}`;
+          if (newRefresh) {
+            document.cookie = `refresh_token=${newRefresh}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax${secureFlag}`;
+            localStorage.setItem('refresh_token', newRefresh);
+          }
+          localStorage.setItem('access_token', newAccess);
+          console.log('🔄 Token refreshed silently during auth check');
+        }
       } catch {
-        // Token is invalid/expired — clear zombie state and redirect
+        // Both access AND refresh tokens are invalid — clear everything
         document.cookie = 'access_token=; path=/; max-age=0';
         document.cookie = 'refresh_token=; path=/; max-age=0';
         localStorage.removeItem('user');
         localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         toast.error('Session expired. Please log in again.');
         router.push('/login');
         return;
