@@ -146,9 +146,10 @@ class TestGenerateFromYouTubeDeep:
         assert resp.status_code == 400
 
     @patch('ai_engine.main.generate_article_from_youtube')
-    def test_provider_groq(self, mock_gen, staff_client):
+    def test_provider_normalized_to_gemini(self, mock_gen, staff_client):
+        """Any non-gemini provider gets normalized to 'gemini'."""
         result_article = Article.objects.create(
-            title='Groq Generated', slug='groq-gen', content='<p>Groq</p>',
+            title='Normalized Generated', slug='norm-gen', content='<p>Content</p>',
         )
         mock_gen.return_value = {'success': True, 'article_id': result_article.id}
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
@@ -157,8 +158,9 @@ class TestGenerateFromYouTubeDeep:
         }, format='json', **UA)
         assert resp.status_code == 200
         mock_gen.assert_called_once()
+        # Verify provider was normalized to gemini
         call_kwargs = mock_gen.call_args
-        assert call_kwargs[1].get('provider') == 'groq' or call_kwargs[0][0] == 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        assert call_kwargs[1].get('provider') == 'gemini' or call_kwargs[0][0] == 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -287,85 +289,87 @@ class TestTranslateEnhanceDeep:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestRegenerateDeep:
-    """Covers L1672-1838 — YouTube + RSS source detection, backup, post-processing."""
+    """Covers regenerate endpoint — now async via Celery task dispatch."""
 
-    @patch('ai_engine.main.generate_title_variants')
-    @patch('ai_engine.main._generate_article_content')
-    def test_regenerate_youtube_source(self, mock_gen, mock_ab, staff_client, article_with_youtube):
-        mock_gen.return_value = {
-            'success': True,
-            'title': 'BYD Seal Regenerated',
-            'content': '<h2>BYD Seal</h2><p>Regenerated YouTube content with more detail</p>',
-            'summary': 'Updated summary',
-            'generation_metadata': {'provider': 'gemini', 'source_type': 'youtube'},
-            'specs': {},
-            'tag_names': [],
-        }
-        mock_ab.return_value = None
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_youtube_source(self, mock_delay, staff_client, article_with_youtube):
+        mock_task = MagicMock()
+        mock_task.id = 'yt-task-001'
+        mock_delay.return_value = mock_task
+
         resp = staff_client.post(
             f'/api/v1/articles/{article_with_youtube.slug}/regenerate/',
             {'provider': 'gemini'}, format='json', **UA
         )
         assert resp.status_code == 200
         assert resp.data['success'] is True
-        assert 'youtube' in resp.data.get('message', '').lower()
-        # Verify backup
-        article_with_youtube.refresh_from_db()
-        assert article_with_youtube.content_original is not None
+        assert 'task_id' in resp.data
+        mock_delay.assert_called_once()
+        call_kwargs = mock_delay.call_args[1]
+        assert call_kwargs['article_id'] == article_with_youtube.id
 
     @pytest.mark.slow
-    @patch('news.signals.threading.Thread.start')
-    @patch('ai_engine.main.generate_title_variants')
-    @patch('ai_engine.modules.article_generator.expand_press_release')
-    def test_regenerate_rss_source(self, mock_expand, mock_ab, mock_thread, staff_client, article_with_rss):
-        mock_expand.return_value = '<h2>ZEEKR 007 Full Review</h2><p>Expanded content about the ZEEKR 007 electric sedan featuring 800V architecture and impressive range figures for the global market. The vehicle comes fully equipped with the latest lidar-based autonomous driving features and dual-motor all-wheel drive, securing a phenomenal 0-100km/h sprint time.</p>'
-        mock_ab.return_value = None
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_rss_source(self, mock_delay, staff_client, article_with_rss):
+        mock_task = MagicMock()
+        mock_task.id = 'rss-task-001'
+        mock_delay.return_value = mock_task
+
         resp = staff_client.post(
             f'/api/v1/articles/{article_with_rss.slug}/regenerate/',
             {'provider': 'gemini'}, format='json', **UA
         )
         assert resp.status_code == 200, resp.data
         assert resp.data['success'] is True
-        assert 'rss' in resp.data.get('message', '').lower()
-        article_with_rss.refresh_from_db()
-        assert 'ZEEKR' in article_with_rss.content
+        assert 'task_id' in resp.data
 
-    def test_regenerate_invalid_provider(self, staff_client, article):
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_invalid_provider_normalized(self, mock_delay, staff_client, article):
+        """Invalid provider gets normalized to gemini (endpoint no longer rejects)."""
+        mock_task = MagicMock()
+        mock_task.id = 'norm-task'
+        mock_delay.return_value = mock_task
+
         resp = staff_client.post(
             f'/api/v1/articles/{article.slug}/regenerate/',
             {'provider': 'openai'}, format='json', **UA
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.data['success'] is True
+        call_kwargs = mock_delay.call_args[1]
+        assert call_kwargs['provider'] == 'gemini'
 
-    def test_regenerate_no_source_content(self, staff_client, article):
-        """Article with no youtube_url and no RSSNewsItem → 400."""
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_no_source_dispatches(self, mock_delay, staff_client, article):
+        """Article with no youtube_url and no RSSNewsItem still dispatches task.
+        Validation of source content happens inside the Celery task."""
+        mock_task = MagicMock()
+        mock_task.id = 'no-src-task'
+        mock_delay.return_value = mock_task
+
         resp = staff_client.post(
             f'/api/v1/articles/{article.slug}/regenerate/',
             {'provider': 'gemini'}, format='json', **UA
         )
-        assert resp.status_code in (400, 500)
+        # Endpoint dispatches successfully; source validation is in the task
+        assert resp.status_code == 200
+        assert resp.data['success'] is True
 
-    @patch('ai_engine.main.generate_title_variants')
-    @patch('ai_engine.main._generate_article_content')
-    def test_regenerate_youtube_with_specs(self, mock_gen, mock_ab, staff_client, article_with_youtube):
-        mock_gen.return_value = {
-            'success': True,
-            'title': '2026 BYD Seal Review',
-            'content': '<h2>BYD Seal</h2><p>Content</p>',
-            'summary': 'Summary',
-            'specs': {'make': 'BYD', 'model': 'Seal', 'year': 2026, 'price': '$35,000'},
-            'tag_names': ['BYD', 'EV'],
-            'generation_metadata': {'provider': 'gemini'},
-        }
-        mock_ab.return_value = None
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_youtube_with_specs(self, mock_delay, staff_client, article_with_youtube):
+        """Task dispatch includes the article ID for spec creation."""
+        mock_task = MagicMock()
+        mock_task.id = 'specs-task'
+        mock_delay.return_value = mock_task
+
         resp = staff_client.post(
             f'/api/v1/articles/{article_with_youtube.slug}/regenerate/',
             {'provider': 'gemini'}, format='json', **UA
         )
         assert resp.status_code == 200
-        # CarSpecification should be created/updated
-        specs = CarSpecification.objects.filter(article=article_with_youtube)
-        assert specs.exists()
+        assert resp.data['success'] is True
+        call_kwargs = mock_delay.call_args[1]
+        assert call_kwargs['article_id'] == article_with_youtube.id
 
 
 # ═══════════════════════════════════════════════════════════════════════════

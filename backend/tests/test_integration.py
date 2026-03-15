@@ -15,12 +15,6 @@ from io import StringIO
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestGetAiProvider:
-    def test_groq_provider_returned(self):
-        """get_ai_provider('groq') → GroqProvider."""
-        from ai_engine.modules.ai_provider import get_ai_provider, GroqProvider
-        provider = get_ai_provider('groq')
-        assert isinstance(provider, GroqProvider)
-
     def test_gemini_provider_returned(self):
         """get_ai_provider('gemini') → GeminiProvider."""
         from ai_engine.modules.ai_provider import get_ai_provider, GeminiProvider
@@ -33,20 +27,25 @@ class TestGetAiProvider:
         with pytest.raises(ValueError, match='Unknown AI provider'):
             get_ai_provider('openai')
 
+    def test_groq_removed(self):
+        """Groq was removed — requesting it should raise ValueError."""
+        from ai_engine.modules.ai_provider import get_ai_provider
+        with pytest.raises(ValueError):
+            get_ai_provider('groq')
+
     def test_case_insensitive(self):
         """Provider name is case-insensitive."""
-        from ai_engine.modules.ai_provider import get_ai_provider, GroqProvider
-        provider = get_ai_provider('GROQ')
-        assert isinstance(provider, GroqProvider)
+        from ai_engine.modules.ai_provider import get_ai_provider, GeminiProvider
+        provider = get_ai_provider('GEMINI')
+        assert isinstance(provider, GeminiProvider)
 
 
-class TestGroqProviderNoKey:
-    def test_groq_no_api_key_raises(self):
-        """GroqProvider without API key → raises Exception."""
-        from ai_engine.modules.ai_provider import GroqProvider
-        with patch('ai_engine.modules.ai_provider.groq_client', None):
-            with pytest.raises(Exception, match='not configured'):
-                GroqProvider.generate_completion('test prompt')
+class TestGeminiProviderConfig:
+    def test_gemini_is_default(self):
+        """Gemini is the only supported provider."""
+        from ai_engine.modules.ai_provider import get_ai_provider, GeminiProvider
+        provider = get_ai_provider('gemini')
+        assert isinstance(provider, GeminiProvider)
 
 
 class TestGeminiProviderNoKey:
@@ -65,19 +64,18 @@ class TestGetAvailableProviders:
         result = get_available_providers()
         assert isinstance(result, list)
 
-    def test_groq_available_when_key_set(self):
-        """With GROQ_API_KEY set, groq appears in available providers."""
+    def test_gemini_available_when_key_set(self):
+        """With GEMINI_API_KEY set, gemini appears in available providers."""
         from ai_engine.modules.ai_provider import get_available_providers
-        with patch('ai_engine.modules.ai_provider.GROQ_API_KEY', 'test-key'):
+        with patch('ai_engine.modules.ai_provider.GEMINI_API_KEY', 'test-key'):
             result = get_available_providers()
             names = [p['name'] for p in result]
-            assert 'groq' in names
+            assert 'gemini' in names
 
     def test_no_providers_without_keys(self):
         """Without any API keys, no providers available."""
         from ai_engine.modules.ai_provider import get_available_providers
-        with patch('ai_engine.modules.ai_provider.GROQ_API_KEY', None), \
-             patch('ai_engine.modules.ai_provider.GEMINI_API_KEY', None):
+        with patch('ai_engine.modules.ai_provider.GEMINI_API_KEY', None):
             result = get_available_providers()
             assert len(result) == 0
 

@@ -266,77 +266,64 @@ class TestTranslateEnhance:
 
 class TestRegenerate:
 
-    @patch('ai_engine.main.generate_title_variants')
-    @patch('ai_engine.main._generate_article_content')
-    def test_regenerate_youtube_success(self, mock_generate, mock_titles,
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_youtube_success(self, mock_delay,
                                         staff_client, article_youtube):
-        mock_generate.return_value = {
-            'success': True,
-            'title': 'Regenerated BMW',
-            'content': '<h2>BMW M3</h2><p>New content</p>',
-            'summary': 'New summary',
-            'generation_metadata': {'provider': 'gemini'},
-            'specs': {},
-            'tag_names': [],
-        }
+        """Regenerate dispatches a Celery task and returns task_id."""
+        mock_task = MagicMock()
+        mock_task.id = 'test-task-123'
+        mock_delay.return_value = mock_task
+
         resp = staff_client.post(
             f'{API}/articles/{article_youtube.slug}/regenerate/',
             {'provider': 'gemini'}, format='json',
         )
         assert resp.status_code == 200
         assert resp.data['success'] is True
-        article_youtube.refresh_from_db()
-        assert article_youtube.title == 'Regenerated BMW'
+        assert resp.data['task_id'] == 'test-task-123'
+        mock_delay.assert_called_once()
 
-    @patch('ai_engine.main._generate_article_content')
-    def test_regenerate_youtube_ai_fail(self, mock_generate, staff_client,
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_returns_task_id(self, mock_delay, staff_client,
                                         article_youtube):
-        mock_generate.return_value = {
-            'success': False, 'error': 'Transcript unavailable',
-        }
+        """Response includes task_id for status polling."""
+        mock_task = MagicMock()
+        mock_task.id = 'abc-456'
+        mock_delay.return_value = mock_task
+
         resp = staff_client.post(
             f'{API}/articles/{article_youtube.slug}/regenerate/',
             {'provider': 'gemini'}, format='json',
         )
-        assert resp.status_code == 500
+        assert resp.status_code == 200
+        assert 'task_id' in resp.data
 
-    def test_regenerate_invalid_provider(self, staff_client, article):
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_normalizes_provider_to_gemini(self, mock_delay,
+                                                       staff_client, article):
+        """Invalid provider gets normalized to gemini (not rejected)."""
+        mock_task = MagicMock()
+        mock_task.id = 'norm-task'
+        mock_delay.return_value = mock_task
+
         resp = staff_client.post(
             f'{API}/articles/{article.slug}/regenerate/',
             {'provider': 'openai'}, format='json',
         )
-        assert resp.status_code == 400
+        # The endpoint normalizes provider to 'gemini' and dispatches the task
+        assert resp.status_code == 200
+        assert resp.data['success'] is True
+        # Verify the task was called with gemini
+        call_kwargs = mock_delay.call_args[1]
+        assert call_kwargs['provider'] == 'gemini'
 
-    @patch('ai_engine.modules.article_generator.expand_press_release')
-    def test_regenerate_rss_no_source_content(self, mock_expand,
-                                               staff_client, article_rss):
-        """RSS article with no RSSNewsItem and no fetchable content"""
-        resp = staff_client.post(
-            f'{API}/articles/{article_rss.slug}/regenerate/',
-            {'provider': 'gemini'}, format='json',
-        )
-        # No source content found → 400
-        assert resp.status_code == 400
-        assert 'no source content' in resp.data['message'].lower()
-
-    @patch('ai_engine.main.generate_title_variants')
-    @patch('ai_engine.modules.article_generator.expand_press_release')
-    def test_regenerate_rss_with_rss_item(self, mock_expand, mock_titles,
-                                           staff_client, article_rss):
-        from news.models import RSSFeed, RSSNewsItem, PendingArticle
-        feed = RSSFeed.objects.create(
-            name='Audi Press', feed_url='https://audi.com/feed.xml',
-        )
-        item = RSSNewsItem.objects.create(
-            rss_feed=feed, title='Audi Launch',
-            content='<p>' + 'Audi press release content. ' * 20 + '</p>',
-            source_url='https://audi.com/press/1',
-        )
-        # Link via author_channel_url
-        article_rss.author_channel_url = item.source_url
-        article_rss.save()
-
-        mock_expand.return_value = '<h2>Audi e-tron</h2><p>' + 'Expanded content. ' * 30 + '</p>'
+    @patch('news.tasks.regenerate_article_task.delay')
+    def test_regenerate_rss_dispatches_task(self, mock_delay,
+                                             staff_client, article_rss):
+        """RSS article also dispatches a regeneration task."""
+        mock_task = MagicMock()
+        mock_task.id = 'rss-task'
+        mock_delay.return_value = mock_task
 
         resp = staff_client.post(
             f'{API}/articles/{article_rss.slug}/regenerate/',
