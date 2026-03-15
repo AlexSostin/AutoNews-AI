@@ -28,6 +28,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 
 from news.models import WebAuthnCredential
 
@@ -184,6 +186,7 @@ class PasskeyAuthenticateView(APIView):
     """
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='10/5m', method='GET', block=True))
     def get(self, request):
         import webauthn  # lazy
         import secrets
@@ -210,6 +213,7 @@ class PasskeyAuthenticateView(APIView):
         response_data['auth_token'] = auth_token  # client must echo this in POST
         return Response(response_data)
 
+    @method_decorator(ratelimit(key='ip', rate='10/5m', method='POST', block=True))
     def post(self, request):
         import webauthn  # lazy
         from django.core.cache import cache
@@ -331,6 +335,7 @@ class PasskeyVerifyPendingView(APIView):
         cache.set(cache_key, pending, timeout=120)
         return Response(_json.loads(webauthn.options_to_json(options)))
 
+    @method_decorator(ratelimit(key='ip', rate='10/5m', method='POST', block=True))
     def post(self, request):
         """Verify biometric assertion and return pending JWT tokens."""
         import webauthn

@@ -26,6 +26,7 @@ export default function LoginPage() {
   // Passkey step — store one-time token from backend for biometric verification
   const [requiresPasskey, setRequiresPasskey] = useState(false); // step between password and 2FA
   const [pendingPasskeyToken, setPendingPasskeyToken] = useState(''); // one-time cache key from backend
+  const [passkeyHas2FA, setPasskeyHas2FA] = useState(false);
   const [pending2FACredentials, setPending2FACredentials] = useState({ username: '', password: '' });
   const [googleUserId, setGoogleUserId] = useState(''); // set when 2FA triggered from Google OAuth
   const [totpCode, setTotpCode] = useState('');
@@ -35,6 +36,14 @@ export default function LoginPage() {
   const handleGoogleRequires2FA = (userId: string) => {
     setGoogleUserId(userId);
     setRequires2FA(true);
+  };
+
+  // Google OAuth Passkey — called when backend returns requires_passkey for staff user
+  const handleGoogleRequiresPasskey = (pendingToken: string, has2FA: boolean, userId?: string) => {
+    setPendingPasskeyToken(pendingToken);
+    setRequiresPasskey(true);
+    setPasskeyHas2FA(has2FA);
+    if (userId) setGoogleUserId(userId);
   };
 
   // Redirect if already logged in
@@ -60,6 +69,16 @@ export default function LoginPage() {
       setTimeout(() => totpInputRef.current?.focus(), 100);
     }
   }, [requires2FA]);
+
+  // Auto-trigger biometric prompt when Passkey step appears
+  useEffect(() => {
+    if (requiresPasskey && pendingPasskeyToken && typeof window !== 'undefined' && window.PublicKeyCredential) {
+      // Small delay to ensure UI transition finishes before browser pop-up
+      const timer = setTimeout(handlePasskeyVerify, 300);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requiresPasskey, pendingPasskeyToken]);
 
   const onLoginSuccess = () => {
     const userData = localStorage.getItem('user');
@@ -115,10 +134,13 @@ export default function LoginPage() {
       await login(formData);
       onLoginSuccess();
     } catch (err: unknown) {
-      // Passkey required — backend validated password, stored JWT in cache, needs biometric
       if (err instanceof PasskeyRequiredError) {
         setPendingPasskeyToken(err.pendingToken);
         setRequiresPasskey(true);
+        setPasskeyHas2FA(err.has2FA);
+        if (err.googleUserId) setGoogleUserId(err.googleUserId);
+        // Save credentials just in case they fallback to 2FA
+        setPending2FACredentials({ username: formData.username, password: formData.password });
         setIsLoading(false);
         return;
       }
@@ -277,10 +299,26 @@ export default function LoginPage() {
                 <Fingerprint size={22} className={isPasskeyLoading ? 'animate-pulse' : ''} />
                 {isPasskeyLoading ? 'Waiting for biometric...' : 'Tap to confirm with fingerprint'}
               </button>
+              {passkeyHas2FA && (
+                <>
+                  <div className="relative mt-4">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+                    <div className="relative flex justify-center text-xs"><span className="px-2 bg-white text-gray-400">or</span></div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setRequiresPasskey(false); setRequires2FA(true); }}
+                    className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-lg text-sm"
+                  >
+                    <Smartphone size={18} />
+                    Use Authenticator App Instead
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => { setRequiresPasskey(false); setError(''); }}
-                className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors mt-6 block"
               >
                 ← Back to login
               </button>
@@ -372,6 +410,7 @@ export default function LoginPage() {
                   }}
                   onError={(err) => { toast.error(err); }}
                   onRequires2FA={handleGoogleRequires2FA}
+                  onRequiresPasskey={handleGoogleRequiresPasskey}
                 />
               </div>
             </>

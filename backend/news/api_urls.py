@@ -66,32 +66,7 @@ class RateLimitedTokenObtainPairView(TokenObtainPairView):
                         has_passkeys = WebAuthnCredential.objects.filter(user=user).exists()
                         logger.info(f"🔐 Auth check: user={user.username} is_staff=True has_2fa={has_2fa} has_passkeys={has_passkeys}")
 
-                        if has_2fa:
-                            response_data = {
-                                'requires_2fa': True,
-                                'message': 'Please provide your 2FA code.',
-                            }
-                            # If user ALSO has passkeys, include pending_token so frontend
-                            # can offer "Use Passkey Instead" as an alternative to TOTP
-                            if has_passkeys:
-                                import secrets
-                                from django.core.cache import cache
-                                tokens = response.data  # {'access': ..., 'refresh': ...}
-                                pending_token = secrets.token_urlsafe(32)
-                                cache.set(
-                                    f'passkey_pending:{pending_token}',
-                                    {'access': tokens.get('access'), 'refresh': tokens.get('refresh')},
-                                    timeout=120,
-                                )
-                                response_data['has_passkeys'] = True
-                                response_data['pending_token'] = pending_token
-                                logger.info(f"🔐 Login requires 2FA (passkey alt available): user={user.username} ip={ip}")
-                            else:
-                                logger.info(f"🔐 Login requires 2FA: user={user.username} ip={ip}")
-                            return Response(response_data, status=200)
-
                         if has_passkeys:
-                            # Passkey required (no 2FA) — store pending tokens in cache
                             import secrets
                             from django.core.cache import cache
                             tokens = response.data  # {'access': ..., 'refresh': ...}
@@ -102,11 +77,24 @@ class RateLimitedTokenObtainPairView(TokenObtainPairView):
                                 timeout=120,  # 2 minutes to complete biometric
                             )
                             logger.info(f"🔑 Login requires Passkey: user={user.username} ip={ip}")
-                            return Response({
+                            response_data = {
                                 'requires_passkey': True,
                                 'pending_token': pending_token,
                                 'message': 'Please verify with your passkey.',
-                            }, status=200)
+                            }
+                            if has_2fa:
+                                response_data['has_2fa'] = True
+                                logger.info(f"🔑 Login requires Passkey (2FA alt available): user={user.username} ip={ip}")
+
+                            return Response(response_data, status=200)
+
+                        if has_2fa:
+                            response_data = {
+                                'requires_2fa': True,
+                                'message': 'Please provide your 2FA code.',
+                            }
+                            logger.info(f"🔐 Login requires 2FA: user={user.username} ip={ip}")
+                            return Response(response_data, status=200)
 
                 except User.DoesNotExist:
                     logger.warning(f"⚠️ Auth check: user not found username={username}")

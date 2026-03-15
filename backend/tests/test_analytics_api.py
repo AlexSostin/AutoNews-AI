@@ -269,3 +269,39 @@ class TestGSCAnalytics:
         """GSC endpoint returns data or empty"""
         response = authenticated_client.get('/api/v1/analytics/gsc/?days=7')
         assert response.status_code == 200
+
+@pytest.mark.django_db
+class TestExtraStatsAnalytics:
+    """Tests for extra stats (Subscribers, RSS, Errors) endpoint"""
+
+    def test_extra_stats(self, authenticated_client):
+        """Extra stats endpoint returns expected structure"""
+        response = authenticated_client.get('/api/v1/analytics/extra-stats/')
+        assert response.status_code == 200
+        assert 'subscribers' in response.data
+        assert 'rss' in response.data
+        assert 'errors' in response.data
+
+        # Verify subscribers structure
+        subs = response.data['subscribers']
+        assert 'total' in subs
+        assert 'labels' in subs
+        assert 'data' in subs
+        assert 'cumulative' in subs
+        
+        # Verify RSS structure
+        rss = response.data['rss']
+        assert 'total_feeds' in rss
+        assert 'active_feeds' in rss
+        assert 'top_feeds' in rss
+        
+        # Verify errors structure
+        errs = response.data['errors']
+        assert 'frontend_total' in errs
+        assert 'backend_total' in errs
+        assert 'top_errors' in errs
+
+    def test_extra_stats_requires_auth(self, api_client):
+        """Extra stats requires authentication"""
+        response = api_client.get('/api/v1/analytics/extra-stats/')
+        assert response.status_code in [401, 403]

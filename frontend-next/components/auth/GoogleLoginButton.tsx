@@ -8,9 +8,10 @@ interface GoogleLoginButtonProps {
     onSuccess?: () => void;
     onError?: (error: string) => void;
     onRequires2FA?: (googleUserId: string) => void;
+    onRequiresPasskey?: (pendingToken: string, has2FA: boolean, googleUserId?: string) => void;
 }
 
-export default function GoogleLoginButton({ onSuccess, onError, onRequires2FA }: GoogleLoginButtonProps) {
+export default function GoogleLoginButton({ onSuccess, onError, onRequires2FA, onRequiresPasskey }: GoogleLoginButtonProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -46,6 +47,12 @@ export default function GoogleLoginButton({ onSuccess, onError, onRequires2FA }:
             }
 
             const data = await response.json();
+
+            // If this staff user has passkey enabled
+            if (data.requires_passkey && data.pending_token) {
+                onRequiresPasskey?.(data.pending_token, data.has_2fa === true, data.google_user_id);
+                return;
+            }
 
             // If this staff user has 2FA enabled — show TOTP prompt
             if (data.requires_2fa && data.google_user_id) {

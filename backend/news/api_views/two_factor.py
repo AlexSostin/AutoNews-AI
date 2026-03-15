@@ -18,6 +18,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework import status
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 from django.contrib.auth import authenticate  # kept for potential future use
 
 from news.models import TOTPDevice
@@ -77,6 +79,7 @@ class TwoFactorConfirmView(APIView):
     """Confirm 2FA setup by verifying the first code from authenticator app."""
     permission_classes = [IsAdminUser]
 
+    @method_decorator(ratelimit(key='ip', rate='5/5m', method='POST', block=True))
     def post(self, request):
         code = request.data.get('code', '').strip()
         if not code or len(code) != 6:
@@ -119,6 +122,7 @@ class TwoFactorVerifyView(APIView):
     # (DRF default IsAuthenticatedOrReadOnly blocks POST from unauthenticated users)
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='5/5m', method='POST', block=True))
     def post(self, request):
         from django.contrib.auth.models import User
 
@@ -187,6 +191,7 @@ class TwoFactorGoogleVerifyView(APIView):
     # AllowAny required — called before login is complete
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='5/5m', method='POST', block=True))
     def post(self, request):
         from django.contrib.auth.models import User
         from rest_framework_simplejwt.tokens import RefreshToken

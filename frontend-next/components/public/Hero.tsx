@@ -117,7 +117,9 @@ export default function Hero({ articles, settings }: HeroProps) {
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' 
+        });
     };
 
     if (useClassic) {

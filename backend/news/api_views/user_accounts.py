@@ -195,15 +195,41 @@ class UserViewSet(viewsets.ViewSet):
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
 
-            # If user is staff and has 2FA enabled — require TOTP before issuing tokens
-            from news.models import TOTPDevice
-            if user.is_staff and TOTPDevice.objects.filter(user=user, is_confirmed=True).exists():
-                logger.info(f"🔐 Google OAuth requires 2FA: user={user.username}")
-                return Response({
-                    'requires_2fa': True,
-                    'google_user_id': str(user.id),
-                    'message': 'Please provide your 2FA code to complete login.',
-                }, status=status.HTTP_200_OK)
+            # If user is staff and has 2FA or Passkeys — require before issuing tokens
+            if user.is_staff:
+                from news.models import TOTPDevice, WebAuthnCredential
+                has_2fa = TOTPDevice.objects.filter(user=user, is_confirmed=True).exists()
+                has_passkeys = WebAuthnCredential.objects.filter(user=user).exists()
+                
+                if has_passkeys:
+                    import secrets
+                    from django.core.cache import cache
+                    pending_token = secrets.token_urlsafe(32)
+                    cache.set(
+                        f'passkey_pending:{pending_token}',
+                        {'access': str(refresh.access_token), 'refresh': str(refresh)},
+                        timeout=120,
+                    )
+                    logger.info(f"🔑 Google OAuth requires Passkey: user={user.username}")
+                    response_data = {
+                        'requires_passkey': True,
+                        'pending_token': pending_token,
+                        'message': 'Please verify with your passkey.',
+                    }
+                    if has_2fa:
+                        # Also return Google user ID in case they fallback to 2FA after OAuth
+                        response_data['has_2fa'] = True
+                        response_data['google_user_id'] = str(user.id)
+                    return Response(response_data, status=status.HTTP_200_OK)
+
+                elif has_2fa:
+                    logger.info(f"🔐 Google OAuth requires 2FA: user={user.username}")
+                    response_data = {
+                        'requires_2fa': True,
+                        'google_user_id': str(user.id),
+                        'message': 'Please provide your 2FA code to complete login.',
+                    }
+                    return Response(response_data, status=status.HTTP_200_OK)
 
             logger.info(f"Google OAuth {'registration' if created else 'login'}: {email}")
 

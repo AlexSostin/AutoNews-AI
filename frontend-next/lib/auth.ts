@@ -25,10 +25,15 @@ export class TwoFARequiredError extends Error {
 // Special error class to signal that Passkey verification is required
 export class PasskeyRequiredError extends Error {
   pendingToken: string;
-  constructor(pendingToken: string) {
+  has2FA: boolean;
+  googleUserId?: string;
+
+  constructor(pendingToken: string, has2FA = false, googleUserId?: string) {
     super('Passkey required');
     this.name = 'PasskeyRequiredError';
     this.pendingToken = pendingToken;
+    this.has2FA = has2FA;
+    this.googleUserId = googleUserId;
   }
 }
 
@@ -43,7 +48,7 @@ export const login = async (credentials: LoginCredentials): Promise<AuthTokens> 
 
   // If backend requires Passkey — throw special error with the one-time token
   if (data.requires_passkey) {
-    throw new PasskeyRequiredError(data.pending_token ?? '');
+    throw new PasskeyRequiredError(data.pending_token ?? '', data.has_2fa === true, data.google_user_id);
   }
 
   const { access, refresh } = data;
