@@ -37,7 +37,7 @@ export default function NewArticlePage() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [taskId, setTaskId] = useState<string>('');
-  const [provider, setProvider] = useState('groq'); // Default to groq
+  const [provider, setProvider] = useState('gemini');
   const [activeTab, setActiveTab] = useState<'youtube' | 'translate'>('youtube');
 
   // Translate tab state
@@ -469,34 +469,6 @@ export default function NewArticlePage() {
         {/* YouTube Tab */}
         {activeTab === 'youtube' && (
           <div>
-            {/* Provider Selection */}
-            <div className="flex items-center gap-4 mb-4">
-              <label className="text-sm font-bold text-gray-700">AI Provider:</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="provider"
-                    value="groq"
-                    checked={provider === 'groq'}
-                    onChange={(e) => setProvider(e.target.value)}
-                    className="text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm font-bold text-gray-900">Groq (Fast)</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="provider"
-                    value="gemini"
-                    checked={provider === 'gemini'}
-                    onChange={(e) => setProvider(e.target.value)}
-                    className="text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm font-bold text-gray-900">Google Gemini (High Quality)</span>
-                </label>
-              </div>
-            </div>
 
             <div className="flex flex-wrap sm:flex-nowrap gap-3">
               <div className="flex-1 min-w-[200px] relative">

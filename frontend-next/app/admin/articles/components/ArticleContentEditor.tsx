@@ -30,6 +30,7 @@ import 'tinymce/models/dom';
 import { Editor } from '@tinymce/tinymce-react';
 import { FormCard } from '@/app/admin/components/forms/FormCard';
 import { FileText, Sparkles, Loader2, Zap, RefreshCw, Wand2, Wrench } from 'lucide-react';
+import api from '@/lib/api';
 
 interface ArticleContentEditorProps {
     content: string;
@@ -45,7 +46,93 @@ interface ArticleContentEditorProps {
     isAutoFilling?: boolean;
     isAutoResolving?: boolean;
     hasYoutubeUrl: boolean;
+    articleSlug?: string;
+    onEditorChange?: (v: string) => void;
 }
+
+const CustomToolbar = ({
+    onReformat,
+    onEnrich,
+    onRegenerate,
+    onAutoFill,
+    onAutoResolve,
+    isReformatting,
+    isEnriching,
+    isRegenerating,
+    isAutoFilling,
+    isAutoResolving,
+    hasYoutubeUrl,
+    content
+}: {
+    onReformat: () => void;
+    onEnrich: () => void;
+    onRegenerate: () => void;
+    onAutoFill?: () => void;
+    onAutoResolve?: () => void;
+    isReformatting: boolean;
+    isEnriching: boolean;
+    isRegenerating: boolean;
+    isAutoFilling?: boolean;
+    isAutoResolving?: boolean;
+    hasYoutubeUrl: boolean;
+    content: string;
+}) => (
+    <div className="flex gap-2">
+        <button
+            type="button"
+            onClick={onReformat}
+            disabled={isReformatting || !content.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+        >
+            {isReformatting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {isReformatting ? 'Reformatting...' : '✨ Reformat with AI'}
+        </button>
+        <button
+            type="button"
+            onClick={onEnrich}
+            disabled={isEnriching || isReformatting}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg text-xs font-bold hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+        >
+            {isEnriching ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+            {isEnriching ? 'Enriching...' : '⚡ Re-enrich Specs'}
+        </button>
+        <button
+            type="button"
+            onClick={onRegenerate}
+            disabled={isRegenerating || isReformatting || isEnriching}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg text-xs font-bold hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            title={hasYoutubeUrl ? 'Regenerate article from YouTube' : 'Regenerate article from RSS source'}
+        >
+            {isRegenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            {isRegenerating ? 'Regenerating...' : '🔄 Regenerate'}
+        </button>
+        {onAutoFill && (
+            <button
+                type="button"
+                onClick={onAutoFill}
+                disabled={isAutoFilling || isReformatting || !content.trim()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                title="Extract title, summary, tags from content"
+            >
+                {isAutoFilling ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                {isAutoFilling ? 'Extracting...' : '🪄 Auto-fill'}
+            </button>
+        )}
+        {/* Auto-Resolve button — only shown when fact-check warning is in content */}
+        {onAutoResolve && (content.includes('ai-editor-note') || content.includes('ai-fact-check-block')) && (
+            <button
+                type="button"
+                onClick={onAutoResolve}
+                disabled={isAutoResolving || isReformatting}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                title="Auto-fix fact-check warnings using original web sources"
+            >
+                {isAutoResolving ? <Loader2 size={14} className="animate-spin" /> : <Wrench size={14} />}
+                {isAutoResolving ? 'Resolving...' : '🔧 Auto-Resolve'}
+            </button>
+        )}
+    </div>
+);
 
 export function ArticleContentEditor({
     content,
@@ -60,73 +147,33 @@ export function ArticleContentEditor({
     isRegenerating,
     isAutoFilling,
     isAutoResolving,
-    hasYoutubeUrl
+    hasYoutubeUrl,
+    articleSlug,
+    onEditorChange,
 }: ArticleContentEditorProps) {
-    const editorRef = useRef<unknown>(null);
-
-    const CustomToolbar = () => (
-        <div className="flex gap-2">
-            <button
-                type="button"
-                onClick={onReformat}
-                disabled={isReformatting || !content.trim()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-            >
-                {isReformatting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                {isReformatting ? 'Reformatting...' : '✨ Reformat with AI'}
-            </button>
-            <button
-                type="button"
-                onClick={onEnrich}
-                disabled={isEnriching || isReformatting}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg text-xs font-bold hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-            >
-                {isEnriching ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                {isEnriching ? 'Enriching...' : '⚡ Re-enrich Specs'}
-            </button>
-            <button
-                type="button"
-                onClick={onRegenerate}
-                disabled={isRegenerating || isReformatting || isEnriching}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg text-xs font-bold hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                title={hasYoutubeUrl ? 'Regenerate article from YouTube' : 'Regenerate article from RSS source'}
-            >
-                {isRegenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                {isRegenerating ? 'Regenerating...' : '🔄 Regenerate'}
-            </button>
-            {onAutoFill && (
-                <button
-                    type="button"
-                    onClick={onAutoFill}
-                    disabled={isAutoFilling || isReformatting || !content.trim()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                    title="Extract title, summary, tags from content"
-                >
-                    {isAutoFilling ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                    {isAutoFilling ? 'Extracting...' : '🪄 Auto-fill'}
-                </button>
-            )}
-            {/* Auto-Resolve button — only shown when fact-check warning is in content */}
-            {onAutoResolve && (content.includes('ai-editor-note') || content.includes('ai-fact-check-block')) && (
-                <button
-                    type="button"
-                    onClick={onAutoResolve}
-                    disabled={isAutoResolving || isReformatting}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                    title="Auto-fix fact-check warnings using original web sources"
-                >
-                    {isAutoResolving ? <Loader2 size={14} className="animate-spin" /> : <Wrench size={14} />}
-                    {isAutoResolving ? 'Resolving...' : '🔧 Auto-Resolve'}
-                </button>
-            )}
-        </div>
-    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const editorRef = useRef<any>(null);
 
     return (
         <FormCard
             title="Article Content"
             icon={<FileText className="text-blue-500" size={20} />}
-            action={<CustomToolbar />}
+            action={
+                <CustomToolbar
+                    onReformat={onReformat}
+                    onEnrich={onEnrich}
+                    onRegenerate={onRegenerate}
+                    onAutoFill={onAutoFill}
+                    onAutoResolve={onAutoResolve}
+                    isReformatting={isReformatting}
+                    isEnriching={isEnriching}
+                    isRegenerating={isRegenerating}
+                    isAutoFilling={isAutoFilling}
+                    isAutoResolving={isAutoResolving}
+                    hasYoutubeUrl={hasYoutubeUrl}
+                    content={content}
+                />
+            }
         >
             <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm [&_.tox-tinymce]:border-0">
                 <Editor
@@ -144,7 +191,90 @@ export function ArticleContentEditor({
                             'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                             'insertdatetime', 'media', 'table', 'wordcount'
                         ],
-                        toolbar: 'undo redo | blocks | ' +
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        setup: (editor: any) => {
+                            editor.ui.registry.addButton('magicwand', {
+                                icon: 'brightness', // fallback icon since magicwand isn't built in
+                                tooltip: 'AI Copilot (Magic Wand)',
+                                onAction: () => {
+                                    const selectedText = editor.selection.getContent({ format: 'html' });
+                                    if (!selectedText || selectedText.trim() === '') {
+                                        editor.windowManager.alert('Please select some text to rewrite first.');
+                                        return;
+                                    }
+
+                                    editor.windowManager.open({
+                                        title: '🪄 AI Editor Copilot',
+                                        size: 'normal',
+                                        body: {
+                                            type: 'panel',
+                                            items: [
+                                                {
+                                                    type: 'htmlpanel',
+                                                    html: '<p style="margin-bottom: 10px; color: #6b7280; font-size: 14px;">I will rewrite the selected text exactly as you instruct me to.</p>'
+                                                },
+                                                {
+                                                    type: 'input',
+                                                    name: 'instruction',
+                                                    label: 'Instruction (e.g. "make it punchy", "translate to Spanish")'
+                                                }
+                                            ]
+                                        },
+                                        buttons: [
+                                            {
+                                                type: 'cancel',
+                                                text: 'Cancel'
+                                            },
+                                            {
+                                                type: 'submit',
+                                                text: 'Magic Rewrite',
+                                                primary: true
+                                            }
+                                        ],
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        onSubmit: async (apiInstance: any) => {
+                                            const data = apiInstance.getData();
+                                            if (!data.instruction.trim()) {
+                                                editor.windowManager.alert('Please provide an instruction.');
+                                                return;
+                                            }
+
+                                            apiInstance.block('Thinking...');
+
+                                            try {
+                                                const slug = articleSlug || window.location.pathname.split('/')[3];
+                                                const response = await api.post(`/articles/${slug}/ai_edit_chunk/`, {
+                                                    text: selectedText,
+                                                    instruction: data.instruction
+                                                });
+                                                
+                                                const result = response.data;
+                                                
+                                                if (result && result.success) {
+                                                    editor.selection.setContent(result.edited_text);
+                                                    apiInstance.close();
+                                                    
+                                                    // Trigger parent update
+                                                    const updatedContent = editor.getContent();
+                                                    if (onEditorChange) { // backward compatibility alias
+                                                        onEditorChange(updatedContent);
+                                                    } else {
+                                                        onContentChange(updatedContent);
+                                                    }
+                                                } else {
+                                                    apiInstance.unblock();
+                                                    editor.windowManager.alert(`Error: ${result.error || 'Failed to edit'}`);
+                                                }
+                                            } catch (err: any) {
+                                                apiInstance.unblock();
+                                                editor.windowManager.alert(`Error connecting to AI: ${err.message}`);
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        },
+                        toolbar: 'magicwand | undo redo | blocks | ' +
                             'bold italic forecolor | alignleft aligncenter ' +
                             'alignright alignjustify | bullist numlist outdent indent | ' +
                             'removeformat | image media link',

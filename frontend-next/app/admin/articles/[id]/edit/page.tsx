@@ -449,20 +449,51 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               if (!confirm(confirmMsg)) return;
               setRegenerating(true);
               try {
-                const { data } = await api.post(`/articles/${articleId}/regenerate/`, {
+                const { data: startData } = await api.post(`/articles/${articleId}/regenerate/`, {
                   provider: 'gemini',
                 });
-                if (data.success) {
-                  const timing = data.generation_metadata?.timings?.total || data.generation_metadata?.word_count || '?';
-                  alert(`✅ Article regenerated! (${timing}${typeof timing === 'number' ? ' words' : 's'})\n\nNew title: ${data.article?.title || 'N/A'}\n\nPage will reload to show new content.`);
-                  window.location.reload();
+                
+                if (startData.success && startData.task_id) {
+                  const taskId = startData.task_id;
+                  
+                  const poll = async (): Promise<void> => {
+                    try {
+                      const statusRes = await api.get(`/articles/regenerate_status/`, {
+                        params: { task_id: taskId }
+                      });
+                      const data = statusRes.data;
+                      
+                      if (data.status === 'done') {
+                        const timing = data.result?.generation_metadata?.timings?.total || data.result?.generation_metadata?.word_count || '?';
+                        alert(`✅ Article regenerated! (${timing}${typeof timing === 'number' ? ' words' : 's'})\n\nNew title: ${data.article?.title || 'N/A'}\n\nPage will reload to show new content.`);
+                        window.location.reload();
+                        return;
+                      }
+                      
+                      if (data.status === 'error') {
+                        alert(`❌ ${data.error || 'Regeneration failed'}`);
+                        setRegenerating(false);
+                        return;
+                      }
+                      
+                      // Still running
+                      await new Promise(r => setTimeout(r, 3000));
+                      return poll();
+                    } catch (err: any) {
+                      alert(`❌ Polling error: ${err.response?.data?.error || err.message}`);
+                      setRegenerating(false);
+                    }
+                  };
+                  
+                  await poll();
                 } else {
-                  alert(`❌ ${data.message || 'Regeneration failed'}`);
+                  alert(`❌ ${startData.message || 'Failed to start regeneration'}`);
+                  setRegenerating(false);
                 }
               } catch (err: any) {
                 alert(`❌ Error: ${err.response?.data?.message || err.message}`);
+                setRegenerating(false);
               }
-              setRegenerating(false);
             }}
             isReformatting={reformatting}
             isEnriching={enriching}

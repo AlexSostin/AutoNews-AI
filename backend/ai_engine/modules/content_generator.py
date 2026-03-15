@@ -121,16 +121,15 @@ ARTICLE PREVIEW:
 - FORMAT: "[Year] [Brand] [Model]: [Engaging hook with standout spec or price]"
 
 ═══ SEO DESCRIPTION RULES ═══  
-- LENGTH: STRICTLY 150-160 CHARACTERS (which is about 20 to 25 words total).
-- CRITICAL: DO NOT write 150 words! You must write 150 LETTERS/CHARACTERS.
-- MUST include: car name, standout specs, and a reason to click
-- Include numbers: price, range, horsepower, 0-100 time
+- LENGTH: STRICTLY 150-160 CHARACTERS (letters, not words!). This is usually 20-25 words.
+- MUST include: car name, standout specs, and a reason to click.
+- Include numbers if possible: price, range, horsepower, 0-100 time.
 
 ═══ SUMMARY RULES ═══
-- Write a comprehensive, engaging overview of the article.
-- LENGTH: AT LEAST 300 words, targeting 400-500 words. Do not write a short summary.
+- YOU MUST WRITE AT LEAST 400 WORDS. THIS IS NON-NEGOTIABLE.
+- Do NOT just write a short brief. Write a detailed, rich, and engaging overview that spans 400 to 500 words.
 - Use attractive short headings (e.g., using UPPERCASE or bullet points) to make it skimmable and exciting.
-- Sell the car's best features, explain who it is for, and why it matters in the current market.
+- Sell the car's best features, explain who it is for, and why it matters in the current market. Expand on the facts if needed to reach the 400-word minimum.
 
 ═══ OUTPUT FORMAT (strict) ═══
 TITLE: [your title here]

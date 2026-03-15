@@ -36,7 +36,6 @@ export function ComparisonsCard({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 font-medium text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                 >
                     <option value="gemini">Gemini</option>
-                    <option value="groq">Groq (Free)</option>
                 </select>
             </SettingRow>
             <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 leading-relaxed border border-gray-100 mt-2">

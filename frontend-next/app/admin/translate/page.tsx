@@ -66,7 +66,7 @@ export default function TranslateEnhancePage() {
     const [targetLength, setTargetLength] = useState<'short' | 'medium' | 'long'>('medium');
     const [tone, setTone] = useState<'professional' | 'casual' | 'technical'>('professional');
     const [seoKeywords, setSeoKeywords] = useState('');
-    const [provider, setProvider] = useState<'gemini' | 'groq'>('gemini');
+    const [provider, setProvider] = useState('gemini');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -365,32 +365,7 @@ export default function TranslateEnhancePage() {
                             />
                         </div>
 
-                        {/* AI Provider */}
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">AI Provider</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    onClick={() => setProvider('gemini')}
-                                    disabled={loading}
-                                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all border ${provider === 'gemini'
-                                        ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                                        }`}
-                                >
-                                    ✨ Gemini
-                                </button>
-                                <button
-                                    onClick={() => setProvider('groq')}
-                                    disabled={loading}
-                                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all border ${provider === 'groq'
-                                        ? 'bg-orange-600 text-white border-orange-600 shadow-md'
-                                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                                        }`}
-                                >
-                                    ⚡ Groq
-                                </button>
-                            </div>
-                        </div>
+
                     </div>
 
                     {/* Action Button */}

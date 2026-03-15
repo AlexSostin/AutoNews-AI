@@ -21,6 +21,7 @@ from ..serializers import (
 )
 from ._shared import invalidate_article_cache, trigger_nextjs_revalidation, IsStaffOrReadOnly, is_valid_youtube_url
 from .mixins import ArticleGenerationMixin, ArticleEngagementMixin, ArticleEnrichmentMixin
+from .mixins.article_copilot import ArticleCopilotMixin
 import os
 import sys
 import re
@@ -34,6 +35,7 @@ class ArticleViewSet(
     ArticleGenerationMixin,
     ArticleEngagementMixin,
     ArticleEnrichmentMixin,
+    ArticleCopilotMixin,
     viewsets.ModelViewSet,
 ):
     """

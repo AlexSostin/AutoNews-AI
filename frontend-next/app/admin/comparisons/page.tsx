@@ -409,14 +409,7 @@ export default function ComparisonsPage() {
             brandFilter={brandFilter}
             setBrandFilter={setBrandFilter}
           />
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">AI Provider</label>
-            <select value={provider} onChange={e => setProvider(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 text-gray-900">
-              <option value="gemini">Gemini</option>
-              <option value="groq">Groq (Free)</option>
-            </select>
-          </div>
+
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Show pairs</label>
             <select value={limit} onChange={e => setLimit(Number(e.target.value))}

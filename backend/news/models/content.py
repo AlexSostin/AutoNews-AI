@@ -248,6 +248,21 @@ class Article(models.Model):
         if not self.seo_description and not self.pk:
             summary_text = self.summary or ""
             self.seo_description = summary_text[:160]
+
+        # If article is being softly deleted, detach it from PendingArticle 
+        # so the user can re-generate the article from the pending queue.
+        if self.pk and getattr(self, 'is_deleted', False):
+            try:
+                orig = Article.objects.get(pk=self.pk)
+                if not orig.is_deleted:
+                    PendingArticle.objects.filter(published_article=self).update(
+                        status='pending',
+                        published_article=None,
+                        error_log=''
+                    )
+            except Article.DoesNotExist:
+                pass
+
         super().save(*args, **kwargs)
     
     def average_rating(self):

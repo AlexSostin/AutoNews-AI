@@ -1,9 +1,8 @@
 """
-AI Provider Factory - supports both Groq and Gemini
+AI Provider Factory - supports Gemini
 Uses google-genai (new unified SDK) for Gemini access
 """
 import os
-from groq import Groq
 
 # Safe import of google-genai (new SDK)
 try:
@@ -17,13 +16,10 @@ except Exception as e:
     GENAI_AVAILABLE = False
 
 # Get API keys from environment
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
 
 # Initialize clients
-groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 gemini_client = None
 if GEMINI_API_KEY and GENAI_AVAILABLE:
     try:
@@ -41,29 +37,6 @@ class AIProvider:
     @staticmethod
     def generate_completion(prompt, system_prompt=None, temperature=0.8, max_tokens=3000):
         raise NotImplementedError
-
-
-class GroqProvider(AIProvider):
-    """Groq AI Provider - Fast inference"""
-    
-    @staticmethod
-    def generate_completion(prompt, system_prompt=None, temperature=0.8, max_tokens=3000):
-        if not groq_client:
-            raise Exception("Groq API key not configured")
-        
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-        
-        response = groq_client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens
-        )
-        
-        return response.choices[0].message.content if response.choices else ""
 
 
 class GeminiProvider(AIProvider):
@@ -133,41 +106,38 @@ class GeminiProvider(AIProvider):
         raise Exception(f"All Gemini models failed. Last error: {last_error}")
 
 
-
 def get_ai_provider(provider_name='gemini'):
     """
     Factory function to get AI provider
     
     Args:
-        provider_name: 'groq' or 'gemini'
+        provider_name: 'gemini'
     
     Returns:
         AIProvider instance
     """
     provider_name = provider_name.lower()
     
-    if provider_name == 'groq':
-        return GroqProvider()
-    elif provider_name == 'gemini':
+    if provider_name == 'gemini':
         return GeminiProvider()
     else:
-        raise ValueError(f"Unknown AI provider: {provider_name}. Use 'groq' or 'gemini'")
+        raise ValueError(f"Unknown AI provider: {provider_name}. Use 'gemini'")
 
 
 def get_light_provider():
-    """Return Groq for lightweight tasks (classification, short JSON, tagging).
+    """Return Gemini for lightweight tasks (classification, short JSON, tagging).
     
-    Falls back to Gemini if Groq API key is not configured.
-    Use this for tasks that don't need Gemini's quality:
-    - Structured JSON extraction
-    - Short text generation (verdict, summaries)
-    - Classification / tagging
-    - License checks
+    This used to return Groq, but Groq was removed in favor of standardizing
+    on Gemini for all tasks to improve output formatting stability.
     """
-    if GROQ_API_KEY and groq_client:
-        return GroqProvider()
     return GeminiProvider()
 
+def get_generate_provider():
+    """Return Gemini for heavy tasks.
+    
+    This used to differentiate from light provider, but now all use Gemini.
+    """
+    return GeminiProvider()
 
 def get_available_providers():
     """
@@ -177,14 +147,6 @@ def get_available_providers():
         list of dicts with provider info
     """
     providers = []
-    
-    if GROQ_API_KEY:
-        providers.append({
-            'name': 'groq',
-            'display_name': 'Groq (Fast)',
-            'model': GROQ_MODEL,
-            'available': True
-        })
     
     if GEMINI_API_KEY and GENAI_AVAILABLE and gemini_client:
         providers.append({

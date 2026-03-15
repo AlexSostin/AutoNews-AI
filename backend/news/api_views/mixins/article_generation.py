@@ -74,13 +74,10 @@ class ArticleGenerationMixin:
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # Get AI provider from request (default to 'gemini')
+        # Get AI provider from request (mostly gemini going forward)
         provider = request.data.get('provider', 'gemini')
-        if provider not in ['groq', 'gemini']:
-            return Response(
-                {'error': 'Provider must be either "groq" or "gemini"'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if provider != 'gemini':
+            provider = 'gemini'
             
         # Generate article with task_id for WebSocket progress and selected provider
         try:
@@ -158,7 +155,7 @@ class ArticleGenerationMixin:
             target_length = 'medium'
         if tone not in ('professional', 'casual', 'technical'):
             tone = 'professional'
-        if provider not in ('groq', 'gemini'):
+        if provider != 'gemini':
             provider = 'gemini'
 
         try:
@@ -692,7 +689,7 @@ Return JSON:
         Now async via Celery to avoid proxy timeouts.
         
         POST /api/v1/articles/{slug}/regenerate/
-        Body: { "provider": "gemini"|"groq" }
+        Body: { "provider": "gemini" }
         """
         # Fetch article manually to return a proper JSON response instead of a raw 404 (which causes CORS errors in Nginx)
         slug_or_id = self.kwargs.get(self.lookup_field) or slug
@@ -707,19 +704,16 @@ Return JSON:
                 return Response({
                     'success': False,
                     'message': 'This article has been deleted and cannot be regenerated.',
-                }, status=status.HTTP_404_NOT_FOUND)
+                }, status=status.HTTP_400_BAD_REQUEST)
         except Article.DoesNotExist:
             return Response({
                 'success': False,
                 'message': 'Article not found.',
-            }, status=status.HTTP_404_NOT_FOUND)
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         provider = request.data.get('provider', 'gemini')
-        if provider not in ['groq', 'gemini']:
-            return Response({
-                'success': False,
-                'message': 'Provider must be "groq" or "gemini"',
-            }, status=status.HTTP_400_BAD_REQUEST)
+        if provider != 'gemini':
+            provider = 'gemini'
         
         try:
             from news.tasks import regenerate_article_task

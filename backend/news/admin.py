@@ -291,11 +291,11 @@ class ArticleAdmin(admin.ModelAdmin):
                     send_progress(2, 30, "📝 Extracting subtitles...")
                     transcript = transcribe_from_youtube(youtube_url)
                     
-                    # Step 3: Analyze with Groq
+                    # Step 3: Analyze with AI
                     send_progress(3, 50, "🤖 Analyzing content with AI...")
                     analysis = analyze_transcript(transcript)
                     
-                    # Step 4: Generate article with Groq
+                    # Step 4: Generate article with AI
                     send_progress(4, 75, "✍️ Generating article...")
                     article_html = generate_article(analysis)
                     

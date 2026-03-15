@@ -23,11 +23,6 @@ PRICING = {
         'output': 0.30,    # $0.30 per 1M output tokens
         'label': 'Gemini 2.5 Flash',
     },
-    'groq': {
-        'input': 0.059,    # $0.059 per 1M input tokens  
-        'output': 0.079,   # $0.079 per 1M output tokens
-        'label': 'Groq (Llama 4 Scout)',
-    },
 }
 
 # Estimated tokens per generation (based on typical article generation)

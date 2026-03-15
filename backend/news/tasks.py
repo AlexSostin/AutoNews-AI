@@ -594,3 +594,25 @@ def _score_new_pending_articles():
     except Exception as e:
         logger.error(f"[CELERY/SCORING] Fatal error: {e}", exc_info=True)
         _log_scheduler_error('scoring', e)
+
+# =============================================================================
+# Async API Tasks
+# =============================================================================
+
+@shared_task(name='news.tasks.regenerate_article_task', bind=True)
+def regenerate_article_task(self, article_id, slug, provider, user_id=None):
+    """
+    Async Celery task to regenerate an existing article.
+    Runs the logic from `ai_engine.modules.regenerator` and avoids HTTP proxy timeouts.
+    """
+    close_old_connections()
+    try:
+        from ai_engine.modules.regenerator import regenerate_existing_article
+        result = regenerate_existing_article(article_id, provider=provider, user_id=user_id)
+        return result
+    except Exception as e:
+        logger.error(f"[CELERY/REGENERATE] Regenerate task failed: {e}")
+        return {'success': False, 'message': str(e)}
+    finally:
+        close_old_connections()
+
