@@ -2,17 +2,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Force cache bust - increment to force rebuild
-ARG CACHEBUST=5
-
-# Delete node_modules to force fresh install
-RUN rm -rf node_modules .next
-
-# Copy package files
+# Copy package files first for better layer caching
 COPY package*.json ./
 
-# Force fresh npm install (no cache)
-RUN npm cache clean --force && npm ci
+# Install dependencies (npm ci already does a clean install)
+RUN npm ci
 
 # Copy source files
 COPY . .
@@ -33,10 +27,10 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_PUBLIC_GA_MEASUREMENT_ID=$NEXT_PUBLIC_GA_MEASUREMENT_ID
 
-# Build Next.js application with no cache
-RUN rm -rf .next && npm run build
+# Build Next.js application
+RUN npm run build
 
-# Production stage
+# Production stage — minimal image
 FROM node:20-alpine
 
 WORKDIR /app

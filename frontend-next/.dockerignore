@@ -1,23 +1,24 @@
-# Dependencies
+# Dependencies (installed fresh via npm ci)
 node_modules/
 .pnp
 .pnp.js
 
-# Testing
-/coverage
+# Next.js build output (rebuilt in Docker)
+.next/
+out/
+build/
 
-# Next.js
-/.next/
-/out/
+# Testing (not needed in production)
+tests/
+test-results/
+playwright-report/
+coverage/
+vitest.config.ts
+vitest.setup.ts
+playwright.config.ts
+lighthouserc.js
 
-# Production
-/build
-
-# Misc
-.DS_Store
-*.pem
-
-# Debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -29,10 +30,24 @@ yarn-error.log*
 # Vercel
 .vercel
 
-# TypeScript
+# TypeScript build cache (rebuilt in Docker)
 *.tsbuildinfo
-next-env.d.ts
 
 # IDE
 .vscode/
 .idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+
+# Agent files
+.agents/
+.gemini/

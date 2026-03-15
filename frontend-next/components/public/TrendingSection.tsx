@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { TrendingUp, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { fixImageUrl } from '@/lib/config';
 import { getApiUrl } from '@/lib/config';
 
@@ -59,8 +59,7 @@ export default function TrendingSection() {
     return (
       <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl">
         <div className="flex items-center gap-2 mb-6">
-          <Eye className="text-white animate-pulse" size={24} />
-          <h2 className="text-2xl font-bold text-white">Recommended for You</h2>
+          <h2 className="text-2xl font-bold text-white">🎯 Recommended for You</h2>
         </div>
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
@@ -75,7 +74,6 @@ export default function TrendingSection() {
     return (
       <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl sticky top-24">
         <div className="flex items-center gap-2 mb-6">
-          <Eye className="text-white" size={24} />
           <h2 className="text-2xl font-bold text-white">🎯 Recommended</h2>
         </div>
         <div className="text-center py-8">
@@ -89,7 +87,6 @@ export default function TrendingSection() {
   return (
     <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 shadow-xl sticky top-24">
       <div className="flex items-center gap-2 mb-6">
-        <Eye className="text-white animate-pulse" size={24} />
         <h2 className="text-2xl font-bold text-white">🎯 Recommended for You</h2>
       </div>
 

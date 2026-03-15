@@ -13,9 +13,30 @@ env/
 *.log
 db.sqlite3
 db.sqlite3-journal
-/media
-/staticfiles
-/static
+media/
+staticfiles/
+static/
+
+# Tests & CI (not needed in production image)
+tests/
+.pytest_cache/
+.hypothesis/
+.coverage
+htmlcov/
+pytest.ini
+test_*.py
+run_mutation_scan.sh
+
+# Documentation & scripts not needed in prod
+docs/
+README.md
+SECURITY.md
+docker-compose*.yml
+Dockerfile*
+setup-ssl.*
+debug_500.py
+check_urls.py
+cloudinary_resources.txt
 
 # IDE
 .vscode/
@@ -31,9 +52,19 @@ Thumbs.db
 # Git
 .git/
 .gitignore
+.github/
 
-# AI Engine outputs
+# AI Engine outputs & config
 ai_engine/output/
-
-# Config files (sensitive)
 ai_engine/config.py
+
+# Dev dependencies
+requirements-dev.txt
+
+# CI trigger
+.ci-trigger
+deploy.txt
+
+# Agent files
+.agents/
+.gemini/
