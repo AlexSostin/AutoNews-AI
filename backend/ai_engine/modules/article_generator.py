@@ -1463,6 +1463,11 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
         # Guaranteed verdict injector — runs a separate short API call if verdict is empty/missing
         article_content = _ensure_verdict_written(article_content, analysis_data, provider)
 
+        # ── Self-Review Pass ─────────────────────────────────────────────────
+        # Second AI call: the same model re-reads its article as an editor.
+        # Catches spec inconsistencies, missing premium HTML classes, and readability issues.
+        article_content = _self_review_pass(article_content, analysis_data, provider)
+
         return article_content
     except Exception as e:
         logger.error(f"Article generation failed with {provider_display}: {e}")
@@ -1490,6 +1495,117 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
             logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
         
         return ""
+
+
+def _self_review_pass(html: str, analysis_data, provider: str = 'gemini') -> str:
+    """
+    Self-Review Pass (Layer 5): The same AI re-reads its article as a strict editor.
+    Checks spec consistency, premium HTML structure, and overall quality.
+    Returns the improved HTML, or the original if the review fails.
+    """
+    import re as _re
+    import time as _time
+
+    start = _time.time()
+    print("📝 Running AI Self-Review pass...")
+
+    # Extract article plain text for context (truncated for token efficiency)
+    plain_text = _re.sub(r'<[^>]+>', ' ', html)
+    word_count = len(plain_text.split())
+
+    # Skip review for very short articles (press release stubs)
+    if word_count < 400:
+        print(f"  ⏭ Skipping review — article too short ({word_count} words)")
+        return html
+
+    review_prompt = f"""You are a STRICT senior editor at FreshMotors.com reviewing a draft article before publication.
+
+YOUR TASK: Review and IMPROVE the article below. Return the COMPLETE improved HTML article.
+
+ORIGINAL SOURCE DATA (use to verify accuracy):
+{str(analysis_data)[:3000]}
+
+DRAFT ARTICLE TO REVIEW:
+{html}
+
+═══════════════════════════════════════════════
+EDITOR CHECKLIST — Fix ALL issues you find:
+═══════════════════════════════════════════════
+
+1. SPEC CONSISTENCY:
+   - Do numbers in the spec-bar match the numbers in the body text?
+   - Is the HP figure consistent throughout (intro, Performance section, spec-bar)?
+   - Does the price match between price-tag, spec-bar, and Pricing section?
+   - Are range figures consistent (same test cycle: WLTP/CLTC/EPA)?
+
+2. PREMIUM HTML STRUCTURE (verify these exist and are correct):
+   - <div class="spec-bar"> with spec-item/spec-label/spec-value — after intro paragraph
+   - <div class="powertrain-specs"> with ps-item/ps-label/ps-val — inside Performance section
+   - <div class="pros-cons"> with pc-block pros/cons and pc-list — for Pros & Cons
+   - <div class="fm-verdict"> with verdict-label — for FreshMotors Verdict
+   - <div class="price-tag"> with price-main/price-note — for price display
+   - If "How It Compares" exists: <div class="compare-grid"> with compare-card
+   - If any of these are missing or malformed → ADD or FIX them.
+
+3. FACTUAL ACCURACY:
+   - Cross-check key specs (HP, kW, range, battery, 0-100) against source data
+   - If a spec in the article differs from source data → fix it to match source
+   - If EREV/PHEV: verify range extender is NOT listed as total car power
+
+4. READABILITY & QUALITY:
+   - Fix any awkward or repetitive sentences
+   - Ensure each section adds NEW information (no spec repetition)
+   - Verify verdict is at least 60 words and contains a real opinion
+
+5. BANNED PHRASE CHECK:
+   - Remove any "While comprehensive driving review is pending"
+   - Remove any "specs are still emerging" / "details under wraps"
+   - Remove any sentence explaining what you DON'T know
+   - Remove any "As a journalist" / "based on the transcript"
+
+═══════════════════════════════════════════════
+OUTPUT RULES:
+═══════════════════════════════════════════════
+- Return ONLY the complete improved HTML article
+- Do NOT add commentary, notes, or explanations
+- Do NOT wrap in ```html``` code blocks
+- Do NOT add <html>/<head>/<body> tags
+- Keep the same overall structure and sections
+- Keep the <div class="alt-texts"> block at the end unchanged
+- If the article is already good, return it unchanged (do NOT rewrite for no reason)
+"""
+
+    try:
+        ai = get_ai_provider(provider)
+        reviewed = ai.generate_completion(
+            prompt=review_prompt,
+            system_prompt="You are a meticulous automotive editor. Review and improve the article, then return the COMPLETE HTML. Make only necessary corrections — do not rewrite good content unnecessarily.",
+            temperature=0.3,  # Low temp for precise editing
+            max_tokens=16384
+        )
+
+        if not reviewed or len(reviewed) < 200:
+            print(f"  ⚠️ Review returned empty/short response, keeping original")
+            return html
+
+        # Clean up the reviewed content
+        reviewed = ensure_html_only(reviewed)
+
+        # Sanity check: the reviewed version shouldn't be dramatically shorter
+        reviewed_words = len(_re.sub(r'<[^>]+>', ' ', reviewed).split())
+        if reviewed_words < word_count * 0.7:
+            print(f"  ⚠️ Review truncated article ({reviewed_words} vs {word_count} words), keeping original")
+            return html
+
+        elapsed = round(_time.time() - start, 1)
+        diff = reviewed_words - word_count
+        diff_str = f"+{diff}" if diff >= 0 else str(diff)
+        print(f"  ✅ Self-review complete in {elapsed}s ({reviewed_words} words, {diff_str} from original)")
+        return reviewed
+
+    except Exception as e:
+        print(f"  ⚠️ Self-review failed (non-fatal): {e}")
+        return html
 
 
 def _ensure_verdict_written(html: str, analysis_data, provider: str = 'gemini') -> str:
