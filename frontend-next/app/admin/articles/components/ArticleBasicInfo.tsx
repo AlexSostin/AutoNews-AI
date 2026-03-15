@@ -93,7 +93,7 @@ export function ArticleBasicInfo({
                             }
                         }}
                         rows={2}
-                        className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none text-gray-900 ${
+                        className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-y text-gray-900 ${
                             seoIsOver ? 'border-red-300 bg-red-50' : 'border-gray-200'
                         }`}
                         placeholder="Keyword-rich description for Google (max 160 chars)..."

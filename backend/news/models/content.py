@@ -258,7 +258,7 @@ class Article(models.Model):
                     PendingArticle.objects.filter(published_article=self).update(
                         status='pending',
                         published_article=None,
-                        error_log=''
+                        auto_publish_last_error=''
                     )
             except Article.DoesNotExist:
                 pass

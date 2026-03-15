@@ -108,6 +108,7 @@ frontend-next/
 - Single branch: `main`
 - `git push origin main` → Railway (backend) + Vercel (frontend) auto-deploy simultaneously
 - Always run tests + build before pushing
+- ⚠️ **NEVER execute `git push` without asking the user first.** You must wait for explicit permission before deploying to production.
 - ⚠️ **GitKraken MCP push не работает** — всегда пушить через `run_command` с `git push origin main`
 - ⚠️ **turbo.json удалён** — Vercel не поддерживал Turborepo, билдим через обычный `next build`
 

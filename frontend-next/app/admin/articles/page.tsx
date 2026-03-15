@@ -628,6 +628,7 @@ export default function ArticlesPage() {
                         >
                           <Edit size={16} />
                         </Link>
+
                         <button
                           onClick={() => handleDelete(article.id, article.slug)}
                           disabled={deletingId === article.id}
