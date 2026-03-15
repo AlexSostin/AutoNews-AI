@@ -117,7 +117,42 @@ def get_competitor_context(
             if price_qs.count() >= 2:
                 segment_qs = price_qs
 
-        # ── Step 5: ML ranking ───────────────────────────────────────────────
+        # ── Step 5: Cooldown filter ──────────────────────────────────────────
+        # Exclude competitors that appeared ≥2 times in the last 7 days.
+        # This prevents the same car (e.g. Aito M7) from dominating every comparison.
+        COOLDOWN_DAYS = 7
+        COOLDOWN_MAX_APPEARANCES = 2
+
+        overused = set()  # (make_lower, model_lower) pairs on cooldown
+        try:
+            from django.utils import timezone as _tz
+            from datetime import timedelta
+            cutoff = _tz.now() - timedelta(days=COOLDOWN_DAYS)
+            recent_usage = (
+                CompetitorPairLog.objects
+                .filter(created_at__gte=cutoff)
+                .values('competitor_make', 'competitor_model')
+                .annotate(usage_count=Count('id'))
+                .filter(usage_count__gte=COOLDOWN_MAX_APPEARANCES)
+            )
+            for row in recent_usage:
+                pair = (row['competitor_make'].lower(), row['competitor_model'].lower())
+                overused.add(pair)
+                logger.info(
+                    f"competitor_lookup: cooldown — {row['competitor_make']} {row['competitor_model']} "
+                    f"used {row['usage_count']}x in last {COOLDOWN_DAYS} days, skipping"
+                )
+        except Exception as e:
+            logger.debug(f"competitor_lookup: cooldown check failed (non-fatal): {e}")
+
+        # Apply cooldown filter to segment queryset
+        if overused:
+            for make_l, model_l in overused:
+                segment_qs = segment_qs.exclude(
+                    Q(make__iexact=make_l) & Q(model_name__iexact=model_l)
+                )
+
+        # ── Step 6: ML ranking ───────────────────────────────────────────────
         # Annotate each candidate with its average engagement score from log history
         # Candidates with no history get avg_engagement=None → sort them last
         try:
@@ -144,77 +179,66 @@ def get_competitor_context(
         except Exception:
             score_map = {}
 
-        # Convert to list so we can sort
+        # Convert to list for scoring
         candidates = list(segment_qs.select_related('article')[:50])
 
-        def sort_key(v):
-            """Sort: Exact body type > ML-scored > spec-rich > alphabetical."""
+        if not candidates:
+            return "", []
+
+        import random
+
+        def _candidate_weight(v):
+            """Calculate selection weight: body match × engagement × spec richness."""
             key = (v.make.lower(), v.model_name.lower())
-            avg_eng, pair_cnt = score_map.get(key, (None, 0))
-            
-            # Add a slight randomization to prevent always picking the exact same #1
-            import random
-            random_jitter = random.uniform(-0.5, 0.5)
-            
-            # Primary: known engagement (higher = better), unknown = -1
-            eng_sort = (avg_eng + random_jitter) if avg_eng is not None else -1.0
-            
-            # NEW: prioritize exact body type match
-            is_same_body = 1 if body_type and v.body_type and v.body_type.lower() == body_type.lower() else 0
-            
-            # Secondary: how many specs are filled (more = richer candidate)
+            avg_eng, _ = score_map.get(key, (None, 0))
+
+            # Body type match bonus
+            body_bonus = 2.0 if (body_type and v.body_type
+                                  and v.body_type.lower() == body_type.lower()) else 1.0
+
+            # Engagement score (default 1.0 for unknown)
+            eng_weight = max(avg_eng, 0.1) if avg_eng is not None else 1.0
+
+            # Spec richness (1-5)
             spec_richness = sum([
                 1 if v.power_hp else 0,
                 1 if v.range_wltp or v.range_km else 0,
                 1 if v.price_usd_from else 0,
                 1 if v.battery_kwh else 0,
                 1 if v.acceleration_0_100 else 0,
-            ])
-            return (-is_same_body, -eng_sort, -spec_richness)
+            ]) or 1  # minimum 1
 
-        candidates.sort(key=sort_key)
+            return body_bonus * eng_weight * spec_richness
 
-        # ── Step 6: diversified selection ────────────────────────────────────
-        # Pick 1 "best match" (highest engagement/spec richness) +
-        # remaining slots randomly sampled from the rest.
+        # ── Step 7: weighted random selection ────────────────────────────────
+        # ALL slots are picked via weighted random sampling.
         # Enforce brand diversity: no two competitors from the same make.
-        import random
-
-        if not candidates:
-            return "", []
-
         selected = []
         used_makes = set()
+        pool = list(candidates)
 
-        # Slot 1: best match (first in sorted list)
-        best = candidates[0]
-        selected.append(best)
-        used_makes.add(best.make.lower())
+        for _ in range(max_competitors):
+            # Filter pool by brand diversity
+            eligible = [c for c in pool if c.make.lower() not in used_makes]
+            if not eligible:
+                # Fallback: allow same brand, different model
+                eligible = [c for c in pool if c.id not in {s.id for s in selected}]
+            if not eligible:
+                break
 
-        # Slots 2+: random from remaining, different brands
-        remaining = [
-            c for c in candidates[1:]
-            if c.make.lower() not in used_makes
-        ]
-        if remaining:
-            sample_n = min(max_competitors - 1, len(remaining))
-            extras = random.sample(remaining, sample_n)
-            for e in extras:
-                selected.append(e)
-                used_makes.add(e.make.lower())
+            weights = [_candidate_weight(c) for c in eligible]
+            total = sum(weights)
+            if total == 0:
+                pick = random.choice(eligible)
+            else:
+                # Weighted random selection
+                pick = random.choices(eligible, weights=weights, k=1)[0]
 
-        # If still short (all same brand), allow same brand but different model
-        if len(selected) < max_competitors:
-            remaining_any = [
-                c for c in candidates[1:]
-                if c.id not in {s.id for s in selected}
-            ]
-            for c in remaining_any:
-                if len(selected) >= max_competitors:
-                    break
-                selected.append(c)
+            selected.append(pick)
+            used_makes.add(pick.make.lower())
+            pool = [c for c in pool if c.id != pick.id]
 
-        # ── Step 7: format for prompt ────────────────────────────────────────
+        # ── Step 8: format for prompt ────────────────────────────────────────
         lines = []
         competitors_data = []
         for v in selected:
