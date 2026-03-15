@@ -684,23 +684,35 @@ Return JSON:
                 'message': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser],
             url_path='regenerate')
     def regenerate(self, request, slug=None):
         """
         Regenerate article content using AI.
-        Auto-detects source type: YouTube (re-downloads transcript) or RSS (re-expands press release).
+        Now async via Celery to avoid proxy timeouts.
         
         POST /api/v1/articles/{slug}/regenerate/
         Body: { "provider": "gemini"|"groq" }
-        
-        Updates existing article in-place (preserves slug, images, publish status).
-        Backs up original content to content_original.
         """
-        from news.models import Article, Tag, CarSpecification
-        
-        article = self.get_object()
+        # Fetch article manually to return a proper JSON response instead of a raw 404 (which causes CORS errors in Nginx)
+        slug_or_id = self.kwargs.get(self.lookup_field) or slug
+        try:
+            from news.models import Article
+            if str(slug_or_id).isdigit():
+                article = Article.objects.get(pk=int(slug_or_id))
+            else:
+                article = Article.objects.get(slug=slug_or_id)
+                
+            if article.is_deleted:
+                return Response({
+                    'success': False,
+                    'message': 'This article has been deleted and cannot be regenerated.',
+                }, status=status.HTTP_404_NOT_FOUND)
+        except Article.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Article not found.',
+            }, status=status.HTTP_404_NOT_FOUND)
         
         provider = request.data.get('provider', 'gemini')
         if provider not in ['groq', 'gemini']:
@@ -710,232 +722,73 @@ Return JSON:
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            youtube_url = article.youtube_url
-            source_type = None
-            result = None
-            
-            # ── AUTO-DETECT SOURCE TYPE ──
-            if youtube_url:
-                # YouTube article → full regeneration through complete pipeline
-                source_type = 'youtube'
-                from ai_engine.main import _generate_article_content, generate_title_variants
-                
-                result = _generate_article_content(youtube_url, provider=provider, exclude_article_id=article.id)
-                
-                if not result.get('success'):
-                    return Response({
-                        'success': False,
-                        'message': f"AI generation failed: {result.get('error', 'Unknown error')}",
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            else:
-                # RSS article → find source RSSNewsItem and re-expand press release
-                source_type = 'rss'
-                from news.models import RSSNewsItem, PendingArticle as PendingArticleModel
-                from ai_engine.modules.article_generator import expand_press_release
-                from ai_engine.modules.utils import clean_title
-                from ai_engine.main import generate_title_variants
-                import re as _re
-                
-                # Trace back: Article ← PendingArticle ← RSSNewsItem
-                rss_item = None
-                source_url = ''
-                press_release_text = ''
-                
-                # Method 1: Via PendingArticle reverse relation
-                pending = PendingArticleModel.objects.filter(published_article=article).first()
-                if pending:
-                    rss_item = RSSNewsItem.objects.filter(pending_article=pending).first()
-                    if not rss_item and pending.source_url:
-                        source_url = pending.source_url
-                
-                # Method 2: Try finding by author_channel_url
-                if not rss_item and not source_url and article.author_channel_url:
-                    rss_item = RSSNewsItem.objects.filter(
-                        source_url=article.author_channel_url
-                    ).first()
-                    if not rss_item:
-                        source_url = article.author_channel_url
-                
-                if rss_item:
-                    press_release_text = rss_item.content or rss_item.excerpt or ''
-                    source_url = rss_item.source_url or source_url
-                    
-                    if '<' in press_release_text:
-                        press_release_text = _re.sub(r'<[^>]+>', ' ', press_release_text)
-                        press_release_text = _re.sub(r'\s+', ' ', press_release_text).strip()
-                elif source_url:
-                    try:
-                        from ai_engine.modules.web_search import search_and_extract
-                        web_results = search_and_extract(article.title, max_results=3)
-                        press_release_text = web_results if web_results else article.title
-                    except Exception:
-                        press_release_text = article.title
-                
-                if not press_release_text or len(press_release_text.strip()) < 50:
-                    return Response({
-                        'success': False,
-                        'message': 'Cannot regenerate: no source content found. '
-                                   'The original RSS news item may have been deleted, '
-                                   'and no source URL is available to re-fetch.',
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
-                if not source_url:
-                    source_url = article.author_channel_url or 'N/A'
-                
-                expanded_content = expand_press_release(
-                    press_release_text=press_release_text,
-                    source_url=source_url,
-                    provider=provider,
-                    source_title=article.title,
-                )
-                
-                if not expanded_content or len(expanded_content) < 200:
-                    return Response({
-                        'success': False,
-                        'message': 'AI returned empty or too short content',
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
-                title_match = _re.search(r'<h2[^>]*>(.*?)</h2>', expanded_content)
-                ai_title = clean_title(title_match.group(1)) if title_match else article.title
-                
-                try:
-                    from ai_engine.modules.publisher import extract_summary
-                    ai_summary = extract_summary(expanded_content)
-                except Exception:
-                    summary_match = _re.search(r'<p>(.*?)</p>', expanded_content)
-                    ai_summary = _re.sub(r'<[^>]+>', '', summary_match.group(1)) if summary_match else ''
-                
-                word_count = len(_re.sub(r'<[^>]+>', ' ', expanded_content).split())
-                result = {
-                    'success': True,
-                    'title': ai_title,
-                    'content': expanded_content,
-                    'summary': ai_summary or article.summary,
-                    'generation_metadata': {
-                        'provider': provider,
-                        'source_type': 'rss',
-                        'source_url': source_url,
-                        'word_count': word_count,
-                        'rss_item_id': rss_item.id if rss_item else None,
-                    },
-                    'specs': {},
-                    'tag_names': [],
-                }
-            
-            # ── SHARED POST-PROCESSING (both YouTube and RSS) ──
-            
-            # Backup current content
-            article.content_original = article.content
-            
-            # Update article fields
-            article.title = result['title']
-            article.content = result['content']
-            article.summary = result['summary']
-            article.generation_metadata = result.get('generation_metadata')
-            
-            if result.get('meta_keywords'):
-                article.meta_keywords = result['meta_keywords']
-            
-            if result.get('author_name'):
-                article.author_name = result['author_name']
-            if result.get('author_channel_url'):
-                article.author_channel_url = result['author_channel_url']
-            
-            specs = result.get('specs') or {}
-            if specs.get('price'):
-                price_str = specs['price']
-                price_match = re.search(r'[\$€£]?([\d,]+)', price_str.replace(',', ''))
-                if price_match:
-                    try:
-                        article.price_usd = int(price_match.group(1))
-                    except (ValueError, TypeError):
-                        pass
-            
-            article.save()
-
-            # Log competitor pairs for ML learning (if full regeneration included competitor data)
-            try:
-                gen_meta = result.get('generation_metadata') or {}
-                comp_data = gen_meta.get('competitor_data', [])
-                comp_subject_make = (result.get('specs') or {}).get('make', '')
-                comp_subject_model = (result.get('specs') or {}).get('model', '')
-                if comp_data and comp_subject_make and comp_subject_model:
-                    from ai_engine.modules.competitor_lookup import log_competitor_pairs
-                    log_competitor_pairs(
-                        article_id=article.id,
-                        subject_make=comp_subject_make,
-                        subject_model=comp_subject_model,
-                        competitors=comp_data,
-                        selection_method='rule_based',
-                    )
-            except Exception as _cle:
-                logger.warning(f"Competitor pair logging failed (non-fatal): {_cle}")
-
-            # Update tags
-            if result.get('tag_names'):
-                new_tags = []
-                for tag_name in result['tag_names']:
-                    tag, _ = Tag.objects.get_or_create(
-                        name=tag_name,
-                        defaults={'slug': tag_name.lower().replace(' ', '-')}
-                    )
-                    new_tags.append(tag)
-                article.tags.set(new_tags)
-            
-            # Update CarSpecification
-            if specs and (specs.get('make') or specs.get('model')):
-                try:
-                    car_spec, created = CarSpecification.objects.get_or_create(article=article)
-                    for field in ['make', 'model', 'trim', 'horsepower', 'torque', 
-                                  'zero_to_sixty', 'top_speed', 'drivetrain', 'price']:
-                        if specs.get(field):
-                            setattr(car_spec, field, str(specs[field]))
-                    if specs.get('year'):
-                        car_spec.release_date = str(specs['year'])
-                    car_spec.save()
-                except Exception as spec_err:
-                    logger.warning(f'CarSpecification update failed: {spec_err}')
-            
-            # Regenerate A/B title variants
-            try:
-                from news.models import ArticleTitleVariant
-                ArticleTitleVariant.objects.filter(article=article).delete()
-                generate_title_variants(article, provider=provider)
-            except Exception as ab_err:
-                logger.warning(f'A/B title regeneration failed: {ab_err}')
-            
-            # Invalidate cache
-            invalidate_article_cache(article_id=article.id, slug=article.slug)
-            
-            serializer = self.get_serializer(article)
-            
-            # Log the regeneration action
-            try:
-                from news.models import AdminActionLog
-                AdminActionLog.log(article, request.user, 'regenerate', details={
-                    'provider': provider,
-                    'source_type': source_type,
-                    'word_count': result.get('generation_metadata', {}).get('word_count'),
-                })
-            except Exception:
-                pass
+            from news.tasks import regenerate_article_task
+            task = regenerate_article_task.delay(
+                article_id=article.id,
+                slug=article.slug,
+                provider=provider,
+                user_id=request.user.id if request.user else None
+            )
             
             return Response({
                 'success': True,
-                'message': f'Article regenerated ({source_type}) with {provider}',
-                'article': serializer.data,
-                'generation_metadata': result.get('generation_metadata'),
+                'message': 'Regeneration task started successfully.',
+                'task_id': task.id
             })
             
         except Exception as e:
             import traceback
-            logger.error(f'Regenerate failed: {e}\n{traceback.format_exc()}')
-            try:
-                from news.models import AdminActionLog
-                AdminActionLog.log(article, request.user, 'regenerate', success=False, details={'error': str(e)[:200]})
-            except Exception:
-                pass
+            logger.error(f'Regenerate task dispatch failed: {e}\n{traceback.format_exc()}')
             return Response({
                 'success': False,
                 'message': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser],
+            url_path='regenerate_status')
+    def regenerate_status(self, request):
+        """
+        Check the status of an async article regeneration task.
+        GET /api/v1/articles/regenerate_status/?task_id=...
+        """
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response({'error': 'task_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from celery.result import AsyncResult
+        task = AsyncResult(task_id)
+
+        if task.state == 'PENDING':
+            return Response({'status': 'pending'})
+        elif task.state == 'STARTED':
+            return Response({'status': 'running'})
+        elif task.state == 'SUCCESS':
+            result = task.result
+            if isinstance(result, dict) and not result.get('success'):
+                return Response({
+                    'status': 'error',
+                    'error': result.get('message', 'Generation failed silently.')
+                })
+            
+            # Fetch updated article if successful
+            article_id = result.get('article_id') if isinstance(result, dict) else None
+            article_data = None
+            if article_id:
+                from news.models import Article
+                article = Article.objects.filter(id=article_id).first()
+                if article:
+                    serializer = self.get_serializer(article)
+                    article_data = serializer.data
+                    
+            return Response({
+                'status': 'done',
+                'result': result,
+                'article': article_data
+            })
+        elif task.state == 'FAILURE':
+            return Response({
+                'status': 'error',
+                'error': str(task.info)
+            })
+        else:
+            return Response({'status': task.state.lower()})

@@ -81,9 +81,9 @@ def _generate_title_and_seo(article_html: str, specs: dict) -> dict:
     import re as _re
     
     try:
-        from ai_engine.modules.ai_provider import get_light_provider
+        from ai_engine.modules.ai_provider import get_generate_provider
     except ImportError:
-        from modules.ai_provider import get_light_provider
+        from modules.ai_provider import get_generate_provider
     
     # Extract key specs for the prompt
     make = specs.get('make', '')
@@ -98,70 +98,55 @@ def _generate_title_and_seo(article_html: str, specs: dict) -> dict:
         print("⚠️ Cannot generate AI title: missing make/model")
         return None
     
-    # Get first 2000 chars of article for context (enough for AI to find the hook)
-    article_preview = _re.sub(r'<[^>]+>', ' ', article_html)[:2000]
-    
+    # Format specs nicely
     year_str = f"{year} " if year else ""
     trim_str = f" {trim}" if trim and trim != 'Not specified' else ""
-    hp_str = f", {hp} HP" if hp and str(hp) != 'Not specified' else ""
-    price_str = f", price: {price}" if price and price != 'Not specified' else ""
-    range_str = f", range: {range_val}" if range_val and range_val != 'Not specified' else ""
+    hp_str = f" • {hp}" if hp else ""
+    price_str = f" • {price}" if price else ""
+    range_str = f" • {range_val}" if range_val else ""
     
-    prompt = f"""Generate a TITLE and SEO DESCRIPTION for this car article.
+    # Prepare preview
+    article_preview = _truncate_summary(article_html, max_len=4000)
+    
+    prompt = f"""Generate a TITLE, SEO DESCRIPTION, and SUMMARY for this car article.
 
 CAR: {year_str}{make} {model}{trim_str}
 KEY SPECS: {hp_str}{price_str}{range_str}
 
-ARTICLE PREVIEW (first 2000 chars):
+ARTICLE PREVIEW:
 {article_preview}
 
 ═══ TITLE RULES ═══
 - LENGTH: 50-90 characters (STRICT — count carefully)
 - FORMAT: "[Year] [Brand] [Model]: [Engaging hook with standout spec or price]"
-- The hook MUST highlight the most impressive fact: price, range, power, speed, or unique feature
-- NEVER end with generic "Review", "Review & Specs", "Range & Specs"
-- NEVER use "Explore the..." or "Discover the..."
-
-GOOD TITLE EXAMPLES:
-✅ "2026 Zeekr 7X: A 421 hp Electric SUV That Starts Under $30,000"
-✅ "2025 Avatr 11 EREV: The 1,065 km Range-Extended SUV Disrupting the Premium Market"
-✅ "2026 BYD Leopard 5: 680 hp DMO Hybrid Goes From 0-100 in 4.8 Seconds"
-✅ "2026 BYD Seal 06: A 200 km Electric Range PHEV Sedan for $14,000"
-✅ "2026 BYD HAN DM i: 1,560 km Combined Range PHEV Sedan Starts at $22,500"
-
-BAD TITLE EXAMPLES (NEVER generate these):
-❌ "2026 BYD Seal 06 DM-i Review" (boring, no hook)
-❌ "2026 BYD Seal 06 DM-i: 2100km Range & Specs" (generic "Range & Specs" suffix)
-❌ "2026 BYD Seal 06 DM-i Review & Specs" (template garbage)
 
 ═══ SEO DESCRIPTION RULES ═══  
-- LENGTH: 150-160 characters (STRICT — maximize available Google snippet space)
+- LENGTH: STRICTLY 150-160 CHARACTERS (which is about 20 to 25 words total).
+- CRITICAL: DO NOT write 150 words! You must write 150 LETTERS/CHARACTERS.
 - MUST include: car name, standout specs, and a reason to click
-- Write like a Google search result that makes people CLICK
-- Do NOT start with "Explore the..." or "Discover the..."
 - Include numbers: price, range, horsepower, 0-100 time
 
-GOOD SEO DESCRIPTION EXAMPLES:
-✅ "The 2026 Zeekr 7X packs 421 hp and 615 km range into a disruptive SUV that outguns the Model Y. Full specs, pricing, and our expert verdict inside."
-✅ "BYD's Seal 06 DM-i delivers 200 km electric range and 1,200 km total for just $14,000. We break down the specs, driving feel, and incredible value."
-
-BAD SEO DESCRIPTION EXAMPLES:
-❌ "Explore the 2026 BYD Seal 06 DM-i 175 HP. Full specs, pricing, range, performance data & expert review." (too short, template - 105 chars)
-❌ "This is a new car from BYD." (way too short - 27 chars)
+═══ SUMMARY RULES ═══
+- Write a comprehensive, engaging overview of the article.
+- LENGTH: AT LEAST 300 words, targeting 400-500 words. Do not write a short summary.
+- Use attractive short headings (e.g., using UPPERCASE or bullet points) to make it skimmable and exciting.
+- Sell the car's best features, explain who it is for, and why it matters in the current market.
 
 ═══ OUTPUT FORMAT (strict) ═══
 TITLE: [your title here]
-SEO_DESCRIPTION: [your description here, STRICTLY 150-160 chars]
+SEO_DESCRIPTION: [your description here, STRICTLY 150-160 letters/chars]
+SUMMARY: [your 400-500 word rich summary here]
 """
 
     try:
-        ai = get_light_provider()
+        ai = get_generate_provider()
         result = ai.generate_completion(
             prompt=prompt,
-            system_prompt="You are a senior automotive SEO specialist. Generate concise, engaging titles and meta descriptions that maximize click-through rates. Follow the character limits exactly.",
+            system_prompt="You are a senior automotive SEO specialist and editor. Generate concise metadata and a rich, comprehensive 500-word summary.",
             temperature=0.7,
-            max_tokens=300
+            max_tokens=1500
         )
+
         
         if not result:
             return None
@@ -170,22 +155,25 @@ SEO_DESCRIPTION: [your description here, STRICTLY 150-160 chars]
         title = None
         seo_desc = None
         
-        for line in result.strip().split('\n'):
-            line = line.strip()
-            if line.upper().startswith('TITLE:'):
-                title = line.split(':', 1)[1].strip().strip('"').strip("'")
-            elif line.upper().startswith('SEO_DESCRIPTION:') or line.upper().startswith('SEO DESCRIPTION:'):
-                seo_desc = line.split(':', 1)[1].strip().strip('"').strip("'")
+        import re
+        
+        title_match = re.search(r'TITLE:\s*(.+?)(?=\nSEO_DESCRIPTION:|\nSUMMARY:|$)', result, re.IGNORECASE | re.DOTALL)
+        seo_match = re.search(r'SEO_?DESCRIPTION:\s*(.+?)(?=\nSUMMARY:|\nTITLE:|$)', result, re.IGNORECASE | re.DOTALL)
+        summary_match = re.search(r'SUMMARY:\s*(.+?)(?=\nSEO_DESCRIPTION:|\nTITLE:|$)', result, re.IGNORECASE | re.DOTALL)
+        
+        title = title_match.group(1).strip().strip('"').strip("'") if title_match else None
+        seo_desc = seo_match.group(1).strip().strip('"').strip("'") if seo_match else None
+        summary = summary_match.group(1).strip().strip('"').strip("'") if summary_match else None
+        
+        if seo_desc:
+            seo_desc = seo_desc.replace('\n', ' ')
         
         # Validate title
         if title:
-            # Remove any quotes AI may have added
             title = title.strip('"').strip("'")
-            # Must be reasonable length
             if len(title) < 20 or len(title) > 120:
                 print(f"⚠️ AI title rejected (length {len(title)}): {title}")
                 title = None
-            # Must not be generic
             elif title.lower().endswith(('review', 'review & specs', 'range & specs')):
                 print(f"⚠️ AI title rejected (generic suffix): {title}")
                 title = None
@@ -197,13 +185,12 @@ SEO_DESCRIPTION: [your description here, STRICTLY 150-160 chars]
                 print(f"⚠️ AI SEO description rejected (too short: {len(seo_desc)}): {seo_desc}")
                 seo_desc = None
             elif len(seo_desc) > 160:
-                # Truncate at word boundary safely near 158
                 seo_desc = seo_desc[:157].rsplit(' ', 1)[0]
                 if not seo_desc.endswith('.'):
                     seo_desc += '...'
         
-        if title or seo_desc:
-            return {'title': title, 'seo_description': seo_desc}
+        if title or seo_desc or summary:
+            return {'title': title, 'seo_description': seo_desc, 'summary': summary}
         
         return None
         
@@ -589,6 +576,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         # 4. Determine title + SEO description — AI-powered generation
         ai_title = None
         ai_seo_desc = None
+        ai_summary = None
         
         # Priority 0: AI-generated title + SEO description (best quality)
         try:
@@ -596,10 +584,13 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             if ai_result:
                 ai_title = ai_result.get('title')
                 ai_seo_desc = ai_result.get('seo_description')
+                ai_summary = ai_result.get('summary')
                 if ai_title:
                     print(f"🤖 AI-generated title: {ai_title}")
                 if ai_seo_desc:
                     print(f"🤖 AI-generated SEO description ({len(ai_seo_desc)} chars): {ai_seo_desc}")
+                if ai_summary:
+                    print(f"🤖 AI-generated rich Summary ({len(ai_summary.split())} words)")
         except Exception as e:
             print(f"⚠️ AI title/SEO generation failed, using fallbacks: {e}")
         
@@ -720,7 +711,10 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         
         # Try to extract summary from AI analysis if available
         summary = ""
-        if isinstance(analysis, str) and 'Summary:' in analysis:
+        if ai_summary and len(ai_summary) > 50:
+            summary = ai_summary
+            print(f"✅ Using AI-generated enriched Summary ({len(summary)} chars)")
+        elif isinstance(analysis, str) and 'Summary:' in analysis:
             summary = analysis.split('Summary:')[-1].split('\n')[0].strip()
         elif isinstance(analysis, dict) and analysis.get('summary'):
             summary = analysis.get('summary')
