@@ -388,3 +388,10 @@ textarea::placeholder {
   @apply border-brand-300 pl-3 ml-auto mr-auto;
   max-width: fit-content;
 }
+
+/* ========================================
+   Premium Article Components
+   (spec-bar, powertrain-specs, compare-grid,
+    pros-cons, fm-verdict, price-tag)
+   ======================================== */
+@import './article-content.css';

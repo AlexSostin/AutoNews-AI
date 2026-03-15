@@ -925,7 +925,26 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
             f"\n{'='*47}\n"
             f"COMPETITOR REFERENCE (from our database):\n"
             f"{competitor_context}\n"
-            f"REQUIRED: Include a <h2>How It Compares</h2> section that uses these exact figures.\n"
+            f"REQUIRED: Include a <h2>How It Compares</h2> section.\n"
+            f"Format each competitor as a CARD using this HTML:\n"
+            f'<div class="compare-grid">\n'
+            f'  <div class="compare-card featured">\n'
+            f'    <div class="compare-badge">This Vehicle</div>\n'
+            f'    <div class="compare-card-name">[Year] [Subject Car Name]</div>\n'
+            f'    <div class="compare-row"><span class="k">Power</span><span class="v">421 hp</span></div>\n'
+            f'    <div class="compare-row"><span class="k">Range</span><span class="v">620 km WLTP</span></div>\n'
+            f'    <div class="compare-row"><span class="k">Price</span><span class="v">$34,300</span></div>\n'
+            f'  </div>\n'
+            f'  <div class="compare-card">\n'
+            f'    <div class="compare-card-name">[Competitor Name]</div>\n'
+            f'    <div class="compare-row"><span class="k">Power</span><span class="v">300 hp</span></div>\n'
+            f'    <div class="compare-row"><span class="k">Range</span><span class="v">450 km</span></div>\n'
+            f'    <div class="compare-row"><span class="k">Price</span><span class="v">$42,000</span></div>\n'
+            f'  </div>\n'
+            f'</div>\n'
+            f"The first card (class='featured') is ALWAYS the subject car. Other cards are competitors.\n"
+            f"Include ONLY specs you have confirmed data for in each compare-row.\n"
+            f"After the cards, write 1-2 paragraphs analyzing the comparison.\n"
             f"{'='*47}\n"
         )
     else:
@@ -1197,6 +1216,19 @@ WHY THIS MATTERS section — add context about the car's significance:
 Required Structure (OMIT any section where you have NO data):
 - <h2>[Year] [Brand] [Model] [Version]: [Engaging Hook]</h2>
 - Introduction paragraph with hook + key confirmed specs
+
+═══ SPEC BAR (MANDATORY — insert IMMEDIATELY after the introduction paragraph) ═══
+Output a compact spec bar with the car's 4-5 most important numbers. Use this EXACT HTML:
+<div class="spec-bar">
+  <div class="spec-item"><div class="spec-label">STARTING PRICE</div><div class="spec-value">$34,300</div></div>
+  <div class="spec-item"><div class="spec-label">RANGE</div><div class="spec-value">620 km WLTP</div></div>
+  <div class="spec-item"><div class="spec-label">POWER</div><div class="spec-value">421 hp</div></div>
+  <div class="spec-item"><div class="spec-label">0-100 KM/H</div><div class="spec-value">3.8 sec</div></div>
+  <div class="spec-item"><div class="spec-label">POWERTRAIN</div><div class="spec-value">BEV AWD</div></div>
+</div>
+Rules: Use ONLY confirmed specs. Skip any item you don't have data for. Minimum 3, maximum 6 items.
+═══════════════════════════════════════════════
+
 - <h2>Performance & Specs</h2> — ONLY if you have real numbers.
   Include ONLY specs you have data for. Skip unknown ones entirely.
   If HP is in kW, convert: 1 kW ≈ 1.34 hp.
@@ -1243,6 +1275,17 @@ Required Structure (OMIT any section where you have NO data):
   - Cross-check: if source says "145 kW motor + 102 kW engine" on DM-i → system output is ~145 kW (194 HP), NOT 247 kW
   ═══════════════════════════════════════════════
 
+  ═══ POWERTRAIN SPECS GRID (use inside Performance section) ═══
+  After your prose paragraphs in Performance, add a data grid:
+  <div class="powertrain-specs">
+    <div class="ps-item"><div class="ps-label">POWERTRAIN TYPE</div><div class="ps-val">BEV / EREV / PHEV</div></div>
+    <div class="ps-item"><div class="ps-label">BATTERY</div><div class="ps-val">77 kWh (NMC)</div></div>
+    <div class="ps-item"><div class="ps-label">RANGE</div><div class="ps-val">620 km WLTP</div></div>
+    <div class="ps-item"><div class="ps-label">0-100 KM/H</div><div class="ps-val">3.8 sec</div></div>
+  </div>
+  Include ONLY fields you have confirmed data for. This replaces the ▸ bullet format.
+  ═══════════════════════════════════════════════
+
 - <h2>Design & Interior</h2> — Styling, materials, space.
   Compare design language to ONE well-known car if the comparison is genuine and insightful.
   Focus on what IS visible/confirmed, not what might be.
@@ -1258,20 +1301,43 @@ Required Structure (OMIT any section where you have NO data):
   e.g. "With 2,185 kg curb weight and AWD, expect planted highway stability but reduced agility in tight corners"
   This section brings the car to life — make the reader FEEL what it's like behind the wheel.
   If NO driving data exists → OMIT this section.
-- <h2>Pricing & Availability</h2> — CONCISE, 3-5 bullet points:
-  <ul><li>Only confirmed prices and markets</li></ul>
+- <h2>Pricing & Availability</h2> — CONCISE. If you have a confirmed starting price, start with:
+  <div class="price-tag"><span class="price-main">$34,300</span><span class="price-note">Starting · Model Year 2026</span></div>
+  Then 2-3 bullet points about availability, markets, trim pricing.
   Do NOT fabricate MSRP prices. If pricing is unknown, say "pricing has not been announced yet."
-- <h2>Pros & Cons</h2> — Use <ul><li> tags. Punchy, specific, based on REAL attributes:
-  ✅ "1602 km range crushes everything in its class"
-  ✅ "No Apple CarPlay — a dealbreaker for many"
-  ❌ "Range is impressive" (too vague)
-  ❌ "Specs are unknown" (NOT a con — it's missing info)
-- <h2>FreshMotors Verdict</h2> — THIS SECTION IS MANDATORY AND MUST CONTAIN REAL CONTENT (minimum 60-80 words).
-  Write a compelling, opinionated verdict about who should buy this car and why.
-  Be specific: "The daily driver for someone who's outgrown their Model 3" or
-  "A rugged weekend warrior that doubles as a comfortable commuter".
-  Mention 1-2 standout strengths, 1 weakness, and a final recommendation.
-  ⚠️ DO NOT leave this section empty or with only the heading — it MUST have a full paragraph of at least 60 words.
+
+═══ PROS & CONS (use styled blocks, NOT plain <ul>) ═══
+<h2>Pros & Cons</h2>
+<div class="pros-cons">
+  <div class="pc-block pros">
+    <div class="pc-title">Pros</div>
+    <ul class="pc-list">
+      <li>1602 km range crushes everything in its class</li>
+      <li>Sub-$35,000 price undercuts premium rivals by $10k+</li>
+    </ul>
+  </div>
+  <div class="pc-block cons">
+    <div class="pc-title">Cons</div>
+    <ul class="pc-list">
+      <li>No Apple CarPlay — a dealbreaker for many</li>
+      <li>Heavy curb weight hurts urban maneuverability</li>
+    </ul>
+  </div>
+</div>
+Rules: Punchy, specific, based on REAL attributes. Minimum 3 pros, 2 cons. Never pad.
+═══════════════════════════════════════════════
+
+═══ FRESHMOTORS VERDICT (MANDATORY — use dark verdict block) ═══
+Wrap in a dark-background verdict container:
+<div class="fm-verdict">
+  <div class="verdict-label">FreshMotors Verdict</div>
+  <p>Your compelling, opinionated verdict about who should buy this car and why. Minimum 60 words.
+  Be specific: "The daily driver for someone who's outgrown their Model 3".
+  Mention 1-2 standout strengths, 1 weakness, and a final recommendation.</p>
+</div>
+⚠️ DO NOT leave this section empty — it MUST have a full paragraph of at least 60 words.
+⚠️ Do NOT add a separate <h2>FreshMotors Verdict</h2> heading — the verdict-label inside the block IS the heading.
+═══════════════════════════════════════════════
 
 AT THE VERY END, add:
 <div class="alt-texts" style="display:none">

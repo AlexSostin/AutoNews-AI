@@ -1,0 +1,356 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Premium Article Content Styles
+   Scoped under .article-content-wrapper to avoid global conflicts.
+   Compatible with AI-generated HTML classes from article_generator.py.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Base Typography ─────────────────────────────────────────────────── */
+.article-content-wrapper h2 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #1a3a5c;
+  margin-top: 2rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid #e0ddd4;
+  line-height: 1.3;
+}
+
+.article-content-wrapper h2:first-child {
+  margin-top: 0;
+}
+
+.article-content-wrapper p {
+  color: #222;
+  line-height: 1.8;
+  margin-bottom: 1.15rem;
+}
+
+.article-content-wrapper ul,
+.article-content-wrapper ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1.15rem;
+}
+
+.article-content-wrapper li {
+  margin-bottom: 0.35rem;
+  line-height: 1.65;
+}
+
+.article-content-wrapper hr {
+  border: none;
+  border-top: 1px solid #e0ddd4;
+  margin: 2rem 0;
+}
+
+.article-content-wrapper strong {
+  font-weight: 600;
+  color: #111;
+}
+
+/* ── 1. Spec Bar ─────────────────────────────────────────────────────── */
+.article-content-wrapper .spec-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid #e0ddd4;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+  margin-top: 0.5rem;
+}
+
+.article-content-wrapper .spec-item {
+  flex: 1 1 120px;
+  padding: 16px 18px;
+  border-right: 1px solid #e0ddd4;
+  background: #f7f6f2;
+  min-width: 0;
+}
+
+.article-content-wrapper .spec-item:last-child {
+  border-right: none;
+}
+
+.article-content-wrapper .spec-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.article-content-wrapper .spec-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a3a5c;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .article-content-wrapper .spec-bar {
+    flex-direction: column;
+  }
+  .article-content-wrapper .spec-item {
+    border-right: none;
+    border-bottom: 1px solid #e0ddd4;
+    flex: none;
+  }
+  .article-content-wrapper .spec-item:last-child {
+    border-bottom: none;
+  }
+}
+
+/* ── 2. Powertrain Specs Callout ─────────────────────────────────────── */
+.article-content-wrapper .powertrain-specs {
+  background: #dce8f5;
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin: 1.5rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 18px;
+}
+
+.article-content-wrapper .ps-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #2563a8;
+  margin-bottom: 4px;
+}
+
+.article-content-wrapper .ps-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a3a5c;
+}
+
+/* ── 3. Comparison Cards ─────────────────────────────────────────────── */
+.article-content-wrapper .compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 1.5rem 0;
+}
+
+.article-content-wrapper .compare-card {
+  border: 1px solid #e0ddd4;
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: #fff;
+}
+
+.article-content-wrapper .compare-card.featured {
+  border-color: #2563a8;
+  border-width: 2px;
+}
+
+.article-content-wrapper .compare-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #2563a8;
+  color: #fff;
+  border-radius: 4px;
+  padding: 3px 10px;
+  margin-bottom: 10px;
+}
+
+.article-content-wrapper .compare-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a3a5c;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.article-content-wrapper .compare-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px solid #e0ddd4;
+}
+
+.article-content-wrapper .compare-row:last-child {
+  border-bottom: none;
+}
+
+.article-content-wrapper .compare-row .k {
+  color: #555;
+}
+
+.article-content-wrapper .compare-row .v {
+  font-weight: 600;
+  color: #111;
+  text-align: right;
+}
+
+/* ── 4. Pros & Cons ──────────────────────────────────────────────────── */
+.article-content-wrapper .pros-cons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 1.5rem 0;
+}
+
+@media (max-width: 560px) {
+  .article-content-wrapper .pros-cons {
+    grid-template-columns: 1fr;
+  }
+}
+
+.article-content-wrapper .pc-block {
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.article-content-wrapper .pc-block.pros {
+  background: #eaf6f0;
+}
+
+.article-content-wrapper .pc-block.cons {
+  background: #fdf0ee;
+}
+
+.article-content-wrapper .pc-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
+.article-content-wrapper .pc-block.pros .pc-title {
+  color: #0d5c38;
+}
+
+.article-content-wrapper .pc-block.cons .pc-title {
+  color: #8a2e1c;
+}
+
+.article-content-wrapper .pc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.article-content-wrapper .pc-list li {
+  font-size: 13.5px;
+  line-height: 1.55;
+  padding: 6px 0 6px 22px;
+  position: relative;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  color: #222;
+  margin-bottom: 0;
+}
+
+.article-content-wrapper .pc-list li:last-child {
+  border-bottom: none;
+}
+
+.article-content-wrapper .pc-block.pros .pc-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #0d5c38;
+  font-weight: 700;
+}
+
+.article-content-wrapper .pc-block.cons .pc-list li::before {
+  content: '–';
+  position: absolute;
+  left: 2px;
+  color: #8a2e1c;
+  font-weight: 700;
+}
+
+/* ── 5. FreshMotors Verdict ──────────────────────────────────────────── */
+.article-content-wrapper .fm-verdict {
+  background: #1a3a5c;
+  color: #fff;
+  border-radius: 14px;
+  padding: 28px 32px;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.article-content-wrapper .fm-verdict .verdict-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 10px;
+}
+
+.article-content-wrapper .fm-verdict p {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 15px;
+  line-height: 1.75;
+  margin-bottom: 0;
+}
+
+.article-content-wrapper .fm-verdict h2 {
+  color: #fff;
+  border-bottom: none;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+
+/* ── 6. Price Tag ────────────────────────────────────────────────────── */
+.article-content-wrapper .price-tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  background: #111;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 18px;
+  margin: 6px 0 20px;
+}
+
+.article-content-wrapper .price-main {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.article-content-wrapper .price-note {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ── 7. SEO Related Links (existing, refined) ────────────────────────── */
+.article-content-wrapper .seo-related-links {
+  border-top: 1px solid #e0ddd4;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+}
+
+.article-content-wrapper .seo-related-links h3 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 10px;
+}
+
+.article-content-wrapper .seo-related-links a {
+  color: #2563a8;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.article-content-wrapper .seo-related-links a:hover {
+  text-decoration: underline;
+}
