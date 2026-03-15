@@ -169,11 +169,11 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         print(f"Skipping {youtube_url} - already exists")
         return {'success': False, 'reason': 'exists', 'error': 'Article already exists in the database'}
         
-    # 2. Check if already pending for this video_id (skip if rejected/published — allows re-generation)
+    # 2. Check if already pending for this video_id (skip if rejected/published/approved — allows re-generation)
     if video_id:
         pending_exists = PendingArticle.objects.filter(
             video_id=video_id
-        ).exclude(status__in=['rejected', 'published', 'auto_failed']).exists()
+        ).exclude(status__in=['rejected', 'published', 'auto_failed', 'approved', 'deleted']).exists()
         if pending_exists:
             print(f"Skipping {youtube_url} - PendingArticle already exists for video_id={video_id}")
             return {'success': False, 'reason': 'pending', 'error': 'Article is already in the pending queue'}

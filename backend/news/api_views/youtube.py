@@ -145,9 +145,6 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
                         v['article_status'] = 'draft'
                     elif pending_map.get(vid) == 'pending':
                         v['article_status'] = 'pending'
-                    elif pending_map.get(vid) in ('approved', 'published'):
-                        # PendingArticle was approved → article exists as draft
-                        v['article_status'] = 'draft'
                     else:
                         v['article_status'] = None
             
