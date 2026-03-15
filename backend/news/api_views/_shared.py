@@ -36,18 +36,33 @@ def trigger_nextjs_revalidation(paths=None):
     """
     Tell Next.js to revalidate its ISR cache immediately.
     Runs in a background thread so it doesn't slow down the API response.
-    Tries FRONTEND_URL first, then falls back to production Vercel URL.
+    On Railway (production), hits the public Vercel URL directly.
+    On Docker (local), hits the internal frontend service first.
     """
     def _revalidate():
         import requests as http_requests
-        frontend_url = os.environ.get(
-            'FRONTEND_URL',
-            'http://frontend:3000' if os.environ.get('RUNNING_IN_DOCKER') else 'http://localhost:3000'
-        )
-        # Production Vercel fallback — if FRONTEND_URL is Docker-internal, also try public URL
+        
+        # Determine URLs to try (order matters!)
+        frontend_url = os.environ.get('FRONTEND_URL', '')
         vercel_url = os.environ.get('VERCEL_URL', 'https://www.freshmotors.net')
         if vercel_url and not vercel_url.startswith('http'):
             vercel_url = f'https://{vercel_url}'
+        
+        # On Railway (no Docker network), Vercel URL goes first
+        # On Docker, internal URL goes first (faster)
+        is_railway = bool(os.environ.get('RAILWAY_ENVIRONMENT'))
+        if is_railway:
+            urls_to_try = [vercel_url] if vercel_url else []
+        elif os.environ.get('RUNNING_IN_DOCKER'):
+            docker_url = frontend_url or 'http://frontend:3000'
+            urls_to_try = [docker_url]
+            if vercel_url:
+                urls_to_try.append(vercel_url)
+        else:
+            # Local dev
+            urls_to_try = [frontend_url or 'http://localhost:3000']
+            if vercel_url:
+                urls_to_try.append(vercel_url)
             
         secret = os.environ.get('REVALIDATION_SECRET', 'freshmotors-revalidate-2026')
         payload = {
@@ -55,7 +70,7 @@ def trigger_nextjs_revalidation(paths=None):
             'paths': paths or ['/', '/articles', '/trending'],
         }
 
-        urls_to_try = [url for url in [frontend_url, vercel_url] if url]
+        logger.info(f"🔄 Triggering Next.js revalidation — paths: {payload['paths']}, trying URLs: {urls_to_try}")
         success = False
         
         for url in urls_to_try:
@@ -63,19 +78,19 @@ def trigger_nextjs_revalidation(paths=None):
                 resp = http_requests.post(
                     f'{url}/api/revalidate',
                     json=payload,
-                    timeout=8,
+                    timeout=10,
                 )
                 if resp.ok:
-                    logger.info(f"Next.js revalidation triggered via {url}: {resp.json()}")
+                    logger.info(f"✅ Next.js revalidation OK via {url}: {resp.json()}")
                     success = True
                     break
                 else:
-                    logger.warning(f"Next.js revalidation via {url} failed ({resp.status_code}): {resp.text[:200]}")
+                    logger.warning(f"⚠️ Next.js revalidation via {url} failed ({resp.status_code}): {resp.text[:300]}")
             except Exception as e:
-                logger.debug(f"Next.js revalidation via {url} skipped: {e}")
+                logger.warning(f"⚠️ Next.js revalidation via {url} error: {e}")
 
         if not success:
-            logger.warning(f"Next.js revalidation failed on all URLs: {urls_to_try}")
+            logger.error(f"❌ Next.js revalidation failed on ALL URLs: {urls_to_try}")
 
     threading.Thread(target=_revalidate, daemon=True).start()
 
