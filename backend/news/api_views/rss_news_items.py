@@ -261,6 +261,7 @@ class RSSNewsItemViewSet(viewsets.ModelViewSet):
                 image_source=img_source,
                 suggested_category=news_item.rss_feed.default_category if news_item.rss_feed else None,
                 tags=auto_tags,
+                specs={'generation_source': 'manual_rss_ui'},
                 status='pending'
             )
             

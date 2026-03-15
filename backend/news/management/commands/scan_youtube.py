@@ -70,7 +70,8 @@ class Command(BaseCommand):
                         youtube_url=video_url,
                         channel_id=channel.id,
                         video_title=video_title,
-                        video_id=video_id
+                        video_id=video_id,
+                        generation_source='manual_cli'
                     )
                     
                     if result['success']:

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0116_rssfeed_auto_publish_min_score_and_more.py
+# hypothesis_version: 6.151.9
+
+[360, 720, 1440, '1 Hour', '12 Hours', '15 Minutes', '24 Hours', '6 Hours', 'exclude_keywords', 'include_keywords', 'news', 'rssfeed', 'scan_frequency']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0115_add_comparison_automation.py
+# hypothesis_version: 6.151.9
+
+[500, 'automationsettings', 'comparison_enabled', 'comparison_last_run', 'comparison_lock', 'comparison_lock_at', 'comparison_provider', 'gemini', 'news']

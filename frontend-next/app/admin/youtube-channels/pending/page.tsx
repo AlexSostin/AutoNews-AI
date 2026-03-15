@@ -40,6 +40,7 @@ interface PendingArticle {
   images: string[];
   featured_image: string;
   status: string;
+  generation_source?: string;
   created_at: string;
 }
 
@@ -305,19 +306,26 @@ export default function PendingArticlesPage() {
                           )}
                           <span className="flex items-center gap-1 text-gray-400">
                             <Clock size={14} />
-                            {new Date(article.created_at).toLocaleDateString()}
+                            {new Date(article.created_at).toLocaleString()}
                           </span>
                         </div>
                       </div>
 
                       {/* Status Badge */}
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${article.status === 'pending' ? 'bg-orange-100 text-orange-700' :
-                        article.status === 'published' ? 'bg-green-100 text-green-700' :
-                          article.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
-                        }`}>
-                        {article.status}
-                      </span>
+                      <div className="flex flex-col gap-2 items-end">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${article.status === 'pending' ? 'bg-orange-100 text-orange-700' :
+                          article.status === 'published' ? 'bg-green-100 text-green-700' :
+                            article.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                          }`}>
+                          {article.status}
+                        </span>
+                        {article.generation_source && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                            {article.generation_source.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Actions */}

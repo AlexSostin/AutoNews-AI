@@ -106,8 +106,8 @@ def auto_publish_pending():
     # Find ALL pending articles with minimum quality (exclude circuit-broken ones)
     all_candidates = PendingArticle.objects.filter(
         status='pending',
-        quality_score__gte=settings.auto_publish_min_quality,
         auto_publish_attempts__lt=MAX_RETRIES,  # Circuit breaker: skip after MAX_RETRIES failures
+        quality_score__isnull=False,  # only consider scored articles
     ).select_related('rss_feed', 'suggested_category').order_by(
         'auto_publish_attempts',  # Try fresh articles first
         '-quality_score', 'created_at'
@@ -137,6 +137,15 @@ def auto_publish_pending():
                 logger.info(f"[AUTO-PUBLISHER] 🛡️ Skipped (unsafe feed): {pending.title[:50]} (feed: {feed.name})")
                 continue
         
+        # Quality score check with support for feed-specific overrides
+        min_score = settings.auto_publish_min_quality
+        if feed and getattr(feed, 'auto_publish_min_score', 0) > 0:
+            min_score = feed.auto_publish_min_score
+            
+        if pending.quality_score < min_score:
+            logger.debug(f"[AUTO-PUBLISHER] 🛡️ Skipped (score too low): {pending.title[:50]} (Score: {pending.quality_score}, Required: {min_score})")
+            continue
+
         # Image check for no-image articles when auto_image is off
         if settings.auto_publish_require_image and settings.auto_image_mode == 'off':
             if not pending.featured_image:
@@ -262,8 +271,9 @@ def auto_publish_pending():
                 
                 # Log the decision
                 decision = 'drafted' if as_draft else 'published'
+                min_score = pending.rss_feed.auto_publish_min_score if pending.rss_feed and getattr(pending.rss_feed, 'auto_publish_min_score', 0) > 0 else settings.auto_publish_min_quality
                 _log_decision(pending, decision,
-                    f"Quality {pending.quality_score}/10 meets threshold {settings.auto_publish_min_quality}/10 → {mode_label}",
+                    f"Quality {pending.quality_score}/10 meets threshold {min_score}/10 → {mode_label}",
                     article=article)
                 
                 # Update counter atomically

@@ -263,7 +263,8 @@ def youtube_scan():
                         youtube_url=video_url,
                         channel_id=channel.id,
                         video_title=video_title,
-                        video_id=video_id
+                        video_id=video_id,
+                        generation_source='auto_youtube_scanner'
                     )
 
                     if result['success']:

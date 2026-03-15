@@ -124,21 +124,30 @@ class Command(BaseCommand):
 
         # Determine which feeds to scan
         if options['feed_id']:
-            feeds = RSSFeed.objects.filter(id=options['feed_id'])
-            if not feeds.exists():
+            feeds = list(RSSFeed.objects.filter(id=options['feed_id']))
+            if not feeds:
                 self.stdout.write(self.style.ERROR(f'RSS Feed with ID {options["feed_id"]} not found'))
                 return
         elif options['all']:
-            feeds = RSSFeed.objects.filter(is_enabled=True)
+            all_enabled_feeds = RSSFeed.objects.filter(is_enabled=True)
+            feeds = []
+            now = timezone.now()
+            for feed in all_enabled_feeds:
+                if not feed.last_checked:
+                    feeds.append(feed)
+                else:
+                    age_minutes = (now - feed.last_checked).total_seconds() / 60
+                    if age_minutes >= feed.scan_frequency:
+                        feeds.append(feed)
         else:
             self.stdout.write(self.style.ERROR('Please specify --all or --feed-id'))
             return
 
-        if not feeds.exists():
-            self.stdout.write(self.style.WARNING('No RSS feeds found'))
+        if not feeds:
+            self.stdout.write(self.style.WARNING('No RSS feeds found or none require scanning based on frequency'))
             return
 
-        feeds_list = list(feeds)
+        feeds_list = feeds
         total = len(feeds_list)
 
         ai_status = '🤖 AI Enhancement: ENABLED' if use_ai else '📝 AI Enhancement: DISABLED'

@@ -135,22 +135,23 @@ BAD TITLE EXAMPLES (NEVER generate these):
 ❌ "2026 BYD Seal 06 DM-i Review & Specs" (template garbage)
 
 ═══ SEO DESCRIPTION RULES ═══  
-- LENGTH: 140-155 characters (STRICT — Google truncates at 155)
+- LENGTH: 150-160 characters (STRICT — maximize available Google snippet space)
 - MUST include: car name, standout specs, and a reason to click
 - Write like a Google search result that makes people CLICK
 - Do NOT start with "Explore the..." or "Discover the..."
 - Include numbers: price, range, horsepower, 0-100 time
 
 GOOD SEO DESCRIPTION EXAMPLES:
-✅ "The 2026 Zeekr 7X packs 421 hp and 615 km range into a $29,400 SUV that outguns the Model Y. Full specs, pricing, and expert verdict inside."
-✅ "BYD's Seal 06 DM-i delivers 200 km electric range and 1,200 km total for just $14,000. We break down specs, driving feel, and value."
+✅ "The 2026 Zeekr 7X packs 421 hp and 615 km range into a disruptive SUV that outguns the Model Y. Full specs, pricing, and our expert verdict inside."
+✅ "BYD's Seal 06 DM-i delivers 200 km electric range and 1,200 km total for just $14,000. We break down the specs, driving feel, and incredible value."
 
 BAD SEO DESCRIPTION EXAMPLES:
-❌ "Explore the 2026 BYD Seal 06 DM-i 175 HP. Full specs, pricing, range, performance data & expert review." (too short, template)
+❌ "Explore the 2026 BYD Seal 06 DM-i 175 HP. Full specs, pricing, range, performance data & expert review." (too short, template - 105 chars)
+❌ "This is a new car from BYD." (way too short - 27 chars)
 
 ═══ OUTPUT FORMAT (strict) ═══
 TITLE: [your title here]
-SEO_DESCRIPTION: [your description here]
+SEO_DESCRIPTION: [your description here, STRICTLY 150-160 chars]
 """
 
     try:
@@ -192,14 +193,14 @@ SEO_DESCRIPTION: [your description here]
         # Validate SEO description
         if seo_desc:
             seo_desc = seo_desc.strip('"').strip("'")
-            if len(seo_desc) < 80:
+            if len(seo_desc) < 130:
                 print(f"⚠️ AI SEO description rejected (too short: {len(seo_desc)}): {seo_desc}")
                 seo_desc = None
             elif len(seo_desc) > 160:
-                # Truncate at word boundary
-                seo_desc = seo_desc[:155].rsplit(' ', 1)[0]
+                # Truncate at word boundary safely near 158
+                seo_desc = seo_desc[:157].rsplit(' ', 1)[0]
                 if not seo_desc.endswith('.'):
-                    seo_desc += '.'
+                    seo_desc += '...'
         
         if title or seo_desc:
             return {'title': title, 'seo_description': seo_desc}
@@ -769,7 +770,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 if len(seo_description) > 155:
                     seo_description = seo_description[:152] + '...'
             if not seo_description:
-                seo_description = summary[:155].rsplit(' ', 1)[0] if len(summary) > 155 else summary
+                seo_description = summary[:157].rsplit(' ', 1)[0] + '...' if len(summary) > 160 else summary
             print(f"📌 Fallback SEO description ({len(seo_description)} chars)")
         
         # 6.5. Generate SEO keywords

@@ -670,7 +670,8 @@ class RSSFeedSerializer(serializers.ModelSerializer):
         model = RSSFeed
         fields = [
             'id', 'name', 'feed_url', 'website_url', 'source_type',
-            'is_enabled', 'auto_publish', 'default_category', 'category_name',
+            'is_enabled', 'scan_frequency', 'include_keywords', 'exclude_keywords',
+            'auto_publish', 'auto_publish_min_score', 'default_category', 'category_name',
             'last_checked', 'last_entry_date', 'entries_processed',
             'logo_url', 'description', 'pending_count',
             'license_status', 'license_details', 'license_checked_at',
@@ -797,6 +798,7 @@ class PendingArticleSerializer(serializers.ModelSerializer):
     channel_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     reviewed_by_name = serializers.SerializerMethodField()
+    generation_source = serializers.SerializerMethodField()
     rss_feed = PendingArticleRSSFeedSerializer(read_only=True)
     
     class Meta:
@@ -810,6 +812,7 @@ class PendingArticleSerializer(serializers.ModelSerializer):
             'images', 'featured_image', 'image_source',
             'status', 'published_article',
             'reviewed_by', 'reviewed_by_name', 'reviewed_at', 'review_notes',
+            'generation_source',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['reviewed_by', 'reviewed_at', 'published_article', 'created_at', 'updated_at']
@@ -822,6 +825,11 @@ class PendingArticleSerializer(serializers.ModelSerializer):
     
     def get_reviewed_by_name(self, obj):
         return obj.reviewed_by.username if obj.reviewed_by else None
+
+    def get_generation_source(self, obj):
+        if obj.specs:
+            return obj.specs.get('generation_source', 'Unknown')
+        return 'Unknown'
 
 
 

@@ -302,6 +302,55 @@ class RSSFeedViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=False, methods=['get'])
+    def export_opml(self, request):
+        """Export all enabled feeds as an OPML file"""
+        from django.http import HttpResponse
+        import xml.etree.ElementTree as ET
+        from datetime import datetime
+        
+        feeds = RSSFeed.objects.filter(is_enabled=True).order_by('name')
+        
+        opml = ET.Element('opml', version='2.0')
+        head = ET.SubElement(opml, 'head')
+        ET.SubElement(head, 'title').text = 'AutoNews AI RSS Feeds'
+        ET.SubElement(head, 'dateCreated').text = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
+        
+        body = ET.SubElement(opml, 'body')
+        for feed in feeds:
+            ET.SubElement(body, 'outline', {
+                'text': feed.name,
+                'title': feed.name,
+                'type': 'rss',
+                'xmlUrl': feed.feed_url,
+                'htmlUrl': feed.website_url or feed.feed_url,
+                'description': feed.description or ''
+            })
+            
+        xml_str = ET.tostring(opml, encoding='utf-8', xml_declaration=True).decode('utf-8')
+        
+        response = HttpResponse(xml_str, content_type='application/xml')
+        response['Content-Disposition'] = 'attachment; filename="autonews_feeds.opml"'
+        return response
+
+    @action(detail=True, methods=['get'])
+    def recent_entries(self, request, pk=None):
+        """Get the latest 5 captured entries for this feed"""
+        feed = self.get_object()
+        recent = RSSNewsItem.objects.filter(rss_feed=feed).order_by('-published_at', '-created_at')[:5]
+        
+        data = []
+        for item in recent:
+            data.append({
+                'id': item.id,
+                'title': item.title,
+                'link': item.source_url,
+                'published': item.published_at.isoformat() if item.published_at else item.created_at.isoformat(),
+                'status': item.status
+            })
+            
+        return Response({'entries': data})
+
     @action(detail=False, methods=['post'])
     def test_feed(self, request):
         """Test an RSS feed URL by fetching and parsing it server-side"""

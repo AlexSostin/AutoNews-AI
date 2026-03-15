@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/user_accounts.py
+# hypothesis_version: 6.151.9
+
+[120, '1/h', '10/h', '@', 'Invalid email format', 'POST', '^[a-zA-Z0-9_]+$', 'access', 'created', 'credential', 'date_joined', 'detail', 'email', 'family_name', 'first_name', 'get', 'given_name', 'google_user_id', 'has_2fa', 'id', 'ip', 'is_staff', 'is_superuser', 'last_name', 'message', 'name', 'password', 'pending_token', 'picture', 'post', 'refresh', 'requires_2fa', 'requires_passkey', 'user', 'username']

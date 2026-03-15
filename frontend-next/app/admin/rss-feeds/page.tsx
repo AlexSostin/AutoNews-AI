@@ -22,7 +22,9 @@ import {
     Check,
     Globe,
     X,
-    Upload
+    Upload,
+    Download,
+    Eye
 } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
@@ -101,6 +103,11 @@ export default function RSSFeedsPage() {
 
     // Feed stats
     const [feedStats, setFeedStats] = useState<Record<number, { total_items: number; generated_count: number; dismissed_count: number; pending_count_items: number }>>({});
+    
+    // Preview modal
+    const [previewFeed, setPreviewFeed] = useState<RSSFeed | null>(null);
+    const [previewEntries, setPreviewEntries] = useState<any[]>([]);
+    const [loadingPreview, setLoadingPreview] = useState(false);
 
     const showToast = (message: string, type: 'success' | 'info' = 'success') => {
         setToast({ message, type });
@@ -236,6 +243,21 @@ export default function RSSFeedsPage() {
         }
     };
 
+    const handleOpenPreview = async (feed: RSSFeed) => {
+        setPreviewFeed(feed);
+        setLoadingPreview(true);
+        setPreviewEntries([]);
+        try {
+            const response = await api.get(`/rss-feeds/${feed.id}/recent_entries/`);
+            setPreviewEntries(response.data.entries || []);
+        } catch (error) {
+            logCaughtError('rss_feeds_preview', error);
+            showToast('Failed to load preview');
+        } finally {
+            setLoadingPreview(false);
+        }
+    };
+
     const isUrl = (input: string) => /^https?:\/\/|www\.|.*\.[a-z]{2,}/.test(input.trim());
 
     const handleFindFeed = async () => {
@@ -295,6 +317,23 @@ export default function RSSFeedsPage() {
             showToast('Failed to start scan');
             setScanningAll(false);
             setScanProgress(null);
+        }
+    };
+
+    const handleDownloadOPML = async () => {
+        try {
+            const response = await api.get('/rss-feeds/export_opml/', { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'autonews_feeds.opml');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            showToast('OPML downloaded successfully', 'success');
+        } catch (error: any) {
+            logCaughtError('rss_feeds_opml_export', error);
+            showToast('Failed to export OPML', 'info');
         }
     };
 
@@ -500,6 +539,13 @@ export default function RSSFeedsPage() {
                         <Upload size={20} />
                         Bulk Import
                     </Link>
+                    <button
+                        onClick={handleDownloadOPML}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                        <Download size={20} />
+                        Download OPML
+                    </button>
                     <div className="flex flex-col gap-1">
                         <button
                             onClick={handleScanAll}
@@ -1026,6 +1072,13 @@ export default function RSSFeedsPage() {
 
                                             <div className="flex flex-col gap-2 ml-4">
                                                 <button
+                                                    onClick={() => handleOpenPreview(feed)}
+                                                    className="flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 text-sm font-medium"
+                                                >
+                                                    <Eye size={16} />
+                                                    Preview
+                                                </button>
+                                                <button
                                                     onClick={() => handleScanNow(feed.id)}
                                                     disabled={scanning === feed.id}
                                                     className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm"
@@ -1085,6 +1138,59 @@ export default function RSSFeedsPage() {
                     <button onClick={() => setToast(null)} className="ml-2 text-white/70 hover:text-white">
                         <X size={14} />
                     </button>
+                </div>
+            )}
+            
+            {/* Preview Modal */}
+            {previewFeed && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh]">
+                        <div className="p-5 flex justify-between items-start border-b border-gray-100">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                    <Eye className="text-purple-600" size={24} />
+                                    {previewFeed.name}
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">Found 5 most recent articles caught by scanner</p>
+                            </div>
+                            <button
+                                onClick={() => setPreviewFeed(null)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-5 overflow-y-auto bg-gray-50 flex-1">
+                            {loadingPreview ? (
+                                <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                                    <RefreshCw className="animate-spin text-purple-600" size={32} />
+                                    <p className="text-sm text-gray-500">Loading preview...</p>
+                                </div>
+                            ) : previewEntries.length === 0 ? (
+                                <div className="py-12 text-center text-gray-500">
+                                    No recent entries found for this feed.
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {previewEntries.map((entry, idx) => (
+                                        <div key={entry.id || idx} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                            <a href={entry.link} target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-900 hover:text-purple-600 flex items-start gap-2">
+                                                <span>{entry.title}</span>
+                                                <ExternalLink size={14} className="flex-shrink-0 mt-1" />
+                                            </a>
+                                            <div className="mt-2 text-xs text-gray-500 flex items-center gap-3">
+                                                <span>{formatDate(entry.published)}</span>
+                                                <span className={`px-2 py-0.5 rounded-full font-medium ${entry.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                    {entry.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

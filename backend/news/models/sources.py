@@ -50,7 +50,24 @@ class RSSFeed(models.Model):
     
     # Settings
     is_enabled = models.BooleanField(default=True, help_text="Enable monitoring for this feed")
+    scan_frequency = models.IntegerField(
+        choices=[(15, '15 Minutes'), (60, '1 Hour'), (360, '6 Hours'), (720, '12 Hours'), (1440, '24 Hours')],
+        default=720,
+        help_text="How often to automatically scan this feed (in minutes)"
+    )
+    include_keywords = models.TextField(
+        blank=True,
+        help_text="Comma-separated keywords. If set, article MUST contain at least one to be saved."
+    )
+    exclude_keywords = models.TextField(
+        blank=True,
+        help_text="Comma-separated keywords. If set, article will be skipped if it contains any of these."
+    )
     auto_publish = models.BooleanField(default=False, help_text="Automatically publish articles (skip review)")
+    auto_publish_min_score = models.IntegerField(
+        default=0,
+        help_text="Minimum AI Quality Score (0-100) required to auto-publish articles from this feed."
+    )
     default_category = models.ForeignKey(
         'Category', on_delete=models.SET_NULL, null=True, blank=True,
         help_text="Default category for articles from this feed"

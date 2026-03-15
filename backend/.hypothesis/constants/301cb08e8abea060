@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/auto_publisher.py
+# hypothesis_version: 6.151.9
+
+[0.7, 100, 120, 500, '-quality_score', 'News', 'Unknown', 'YouTube', 'ai-fact-check-block', 'article_ids', 'as draft', 'auto_failed', 'created_at', 'drafted', 'failed', 'image_policy', 'is_published', 'news', 'no eligible articles', 'off', 'pending', 'published', 'review', 'rss_feed', 'safety_score', 'skipped_duplicate', 'skipped_no_image', 'skipped_safety', 'skipped_warnings', 'success', 'suggested_category', 'tfidf_matrix', 'unsafe', 'vectorizer', 'youtube']

@@ -43,6 +43,10 @@ export default function EditRSSFeedPage() {
         default_category: '',
         logo_url: '',
         description: '',
+        scan_frequency: 60,
+        include_keywords: '',
+        exclude_keywords: '',
+        auto_publish_min_score: 0,
     });
 
     useEffect(() => {
@@ -72,6 +76,10 @@ export default function EditRSSFeedPage() {
                 default_category: data.default_category?.toString() || '',
                 logo_url: data.logo_url || '',
                 description: data.description || '',
+                scan_frequency: data.scan_frequency ?? 60,
+                include_keywords: data.include_keywords || '',
+                exclude_keywords: data.exclude_keywords || '',
+                auto_publish_min_score: data.auto_publish_min_score || 0,
             });
         } catch (error) {
             logCaughtError('rss_feed_fetch', error);
@@ -103,9 +111,17 @@ export default function EditRSSFeedPage() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
+        
+        let parsedValue: any = value;
+        if (type === 'checkbox') {
+            parsedValue = (e.target as HTMLInputElement).checked;
+        } else if (type === 'number') {
+            parsedValue = value === '' ? '' : Number(value);
+        }
+
         setFormData(prev => ({
             ...prev,
-            [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+            [name]: parsedValue,
         }));
         // Clear test result when URL changes
         if (name === 'feed_url') {
@@ -257,6 +273,72 @@ export default function EditRSSFeedPage() {
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
                             />
                             <p className="text-xs text-gray-500 mt-1">Main website of the brand/source</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filtering Section */}
+                <div className="border-b pb-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">🔍 Filters & Scheduling</h2>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Scan Frequency (minutes)
+                            </label>
+                            <input
+                                type="number"
+                                name="scan_frequency"
+                                value={formData.scan_frequency}
+                                onChange={handleChange}
+                                min="10"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">How often the server should check for new articles (default 60)</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Include Keywords (comma-separated)
+                            </label>
+                            <input
+                                type="text"
+                                name="include_keywords"
+                                value={formData.include_keywords}
+                                onChange={handleChange}
+                                placeholder="e.g. EV, electric, hybrid"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Only process articles containing at least one of these keywords (Optional)</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Exclude Keywords (comma-separated)
+                            </label>
+                            <input
+                                type="text"
+                                name="exclude_keywords"
+                                value={formData.exclude_keywords}
+                                onChange={handleChange}
+                                placeholder="e.g. recall, crash, lawsuit"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Skip articles containing any of these keywords (Optional)</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Auto-Publish Minimum AI Score
+                            </label>
+                            <input
+                                type="number"
+                                name="auto_publish_min_score"
+                                value={formData.auto_publish_min_score}
+                                onChange={handleChange}
+                                min="0"
+                                max="10"
+                                placeholder="0"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">If set {'>'} 0, overrides the global minimum required AI score for auto-publishing articles from this feed</p>
                         </div>
                     </div>
                 </div>

@@ -136,11 +136,20 @@ def get_competitor_context(
         candidates = list(segment_qs.select_related('article')[:50])
 
         def sort_key(v):
-            """Sort: ML-scored > spec-rich > alphabetical."""
+            """Sort: Exact body type > ML-scored > spec-rich > alphabetical."""
             key = (v.make.lower(), v.model_name.lower())
             avg_eng, pair_cnt = score_map.get(key, (None, 0))
+            
+            # Add a slight randomization to prevent always picking the exact same #1
+            import random
+            random_jitter = random.uniform(-0.5, 0.5)
+            
             # Primary: known engagement (higher = better), unknown = -1
-            eng_sort = avg_eng if avg_eng is not None else -1.0
+            eng_sort = (avg_eng + random_jitter) if avg_eng is not None else -1.0
+            
+            # NEW: prioritize exact body type match
+            is_same_body = 1 if body_type and v.body_type and v.body_type.lower() == body_type.lower() else 0
+            
             # Secondary: how many specs are filled (more = richer candidate)
             spec_richness = sum([
                 1 if v.power_hp else 0,
@@ -149,7 +158,7 @@ def get_competitor_context(
                 1 if v.battery_kwh else 0,
                 1 if v.acceleration_0_100 else 0,
             ])
-            return (-eng_sort, -spec_richness)
+            return (-is_same_body, -eng_sort, -spec_richness)
 
         candidates.sort(key=sort_key)
 
@@ -205,6 +214,7 @@ def get_competitor_context(
             "CARS ALREADY IN OUR DATABASE — USE FOR COMPARISON in the 'How It Compares' section:\n"
             + "\n".join(lines)
             + "\n\nWhen writing the 'How It Compares' section, cite these exact figures from our database."
+            "\nMake sure to compare the subject car against ALL of the provided competitors above to provide a comprehensive market overview."
             "\nCRITICAL: Do NOT invent or fabricate competitor data. Use ONLY the cars listed above."
             "\nIf no cars are listed, do NOT include a 'How It Compares' section."
         )

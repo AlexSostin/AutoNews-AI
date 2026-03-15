@@ -226,3 +226,39 @@ class TestAutoPublisher:
 
         # Only the one with image should be published
         assert count == 1
+
+    @patch('ai_engine.modules.entity_validator.validate_entities')
+    @patch('ai_engine.modules.publisher.publish_article')
+    def test_feed_specific_min_score_override(self, mock_publish, mock_validate, settings, category, safe_feed):
+        """Feed's auto_publish_min_score should override the global auto_publish_min_quality setting."""
+        mock_validate.return_value = MagicMock(is_valid=True, mismatches=[])
+        mock_publish.return_value = _make_article('Published')
+
+        settings.auto_publish_min_quality = 8
+        settings.save()
+
+        # safe_feed has default auto_publish_min_score = 0 (or null), so it uses global = 8
+        # Create an article with score 7 (below global threshold) -> should not publish
+        _make_pending(category, safe_feed, quality=7, title='Below Global')
+
+        # Create another feed with specific threshold = 6
+        override_feed = RSSFeed.objects.create(
+            name='Override Feed',
+            feed_url='https://override.com/rss',
+            is_enabled=True,
+            license_status='green',
+            safety_checks={'robots_txt': {'passed': True}, 'terms_of_service': {'passed': True}},
+            image_policy='original',
+            auto_publish_min_score=6
+        )
+
+        # Article from override_feed with score 7 (above feed threshold but below global) -> SHOULD publish
+        _make_pending(category, override_feed, quality=7, title='Override Above Threshold')
+
+        from ai_engine.modules.auto_publisher import auto_publish_pending
+        count, _ = auto_publish_pending()
+
+        # Only the article from the override_feed should be published
+        assert mock_publish.call_count == 1
+        assert mock_publish.call_args[1]['title'] == 'Override Above Threshold'
+        assert count == 1

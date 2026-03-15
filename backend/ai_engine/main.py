@@ -149,7 +149,7 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', 
 # Workflow 2: Pending Article (new scheduler flow)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def create_pending_article(youtube_url, channel_id, video_title, video_id, provider='gemini'):
+def create_pending_article(youtube_url, channel_id, video_title, video_id, provider='gemini', generation_source='Unknown'):
     """Generate article and save as PendingArticle (NEW flow)"""
     
     # Setup Django
@@ -231,6 +231,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         web_ctx = result.get('web_context', '')
         if web_ctx:
             specs_with_context['web_context'] = web_ctx[:10000]  # cap at 10k chars
+        specs_with_context['generation_source'] = generation_source
 
         pending = PendingArticle.objects.create(
             youtube_channel=channel,

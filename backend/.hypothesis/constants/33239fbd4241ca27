@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/youtube.py
+# hypothesis_version: 6.151.9
+
+[500, 600, '--channel_id', 'ai_engine', 'approved', 'article_status', 'caveated', 'channel', 'channel_id', 'channel_url', 'content', 'count', 'done', 'draft', 'error', 'gemini', 'get', 'id', 'manage.py', 'manual_admin_ui', 'message', 'not_found', 'pending', 'pending_id', 'post', 'provider', 'published', 'quota', 'rejected', 'removed', 'replaced', 'result', 'running', 'scan_youtube', 'status', 'success', 'task_id', 'task_id is required', 'video_id', 'video_title', 'video_url', 'videos', 'warning', 'web_context']

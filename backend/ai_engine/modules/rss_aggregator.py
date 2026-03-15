@@ -659,6 +659,7 @@ class RSSAggregator:
                 images=images,
                 featured_image=images[0] if images else '',
                 suggested_category=rss_feed.default_category,
+                specs={'generation_source': 'auto_rss_scanner'},
                 status='pending'
             )
             
@@ -716,6 +717,24 @@ class RSSAggregator:
                 if not plain_text or len(plain_text) < 100:
                     logger.debug(f"Skipping entry with insufficient content ({len(plain_text) if plain_text else 0} chars): {title[:50]}")
                     continue
+                
+                # --- Keyword Filtering ---
+                text_to_check = f"{title} {plain_text}".lower()
+                
+                # Check exclude keywords
+                if rss_feed.exclude_keywords:
+                    excludes = [k.strip().lower() for k in rss_feed.exclude_keywords.split(',') if k.strip()]
+                    if any(exclude in text_to_check for exclude in excludes):
+                        logger.debug(f"Skipping entry due to exclude keyword match: {title[:50]}")
+                        continue
+                        
+                # Check include keywords
+                if rss_feed.include_keywords:
+                    includes = [k.strip().lower() for k in rss_feed.include_keywords.split(',') if k.strip()]
+                    if includes and not any(include in text_to_check for include in includes):
+                        logger.debug(f"Skipping entry due to missing include keywords: {title[:50]}")
+                        continue
+                # -------------------------
                 
                 # Check for duplicates (checks RSSNewsItem, PendingArticle AND Article)
                 is_dup, matched_rss_id = self.is_duplicate(title, plain_text, source_url=source_url)

@@ -253,3 +253,95 @@ class TestExtractOgImage:
     def test_none_url(self, aggregator):
         result = aggregator.extract_og_image(None)
         assert result is None
+
+@pytest.mark.django_db
+class TestKeywordFiltering:
+    """Tests keyword filtering logic in process_feed()."""
+
+    @patch('ai_engine.modules.rss_aggregator.RSSAggregator.fetch_feed')
+    @patch('ai_engine.modules.rss_aggregator.RSSAggregator.is_duplicate')
+    def test_include_keywords_filtering(self, mock_is_duplicate, mock_fetch_feed, aggregator):
+        mock_is_duplicate.return_value = (False, None)
+        import time
+        
+        class MockEntry(dict):
+            def __getattr__(self, name):
+                if name in self:
+                    return self[name]
+                raise AttributeError(f"MockEntry has no attribute '{name}'")
+                
+        entry1 = MockEntry({
+            'title': "Review of the new Electric SUV",
+            'link': "http://example.com/1",
+            'summary': "This is a great electric vehicle that we have been testing over the past week. It has an amazing range and the interior is incredibly spacious. The Battery electric vehicle has finally become mainstream with this new release. The charging speed is extremely fast and the safety features are top notch. Overall, a great electric SUV.",
+            'published_parsed': time.struct_time((2026, 1, 1, 12, 0, 0, 0, 0, 0)),
+            'content': [{'value': '<p>This is a great electric vehicle that we have been testing over the past week. It has an amazing range and the interior is incredibly spacious. The Battery electric vehicle has finally become mainstream with this new release. The charging speed is extremely fast and the safety features are top notch. Overall, a great electric SUV.</p>'}],
+            'description': None,
+        })
+        entry2 = MockEntry({
+            'title': "Detailed look at the Hybrid Sedan",
+            'link': "http://example.com/2",
+            'summary': "Not what we are looking for. However, this is a very long text to ensure that it passes the 100 character minimum length check present in the process_feed method. We just have to make sure it is long enough. The hybrid system is decent but falls short compared to regular. The sedan market is really suffering these days.",
+            'published_parsed': time.struct_time((2026, 1, 1, 13, 0, 0, 0, 0, 0)),
+            'content': [{'value': '<p>Not what we are looking for. However, this is a very long text to ensure that it passes the 100 character minimum length check present in the process_feed method. We just have to make sure it is long enough. The hybrid system is decent but falls short compared to regular. The sedan market is really suffering these days.</p>'}],
+            'description': None,
+        })
+
+        mock_fetch_feed.return_value = MagicMock(entries=[entry1, entry2])
+
+        from news.models import RSSFeed, RSSNewsItem
+        feed = RSSFeed.objects.create(
+            name='Test Feed',
+            feed_url='http://test.com',
+            include_keywords='electric'
+        )
+
+        aggregator.process_feed(feed)
+
+        # Only one item should have been saved (the one containing 'electric')
+        assert RSSNewsItem.objects.filter(rss_feed=feed).count() == 1
+        assert RSSNewsItem.objects.filter(title="Review of the new Electric SUV").exists()
+
+    @patch('ai_engine.modules.rss_aggregator.RSSAggregator.fetch_feed')
+    @patch('ai_engine.modules.rss_aggregator.RSSAggregator.is_duplicate')
+    def test_exclude_keywords_filtering(self, mock_is_duplicate, mock_fetch_feed, aggregator):
+        mock_is_duplicate.return_value = (False, None)
+        import time
+        
+        class MockEntry(dict):
+            def __getattr__(self, name):
+                if name in self:
+                    return self[name]
+                raise AttributeError(f"MockEntry has no attribute '{name}'")
+        
+        entry1 = MockEntry({
+            'title': "Review of the new Sedan",
+            'link': "http://example.com/1",
+            'summary': "A great car that is completely safe and passes all safety standards. The new sedan has excellent mileage and a very comfortable interior. I would recommend this to anyone looking for a solid daily driver. The infotainment system is snappy and the trunk space is surprisingly large for its class.",
+            'published_parsed': time.struct_time((2026, 1, 1, 12, 0, 0, 0, 0, 0)),
+            'content': [{'value': '<p>A great car that is completely safe and passes all safety standards. The new sedan has excellent mileage and a very comfortable interior. I would recommend this to anyone looking for a solid daily driver. The infotainment system is snappy and the trunk space is surprisingly large for its class.</p>'}],
+            'description': None,
+        })
+        entry2 = MockEntry({
+            'title': "Recall issued for hybrid model",
+            'link': "http://example.com/2",
+            'summary': "A massive recall was issued today for multiple vehicles. This recall is extremely serious and consumers should be aware of the potential for a crash. The manufacturer has stated that a fix will be available shortly but until then, extreme caution is advised when driving these affected models.",
+            'published_parsed': time.struct_time((2026, 1, 1, 13, 0, 0, 0, 0, 0)),
+            'content': [{'value': '<p>A massive recall was issued today for multiple vehicles. This recall is extremely serious and consumers should be aware of the potential for a crash. The manufacturer has stated that a fix will be available shortly but until then, extreme caution is advised when driving these affected models.</p>'}],
+            'description': None,
+        })
+
+        mock_fetch_feed.return_value = MagicMock(entries=[entry1, entry2])
+
+        from news.models import RSSFeed, RSSNewsItem
+        feed = RSSFeed.objects.create(
+            name='Test Feed 2',
+            feed_url='http://test2.com',
+            exclude_keywords='recall, crash'
+        )
+
+        aggregator.process_feed(feed)
+
+        # Only one item should have been saved (the one NOT containing 'recall')
+        assert RSSNewsItem.objects.filter(rss_feed=feed).count() == 1
+        assert RSSNewsItem.objects.filter(title="Review of the new Sedan").exists()
