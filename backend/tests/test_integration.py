@@ -67,7 +67,9 @@ class TestGetAvailableProviders:
     def test_gemini_available_when_key_set(self):
         """With GEMINI_API_KEY set, gemini appears in available providers."""
         from ai_engine.modules.ai_provider import get_available_providers
-        with patch('ai_engine.modules.ai_provider.GEMINI_API_KEY', 'test-key'):
+        with patch('ai_engine.modules.ai_provider.GEMINI_API_KEY', 'test-key'), \
+             patch('ai_engine.modules.ai_provider.GENAI_AVAILABLE', True), \
+             patch('ai_engine.modules.ai_provider.gemini_client', MagicMock()):
             result = get_available_providers()
             names = [p['name'] for p in result]
             assert 'gemini' in names
