@@ -25,6 +25,7 @@ class ArticleCopilotMixin:
         
         selected_text = request.data.get('text', '').strip()
         instruction = request.data.get('instruction', '').strip()
+        article_context = request.data.get('context', {})
         
         if not selected_text:
             return Response({'error': 'No text provided for editing.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -53,6 +54,16 @@ class ArticleCopilotMixin:
                 "3. Preserve the original HTML formatting tags (like <p>, <strong>, <h2>) unless instructed otherwise. "
                 "4. If the input has no HTML tags, return plain text."
             )
+            
+            if article_context:
+                system_prompt += (
+                    "\n\n--- FULL ARTICLE CONTEXT FOR REFERENCE ---\n"
+                    f"Title: {article_context.get('title', 'N/A')}\n"
+                    f"Tags: {', '.join(article_context.get('tags', []))}\n"
+                    f"Summary: {article_context.get('summary', 'N/A')}\n"
+                    "You MUST NOT rewrite the full article. You MUST ONLY rewrite the specific 'ORIGINAL TEXT' you are given below, "
+                    "using the knowledge from the full article context if it helps."
+                )
             
             prompt = f"INSTRUCTION: {instruction}\n\nORIGINAL TEXT:\n{selected_text}"
             

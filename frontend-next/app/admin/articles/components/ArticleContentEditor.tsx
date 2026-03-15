@@ -47,6 +47,12 @@ interface ArticleContentEditorProps {
     isAutoResolving?: boolean;
     hasYoutubeUrl: boolean;
     articleSlug?: string;
+    articleContext?: {
+        title: string;
+        tags: string[];
+        summary: string;
+        content: string;
+    };
     onEditorChange?: (v: string) => void;
 }
 
@@ -149,6 +155,7 @@ export function ArticleContentEditor({
     isAutoResolving,
     hasYoutubeUrl,
     articleSlug,
+    articleContext,
     onEditorChange,
 }: ArticleContentEditorProps) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -243,10 +250,22 @@ export function ArticleContentEditor({
 
                                             try {
                                                 const slug = articleSlug || window.location.pathname.split('/')[3];
-                                                const response = await api.post(`/articles/${slug}/ai_edit_chunk/`, {
+                                                
+                                                // Prepare payload
+                                                const payload: any = {
                                                     text: selectedText,
                                                     instruction: data.instruction
-                                                });
+                                                };
+                                                
+                                                // Always pass current accurate content length directly from editor for context
+                                                if (articleContext) {
+                                                    payload.context = {
+                                                        ...articleContext,
+                                                        content: editor.getContent()
+                                                    };
+                                                }
+                                                
+                                                const response = await api.post(`/articles/${slug}/ai_edit_chunk/`, payload);
                                                 
                                                 const result = response.data;
                                                 

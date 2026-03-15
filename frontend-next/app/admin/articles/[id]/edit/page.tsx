@@ -387,6 +387,12 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           {/* 2. Article Content (WYSIWYG Editor) */}
           <ArticleContentEditor
             content={formData.content}
+            articleContext={{
+              title: formData.title,
+              tags: tags.filter(t => formData.tags.includes(t.id)).map(t => t.name),
+              summary: formData.summary,
+              content: formData.content, // Will be overridden by the editor's live content
+            }}
             onContentChange={(v: string) => setFormData({ ...formData, content: v })}
             onReformat={async () => {
               if (!articleId || !formData.content.trim()) return;
