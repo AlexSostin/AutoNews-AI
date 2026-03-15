@@ -539,7 +539,7 @@ export default function ArticlesPage() {
                 {articles.map((article) => (
                   <tr key={article.id} className={`hover:bg-gray-50 transition-colors ${deletingId === article.id ? 'opacity-50' : ''}`}>
                     <td className="px-2 py-3">
-                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                      <div className="w-14 h-14 relative rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                         {article.image ? (
                           <Image
                             src={article.image}
