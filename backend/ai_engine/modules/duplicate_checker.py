@@ -200,11 +200,14 @@ def check_car_duplicate(specs, send_progress=None, exclude_article_id=None):
                 'existing_article_id': article.id, 'error': msg,
             }
 
+        import re
+        model_regex = r'\y' + re.escape(car_model) + r'\y'
+        
         # ── Check 2: Article title search (includes drafts) ───────────────────────
         draft_articles = ART.objects.filter(
             created_at__gte=cutoff,
             is_deleted=False,
-            title__icontains=car_model,
+            title__iregex=model_regex,
         ).filter(title__icontains=car_make)
         if exclude_article_id:
             draft_articles = draft_articles.exclude(id=exclude_article_id)
@@ -228,7 +231,7 @@ def check_car_duplicate(specs, send_progress=None, exclude_article_id=None):
         # ── Check 3: PendingArticle queue ─────────────────────────────────────────
         pending_same_car = PA.objects.filter(
             status='pending',
-            title__icontains=car_model,
+            title__iregex=model_regex,
         )
         if car_make:
             pending_same_car = pending_same_car.filter(title__icontains=car_make)
