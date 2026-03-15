@@ -77,14 +77,26 @@ def get_competitor_context(
 
         count = segment_qs.count()
 
-        # Fall back to fuel_type only if body_type narrowed too much
-        if count < 2 and fuel_type and body_type:
-            segment_qs = qs.filter(fuel_type__iexact=fuel_type)
-            count = segment_qs.count()
-
-        # Fall back to all cars (e.g. new fuel type with no history)
+        # Fallback hierarchy:
+        # 1. Same fuel + body (current segment_qs)
+        # 2. Same body (any fuel)
+        # 3. Same fuel (any body)
+        # 4. All cars
         if count < 2:
-            segment_qs = qs
+            if body_type:
+                fallback_qs = qs.filter(body_type__iexact=body_type)
+                if fallback_qs.count() >= 2:
+                    segment_qs = fallback_qs
+                    count = segment_qs.count()
+            
+            if count < 2 and fuel_type:
+                fallback_qs = qs.filter(fuel_type__iexact=fuel_type)
+                if fallback_qs.count() >= 2:
+                    segment_qs = fallback_qs
+                    count = segment_qs.count()
+            
+            if count < 2:
+                segment_qs = qs
 
         # ── Step 3: power proximity filter (±60%) ───────────────────────────
         if power_hp and power_hp > 0:

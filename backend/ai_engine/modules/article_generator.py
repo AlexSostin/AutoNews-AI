@@ -1506,6 +1506,37 @@ Example of good verdict:
             print(f"  ✅ Verdict injected ({len(verdict_para.split())} words)")
     except Exception as e:
         print(f"  ⚠️ Verdict injector failed: {e}")
+        try:
+            print("  🔄 Retrying verdict with Gemini fallback...")
+            fallback_ai = get_ai_provider('gemini')
+            verdict_para = fallback_ai.generate_completion(
+                prompt=verdict_prompt,
+                system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph as instructed.",
+                temperature=0.7,
+                max_tokens=300
+            )
+
+            if verdict_para:
+                verdict_para = verdict_para.strip()
+                if not verdict_para.startswith('<p'):
+                    verdict_para = f'<p>{verdict_para}</p>'
+
+                verdict_para = _re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=_re.IGNORECASE | _re.DOTALL).strip()
+
+                verdict_block = f'{verdict_heading_html}\n{verdict_para}'
+
+                if verdict_match:
+                    html = html[:verdict_match.start(1)] + verdict_block + html[verdict_match.end():]
+                else:
+                    alt_pos = html.find('<div class="alt-texts"')
+                    if alt_pos > 0:
+                        html = html[:alt_pos] + verdict_block + '\n\n' + html[alt_pos:]
+                    else:
+                        html = html.rstrip() + '\n\n' + verdict_block
+
+                print(f"  ✅ Verdict injected with Gemini ({len(verdict_para.split())} words)")
+        except Exception as fb_err:
+            print(f"  ⚠️ Verdict fallback injector also failed: {fb_err}")
 
     return html
 
