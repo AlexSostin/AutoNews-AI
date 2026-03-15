@@ -151,18 +151,37 @@ def _run_rss_scan():
         
         logger.info("[SCHEDULER/RSS] 📡 Auto RSS scan starting...")
         aggregator = RSSAggregator()
-        feeds = RSSFeed.objects.filter(is_enabled=True)
+        feeds = list(RSSFeed.objects.filter(is_enabled=True))
         
+        # Parallel feed processing — 3 workers for ~3x speedup (I/O bound)
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from django.db import close_old_connections as _close_conns
+        
+        RSS_SCAN_WORKERS = 3
         total_created = 0
-        for feed in feeds:
+        
+        def _process_one_feed(feed):
+            """Process a single feed in its own thread."""
+            _close_conns()  # Each thread needs its own DB connection
             try:
-                created = aggregator.process_feed(
+                return aggregator.process_feed(
                     feed, 
                     limit=settings.rss_max_articles_per_scan
                 )
-                total_created += created
             except Exception as e:
                 logger.error(f"[SCHEDULER/RSS] ❌ Feed error '{feed.name}': {e}")
+                return 0
+            finally:
+                _close_conns()
+        
+        with ThreadPoolExecutor(max_workers=RSS_SCAN_WORKERS) as executor:
+            futures = {executor.submit(_process_one_feed, feed): feed for feed in feeds}
+            for future in as_completed(futures):
+                try:
+                    total_created += future.result()
+                except Exception as e:
+                    feed = futures[future]
+                    logger.error(f"[SCHEDULER/RSS] ❌ Worker error '{feed.name}': {e}")
         
         # Score newly created pending articles
         _score_new_pending_articles()

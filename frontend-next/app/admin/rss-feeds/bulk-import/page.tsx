@@ -32,6 +32,43 @@ export default function BulkImportPage() {
             .filter(l => l.length > 0 && (l.startsWith('http://') || l.startsWith('https://')));
     };
 
+    const handleOpmlUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const xmlText = evt.target?.result as string;
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(xmlText, 'text/xml');
+                const outlines = doc.querySelectorAll('outline[xmlUrl]');
+                const urls: string[] = [];
+
+                outlines.forEach((outline) => {
+                    const xmlUrl = outline.getAttribute('xmlUrl');
+                    if (xmlUrl) urls.push(xmlUrl);
+                });
+
+                if (urls.length === 0) {
+                    toast.error('No feed URLs found in OPML file');
+                    return;
+                }
+
+                // Append to existing URLs (or set if empty)
+                const existing = rawUrls.trim();
+                const newText = existing ? `${existing}\n${urls.join('\n')}` : urls.join('\n');
+                setRawUrls(newText);
+                toast.success(`Found ${urls.length} feeds in OPML file`);
+            } catch {
+                toast.error('Failed to parse OPML file — make sure it\'s valid XML');
+            }
+        };
+        reader.readAsText(file);
+        // Reset input so same file can be uploaded again
+        e.target.value = '';
+    };
+
     const updateRow = (idx: number, patch: Partial<FeedRow>) => {
         setFeeds(prev => prev.map((f, i) => i === idx ? { ...f, ...patch } : f));
     };
@@ -136,12 +173,30 @@ export default function BulkImportPage() {
                     Back to RSS Feeds
                 </Link>
                 <h1 className="text-3xl font-bold text-gray-900">Bulk Import RSS Feeds</h1>
-                <p className="text-gray-600 mt-1">Paste a list of RSS feed URLs (one per line) — each will be tested and imported automatically.</p>
+                <p className="text-gray-600 mt-1">Paste a list of RSS feed URLs (one per line) or upload an OPML file.</p>
             </div>
 
             {/* Input form */}
             {!running && !done && (
                 <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+                    {/* OPML Upload */}
+                    <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <Upload size={20} className="text-indigo-600 flex-shrink-0" />
+                        <div className="flex-1">
+                            <p className="text-sm font-medium text-indigo-900">Import from OPML</p>
+                            <p className="text-xs text-indigo-600">Upload an .opml or .xml file exported from Feedly, Inoreader, etc.</p>
+                        </div>
+                        <label className="cursor-pointer px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
+                            Choose File
+                            <input
+                                type="file"
+                                accept=".opml,.xml"
+                                onChange={handleOpmlUpload}
+                                className="hidden"
+                            />
+                        </label>
+                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             RSS Feed URLs <span className="text-gray-400 font-normal">(one per line)</span>
