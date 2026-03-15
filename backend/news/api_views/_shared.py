@@ -46,14 +46,19 @@ def trigger_nextjs_revalidation(paths=None):
         )
         # Production Vercel fallback — if FRONTEND_URL is Docker-internal, also try public URL
         vercel_url = os.environ.get('VERCEL_URL', 'https://www.freshmotors.net')
+        if vercel_url and not vercel_url.startswith('http'):
+            vercel_url = f'https://{vercel_url}'
+            
         secret = os.environ.get('REVALIDATION_SECRET', 'freshmotors-revalidate-2026')
         payload = {
             'secret': secret,
             'paths': paths or ['/', '/articles', '/trending'],
         }
 
+        urls_to_try = [url for url in [frontend_url, vercel_url] if url]
         success = False
-        for url in [frontend_url, vercel_url]:
+        
+        for url in urls_to_try:
             try:
                 resp = http_requests.post(
                     f'{url}/api/revalidate',
@@ -70,7 +75,7 @@ def trigger_nextjs_revalidation(paths=None):
                 logger.debug(f"Next.js revalidation via {url} skipped: {e}")
 
         if not success:
-            logger.warning("Next.js revalidation failed on all URLs")
+            logger.warning(f"Next.js revalidation failed on all URLs: {urls_to_try}")
 
     threading.Thread(target=_revalidate, daemon=True).start()
 
