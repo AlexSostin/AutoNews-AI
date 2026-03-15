@@ -23,6 +23,13 @@ export function ArticleBasicInfo({
     onSummaryChange,
     onSeoDescriptionChange
 }: ArticleBasicInfoProps) {
+    const titleCharCount = title.length;
+    const titleIsGood = titleCharCount >= 50 && titleCharCount <= 90;
+    const titleIsOver = titleCharCount > 90;
+
+    const summaryCharCount = summary.length;
+    const summaryWordCount = summary.trim() ? summary.trim().split(/\s+/).length : 0;
+
     const seoCharCount = seoDescription.length;
     const seoIsOver = seoCharCount > 160;
     const seoIsGood = seoCharCount >= 120 && seoCharCount <= 160;
@@ -40,6 +47,18 @@ export function ArticleBasicInfo({
                         placeholder="e.g. The Future of Electric Vehicles"
                         required
                     />
+                    <div className="flex items-center justify-between mt-1.5">
+                        <span className="text-xs text-gray-400">
+                            Recommended: 50-90 characters for SEO
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${
+                            titleIsOver ? 'text-red-500' :
+                            titleIsGood ? 'text-green-600' :
+                            titleCharCount > 0 ? 'text-yellow-600' : 'text-gray-400'
+                        }`}>
+                            {titleCharCount}/90
+                        </span>
+                    </div>
                 </FormField>
 
                 <FormField
@@ -72,6 +91,17 @@ export function ArticleBasicInfo({
                         placeholder="A brief, engaging overview of the article..."
                         required
                     />
+                    <div className="flex items-center justify-between mt-1.5">
+                        <span className="text-xs text-gray-400">
+                            {summaryWordCount} words
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${
+                            summaryCharCount === 0 ? 'text-gray-400' :
+                            summaryWordCount < 30 ? 'text-yellow-600' : 'text-green-600'
+                        }`}>
+                            {summaryCharCount} chars
+                        </span>
+                    </div>
                 </FormField>
 
                 <FormField
