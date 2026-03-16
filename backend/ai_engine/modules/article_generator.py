@@ -170,6 +170,24 @@ _BANNED_INLINE_REPLACEMENTS = [
     (re.compile(r'a key player in', re.I), 'an important model in'),
     (re.compile(r'further enhancing its credentials', re.I), 'additionally'),
     (re.compile(r'contribut(?:ing|es?) to (?:a|the) (?:modern|premium) (?:and (?:premium|modern) )?appearance', re.I), 'adds to the design'),
+    # Round 5: AdSense anti-AI-cliché cleanup (2026-03-16)
+    (re.compile(r'(?:a\s+)?paradigm\s+shift', re.I), 'a major change'),
+    (re.compile(r'(?:a\s+)?tour\s+de\s+force', re.I), 'an impressive achievement'),
+    (re.compile(r'(?:a\s+)?technological\s+tour\s+de\s+force', re.I), 'a strong technical achievement'),
+    (re.compile(r'(?:a\s+)?technological\s+marvel', re.I), 'a well-engineered vehicle'),
+    (re.compile(r'(?:a\s+)?game[\s-]chang(?:ing|er)\s+(?:in\s+)?(?:the\s+)?', re.I), 'notable in '),
+    (re.compile(r'disruptive\s+price', re.I), 'competitive price'),
+    (re.compile(r'disrupt(?:ing|s?)\s+the\s+(?:market|segment|industry)', re.I), 'entering this market'),
+    (re.compile(r'redefin(?:ing|es?)\s+(?:the|what)', re.I), 'expanding'),
+    (re.compile(r'push(?:ing|es?)\s+the\s+(?:boundaries|envelope)', re.I), 'advancing'),
+    (re.compile(r'(?:a\s+)?breath\s+of\s+fresh\s+air', re.I), 'a welcome addition'),
+    (re.compile(r'(?:a\s+)?masterpiece', re.I), 'a well-executed model'),
+    (re.compile(r'without\s+(?:further\s+)?ado', re.I), ''),
+    (re.compile(r'let\'s\s+dive\s+(?:right\s+)?in', re.I), ''),
+    (re.compile(r'(?:truly|undeniably)\s+(?:a\s+)?(?:remarkable|exceptional|extraordinary)', re.I), 'notable'),
+    # Mid-sentence "While X not specified/detailed, Y" → keep only Y
+    (re.compile(r'While\s+(?:the\s+)?(?:exact|specific|precise|detailed)\s+[^,]{5,80}(?:are|is|were)\s+not\s+(?:specified|provided|detailed|disclosed|confirmed|available|announced)[^,]*,\s*', re.I), ''),
+    (re.compile(r'Although\s+(?:the\s+)?(?:exact|specific|precise)\s+[^,]{5,80}(?:are|is)\s+not\s+(?:specified|provided|detailed|disclosed|confirmed)[^,]*,\s*', re.I), ''),
 ]
 
 
@@ -1997,8 +2015,21 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
 ⛔ SOURCE FORMAT RULES (ABSOLUTE — violations will cause rejection):
 - NEVER mention the word "transcript", "video", "YouTube", "footage", "clip", "press release", "source material", or any reference to how the data was collected
 - NEVER write phrases like "not detailed in the provided transcript", "as mentioned in the press release", "the source notes", "based on the transcript", "according to the video"
-- NEVER explain what information is MISSING — if you don't have data, skip the claim silently
-- Write as ORIGINAL JOURNALISM — the reader should never know where the source data came from"""
+- NEVER explain what information is MISSING — if you don't have data, skip the claim silently. NEVER write "not specified", "not detailed", "not disclosed", "not confirmed", "not provided", "not available", "remain unknown", or any variation.
+- Write as ORIGINAL JOURNALISM — the reader should never know where the source data came from
+
+⛔ ANTI-CLICHÉ RULES (Google AdSense compliance):
+- NEVER use these AI-typical phrases: "paradigm shift", "tour de force", "game-changer", "game-changing", "redefines the segment", "disrupting the market", "pushing the boundaries", "breath of fresh air", "masterpiece", "technological marvel"
+- NEVER use hype language: "jaw-dropping", "mind-blowing", "eye-watering", "nothing short of", "extraordinary", "phenomenal"
+- Use SPECIFIC, CONCRETE language instead of vague superlatives
+
+📐 SECTION ORDER — VARY the structure! Do NOT always use the same section order.
+Randomly pick ONE of these structures for each article:
+- Option A: Performance → Design → Technology → Pricing → Final Verdict
+- Option B: Design & First Impressions → Powertrain → Interior Tech → Competitors → Pricing
+- Option C: What Makes It Special → Under the Hood → Living With It → Value Proposition
+- Option D: The Big Picture → Specs Breakdown → Design Language → Price & Competition
+Vary section headers too — don't always use the same H2 titles across articles."""
     
     try:
         # Use AI provider factory
