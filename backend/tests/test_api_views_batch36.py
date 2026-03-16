@@ -180,17 +180,18 @@ class TestBulkReEnrich:
         assert resp.status_code == 200
 
     def test_status_valid(self, staff_client, article):
-        # Start a job first
-        resp = staff_client.post('/api/v1/articles/bulk-re-enrich/', {
-            'mode': 'all',
-        }, format='json', **UA)
-        task_id = resp.data.get('task_id')
-        # Then poll it
-        import time
-        time.sleep(0.5)
+        """Poll a known task_id — inject cache directly to avoid thread race."""
+        from django.core.cache import cache
+        task_id = 'test1234'
+        cache.set(f'bulk_enrich_{task_id}', {
+            'status': 'done', 'current': 1, 'total': 1,
+            'results': [], 'success_count': 1, 'error_count': 0,
+            'message': 'Done', 'elapsed_seconds': 0.1,
+        }, timeout=60)
         resp2 = staff_client.get(
             f'/api/v1/articles/bulk-re-enrich-status/?task_id={task_id}', **UA)
         assert resp2.status_code == 200
+        assert resp2.data['status'] == 'done'
 
     def test_status_invalid(self, staff_client):
         resp = staff_client.get(
