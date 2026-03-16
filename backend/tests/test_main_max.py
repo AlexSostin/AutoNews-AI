@@ -510,8 +510,9 @@ class TestAIEditorUnchanged:
             provider='gemini'
         )
         assert result['success'] is True
-        meta = result['generation_metadata']['ai_editor']
-        assert meta['changed'] is False
+        # AI Editor was removed as dead code — verify key is absent
+        assert 'ai_editor' not in result.get('generation_metadata', {}), \
+            "ai_editor should not exist after dead code removal"
 
 
 class TestWebSocketProgressCover:

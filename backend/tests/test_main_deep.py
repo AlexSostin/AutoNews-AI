@@ -734,8 +734,9 @@ class TestEditorAndTracker:
             provider='gemini'
         )
         assert result['success'] is True
-        editor_meta = result.get('generation_metadata', {}).get('ai_editor', {})
-        assert editor_meta.get('changed') is False or 'error' in editor_meta
+        # AI Editor was removed as dead code — verify key is absent
+        editor_meta = result.get('generation_metadata', {}).get('ai_editor')
+        assert editor_meta is None, "ai_editor should not exist after dead code removal"
 
     @full_pipeline_patches
     def test_provider_tracker_failure(
