@@ -177,6 +177,17 @@ def send_to_channel(article, force: bool = False) -> dict:
         logger.info(f"📱 Telegram auto-post disabled. Use --force or enable TELEGRAM_AUTO_POST.")
         return {'ok': False, 'reason': 'auto_post_disabled'}
 
+    # Duplicate guard: skip if article was already posted to Telegram
+    if not force:
+        try:
+            meta = article.generation_metadata or {}
+            tg_post = meta.get('telegram_post', {})
+            if tg_post.get('message_id') and tg_post.get('posted_at'):
+                logger.info(f"📱 Telegram: article {article.id} already posted (msg_id={tg_post['message_id']}), skipping duplicate")
+                return {'ok': True, 'reason': 'already_posted', 'message_id': tg_post['message_id']}
+        except Exception:
+            pass
+
     message = format_telegram_post(article)
 
     site_url = getattr(settings, 'SITE_URL', 'https://www.freshmotors.net')

@@ -34,9 +34,18 @@ const getApiUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
 };
 
+// Railway CDN blocks requests without User-Agent → returns empty response
+const SSR_HEADERS = {
+  'User-Agent': 'FreshMotors-SSR/1.0 (Next.js)',
+  'Accept': 'application/json',
+};
+
 async function getSettings() {
   try {
-    const res = await fetch(`${getApiUrl()}/settings/`, { next: { revalidate: 300 } });
+    const res = await fetch(`${getApiUrl()}/settings/`, {
+      headers: SSR_HEADERS,
+      next: { revalidate: 300 },
+    });
     if (!res.ok) return null;
     return await res.json();
   } catch { return null; }
@@ -45,6 +54,7 @@ async function getSettings() {
 async function getArticles() {
   try {
     const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
+      headers: SSR_HEADERS,
       next: { revalidate: 60, tags: ['articles'] },
     });
     if (!res.ok) return { results: [] };
@@ -57,6 +67,7 @@ async function getCategories() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(`${getApiUrl()}/categories/`, {
+      headers: SSR_HEADERS,
       next: { revalidate: 300, tags: ['categories'] },
       signal: controller.signal,
     });
@@ -69,7 +80,10 @@ async function getCategories() {
 
 async function getBrands() {
   try {
-    const res = await fetch(`${getApiUrl()}/cars/brands/`, { next: { revalidate: 300 } });
+    const res = await fetch(`${getApiUrl()}/cars/brands/`, {
+      headers: SSR_HEADERS,
+      next: { revalidate: 300 },
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data.slice(0, 8) : [];
