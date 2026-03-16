@@ -109,7 +109,7 @@ export default function ArticleContentWithImages({ content, images, imageSource,
     const parts: ReactElement[] = [];
     let imageIndex = 0;
     let paragraphsSinceLastImage = 0;
-    const PARAGRAPHS_BETWEEN_IMAGES = 3;
+    const PARAGRAPHS_BETWEEN_IMAGES = 5;
 
     topLevelBlocks.forEach((block, idx) => {
       if (block.trim()) {
@@ -118,8 +118,15 @@ export default function ArticleContentWithImages({ content, images, imageSource,
         );
 
         const isParagraph = /^<p[\s>]/i.test(block.trim());
+        const isHeading = /^<h2[\s>]/i.test(block.trim());
+
         if (isParagraph) {
           paragraphsSinceLastImage++;
+        }
+
+        // Don't insert images right before or after a heading — wait for content
+        if (isHeading) {
+          paragraphsSinceLastImage = 0;
         }
 
         if (isParagraph && paragraphsSinceLastImage >= PARAGRAPHS_BETWEEN_IMAGES && imageIndex < images.length) {

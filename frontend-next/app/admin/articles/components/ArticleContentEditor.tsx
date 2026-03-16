@@ -87,7 +87,7 @@ const CustomToolbar = ({
         <button
             type="button"
             onClick={onReformat}
-            disabled={isReformatting || !content.trim()}
+            disabled={isReformatting || !content?.trim()}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
         >
             {isReformatting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}

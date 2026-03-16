@@ -9,7 +9,7 @@ import { X } from 'lucide-react';
 import api from '@/lib/api';
 import { PhotoSearchModal } from './components/PhotoSearchModal';
 import { TagSelector, Category, Tag } from './components/TagSelector';
-import { GallerySection, GallerySectionRef } from './components/GallerySection';
+import { GallerySection, GallerySectionRef, GalleryImage } from './components/GallerySection';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { ArticleBasicInfo } from '../../components/ArticleBasicInfo';
 import { ArticleContentEditor } from '../../components/ArticleContentEditor';
@@ -42,6 +42,78 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [photoSearchQuery, setPhotoSearchQuery] = useState('');
   const [savingPhoto, setSavingPhoto] = useState<string | null>(null);
   const [imageSource, setImageSource] = useState<string>('unknown');
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  // Content backups per slot — used to restore <figure> on Undo
+  const contentBackups = useRef<Record<number, string>>({});
+
+  /**
+   * Sync article HTML content when an image slot changes.
+   * - If newUrl is null (deletion): remove the <figure> block containing the old image
+   * - If newUrl is provided (replacement): update the <img src> in content
+   */
+  const syncContentWithSlotImage = (oldUrl: string | null, newUrl: string | null, slot?: number) => {
+    if (!oldUrl && !slot) return; // nothing to sync
+
+    // RESTORE mode: if oldUrl is null but slot is provided, restore from backup
+    if (!oldUrl && slot && contentBackups.current[slot]) {
+      setFormData((prev: any) => ({
+        ...prev,
+        content: contentBackups.current[slot],
+      }));
+      delete contentBackups.current[slot];
+      return;
+    }
+
+    if (!oldUrl) return;
+
+    setFormData((prev: any) => {
+      let content = prev.content || '';
+      if (!content) return prev;
+
+      // Extract just the pathname/filename from the URL for flexible matching
+      const extractPath = (url: string) => {
+        try {
+          const u = new URL(url);
+          return u.pathname;
+        } catch {
+          return url;
+        }
+      };
+      const oldPath = extractPath(oldUrl);
+
+      if (newUrl) {
+        // REPLACE: swap src attribute in any <img> that matches the old URL
+        const escapedOld = oldUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedPath = oldPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const srcPattern = new RegExp(
+          `(<img\\b[^>]*\\bsrc=["'])(?:[^"']*${escapedPath}|${escapedOld})(["'])`,
+          'gi'
+        );
+        content = content.replace(srcPattern, `$1${newUrl}$2`);
+      } else {
+        // DELETE: save backup before removing (for Undo)
+        if (slot) {
+          contentBackups.current[slot] = content;
+        }
+
+        // Remove only the specific <figure> block containing this image
+        content = content.replace(
+          /\s*<figure[^>]*article-inline-image[^>]*>[\s\S]*?<\/figure>\s*/gi,
+          (match: string) => match.includes(oldPath) || match.includes(oldUrl!) ? '\n' : match
+        );
+
+        // Fallback: also try standalone <img> (not wrapped in figure)
+        const escapedPath = oldPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const imgPattern = new RegExp(
+          `\\s*<img[^>]*src=["'][^"']*${escapedPath}["'][^>]*/?>\\s*`,
+          'gi'
+        );
+        content = content.replace(imgPattern, '\n');
+      }
+
+      return { ...prev, content };
+    });
+  };
 
   // Find Photo functions
   const openPhotoSearch = async (slot: number) => {
@@ -648,8 +720,14 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     setFormData(prev => ({ ...prev, current_image: url, delete_image: false, image: null }));
                     setImageSource('ai_generated');
                   }
-                  if (slot === 2) setFormData(prev => ({ ...prev, current_image_2: url, delete_image_2: false, image_2: null }));
-                  if (slot === 3) setFormData(prev => ({ ...prev, current_image_3: url, delete_image_3: false, image_3: null }));
+                  if (slot === 2) {
+                    syncContentWithSlotImage(formData.current_image_2, url);
+                    setFormData(prev => ({ ...prev, current_image_2: url, delete_image_2: false, image_2: null }));
+                  }
+                  if (slot === 3) {
+                    syncContentWithSlotImage(formData.current_image_3, url);
+                    setFormData(prev => ({ ...prev, current_image_3: url, delete_image_3: false, image_3: null }));
+                  }
                   alert('✅ AI image generated and saved!');
                 }
               } catch (error: any) {
@@ -662,12 +740,82 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             generatingAI={generatingAI}
             restoreYouTubeThumbnail={restoreYouTubeThumbnail}
             restoringYT={restoringYT}
+            galleryImages={galleryImages.map(img => ({
+              id: img.id,
+              image: img.image.startsWith('http') ? img.image : (
+                typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+                  ? `https://heroic-healing-production-2365.up.railway.app${img.image}`
+                  : `http://localhost:8000${img.image}`
+              ),
+              caption: img.caption,
+            }))}
+            onPickFromGallery={async (galleryImageId, galleryImageUrl, targetSlot) => {
+              const slotMap: Record<number, { currentKey: string; deleteKey: string; fileKey: string }> = {
+                1: { currentKey: 'current_image', deleteKey: 'delete_image', fileKey: 'image' },
+                2: { currentKey: 'current_image_2', deleteKey: 'delete_image_2', fileKey: 'image_2' },
+                3: { currentKey: 'current_image_3', deleteKey: 'delete_image_3', fileKey: 'image_3' },
+              };
+              const keys = slotMap[targetSlot];
+              if (!keys) return;
+              // Sync content HTML: replace old slot image with gallery image
+              const oldUrl = (formData as any)[keys.currentKey] || null;
+              if (targetSlot >= 2) syncContentWithSlotImage(oldUrl, galleryImageUrl);
+              setFormData((prev: any) => ({
+                ...prev,
+                [keys.currentKey]: galleryImageUrl,
+                [keys.deleteKey]: false,
+                [keys.fileKey]: null,
+              }));
+              // Delete the gallery image server-side
+              try {
+                await api.delete(`/article-images/${galleryImageId}/`);
+                setGalleryImages(prev => prev.filter(g => g.id !== galleryImageId));
+              } catch (err) {
+                console.error('Failed to delete promoted gallery image:', err);
+              }
+            }}
+            onSlotChange={(slot, oldUrl, newUrl) => {
+              if (slot >= 2) syncContentWithSlotImage(oldUrl, newUrl, slot);
+            }}
           />
 
           {/* 6. Gallery */}
           <GallerySection
             ref={galleryRef}
             articleId={articleId}
+            onGalleryLoaded={setGalleryImages}
+            availableMainSlots={[
+              ...(!formData.current_image || formData.delete_image ? [{ slot: 1, label: 'Image 1' }] : []),
+              ...(!formData.current_image_2 || formData.delete_image_2 ? [{ slot: 2, label: 'Image 2' }] : []),
+              ...(!formData.current_image_3 || formData.delete_image_3 ? [{ slot: 3, label: 'Image 3' }] : []),
+            ]}
+            onPromoteToSlot={async (imageUrl, targetSlot, galleryImageId) => {
+              // Set the gallery image into the target main slot
+              const slotMap: Record<number, { currentKey: string; deleteKey: string; fileKey: string }> = {
+                1: { currentKey: 'current_image', deleteKey: 'delete_image', fileKey: 'image' },
+                2: { currentKey: 'current_image_2', deleteKey: 'delete_image_2', fileKey: 'image_2' },
+                3: { currentKey: 'current_image_3', deleteKey: 'delete_image_3', fileKey: 'image_3' },
+              };
+              const keys = slotMap[targetSlot];
+              if (!keys) return;
+              // Sync content HTML: replace old slot image with promoted gallery image
+              if (targetSlot >= 2) {
+                const oldUrl = (formData as any)[keys.currentKey] || null;
+                syncContentWithSlotImage(oldUrl, imageUrl);
+              }
+              setFormData((prev: any) => ({
+                ...prev,
+                [keys.currentKey]: imageUrl,
+                [keys.deleteKey]: false,
+                [keys.fileKey]: null,
+              }));
+              // Delete the gallery image server-side
+              try {
+                await api.delete(`/article-images/${galleryImageId}/`);
+              } catch (err) {
+                console.error('Failed to delete promoted gallery image:', err);
+              }
+            }}
           />
 
           {/* 7. Publish Settings (at the bottom) */}

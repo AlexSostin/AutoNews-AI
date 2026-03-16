@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Youtube,
   Clock,
@@ -63,6 +63,9 @@ export default function PendingArticlesPage() {
   const [processing, setProcessing] = useState<number | null>(null);
   const [autoResolving, setAutoResolving] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get('highlight');
+  const highlightRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -86,6 +89,15 @@ export default function PendingArticlesPage() {
       setLoading(false);
     }
   };
+
+  // Auto-scroll to highlighted article
+  useEffect(() => {
+    if (highlightId && !loading && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Auto-expand the highlighted article
+      setExpandedId(parseInt(highlightId));
+    }
+  }, [highlightId, loading]);
 
   const handleApprove = async (id: number, publish: boolean = true) => {
     setProcessing(id);
@@ -291,7 +303,15 @@ export default function PendingArticlesPage() {
       <div className="space-y-4">
         {articles.length > 0 ? (
           articles.map((article) => (
-            <div key={article.id} className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div
+              key={article.id}
+              ref={highlightId && article.id === parseInt(highlightId) ? highlightRef : undefined}
+              className={`bg-white rounded-xl shadow-md overflow-hidden transition-all ${
+                highlightId && article.id === parseInt(highlightId)
+                  ? 'ring-2 ring-purple-500 ring-offset-2 shadow-purple-100'
+                  : ''
+              }`}
+            >
               {/* Header */}
               <div className="p-4 sm:p-6 border-b border-gray-100">
                 <div className="flex flex-col sm:flex-row sm:items-start gap-4">

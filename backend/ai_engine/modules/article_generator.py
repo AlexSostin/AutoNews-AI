@@ -1042,6 +1042,12 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
             f'</div>\n'
             f"The first card (class='featured') is ALWAYS the subject car. Other cards are competitors FROM THE LIST ABOVE ONLY.\n"
             f"After the cards, write 1-2 paragraphs analyzing the comparison.\n"
+            f"\n⚠️ PRICE-AWARE COMPARISONS — CRITICAL:\n"
+            f"- Only compare with vehicles in a SIMILAR price range (within ±40% of subject car price).\n"
+            f"- A $22,000 car compared to a $61,000 car is NONSENSICAL and looks unprofessional.\n"
+            f"- If no competitors in the price range exist in the list, pick the CLOSEST by price.\n"
+            f"- Comparison makes sense: $22k vs $27k, $45k vs $55k, $80k vs $100k.\n"
+            f"- Comparison does NOT make sense: $22k vs $61k, $25k vs $80k.\n"
             f"{'='*47}\n"
         )
     else:
@@ -1432,6 +1438,12 @@ Wrap in a dark-background verdict container:
   Be specific: "The daily driver for someone who's outgrown their Model 3".
   Mention 1-2 standout strengths, 1 weakness, and a final recommendation.</p>
 </div>
+⚠️ VERDICT UNIQUENESS — CRITICAL:
+- Do NOT reuse generic verdict templates across articles. Each verdict must be UNIQUE to this specific vehicle.
+- BANNED verdict phrases: "definitive daily driver for the pragmatist", "the definitive [X] for [Y]", "the ultimate [X] for [Y]",
+  "refuses to compromise", "outgrown the limitations", "bridge between", "best bang for your buck"
+- The verdict must reference THIS car's SPECIFIC specs and unique selling points — not generic category praise.
+- A good test: could this verdict apply to 5 other cars? If yes → rewrite it with more specific details.
 ⚠️ DO NOT leave this section empty — it MUST have a full paragraph of at least 60 words.
 ⚠️ Do NOT add a separate <h2>FreshMotors Verdict</h2> heading — the verdict-label inside the block IS the heading.
 ═══════════════════════════════════════════════

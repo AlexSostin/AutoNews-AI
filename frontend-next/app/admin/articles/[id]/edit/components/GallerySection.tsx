@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, ArrowUp } from 'lucide-react';
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import api from '@/lib/api';
 
@@ -13,11 +13,19 @@ export interface GallerySectionRef {
     upload: () => Promise<void>;
 }
 
-interface GallerySectionProps {
-    articleId: string | null;
+export interface AvailableSlot {
+    slot: number;
+    label: string;
 }
 
-export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>(({ articleId }, ref) => {
+interface GallerySectionProps {
+    articleId: string | null;
+    availableMainSlots?: AvailableSlot[];
+    onPromoteToSlot?: (imageUrl: string, targetSlot: number, galleryImageId: number) => void;
+    onGalleryLoaded?: (images: GalleryImage[]) => void;
+}
+
+export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>(({ articleId, availableMainSlots, onPromoteToSlot, onGalleryLoaded }, ref) => {
     const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
     const [newGalleryImages, setNewGalleryImages] = useState<File[]>([]);
     const [uploadingGallery, setUploadingGallery] = useState(false);
@@ -31,7 +39,9 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
     const fetchGalleryImages = async (id: string) => {
         try {
             const response = await api.get(`/article-images/?article=${id}`);
-            setGalleryImages(response.data.results || response.data || []);
+            const images = response.data.results || response.data || [];
+            setGalleryImages(images);
+            onGalleryLoaded?.(images);
         } catch (error) {
             console.error('Failed to fetch gallery images:', error);
         }
@@ -41,11 +51,23 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
         if (!confirm('Delete this gallery image?')) return;
         try {
             await api.delete(`/article-images/${imageId}/`);
-            setGalleryImages(prev => prev.filter(img => img.id !== imageId));
+            const updated = galleryImages.filter(img => img.id !== imageId);
+            setGalleryImages(updated);
+            onGalleryLoaded?.(updated);
         } catch (error) {
             console.error('Failed to delete gallery image:', error);
             alert('Failed to delete image');
         }
+    };
+
+    const handlePromote = (img: GalleryImage, targetSlot: number) => {
+        if (!onPromoteToSlot) return;
+        const fullUrl = getImageUrl(img.image);
+        onPromoteToSlot(fullUrl, targetSlot, img.id);
+        // Remove from gallery list locally
+        const updated = galleryImages.filter(g => g.id !== img.id);
+        setGalleryImages(updated);
+        onGalleryLoaded?.(updated);
     };
 
     const uploadGalleryImages = async () => {
@@ -89,6 +111,8 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
         return `http://localhost:8000${imagePath}`;
     };
 
+    const hasSlots = availableMainSlots && availableMainSlots.length > 0;
+
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="border-b border-gray-100 bg-gray-50/50 p-6 flex items-center gap-3">
@@ -96,6 +120,11 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-teal-500"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
                 </div>
                 <h2 className="text-lg font-semibold text-gray-900">Additional Gallery Images</h2>
+                {hasSlots && (
+                    <span className="ml-auto text-xs text-indigo-600 font-medium bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200">
+                        ↑ Slots available — promote images above
+                    </span>
+                )}
             </div>
             <div className="p-6">
                 <p className="text-sm text-gray-500 mb-4">Add extra images that will appear in the Vehicle Gallery alongside the 3 main images above</p>
@@ -105,6 +134,7 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
                         <div key={img.id}>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Image {index + 4}</label>
                             <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-gray-200 group">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src={getImageUrl(img.image)}
                                     alt={img.caption || `Gallery image ${index + 4}`}
@@ -121,6 +151,23 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
                                     </button>
                                 </div>
                             </div>
+                            {/* Promote to main slot buttons */}
+                            {hasSlots && onPromoteToSlot && (
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                    {availableMainSlots!.map(s => (
+                                        <button
+                                            key={s.slot}
+                                            type="button"
+                                            onClick={() => handlePromote(img, s.slot)}
+                                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 hover:border-indigo-300 transition-all"
+                                            title={`Move this image to ${s.label}`}
+                                        >
+                                            <ArrowUp size={12} />
+                                            {s.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ))}
 
@@ -128,6 +175,7 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
                         <div key={`new-${index}`}>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Image {galleryImages.length + index + 4}</label>
                             <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-green-300 group">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src={URL.createObjectURL(file)}
                                     alt={file.name}

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Loader2, Search, Wand2, Maximize2, Video, Upload, ChevronDown, GripVertical, ArrowLeftRight } from 'lucide-react';
+import { Loader2, Search, Wand2, Maximize2, Video, Upload, ChevronDown, GripVertical, ArrowLeftRight, ImageIcon } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════════════
    ArticleImageManager — Redesigned with:
@@ -54,6 +54,9 @@ interface ArticleImageManagerProps {
     generatingAI: number | null;
     restoreYouTubeThumbnail: () => Promise<void>;
     restoringYT: boolean;
+    galleryImages?: { id: number; image: string; caption: string }[];
+    onPickFromGallery?: (galleryImageId: number, galleryImageUrl: string, targetSlot: number) => void;
+    onSlotChange?: (slot: number, oldUrl: string | null, newUrl: string | null) => void;
 }
 
 // ── Image metadata component ────────────────────────────────────────────
@@ -113,6 +116,8 @@ function SlotActions({
     generatingAI,
     restoringYT,
     canGenerateAI,
+    galleryImages,
+    onPickFromGallery,
 }: {
     slot: number;
     hasImage: boolean;
@@ -125,9 +130,12 @@ function SlotActions({
     generatingAI: number | null;
     restoringYT: boolean;
     canGenerateAI: boolean;
+    galleryImages?: { id: number; image: string; caption: string }[];
+    onPickFromGallery?: (galleryImageId: number, galleryImageUrl: string) => void;
 }) {
     const [open, setOpen] = useState(false);
     const [showAI, setShowAI] = useState(false);
+    const [showGallery, setShowGallery] = useState(false);
     const [aiMode, setAiMode] = useState<'auto' | 'custom'>('auto');
     const [aiStyle, setAiStyle] = useState('scenic_road');
     const [aiCustomPrompt, setAiCustomPrompt] = useState('');
@@ -151,6 +159,7 @@ function SlotActions({
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
                 setOpen(false);
                 setShowAI(false);
+                setShowGallery(false);
             }
         };
         document.addEventListener('mousedown', handler);
@@ -163,7 +172,7 @@ function SlotActions({
         <div className="relative" ref={dropdownRef}>
             <button
                 type="button"
-                onClick={() => { setOpen(!open); setShowAI(false); }}
+                onClick={() => { setOpen(!open); setShowAI(false); setShowGallery(false); }}
                 disabled={isLoading}
                 className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-indigo-500 to-blue-600 text-white rounded-lg hover:from-indigo-600 hover:to-blue-700 transition-all text-sm font-medium disabled:opacity-50 shadow-sm w-full justify-center"
             >
@@ -175,9 +184,9 @@ function SlotActions({
             </button>
 
             {open && (
-                <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden min-w-[220px]">
+                <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white rounded-xl shadow-xl border border-gray-200 min-w-[220px]">
                     {/* Upload */}
-                    <label className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors text-sm text-gray-700">
+                    <label className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors text-sm text-gray-700 rounded-t-xl">
                         <Upload className="w-4 h-4 text-gray-500" />
                         <span>📁 Upload from device</span>
                         <input type="file" accept="image/*" onChange={() => { onUpload(); setOpen(false); }} className="hidden" />
@@ -247,6 +256,46 @@ function SlotActions({
                             <span>🎥 YouTube Thumbnail</span>
                         </button>
                     )}
+
+                    {/* From Gallery */}
+                    {galleryImages && galleryImages.length > 0 && onPickFromGallery && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => { setShowGallery(!showGallery); setShowAI(false); }}
+                                className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm text-gray-700 w-full text-left border-t border-gray-100"
+                            >
+                                <ImageIcon className="w-4 h-4 text-teal-500" />
+                                <span>📸 From Gallery</span>
+                                <span className="ml-auto text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{galleryImages.length}</span>
+                            </button>
+                            {showGallery && (
+                                <div className="border-t border-gray-100 bg-teal-50/50 px-3 py-2 max-h-48 overflow-y-auto">
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                        {galleryImages.map(img => (
+                                            <button
+                                                key={img.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    onPickFromGallery(img.id, img.image);
+                                                    setOpen(false);
+                                                    setShowGallery(false);
+                                                }}
+                                                className="relative group rounded-lg overflow-hidden border-2 border-transparent hover:border-teal-400 transition-all aspect-square"
+                                                title={img.caption || 'Gallery image'}
+                                            >
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={img.image} alt={img.caption || 'Gallery'} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-teal-600/0 group-hover:bg-teal-600/30 transition-all flex items-center justify-center">
+                                                    <span className="text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity drop-shadow">Use</span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             )}
         </div>
@@ -266,6 +315,9 @@ export function ArticleImageManager({
     generatingAI,
     restoreYouTubeThumbnail,
     restoringYT,
+    galleryImages,
+    onPickFromGallery,
+    onSlotChange,
 }: ArticleImageManagerProps) {
 
     const [dragSource, setDragSource] = useState<number | null>(null);
@@ -313,7 +365,7 @@ export function ArticleImageManager({
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
             <div className="border-b border-gray-100 bg-gray-50/50 p-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-lg shadow-sm">
@@ -357,7 +409,7 @@ export function ArticleImageManager({
                         return (
                             <div
                                 key={s.slot}
-                                className={`rounded-xl border-2 transition-all ${isDragTarget
+                                className={`rounded-xl border-2 transition-all overflow-visible ${isDragTarget
                                     ? 'border-indigo-400 bg-indigo-50/30 scale-[1.02]'
                                     : dragOver === idx
                                         ? 'border-blue-300 bg-blue-50/20'
@@ -395,8 +447,8 @@ export function ArticleImageManager({
                                 </div>
 
                                 <div className="p-3 space-y-2">
-                                    {/* Preview area */}
-                                    {currentImg && !isDeleted && (
+                                    {/* Preview area — hide current when new file is staged */}
+                                    {currentImg && !isDeleted && !fileImg && (
                                         <div
                                             className="relative h-48 rounded-lg overflow-hidden border border-gray-200 group cursor-pointer bg-gray-100"
                                             onClick={() => setPreviewImage(currentImg)}
@@ -414,6 +466,7 @@ export function ArticleImageManager({
                                                         e.stopPropagation();
                                                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                         setFormData((prev: any) => ({ ...prev, [s.deleteKey]: true }));
+                                                        onSlotChange?.(s.slot, currentImg || null, null);
                                                     }}
                                                     className="bg-red-500/90 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm hover:bg-red-600 transition-colors font-medium"
                                                 >
@@ -429,8 +482,12 @@ export function ArticleImageManager({
                                             <span>Marked for deletion</span>
                                             <button
                                                 type="button"
-                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                onClick={() => setFormData((prev: any) => ({ ...prev, [s.deleteKey]: false }))}
+                                                onClick={() => {
+                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                    setFormData((prev: any) => ({ ...prev, [s.deleteKey]: false }));
+                                                    // Restore inline image in content (undo the removal)
+                                                    onSlotChange?.(s.slot, null, currentImg || null);
+                                                }}
                                                 className="text-gray-600 underline text-[10px] hover:text-gray-900"
                                             >
                                                 Undo
@@ -443,7 +500,19 @@ export function ArticleImageManager({
                                         <div className="relative h-48 rounded-lg overflow-hidden border-2 border-green-300 bg-gray-100">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src={URL.createObjectURL(fileImg)} alt="Upload preview" className="w-full h-full object-cover" />
-                                            <span className="absolute top-1.5 right-1.5 bg-green-500/90 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm font-medium">📤 New</span>
+                                            <div className="absolute top-1.5 right-1.5 flex gap-1">
+                                                <span className="bg-green-500/90 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm font-medium">📤 New</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                        setFormData((prev: any) => ({ ...prev, [s.fileKey]: null }));
+                                                    }}
+                                                    className="bg-red-500/90 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm hover:bg-red-600 transition-colors font-medium"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
                                             <div className="absolute bottom-1.5 left-1.5 text-[10px] text-white/80 font-mono bg-black/40 px-1.5 py-0.5 rounded">
                                                 {(fileImg.size / 1024).toFixed(0)}KB
                                             </div>
@@ -466,6 +535,19 @@ export function ArticleImageManager({
                                         accept="image/*"
                                         onChange={(e) => {
                                             const file = e.target.files?.[0] || null;
+                                            if (file) {
+                                                // Check for duplicate across other slots
+                                                const otherSlots = slots.filter((_, i) => i !== idx);
+                                                const duplicate = otherSlots.find(other => {
+                                                    const otherFile = formData[other.fileKey] as File | null;
+                                                    return otherFile && otherFile.name === file.name && otherFile.size === file.size;
+                                                });
+                                                if (duplicate) {
+                                                    alert(`⚠️ This image is already staged in ${duplicate.label}. Use a different image.`);
+                                                    e.target.value = '';
+                                                    return;
+                                                }
+                                            }
                                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                             setFormData((prev: any) => ({ ...prev, [s.fileKey]: file, [s.deleteKey]: false }));
                                             if (idx === 0 && file) setImageSource('uploaded');
@@ -486,6 +568,8 @@ export function ArticleImageManager({
                                         generatingAI={generatingAI}
                                         restoringYT={restoringYT}
                                         canGenerateAI={idx === 0 ? !!(currentImg || fileImg) : !!formData.current_image}
+                                        galleryImages={galleryImages}
+                                        onPickFromGallery={onPickFromGallery ? (gId, gUrl) => onPickFromGallery(gId, gUrl, s.slot) : undefined}
                                     />
                                 </div>
                             </div>

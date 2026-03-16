@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, RefreshCw, Loader2, X, Eye, Check, FileText,
   LayoutGrid, List, ExternalLink,
-  Youtube, Trash2, Sparkles, Wand2,
+  Youtube, Trash2, Wand2, Edit,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { logCaughtError } from '@/lib/error-logger';
@@ -637,11 +637,11 @@ export default function VideoInboxPage() {
                     </div>
                   ) : genStatus[v.id]?.status === 'done' ? (
                     <Link
-                      href="/admin/youtube-channels/pending"
+                      href={genStatus[v.id]?.pendingId ? `/admin/youtube-channels/pending?highlight=${genStatus[v.id]?.pendingId}` : '/admin/youtube-channels/pending'}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-50 text-green-600 border border-green-200 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors"
                     >
-                      <Sparkles size={14} />
-                      Article created!
+                      <Edit size={14} />
+                      Review & Edit
                       <ExternalLink size={12} />
                     </Link>
                   ) : (v.status === 'approved' && v.generation_error) || genStatus[v.id]?.status === 'error' ? (
@@ -768,10 +768,10 @@ export default function VideoInboxPage() {
                         </span>
                       ) : genStatus[v.id]?.status === 'done' ? (
                         <Link
-                          href="/admin/youtube-channels/pending"
+                          href={genStatus[v.id]?.pendingId ? `/admin/youtube-channels/pending?highlight=${genStatus[v.id]?.pendingId}` : '/admin/youtube-channels/pending'}
                           className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-green-100 transition-colors"
                         >
-                          <Sparkles size={12} /> View in Pending <ExternalLink size={10} />
+                          <Edit size={12} /> Review & Edit <ExternalLink size={10} />
                         </Link>
                       ) : (v.status === 'approved' && v.generation_error) ? (
                         <button

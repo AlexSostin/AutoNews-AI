@@ -200,6 +200,50 @@ SUMMARY: [your 400-500 word rich summary here]
         return None
 
 
+def _validate_specs(specs: dict) -> dict:
+    """Sanitize extracted specs — reject garbage values that AI sometimes hallucinates."""
+    if not specs:
+        return specs
+
+    # Define realistic ranges for numeric fields
+    RANGES = {
+        'horsepower': (50, 2500),
+        'torque': (50, 2500),       # Nm
+        'top_speed': (80, 500),     # km/h
+        'range': (50, 2500),        # km
+    }
+    for key, (lo, hi) in RANGES.items():
+        val = specs.get(key)
+        if not val or val == 'Not specified':
+            continue
+        nums = re.findall(r'\d+', str(val))
+        if nums:
+            n = int(nums[0])
+            if not (lo <= n <= hi):
+                print(f"⚠️ Specs validation: {key}={val!r} out of range ({lo}-{hi}), clearing")
+                specs[key] = None
+
+    # Validate year
+    year = specs.get('year')
+    if year:
+        year_nums = re.findall(r'\d{4}', str(year))
+        if year_nums and not (2018 <= int(year_nums[0]) <= 2028):
+            print(f"⚠️ Specs validation: year={year!r} out of range, clearing")
+            specs['year'] = None
+
+    # Validate acceleration (0-100 in 1.5-25 seconds)
+    accel = specs.get('acceleration')
+    if accel and accel != 'Not specified':
+        accel_nums = re.findall(r'[\d.]+', str(accel))
+        if accel_nums:
+            a = float(accel_nums[0])
+            if not (1.5 <= a <= 25):
+                print(f"⚠️ Specs validation: acceleration={accel!r} out of range, clearing")
+                specs['acceleration'] = None
+
+    return specs
+
+
 def _auto_add_drivetrain_tag(specs: dict, tag_names: list) -> None:
     """Auto-add drivetrain tag (AWD/FWD/RWD/4WD) if present in specs and not yet tagged."""
     drivetrain = specs.get('drivetrain')
@@ -602,6 +646,9 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         except Exception as e:
             print(f"⚠️ Spec refill failed (continuing): {e}")
         
+        # 2.86 SPECS VALIDATION — reject garbage values from AI extraction
+        specs = _validate_specs(specs)
+
         # Step 5.1: POST-ENRICHMENT: re-check drivetrain tag (enricher may have found it)
         _auto_add_drivetrain_tag(specs, tag_names)
         
@@ -843,6 +890,10 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             # Smart truncation — cut at sentence or word boundary, not mid-word
             if len(summary) > 3000:
                 summary = _truncate_summary(summary, max_len=3000)
+            
+            # Card-friendly summary: 200 chars max (for article cards and listing pages)
+            if len(summary) > 200:
+                summary = _truncate_summary(summary, max_len=200)
                 
         if not summary:
             summary = f"Comprehensive review of the {specs.get('make', '')} {specs.get('model', '')}"
@@ -857,10 +908,19 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             make = specs.get('make', '')
             model = specs.get('model', '')
             year = specs.get('year', '')
-            hp = specs.get('horsepower', '')
+            hp_raw = str(specs.get('horsepower', '') or '')
+            
+            # Extract clean numeric HP and validate range (50-2000 is realistic)
+            hp_num = None
+            hp_match = re.search(r'(\d{2,4})', hp_raw)
+            if hp_match:
+                val = int(hp_match.group(1))
+                if 50 <= val <= 2000:
+                    hp_num = val
+            
             if make and model and make != 'Not specified':
                 year_str = f"{year} " if year else ""
-                hp_str = f" {hp} HP" if hp and hp != 'Not specified' else ""
+                hp_str = f" {hp_num} HP" if hp_num else ""
                 seo_description = f"Explore the {year_str}{make} {model}{hp_str}. Full specs, pricing, range, performance data & expert review."
                 if len(seo_description) > 155:
                     seo_description = seo_description[:152] + '...'
