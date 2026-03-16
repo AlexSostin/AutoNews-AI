@@ -46,10 +46,16 @@ sitemaps = {
     'tags': TagSitemap,
 }
 
+from news.health import health_check, health_check_detailed, readiness_check
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('news.api_urls')),  # API endpoints
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    # Health checks — keep Railway warm, used by UptimeRobot / monitoring
+    path('health/', health_check, name='health_check'),
+    path('health/detailed/', health_check_detailed, name='health_check_detailed'),
+    path('health/ready/', readiness_check, name='readiness_check'),
     path('', include('news.urls')),  # robots.txt is handled in news.urls
 ]
 
