@@ -21,11 +21,27 @@ function stripAltTextsDiv(html: string): string {
   return html.replace(/<div[^>]*class=["']alt-texts["'][^>]*>[\s\S]*?<\/div>/gi, '').trim();
 }
 
+/**
+ * Strip the leading <h2> title from AI-generated content.
+ * The page template already renders article.title as <h1>,
+ * so the first <h2> in the content is a duplicate that hurts SEO.
+ * Only removes if <h2> appears before the first <p> (i.e. it's the title, not a section heading).
+ */
+function stripLeadingTitleH2(html: string): string {
+  const trimmed = html.trimStart();
+  // Match <h2...>...</h2> at the very start of content
+  const match = trimmed.match(/^<h2[^>]*>[\s\S]*?<\/h2>\s*/i);
+  if (match) {
+    return trimmed.slice(match[0].length);
+  }
+  return html;
+}
+
 export default function ArticleContentWithImages({ content, images, imageSource, authorName, articleId, apiUrl }: ArticleContentWithImagesProps) {
   const [contentParts, setContentParts] = useState<ReactElement[] | null>(null);
 
-  // Prepare clean HTML for SSR fallback (strip alt-texts div)
-  const cleanHtmlForSSR = stripAltTextsDiv(content);
+  // Prepare clean HTML for SSR fallback (strip alt-texts div + duplicate title h2)
+  const cleanHtmlForSSR = stripLeadingTitleH2(stripAltTextsDiv(content));
 
   const handleContentClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const anchor = (e.target as HTMLElement).closest('a');
@@ -76,8 +92,8 @@ export default function ArticleContentWithImages({ content, images, imageSource,
       }
     }
 
-    // Strip the alt-texts div from content before parsing
-    const cleanContent = stripAltTextsDiv(content);
+    // Strip the alt-texts div and duplicate title h2 from content before parsing
+    const cleanContent = stripLeadingTitleH2(stripAltTextsDiv(content));
 
     const topLevelBlocks: string[] = [];
     let current = '';

@@ -114,7 +114,9 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
     const articleContentHtml = (article.content || '')
         .replace(/<div[^>]*class="video-container"[^>]*>[\s\S]*?<\/div>/g, '')
         .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/g, '')
-        .replace(/<div[^>]*class="entity-mismatch-warning"[^>]*>[\s\S]*?<\/div>/g, '');
+        .replace(/<div[^>]*class="entity-mismatch-warning"[^>]*>[\s\S]*?<\/div>/g, '')
+        // Strip leading <h2> title — page already renders <h1> from article.title
+        .replace(/^\s*<h2[^>]*>[\s\S]*?<\/h2>\s*/i, '');
 
     // Inject IDs into H2 headings so ToC links work
     const { html: labelledContent, headings } = extractAndLabelHeadings(articleContentHtml);
