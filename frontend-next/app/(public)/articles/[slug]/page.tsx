@@ -19,6 +19,7 @@ async function fetchWithRetry(url: string, retries = 2, delayMs = 500): Promise<
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, {
+        headers: { 'User-Agent': 'FreshMotors-SSR/1.0 (Next.js)', 'Accept': 'application/json' },
         next: { revalidate: 60 },
         signal: AbortSignal.timeout(8000),
       });

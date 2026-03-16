@@ -45,10 +45,12 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
     if (tag) queryParams.append('tag', tag);
     if (search) queryParams.append('search', search);
 
+    const SSR_HEADERS = { 'User-Agent': 'FreshMotors-SSR/1.0 (Next.js)', 'Accept': 'application/json' };
+
     const [articlesRes, categoriesRes, tagsRes] = await Promise.all([
-      fetch(`${apiUrl}/articles/?${queryParams.toString()}`, { next: { revalidate: 60 } }),
-      fetch(`${apiUrl}/categories/`, { next: { revalidate: 300 } }),
-      fetch(`${apiUrl}/tags/`, { next: { revalidate: 300 } })
+      fetch(`${apiUrl}/articles/?${queryParams.toString()}`, { headers: SSR_HEADERS, next: { revalidate: 60 } }),
+      fetch(`${apiUrl}/categories/`, { headers: SSR_HEADERS, next: { revalidate: 300 } }),
+      fetch(`${apiUrl}/tags/`, { headers: SSR_HEADERS, next: { revalidate: 300 } })
     ]);
 
     if (articlesRes.ok) {

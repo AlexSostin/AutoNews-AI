@@ -31,9 +31,12 @@ const getApiUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL || LOCAL_API_URL;
 };
 
+const SSR_HEADERS = { 'User-Agent': 'FreshMotors-SSR/1.0 (Next.js)', 'Accept': 'application/json' };
+
 async function getCategory(slug: string) {
   try {
     const res = await fetch(`${getApiUrl()}/categories/?search=${slug}`, {
+      headers: SSR_HEADERS,
       next: { revalidate: 3600 }
     });
     if (!res.ok) return null;
@@ -49,7 +52,7 @@ async function getArticlesByCategory(categorySlug: string, page = 1) {
   try {
     const res = await fetch(
       `${getApiUrl()}/articles/?category=${categorySlug}&page=${page}&page_size=12`,
-      { next: { revalidate: 120 } }
+      { headers: SSR_HEADERS, next: { revalidate: 120 } }
     );
     if (!res.ok) return { results: [], count: 0, next: null, previous: null };
     return res.json();
