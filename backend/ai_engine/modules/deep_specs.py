@@ -409,7 +409,7 @@ def generate_deep_vehicle_specs(article, specs=None, web_context='', provider='g
         ai = get_ai_provider(provider)
         
         print(f"🔍 Deep specs enrichment: {make} {model_name} {trim or ''}...")
-        response = ai.generate_completion(prompt, temperature=0.2, max_tokens=1500)
+        response = ai.generate_completion(prompt, temperature=0.2, max_tokens=1500, caller='deep_specs')
         
         data = _parse_ai_response(response)
         if not data:
@@ -906,6 +906,7 @@ No extra text, no markdown, just the JSON object."""
             prompt=prompt,
             temperature=0.2,
             max_tokens=500,
+            caller='deep_specs_refill'
         )
         
         # Parse response

@@ -70,7 +70,8 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.1,
-            max_tokens=1000
+            max_tokens=1000,
+            caller='fact_check'
         )
         
         # Clean response to ensure it's parseable JSON
@@ -325,7 +326,8 @@ Return ONLY valid JSON. No markdown fences, no extra text.
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.1,
-            max_tokens=8192
+            max_tokens=8192,
+            caller='fact_check_fix'
         )
 
         clean_json = response.strip()

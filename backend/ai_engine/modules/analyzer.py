@@ -104,7 +104,8 @@ IMPORTANT:
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.4,
-            max_tokens=2000
+            max_tokens=2000,
+            caller='transcript_analyze'
         )
         
         if not analysis:
@@ -251,8 +252,9 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5], [tag6]
         result = ai.generate_completion(
             prompt=prompt,
             system_prompt="You are an expert automotive content categorizer. Choose tags that exactly match the provided options.",
-            temperature=0.2,  # Low temperature for deterministic categorization
-            max_tokens=400
+            temperature=0.2,
+            max_tokens=400,
+            caller='categorize'
         )
         
         if not result:

@@ -232,6 +232,11 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         if web_ctx:
             specs_with_context['web_context'] = web_ctx[:10000]  # cap at 10k chars
         specs_with_context['generation_source'] = generation_source
+        # Store gallery images (beyond inline 3) for ArticleImage creation on publish
+        gallery_paths = result.get('gallery_paths', [])
+        if gallery_paths:
+            specs_with_context['gallery_images'] = gallery_paths
+            print(f"📸 Storing {len(gallery_paths)} gallery images for later use")
 
         pending = PendingArticle.objects.create(
             youtube_channel=channel,

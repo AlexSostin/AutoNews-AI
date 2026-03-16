@@ -36,6 +36,8 @@ import {
   Waypoints,
   Timer,
   GitCompareArrows,
+  Inbox,
+  Coins,
   LucideIcon
 } from 'lucide-react';
 import { logout, isSuperuser } from '@/lib/auth';
@@ -46,7 +48,7 @@ interface MenuItem {
   icon: LucideIcon;
   label: string;
   superuserOnly?: boolean;
-  badgeKey?: 'comments' | 'feedback' | 'subscribers' | 'rss_pending';
+  badgeKey?: 'comments' | 'feedback' | 'subscribers' | 'rss_pending' | 'video_inbox';
   badgeColor?: string;
 }
 
@@ -91,6 +93,7 @@ const menuSections: MenuSection[] = [
       { href: '/admin/rss-feeds', icon: Rss, label: 'RSS Feeds' },
       { href: '/admin/rss-pending', icon: FileStack, label: 'RSS News', badgeKey: 'rss_pending', badgeColor: 'bg-blue-500' },
       { href: '/admin/youtube-channels', icon: Youtube, label: 'YouTube Channels' },
+      { href: '/admin/video-inbox', icon: Inbox, label: 'Video Inbox', badgeKey: 'video_inbox', badgeColor: 'bg-purple-500' },
     ],
   },
   {
@@ -105,6 +108,7 @@ const menuSections: MenuSection[] = [
     title: 'Tools',
     items: [
       { href: '/admin/automation', icon: Bot, label: 'Automation' },
+      { href: '/admin/token-usage', icon: Coins, label: 'Token Usage' },
       { href: '/admin/ab-testing', icon: FlaskConical, label: 'A/B Testing' },
       { href: '/admin/ads', icon: Megaphone, label: 'Ads / Sponsors' },
       { href: '/admin/health', icon: Activity, label: 'System Health' },

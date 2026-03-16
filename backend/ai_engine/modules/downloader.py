@@ -113,91 +113,111 @@ def download_thumbnail_only(youtube_url):
     return video_id, thumbnail_path, video_title
 
 
-def extract_video_screenshots(youtube_url, output_dir=None, count=1):
+def extract_video_screenshots(youtube_url, output_dir=None, count=6):
     """
-    Downloads the best quality YouTube thumbnail (maxresdefault).
-    Only downloads 1 high-quality image to avoid duplicates.
-    
-    Returns list with single thumbnail path.
+    Downloads YouTube thumbnails: the main cover + up to 3 auto-generated
+    high-res frame captures (maxres1/2/3.jpg) + standard-res frame thumbnails.
+
+    Returns list of up to 7 unique image paths (1 cover + 3 maxres + 3 standard).
     """
     if output_dir is None:
         output_dir = TRANSCRIPTS_DIR
-    
+
     os.makedirs(output_dir, exist_ok=True)
-    
-    # Extract video ID
+
     video_id = extract_video_id(youtube_url)
     if not video_id:
         print("⚠️ Could not extract video ID from URL")
         return []
-    
-    print(f"📸 Downloading best quality YouTube thumbnail for video {video_id}...")
-    
-    # Try only the BEST quality thumbnail to avoid duplicates
-    # YouTube numbered thumbnails often don't exist or return same image
-    thumbnail_urls = [
-        f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",  # 1920x1080 - BEST!
-        f"https://i.ytimg.com/vi/{video_id}/sddefault.jpg",      # 640x480 - Fallback
-        f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",      # 480x360 - Last resort
-        f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",  # Alternative CDN
-        f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg",     # Alternative CDN fallback
-    ]
-    
-    thumbnails = []
-    
+
     import requests
     from PIL import Image
     from io import BytesIO
-    
-    # Browser-like headers (YouTube blocks bare requests)
+
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
     }
-    
-    # Try each URL until we get one good quality image
-    for url in thumbnail_urls:
-        try:
-            response = requests.get(url, timeout=15, headers=headers)
-            content_length = len(response.content)
-            print(f"  Trying {url.split('/')[-1]}: status={response.status_code}, size={content_length} bytes")
-            
-            if response.status_code == 200 and content_length > 5000:  # Min 5KB for quality
-                # Verify it's a valid image
-                try:
+
+    def _download_best(url_variants, output_path, label="image"):
+        """Try URL variants in order, return path if successful."""
+        for url in url_variants:
+            try:
+                response = requests.get(url, timeout=15, headers=headers)
+                content_length = len(response.content)
+                variant_name = url.split('/')[-1]
+
+                if response.status_code == 200 and content_length > 5000:
                     img = Image.open(BytesIO(response.content))
                     width, height = img.size
-                    
-                    # We want at least 480px width for quality
-                    if width >= 480:
-                        # Save thumbnail
-                        output_filename = f"{video_id}_cover.jpg"
-                        output_path = os.path.join(output_dir, output_filename)
-                        
+                    if width >= 320:  # Minimum usable width
                         with open(output_path, 'wb') as f:
                             f.write(response.content)
-                        
-                        thumbnails.append(output_path)
-                        print(f"  ✓ High-quality thumbnail downloaded: {width}x{height} ({content_length//1024}KB)")
-                        break  # Got one good image, stop here!
-                    else:
-                        print(f"  ⚠️ Image too small: {width}x{height}")
-                        
-                except Exception as e:
-                    print(f"  ⚠️ Invalid image from {url}: {e}")
-                    continue
-            elif response.status_code != 200:
-                print(f"  ⚠️ HTTP {response.status_code} for {url.split('/')[-1]}")
-                    
-        except Exception as e:
-            print(f"  ⚠️ Request failed for {url.split('/')[-1]}: {e}")
-            continue
-    
+                        print(f"  ✓ {label}: {variant_name} → {width}x{height} ({content_length//1024}KB)")
+                        return output_path
+            except Exception:
+                continue
+        return None
+
+    thumbnails = []
+    seen_sizes = set()  # Track file sizes to detect duplicates
+
+    def _add_if_unique(path, label):
+        """Add image to list if not a duplicate (by file size)."""
+        if not path:
+            return False
+        file_size = os.path.getsize(path)
+        if file_size in seen_sizes:
+            print(f"  ⚠️ {label} is duplicate (same size), skipping")
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            return False
+        seen_sizes.add(file_size)
+        thumbnails.append(path)
+        return True
+
+    # ── 1. Main cover thumbnail ──
+    print(f"📸 Downloading YouTube thumbnails for {video_id}...")
+    cover_path = os.path.join(output_dir, f"{video_id}_cover.jpg")
+    cover_urls = [
+        f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",
+        f"https://i.ytimg.com/vi/{video_id}/sddefault.jpg",
+        f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+    ]
+    result = _download_best(cover_urls, cover_path, "Cover")
+    _add_if_unique(result, "Cover")
+
+    # ── 2. High-res frame captures (unique frames from the video!) ──
+    # YouTube auto-generates 3 frames at ~25%, ~50%, ~75% of the video.
+    for frame_num in range(1, 4):
+        frame_path = os.path.join(output_dir, f"{video_id}_frame_{frame_num}.jpg")
+        frame_urls = [
+            f"https://i.ytimg.com/vi/{video_id}/maxres{frame_num}.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/sd{frame_num}.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/hq{frame_num}.jpg",
+        ]
+        result = _download_best(frame_urls, frame_path, f"Frame {frame_num}")
+        _add_if_unique(result, f"Frame {frame_num}")
+
+    # ── 3. Standard-resolution thumbnails (additional angles/moments) ──
+    # YouTube provides 0.jpg, 1.jpg, 2.jpg, 3.jpg at different video positions
+    for std_num in range(4):
+        if len(thumbnails) >= 7:  # Max 7 images total
+            break
+        std_path = os.path.join(output_dir, f"{video_id}_std_{std_num}.jpg")
+        std_urls = [
+            f"https://i.ytimg.com/vi/{video_id}/{std_num}.jpg",
+        ]
+        result = _download_best(std_urls, std_path, f"Standard {std_num}")
+        _add_if_unique(result, f"Standard {std_num}")
+
     if thumbnails:
-        print(f"✓ Downloaded best quality thumbnail")
+        print(f"✓ Downloaded {len(thumbnails)} unique thumbnails (1 cover + {len(thumbnails)-1} frames)")
     else:
-        print("⚠️ No thumbnail could be downloaded from any URL")
-    
+        print("⚠️ No thumbnails could be downloaded")
+
     return thumbnails
 
 

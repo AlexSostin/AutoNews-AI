@@ -354,7 +354,7 @@ def _analyze_tos_with_ai(tos_text: str) -> dict:
         provider = get_light_provider()
         
         prompt = AI_TOS_PROMPT.replace('{tos_text}', tos_text)
-        response = provider.generate_completion(prompt, temperature=0.2, max_tokens=1000)
+        response = provider.generate_completion(prompt, temperature=0.2, max_tokens=1000, caller='license_tos')
         
         return _parse_json_response(response)
         
@@ -429,7 +429,7 @@ Rules:
 TERMS OF USE TEXT:
 {tos_text[:3000]}"""
         
-        response = provider.generate_completion(prompt, temperature=0.1, max_tokens=500)
+        response = provider.generate_completion(prompt, temperature=0.1, max_tokens=500, caller='license_images')
         result = _parse_json_response(response)
         
         if result.get('images_allowed'):
@@ -467,7 +467,7 @@ def _analyze_homepage(website_url: str) -> dict:
         provider = get_light_provider()
         
         prompt = AI_HOMEPAGE_PROMPT.replace('{homepage_text}', text)
-        response = provider.generate_completion(prompt, temperature=0.1, max_tokens=500)
+        response = provider.generate_completion(prompt, temperature=0.1, max_tokens=500, caller='license_homepage')
         
         return _parse_json_response(response)
         

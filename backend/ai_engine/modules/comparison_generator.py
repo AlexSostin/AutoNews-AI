@@ -256,6 +256,7 @@ Write the comparison article now:"""
         system_prompt="You are an automotive journalist writing factual comparison articles. Output clean HTML only.",
         temperature=0.65,
         max_tokens=4000,
+        caller='comparison'
     )
 
     if not raw or len(raw) < 200:

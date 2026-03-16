@@ -35,7 +35,7 @@ class AIProvider:
     """Base class for AI providers"""
     
     @staticmethod
-    def generate_completion(prompt, system_prompt=None, temperature=0.8, max_tokens=3000):
+    def generate_completion(prompt, system_prompt=None, temperature=0.8, max_tokens=3000, caller='unknown'):
         raise NotImplementedError
 
 
@@ -43,7 +43,7 @@ class GeminiProvider(AIProvider):
     """Google Gemini AI Provider - Multimodal capabilities (uses google-genai SDK)"""
     
     @staticmethod
-    def generate_completion(prompt, system_prompt=None, temperature=0.8, max_tokens=3000):
+    def generate_completion(prompt, system_prompt=None, temperature=0.8, max_tokens=3000, caller='unknown'):
         if not GEMINI_API_KEY:
             raise Exception("Gemini API key not configured")
         if not GENAI_AVAILABLE or not gemini_client:
@@ -95,6 +95,25 @@ class GeminiProvider(AIProvider):
                     # Record which model succeeded for provider tracker
                     import ai_engine.modules.ai_provider as _self_mod
                     _self_mod._last_model_used = model_name
+                    
+                    # ── Token usage tracking ──────────────────────────
+                    try:
+                        usage = getattr(response, 'usage_metadata', None)
+                        if usage:
+                            prompt_tokens = getattr(usage, 'prompt_token_count', 0) or 0
+                            completion_tokens = getattr(usage, 'candidates_token_count', 0) or 0
+                            from ai_engine.modules.token_tracker import record as _record_tokens
+                            _record_tokens(
+                                caller=caller,
+                                model=model_name,
+                                prompt_tokens=prompt_tokens,
+                                completion_tokens=completion_tokens,
+                            )
+                    except Exception as _tok_err:
+                        # Never let token tracking break generation
+                        pass
+                    # ──────────────────────────────────────────────────
+                    
                     return text
                     
             except Exception as e:

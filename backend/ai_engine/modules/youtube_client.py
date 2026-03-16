@@ -216,3 +216,69 @@ class YouTubeClient:
         except Exception as e:
             print(f"Error fetching playlist items: {e}")
             raise e
+
+    def enrich_videos_metadata(self, videos):
+        """Enrich video list with duration and viewCount from videos.list API.
+        Costs 1 quota unit per 50 videos — very efficient.
+        """
+        if not videos or not self.api_key:
+            return videos
+
+        video_ids = [v['id'] for v in videos if v.get('id')]
+        if not video_ids:
+            return videos
+
+        # YouTube allows up to 50 IDs per request
+        url = f"{self.base_url}/videos"
+        params = {
+            'part': 'contentDetails,statistics',
+            'id': ','.join(video_ids),
+            'key': self.api_key,
+        }
+
+        try:
+            response = requests.get(url, params=params)
+            if response.status_code != 200:
+                print(f"⚠️ videos.list enrichment failed: {response.status_code}")
+                return videos
+
+            data = response.json()
+            # Build lookup
+            meta_map = {}
+            for item in data.get('items', []):
+                vid = item['id']
+                # Parse ISO 8601 duration (PT1H2M30S → seconds)
+                duration_str = item.get('contentDetails', {}).get('duration', '')
+                duration_sec = self._parse_iso_duration(duration_str)
+                view_count = int(item.get('statistics', {}).get('viewCount', 0))
+                meta_map[vid] = {
+                    'duration_seconds': duration_sec,
+                    'view_count': view_count,
+                }
+
+            # Merge into videos
+            for v in videos:
+                meta = meta_map.get(v.get('id'))
+                if meta:
+                    v['duration_seconds'] = meta['duration_seconds']
+                    v['view_count'] = meta['view_count']
+
+        except Exception as e:
+            print(f"⚠️ Video metadata enrichment error: {e}")
+
+        return videos
+
+    @staticmethod
+    def _parse_iso_duration(iso_str):
+        """Parse ISO 8601 duration like PT1H2M30S → total seconds."""
+        if not iso_str:
+            return None
+        import re as _re
+        match = _re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', iso_str)
+        if not match:
+            return None
+        h = int(match.group(1) or 0)
+        m = int(match.group(2) or 0)
+        s = int(match.group(3) or 0)
+        return h * 3600 + m * 60 + s
+

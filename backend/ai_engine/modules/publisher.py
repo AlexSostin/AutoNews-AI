@@ -240,6 +240,49 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     article.save()
     print(f"  ✓ Article saved with slug: {article.slug}")
     
+    # Replace inline image placeholders {{IMAGE_2}}/{{IMAGE_3}} with <figure> tags
+    if '{{IMAGE_2}}' in article.content or '{{IMAGE_3}}' in article.content:
+        updated_content = article.content
+        inline_replaced = 0
+        
+        for slot, field_name in [(2, 'image_2'), (3, 'image_3')]:
+            placeholder = '{{IMAGE_' + str(slot) + '}}'
+            if placeholder not in updated_content:
+                continue
+            
+            # Get the image URL from the saved field
+            img_field = getattr(article, field_name, None)
+            img_url = ''
+            if img_field:
+                try:
+                    img_url = img_field.url if hasattr(img_field, 'url') and img_field.name else ''
+                except ValueError:
+                    img_url = ''
+            
+            if not img_url:
+                # Check if it was saved as a string URL (Cloudinary)
+                raw_val = getattr(article, field_name, '')
+                if isinstance(raw_val, str) and raw_val.startswith('http'):
+                    img_url = raw_val
+            
+            if img_url:
+                figure_html = (
+                    f'<figure class="article-inline-image">'
+                    f'<img src="{img_url}" alt="{article.title}" loading="lazy" />'
+                    f'</figure>'
+                )
+                updated_content = updated_content.replace(placeholder, figure_html)
+                inline_replaced += 1
+                print(f"  📸 Inline image {slot} inserted into article body")
+            else:
+                # Remove placeholder if no image available
+                updated_content = updated_content.replace(placeholder, '')
+        
+        if inline_replaced > 0:
+            article.content = updated_content
+            article.save(update_fields=['content'])
+            print(f"  ✓ {inline_replaced} inline image(s) embedded into article content")
+    
     # Add category (M2M - must be done after save)
     article.categories.add(category)
     print(f"  ✓ Category assigned: {category_name}")

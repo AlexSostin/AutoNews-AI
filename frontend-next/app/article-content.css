@@ -354,3 +354,32 @@
 .article-content-wrapper .seo-related-links a:hover {
   text-decoration: underline;
 }
+
+/* ── 8. Inline Article Images (auto-inserted from video frames) ───────── */
+.article-content-wrapper .article-inline-image {
+  margin: 2rem 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e0ddd4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.article-content-wrapper .article-inline-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  max-height: 500px;
+}
+
+@media (max-width: 640px) {
+  .article-content-wrapper .article-inline-image {
+    margin: 1.5rem -1rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  .article-content-wrapper .article-inline-image img {
+    max-height: 300px;
+  }
+}

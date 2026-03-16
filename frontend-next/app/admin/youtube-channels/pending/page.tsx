@@ -162,6 +162,21 @@ export default function PendingArticlesPage() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    const count = stats?.pending || 0;
+    if (!confirm(`⚠️ Delete ALL ${count} pending articles (${sourceFilter} source)?\n\nThis cannot be undone!`)) return;
+    try {
+      const res = await api.post('/pending-articles/delete_all/', {
+        source: sourceFilter,
+        status: 'pending',
+      });
+      setMessage({ type: 'success', text: res.data.message || 'Deleted' });
+      fetchData();
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.error || 'Delete failed' });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -180,10 +195,19 @@ export default function PendingArticlesPage() {
           <ArrowLeft size={20} />
           <span className="font-medium">Back to Channels</span>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl sm:text-3xl font-black text-gray-950">Pending Articles</h1>
           <p className="text-gray-500 text-sm">Articles awaiting review and publication</p>
         </div>
+        {(stats?.pending ?? 0) > 0 && (
+          <button
+            onClick={handleDeleteAll}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-sm"
+          >
+            <Trash2 size={16} />
+            Delete All Pending
+          </button>
+        )}
       </div>
 
       {message && (

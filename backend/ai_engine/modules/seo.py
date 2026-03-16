@@ -303,7 +303,7 @@ BAD examples (NEVER generate these):
 
 Reply with ONLY the two titles, one per line. No numbering, no quotes, no explanations."""
 
-        result = ai.generate_completion(prompt, temperature=0.85, max_tokens=200)
+        result = ai.generate_completion(prompt, temperature=0.85, max_tokens=200, caller='title_variants')
         
         lines = [l.strip().strip('"').strip("'") for l in result.strip().split('\n') if l.strip()]
         # Filter out lines that look like numbering or explanations

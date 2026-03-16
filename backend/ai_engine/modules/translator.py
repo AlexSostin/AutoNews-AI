@@ -167,6 +167,7 @@ CRITICAL RULES:
             system_prompt=system_prompt,
             temperature=0.7,
             max_tokens=length_config['max_tokens'],
+            caller='translate'
         )
 
         if not raw_response:

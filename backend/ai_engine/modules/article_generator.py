@@ -31,8 +31,7 @@ except ImportError:
     from modules.ai_provider import get_ai_provider
     from modules.prompt_sanitizer import wrap_untrusted, sanitize_for_prompt, ANTI_INJECTION_NOTICE
 
-# Legacy Groq client for backwards compatibility
-client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+# Note: Legacy direct Groq client removed — all calls go through get_ai_provider()
 
 
 # ── Banned phrase post-processing ──────────────────────────────────────────
@@ -775,13 +774,82 @@ def _clean_source_typos(html: str) -> str:
     return html
 
 
+# ── Empty compare card stripper ────────────────────────────────────────
+def _strip_empty_compare_cards(html: str) -> str:
+    """Remove compare-card divs that have no compare-row children (empty cards)."""
+    # Match individual compare-card blocks (non-featured)
+    card_pattern = re.compile(
+        r'<div\s+class="compare-card">\s*'
+        r'<div\s+class="compare-card-name">.*?</div>\s*'
+        r'((?:<div\s+class="compare-row">.*?</div>\s*)*)'
+        r'</div>',
+        re.DOTALL
+    )
+    
+    removed = 0
+    def _check_card(m):
+        nonlocal removed
+        rows = m.group(1).strip()
+        if not rows:
+            removed += 1
+            return ''  # Remove completely
+        return m.group(0)
+    
+    html = card_pattern.sub(_check_card, html)
+    
+    if removed:
+        print(f"  🗑️ Compare cards: removed {removed} empty competitor card(s)")
+        # Clean up whitespace
+        html = re.sub(r'\n\s*\n\s*\n', '\n\n', html)
+    
+    return html
+
+
+# ── Dedup guard (shared helper) ────────────────────────────────────────
+def _dedup_guard(html: str) -> str:
+    """If the article's first H2 appears twice, trim at second occurrence."""
+    first_h2 = re.search(r'<h2[^>]*>.*?</h2>', html, re.DOTALL)
+    if first_h2:
+        second_pos = html.find(first_h2.group(0), first_h2.end())
+        if second_pos > 0:
+            html = html[:second_pos].rstrip()
+            print(f"  🔁 Dedup guard: trimmed duplicate content at position {second_pos}")
+    return html
+
+
+# ── Provider fallback (shared helper) ──────────────────────────────────
+def _try_fallback_provider(
+    provider: str, prompt: str, system_prompt: str,
+    caller_prefix: str = 'article',
+) -> str:
+    """Try the alternate AI provider as a fallback. Returns content or empty string."""
+    fallback = 'gemini' if provider == 'groq' else 'groq'
+    fallback_display = 'Google Gemini' if fallback == 'gemini' else 'Groq'
+    try:
+        print(f"🔄 Retrying with fallback provider: {fallback_display}...")
+        ai_fallback = get_ai_provider(fallback)
+        content = ai_fallback.generate_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            temperature=0.65,
+            max_tokens=16384,
+            caller=f'{caller_prefix}_fallback'
+        )
+        if content:
+            print(f"✓ Fallback successful with {fallback_display}!")
+            return post_process_article(content)
+    except Exception as fallback_err:
+        logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
+    return ""
+
+
 def post_process_article(html: str) -> str:
     """
     Run the full post-processing pipeline on generated HTML.
 
     Includes: HTML cleanup, banned phrase removal, repetition reduction,
     price validation, duplicate paragraph detection, self-consistency,
-    car name shortening, and source typo fixes.
+    car name shortening, source typo fixes, and empty compare card removal.
 
     This is the single entry-point for callers (RSS generate, merge, publisher, etc.)
     """
@@ -793,6 +861,7 @@ def post_process_article(html: str) -> str:
     html = _check_self_consistency(html)
     html = _shorten_car_names(html)
     html = _clean_source_typos(html)
+    html = _strip_empty_compare_cards(html)
     return html
 
 
@@ -810,7 +879,6 @@ def enhance_existing_article(existing_html: str, specs: dict = None, provider='g
     Returns:
         dict with 'title', 'content', 'summary' or None if enhancement fails
     """
-    import re as _re
     from datetime import datetime
     
     if not existing_html or len(existing_html) < 200:
@@ -875,31 +943,29 @@ OUTPUT the complete enhanced article as HTML."""
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.5,  # Lower temperature for factual enhancement
-            max_tokens=16384
+            max_tokens=16384,
+            caller='article_enhance'
         )
         
         if not enhanced or len(enhanced) < 200:
             return None
         
-        # Clean up
-        enhanced = ensure_html_only(enhanced)
-        enhanced = _clean_banned_phrases(enhanced)
-        enhanced = _reduce_repetition(enhanced)
-        enhanced = _shorten_car_names(enhanced)
+        # Full post-processing pipeline
+        enhanced = post_process_article(enhanced)
         
         # Extract title
-        title_match = _re.search(r'<h2[^>]*>(.*?)</h2>', enhanced)
+        title_match = re.search(r'<h2[^>]*>(.*?)</h2>', enhanced)
         title = title_match.group(1) if title_match else None
         if title:
-            title = _re.sub(r'<[^>]+>', '', title).strip()
+            title = re.sub(r'<[^>]+>', '', title).strip()
         
         # Extract summary
-        summary_match = _re.search(r'<p>(.*?)</p>', enhanced)
+        summary_match = re.search(r'<p>(.*?)</p>', enhanced)
         summary = ''
         if summary_match:
-            summary = _re.sub(r'<[^>]+>', '', summary_match.group(1))[:300]
+            summary = re.sub(r'<[^>]+>', '', summary_match.group(1))[:300]
         
-        word_count = len(_re.sub(r'<[^>]+>', ' ', enhanced).split())
+        word_count = len(re.sub(r'<[^>]+>', ' ', enhanced).split())
         print(f"✓ Enhancement complete: {word_count} words")
         
         return {
@@ -944,24 +1010,37 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
             f"COMPETITOR REFERENCE (from our database):\n"
             f"{competitor_context}\n"
             f"REQUIRED: Include a <h2>How It Compares</h2> section.\n"
+            f"\n"
+            f"⚠️ CRITICAL RULES FOR COMPARISON CARDS:\n"
+            f"1. Use ONLY the competitors listed above from our database. Do NOT add cars that are not listed above.\n"
+            f"2. EVERY competitor card MUST include at least 2 compare-row items (Power + Price at minimum).\n"
+            f"3. If you cannot fill in specs for a competitor — DO NOT add a card for it.\n"
+            f"4. An EMPTY card (just a name, no specs) is WORSE than no card at all — it will be REJECTED.\n"
+            f"5. Copy the EXACT numbers from the competitor reference above into the cards.\n"
+            f"6. EVERY compare-card-name MUST include the full BRAND + MODEL name.\n"
+            f"   ✅ 'Avatr 06 REV', 'XPENG P7 Plus', 'BYD Seal 06 GT'\n"
+            f"   ❌ '06 REV', 'P7 Plus', 'Seal 06 GT' — never use model name without brand\n"
+            f"7. BRAND vs TECH PARTNER — use the CAR BRAND, not the technology supplier:\n"
+            f"   Avatr (NOT Huawei) · Denza (NOT BYD) · AITO (NOT Huawei) · Zeekr (NOT Geely)\n"
+            f"   Huawei/CATL/Qualcomm = tech partners, mention only in body text for their specific contribution\n"
+            f"\n"
             f"Format each competitor as a CARD using this HTML:\n"
             f'<div class="compare-grid">\n'
             f'  <div class="compare-card featured">\n'
             f'    <div class="compare-badge">This Vehicle</div>\n'
-            f'    <div class="compare-card-name">[Year] [Subject Car Name]</div>\n'
+            f'    <div class="compare-card-name">[Year] [Brand] [Model]</div>\n'
             f'    <div class="compare-row"><span class="k">Power</span><span class="v">421 hp</span></div>\n'
             f'    <div class="compare-row"><span class="k">Range</span><span class="v">620 km WLTP</span></div>\n'
             f'    <div class="compare-row"><span class="k">Price</span><span class="v">$34,300</span></div>\n'
             f'  </div>\n'
             f'  <div class="compare-card">\n'
-            f'    <div class="compare-card-name">[Competitor Name]</div>\n'
+            f'    <div class="compare-card-name">[Year] [Brand] [Competitor Model]</div>\n'
             f'    <div class="compare-row"><span class="k">Power</span><span class="v">300 hp</span></div>\n'
             f'    <div class="compare-row"><span class="k">Range</span><span class="v">450 km</span></div>\n'
             f'    <div class="compare-row"><span class="k">Price</span><span class="v">$42,000</span></div>\n'
             f'  </div>\n'
             f'</div>\n'
-            f"The first card (class='featured') is ALWAYS the subject car. Other cards are competitors.\n"
-            f"Include ONLY specs you have confirmed data for in each compare-row.\n"
+            f"The first card (class='featured') is ALWAYS the subject car. Other cards are competitors FROM THE LIST ABOVE ONLY.\n"
             f"After the cards, write 1-2 paragraphs analyzing the comparison.\n"
             f"{'='*47}\n"
         )
@@ -1143,7 +1222,7 @@ CRITICAL REQUIREMENTS:
    RULE: Any spec/number appearing in 3+ separate paragraphs = REPETITION = article will be trimmed.
    RULE: Any descriptive phrase ("6-seater", "commanding presence") appearing 3+ times = REPETITION.
 
-26. **REGION-NEUTRAL writing**:
+8. **REGION-NEUTRAL writing**:
    - Do NOT focus on a single country's market (no "in Australia", "in the US", etc.)
    - Present prices in the ORIGINAL currency from the source, but don't frame the article around one country
    - Use STANDARD CURRENCY CODES: CNY (not RMB), JPY (not ¥), KRW, EUR, GBP, AUD, etc.
@@ -1412,7 +1491,8 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
                 prompt=current_prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
-                max_tokens=16384
+                max_tokens=16384,
+                caller='article_generate'
             )
             
             if not article_content:
@@ -1437,28 +1517,21 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
             
         print(f"✓ Article generated successfully with {provider_display}! Length: {len(article_content)} characters, {word_count} words")
         
-        # Post-processing pipeline (order matters)
-        article_content = ensure_html_only(article_content)         # MD → HTML
-        article_content = _clean_banned_phrases(article_content)     # Filler removal
-        article_content = _validate_prices(article_content)          # Price format fix
-        article_content = _clean_source_typos(article_content)       # Source typo guard
-        article_content = _check_self_consistency(article_content)   # Internal contradiction fix
-        article_content = _detect_duplicate_paragraphs(article_content)  # Duplicate para removal
-        article_content = _reduce_repetition(article_content)        # Spec over-repetition
-        article_content = _shorten_car_names(article_content)        # Name shortening
+        # Full post-processing pipeline (unified)
+        article_content = post_process_article(article_content)
         
-        # Проверка качества статьи
+        # Validate article quality
         quality = validate_article_quality(article_content)
         if not quality['valid']:
             print("⚠️  Article quality issues:")
             for issue in quality['issues']:
                 print(f"   - {issue}")
         
-        # Вычисляем время чтения
+        # Calculate reading time
         reading_time = calculate_reading_time(article_content)
         print(f"📖 Reading time: ~{reading_time} min")
 
-        # Запуск Fact-Checking (если есть web_context)
+        # Run Fact-Checking (if web_context available)
         if web_context:
             try:
                 print("🕵️ Running secondary LLM Fact-Check pass...")
@@ -1470,13 +1543,7 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
         # (Entity validation removed — entity_anchor in prompt is sufficient)
         # (RLAIF Judge removed — was the main source of content truncation/duplication)
         
-        # Dedup guard: if the article's first H2 appears twice, trim at second occurrence
-        first_h2 = re.search(r'<h2[^>]*>.*?</h2>', article_content, re.DOTALL)
-        if first_h2:
-            second_pos = article_content.find(first_h2.group(0), first_h2.end())
-            if second_pos > 0:
-                article_content = article_content[:second_pos].rstrip()
-                print(f"  🔁 Dedup guard: trimmed duplicate content at position {second_pos}")
+        article_content = _dedup_guard(article_content)
 
         # Guaranteed verdict injector — runs a separate short API call if verdict is empty/missing
         article_content = _ensure_verdict_written(article_content, analysis_data, provider)
@@ -1492,27 +1559,8 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
         logger.error(f"Failed analysis_data (first 500 chars): {str(analysis_data)[:500]}")
         print(f"❌ Error during article generation with {provider_display}: {e}")
         
-        # Provider fallback: try alternate provider
-        fallback = 'gemini' if provider == 'groq' else 'groq'
-        fallback_display = 'Google Gemini' if fallback == 'gemini' else 'Groq'
-        try:
-            print(f"🔄 Retrying with fallback provider: {fallback_display}...")
-            ai_fallback = get_ai_provider(fallback)
-            article_content = ai_fallback.generate_completion(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                temperature=0.65,
-                max_tokens=16384
-            )
-            if article_content:
-                print(f"✓ Fallback successful with {fallback_display}!")
-                article_content = ensure_html_only(article_content)
-                article_content = _clean_banned_phrases(article_content)
-                return article_content
-        except Exception as fallback_err:
-            logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
-        
-        return ""
+        # Provider fallback
+        return _try_fallback_provider(provider, prompt, system_prompt, 'article_generate')
 
 
 def _self_review_pass(html: str, analysis_data, provider: str = 'gemini') -> str:
@@ -1521,14 +1569,13 @@ def _self_review_pass(html: str, analysis_data, provider: str = 'gemini') -> str
     Checks spec consistency, premium HTML structure, and overall quality.
     Returns the improved HTML, or the original if the review fails.
     """
-    import re as _re
     import time as _time
 
     start = _time.time()
     print("📝 Running AI Self-Review pass...")
 
     # Extract article plain text for context (truncated for token efficiency)
-    plain_text = _re.sub(r'<[^>]+>', ' ', html)
+    plain_text = re.sub(r'<[^>]+>', ' ', html)
     word_count = len(plain_text.split())
 
     # Skip review for very short articles (press release stubs)
@@ -1599,7 +1646,8 @@ OUTPUT RULES:
             prompt=review_prompt,
             system_prompt="You are a meticulous automotive editor. Review and improve the article, then return the COMPLETE HTML. Make only necessary corrections — do not rewrite good content unnecessarily.",
             temperature=0.3,  # Low temp for precise editing
-            max_tokens=16384
+            max_tokens=16384,
+            caller='article_review'
         )
 
         if not reviewed or len(reviewed) < 200:
@@ -1610,7 +1658,7 @@ OUTPUT RULES:
         reviewed = ensure_html_only(reviewed)
 
         # Sanity check: the reviewed version shouldn't be dramatically shorter
-        reviewed_words = len(_re.sub(r'<[^>]+>', ' ', reviewed).split())
+        reviewed_words = len(re.sub(r'<[^>]+>', ' ', reviewed).split())
         if reviewed_words < word_count * 0.7:
             print(f"  ⚠️ Review truncated article ({reviewed_words} vs {word_count} words), keeping original")
             return html
@@ -1631,16 +1679,15 @@ def _ensure_verdict_written(html: str, analysis_data, provider: str = 'gemini') 
     Post-generation guarantee: if FreshMotors Verdict section is missing or empty,
     make a short targeted API call to write a proper verdict and inject it.
     """
-    import re as _re
 
     # Check if verdict heading exists and has content
-    verdict_match = _re.search(
+    verdict_match = re.search(
         r'(<h2[^>]*>[^<]*(?:verdict|conclusion|final)[^<]*</h2>)(.*?)(?=<h2|<div class="alt-texts"|$)',
-        html, _re.IGNORECASE | _re.DOTALL
+        html, re.IGNORECASE | re.DOTALL
     )
 
     if verdict_match:
-        verdict_content = _re.sub(r'<[^>]+>', ' ', verdict_match.group(2)).strip()
+        verdict_content = re.sub(r'<[^>]+>', ' ', verdict_match.group(2)).strip()
         verdict_words = len(verdict_content.split())
         if verdict_words >= 30:
             return html  # Verdict looks fine
@@ -1651,7 +1698,7 @@ def _ensure_verdict_written(html: str, analysis_data, provider: str = 'gemini') 
         print(f"  🔧 Verdict injector: verdict section missing — generating verdict...")
 
     # Extract article context for the verdict prompt
-    article_text = _re.sub(r'<[^>]+>', ' ', html)[:2500]  # first 2500 chars of plain text
+    article_text = re.sub(r'<[^>]+>', ' ', html)[:2500]  # first 2500 chars of plain text
 
     verdict_prompt = f"""You are writing the final section of an automotive article for FreshMotors.com.
 
@@ -1678,7 +1725,8 @@ Example of good verdict:
             prompt=verdict_prompt,
             system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph as instructed.",
             temperature=0.7,
-            max_tokens=300
+            max_tokens=300,
+            caller='article_verdict'
         )
 
         if verdict_para:
@@ -1688,7 +1736,7 @@ Example of good verdict:
                 verdict_para = f'<p>{verdict_para}</p>'
 
             # Remove any heading the model might have added
-            verdict_para = _re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=_re.IGNORECASE | _re.DOTALL).strip()
+            verdict_para = re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=re.IGNORECASE | re.DOTALL).strip()
 
             verdict_block = f'{verdict_heading_html}\n{verdict_para}'
 
@@ -1713,7 +1761,8 @@ Example of good verdict:
                 prompt=verdict_prompt,
                 system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph as instructed.",
                 temperature=0.7,
-                max_tokens=300
+                max_tokens=300,
+                caller='article_verdict_fallback'
             )
 
             if verdict_para:
@@ -1721,7 +1770,7 @@ Example of good verdict:
                 if not verdict_para.startswith('<p'):
                     verdict_para = f'<p>{verdict_para}</p>'
 
-                verdict_para = _re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=_re.IGNORECASE | _re.DOTALL).strip()
+                verdict_para = re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=re.IGNORECASE | re.DOTALL).strip()
 
                 verdict_block = f'{verdict_heading_html}\n{verdict_para}'
 
@@ -2038,7 +2087,8 @@ Vary section headers too — don't always use the same H2 titles across articles
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.65,
-            max_tokens=16384
+            max_tokens=16384,
+            caller='rss_generate'
         )
         
         if not article_content:
@@ -2046,13 +2096,10 @@ Vary section headers too — don't always use the same H2 titles across articles
             
         print(f"✓ Press release expanded successfully with {provider_display}! Length: {len(article_content)} characters")
         
-        # Post-processing: ensure it's HTML, not Markdown
-        article_content = ensure_html_only(article_content)
-        article_content = _clean_banned_phrases(article_content)
+        # Full post-processing pipeline (unified)
+        article_content = post_process_article(article_content)
         
-        # (review_article removed — rules consolidated into main prompt)
-            
-        # Запуск Fact-Checking (если есть web_context)
+        # Run Fact-Checking (if web_context available)
         if web_context:
             try:
                 print("🕵️ Running secondary LLM Fact-Check pass for Press Release...")
@@ -2072,8 +2119,7 @@ Vary section headers too — don't always use the same H2 titles across articles
             if any('truncated' in i for i in quality['issues']):
                 logger.warning("[ARTICLE-GEN] Content truncated by AI token limit, trimming to last complete tag")
                 # Find last closing tag (</p>, </ul>, </h2>, </div>)
-                import re as _re
-                last_tag = _re.search(r'.*(</(p|ul|ol|h2|h3|div|li)>)', article_content, _re.DOTALL)
+                last_tag = re.search(r'.*(</(p|ul|ol|h2|h3|div|li)>)', article_content, re.DOTALL)
                 if last_tag:
                     article_content = article_content[:last_tag.end()]
                     print(f"  → Trimmed to {len(article_content)} chars")
@@ -2081,13 +2127,7 @@ Vary section headers too — don't always use the same H2 titles across articles
         # (Entity validation removed — entity_anchor in prompt is sufficient)
         # (RLAIF Judge removed — was the main source of content truncation/duplication)
         
-        # Dedup guard: if the article's first H2 appears twice, trim at second occurrence
-        first_h2 = re.search(r'<h2[^>]*>.*?</h2>', article_content, re.DOTALL)
-        if first_h2:
-            second_pos = article_content.find(first_h2.group(0), first_h2.end())
-            if second_pos > 0:
-                article_content = article_content[:second_pos].rstrip()
-                print(f"  🔁 Dedup guard: trimmed duplicate content at position {second_pos}")
+        article_content = _dedup_guard(article_content)
         
         return article_content
         
@@ -2097,24 +2137,8 @@ Vary section headers too — don't always use the same H2 titles across articles
         print(f"❌ Error expanding press release with {provider_display}: {str(e)}")
         
         # Provider fallback
-        fallback = 'gemini' if provider == 'groq' else 'groq'
-        fallback_display = 'Google Gemini' if fallback == 'gemini' else 'Groq'
-        try:
-            print(f"🔄 Retrying with fallback provider: {fallback_display}...")
-            ai_fallback = get_ai_provider(fallback)
-            article_content = ai_fallback.generate_completion(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                temperature=0.65,
-                max_tokens=12000
-            )
-            if article_content:
-                print(f"✓ Fallback successful with {fallback_display}!")
-                article_content = ensure_html_only(article_content)
-                article_content = _clean_banned_phrases(article_content)
-                return article_content
-        except Exception as fallback_err:
-            logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
-        
+        result = _try_fallback_provider(provider, prompt, system_prompt, 'rss_generate')
+        if result:
+            return result
         raise
 
