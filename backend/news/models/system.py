@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils.text import slugify
-from ..image_utils import optimize_image
 
 
 # Intra-package imports to resolve foreign keys if needed
@@ -149,7 +148,15 @@ class EmailPreferences(models.Model):
         return f"Email preferences for {self.user.username}"
 
 class Subscriber(models.Model):
-    """Email newsletter subscribers"""
+    """Email newsletter subscribers.
+    
+    NOTE: Legacy model — consider migrating to NewsletterSubscriber (line ~372)
+    which has additional fields (ip_address, subscribed_at naming).
+    Both tables are actively used in the codebase:
+      - Subscriber: signals.py, search_analytics_views.py, system_graph.py
+      - NewsletterSubscriber: subscribers.py API, newsletter sending
+    A data migration should unify them in the future.
+    """
     email = models.EmailField(unique=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -361,10 +368,15 @@ class ArticleGSCStats(models.Model):
     top_queries = models.JSONField(default=list, blank=True)
     
     class Meta:
-        unique_together = ('article', 'date')
         ordering = ['-date']
         verbose_name = "Article Search Stat"
         verbose_name_plural = "Article Search Stats"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['article', 'date'],
+                name='unique_article_gsc_per_date',
+            ),
+        ]
     
     def __str__(self):
         return f"Stats for {self.article.title} on {self.date}"
@@ -623,14 +635,14 @@ class ArticleImageVariant(models.Model):
             # Deactivate all variants for this article
             cls.objects.filter(article_id=article_id).update(is_active=False)
             
-            # Apply winning title to the article
+            # Apply winning image to the article
             from .content import Article
-            article = Article.objects.get(id=article_id)
-            article.title = best.title
-            article.save(update_fields=['title'])
+            Article.objects.filter(id=article_id).update(
+                featured_image=best.image_url
+            )
             
             winners.append((article_id, best.variant))
-            logger.info(f"A/B winner picked: Article {article_id} → Variant {best.variant} ({best.ctr}% CTR)")
+            logger.info(f"Image A/B winner: Article {article_id} → Variant {best.variant} ({best.ctr}% CTR, src={best.image_source})")
         
         return winners
 
@@ -965,6 +977,14 @@ class AutomationSettings(models.Model):
             modules.append('Auto-Publish')
         if self.telegram_enabled:
             modules.append('Telegram')
+        if self.deep_specs_enabled:
+            modules.append('DeepSpecs')
+        if self.google_indexing_enabled:
+            modules.append('Indexing')
+        if self.comparison_enabled:
+            modules.append('Comparisons')
+        if self.auto_image_mode != 'off':
+            modules.append('AutoImage')
         active = ', '.join(modules) if modules else 'All OFF'
         return f"Automation Settings ({active})"
     
@@ -988,12 +1008,13 @@ class AutomationSettings(models.Model):
             self.auto_image_today_count = 0
             self.google_indexing_today_count = 0
             self.telegram_today_count = 0
+            self.deep_specs_today_count = 0
             self.counters_reset_date = today
             self.save(update_fields=[
                 'auto_publish_today_count',
                 'rss_articles_today', 'youtube_articles_today',
                 'auto_image_today_count', 'google_indexing_today_count',
-                'telegram_today_count',
+                'telegram_today_count', 'deep_specs_today_count',
                 'counters_reset_date'
             ])
     
@@ -1695,8 +1716,6 @@ class WebAuthnCredential(models.Model):
     transports     — ['internal', 'hybrid'] etc.
     device_name    — user-friendly label ("iPhone 15", "Pixel 8")
     """
-    from django.contrib.auth.models import User as _User
-
     user = models.ForeignKey(
         'auth.User',
         on_delete=models.CASCADE,
