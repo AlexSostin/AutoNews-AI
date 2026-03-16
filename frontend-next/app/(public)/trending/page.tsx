@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import TrendingClient from './TrendingClient';
+import { Article } from '@/types';
 
 export const metadata: Metadata = {
   title: 'Trending Articles | Fresh Motors',
@@ -11,18 +12,6 @@ export const metadata: Metadata = {
 };
 
 const API_BASE = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
-
-interface Article {
-  id: number;
-  title: string;
-  slug: string;
-  excerpt?: string;
-  summary?: string;
-  featured_image?: string;
-  published_at?: string;
-  views?: number;
-  category?: { name: string; slug: string };
-}
 
 async function getTrendingArticles(): Promise<{ results: Article[]; count: number }> {
   try {
