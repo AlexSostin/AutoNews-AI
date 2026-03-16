@@ -12,6 +12,7 @@ import sys
 import re
 import logging
 import requests
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ def _generate_title_and_seo(article_html: str, specs: dict) -> dict:
     
     Returns: {'title': str, 'seo_description': str} or None on failure.
     """
-    import re as _re
+    # re already imported globally
     
     try:
         from ai_engine.modules.ai_provider import get_generate_provider
@@ -106,7 +107,7 @@ def _generate_title_and_seo(article_html: str, specs: dict) -> dict:
     range_str = f" • {range_val}" if range_val else ""
     
     # Prepare preview
-    article_preview = _truncate_summary(article_html, max_len=4000)
+    article_preview = _truncate_summary(article_html, max_len=4000)  # uses global re
     
     prompt = f"""Generate a TITLE, SEO DESCRIPTION, and SUMMARY for this car article.
 
@@ -143,7 +144,8 @@ SUMMARY: [your 400-500 word rich summary here]
             prompt=prompt,
             system_prompt="You are a senior automotive SEO specialist and editor. Generate concise metadata and a rich, comprehensive 500-word summary.",
             temperature=0.7,
-            max_tokens=1500
+            max_tokens=1500,
+            caller='title_seo'
         )
 
         
@@ -154,7 +156,7 @@ SUMMARY: [your 400-500 word rich summary here]
         title = None
         seo_desc = None
         
-        import re
+        # re already imported globally
         
         title_match = re.search(r'TITLE:\s*(.+?)(?=\nSEO_DESCRIPTION:|\nSUMMARY:|$)', result, re.IGNORECASE | re.DOTALL)
         seo_match = re.search(r'SEO_?DESCRIPTION:\s*(.+?)(?=\nSUMMARY:|\nTITLE:|$)', result, re.IGNORECASE | re.DOTALL)
@@ -196,6 +198,207 @@ SUMMARY: [your 400-500 word rich summary here]
     except Exception as e:
         print(f"⚠️ _generate_title_and_seo failed: {e}")
         return None
+
+
+def _auto_add_drivetrain_tag(specs: dict, tag_names: list) -> None:
+    """Auto-add drivetrain tag (AWD/FWD/RWD/4WD) if present in specs and not yet tagged."""
+    drivetrain = specs.get('drivetrain')
+    if drivetrain and drivetrain not in ('Not specified', '', None):
+        dt_upper = drivetrain.upper()
+        has_dt_tag = any(t.upper() in ('AWD', 'FWD', 'RWD', '4WD') for t in tag_names)
+        if not has_dt_tag and dt_upper in ('AWD', 'FWD', 'RWD', '4WD'):
+            tag_names.append(dt_upper)
+            print(f"🏷️ Auto-added drivetrain tag: {dt_upper}")
+
+
+def _get_internal_specs_context(specs: dict) -> str:
+    """Check our VehicleSpecs DB for verified specs and return context string for prompt."""
+    try:
+        from news.models.vehicles import VehicleSpecs
+        _make = specs.get('make', '')
+        _model = specs.get('model', '')
+        if not (_make and _model and _make != 'Not specified'):
+            return ""
+        existing = VehicleSpecs.objects.filter(
+            make__iexact=_make,
+            model_name__icontains=_model,
+        ).order_by('-updated_at').first()
+        if not existing:
+            print(f"ℹ️ No existing VehicleSpecs for {_make} {_model}")
+            return ""
+        parts = [
+            f"Make: {existing.make}",
+            f"Model: {existing.model_name}",
+        ]
+        field_map = [
+            ('trim_name', 'Trim'), ('model_year', 'Year'),
+            ('power_hp', 'Power (hp)'), ('power_kw', 'Power (kW)'),
+            ('torque_nm', 'Torque (Nm)'), ('battery_kwh', 'Battery (kWh)'),
+            ('acceleration_0_100', '0-100 (s)'),
+            ('fuel_type', 'Fuel Type'), ('body_type', 'Body Type'),
+            ('drivetrain', 'Drivetrain'),
+        ]
+        for attr, label in field_map:
+            val = getattr(existing, attr, None)
+            if val:
+                parts.append(f"{label}: {val}")
+        range_val = existing.range_wltp or existing.range_cltc or existing.range_epa or existing.range_km
+        if range_val:
+            parts.append(f"Range: {range_val} km")
+        if existing.price_usd_from:
+            parts.append(f"Price: from ${existing.price_usd_from:,}")
+        if len(parts) > 4:
+            ctx = (
+                "\n═══ VERIFIED SPECS FROM OUR DATABASE (HIGH PRIORITY) ═══\n"
+                "We already have this car in our database with VERIFIED specs.\n"
+                "Use these as GROUND TRUTH — they override web search data:\n"
+                + "\n".join(f"  ▸ {p}" for p in parts)
+                + "\n\nIf your article contradicts these numbers, YOUR article is WRONG.\n"
+                "═══════════════════════════════════════════════\n"
+            )
+            print(f"✅ Internal DB match: {existing.make} {existing.model_name} — injecting verified specs")
+            return ctx
+        else:
+            print(f"ℹ️ Internal DB match found but sparse data ({len(parts)} fields)")
+            return ""
+    except Exception as e:
+        print(f"⚠️ Internal spec verification failed (non-fatal): {e}")
+        return ""
+
+
+def _get_competitor_context_safe(specs: dict, send_progress) -> tuple:
+    """Safely look up competitor cars from DB. Returns (context_str, competitor_data_list)."""
+    try:
+        from ai_engine.modules.competitor_lookup import get_competitor_context
+        _make = specs.get('make', '')
+        _model = specs.get('model', '')
+        _fuel_raw = specs.get('powertrain_type') or specs.get('fuel_type') or ''
+        _fuel_map = {
+            'ev': 'EV', 'electric': 'EV', 'bev': 'EV',
+            'phev': 'PHEV', 'plug-in': 'PHEV',
+            'hybrid': 'Hybrid', 'erev': 'Hybrid',
+            'gas': 'Gas', 'petrol': 'Gas', 'ice': 'Gas',
+            'diesel': 'Diesel', 'hydrogen': 'Hydrogen',
+        }
+        _fuel_type = _fuel_map.get(_fuel_raw.lower().strip(), '')
+        _body_type = specs.get('body_type', '')
+        _power_hp = None
+        _price_usd = None
+        try:
+            hp_match = re.search(r'(\d+)\s*(?:hp|HP|bhp)', specs.get('horsepower', ''))
+            if hp_match:
+                _power_hp = int(hp_match.group(1))
+            _price_usd = int(specs.get('price_usd', 0) or 0) or None
+        except Exception:
+            pass
+        if _make and _model:
+            send_progress(4, 64, "🏆 Finding similar cars for comparison...")
+            ctx, data = get_competitor_context(
+                make=_make, model_name=_model,
+                fuel_type=_fuel_type, body_type=_body_type,
+                power_hp=_power_hp, price_usd=_price_usd,
+            )
+            if ctx:
+                print(f"✓ Competitor context: {len(data)} cars found for comparison")
+            else:
+                print("ℹ️ No competitor context — no matching cars in DB yet")
+            return ctx, data
+    except Exception as e:
+        print(f"⚠️ Competitor lookup failed (non-fatal): {e}")
+    return "", []
+
+
+def _inject_inline_image_placeholders(html: str, max_images: int = 2) -> str:
+    """
+    Insert {{IMAGE_2}} and {{IMAGE_3}} placeholders into article HTML
+    at logical section breaks between <h2> headings.
+
+    Strategy:
+    - Find all <h2> section boundaries
+    - Skip sections containing custom blocks (spec-bar, pros-cons, verdict, compare-grid)
+    - Distribute placeholders evenly across remaining text-heavy sections
+    - Insert each placeholder BEFORE the <h2> heading of the target section
+      (so the image appears at the end of the previous section)
+
+    Args:
+        html: Generated article HTML
+        max_images: Number of placeholders to insert (typically 2 for IMAGE_2 + IMAGE_3)
+    
+    Returns:
+        HTML with {{IMAGE_2}} and {{IMAGE_3}} placeholders inserted
+    """
+    # Custom blocks to avoid placing images near
+    SKIP_CLASSES = ['spec-bar', 'pros-cons', 'fm-verdict', 'compare-grid',
+                    'price-tag', 'powertrain-specs']
+
+    # Find all <h2> positions (these are section boundaries)
+    h2_pattern = re.compile(r'<h2[^>]*>', re.IGNORECASE)
+    h2_matches = list(h2_pattern.finditer(html))
+
+    if len(h2_matches) < 3:
+        print(f"  📸 Not enough sections ({len(h2_matches)}) for inline images, skipping")
+        return html
+
+    # Build a list of "insertable" positions (indices of h2 tags where we CAN place an image before)
+    insertable = []
+    for i, match in enumerate(h2_matches):
+        if i == 0:
+            continue  # Never before the first h2 (title)
+
+        # Check the content between this h2 and the previous one
+        prev_end = h2_matches[i - 1].end()
+        section_content = html[prev_end:match.start()]
+
+        # Skip if the section contains custom blocks
+        has_custom_block = any(cls in section_content for cls in SKIP_CLASSES)
+        if has_custom_block:
+            continue
+
+        # Skip if section is too short (< 200 chars of text = probably just a heading + 1 line)
+        text_only = re.sub(r'<[^>]+>', '', section_content).strip()
+        if len(text_only) < 200:
+            continue
+
+        insertable.append(match.start())
+
+    if not insertable:
+        print("  📸 No suitable positions found for inline images")
+        return html
+
+    # Distribute images evenly across available positions
+    num_to_place = min(max_images, len(insertable))
+    if num_to_place == 0:
+        return html
+
+    # Pick evenly spaced positions
+    if num_to_place == 1:
+        chosen_indices = [len(insertable) // 2]
+    else:
+        step = len(insertable) / (num_to_place + 1)
+        chosen_indices = [int(step * (i + 1)) for i in range(num_to_place)]
+        # Clamp to valid range
+        chosen_indices = [min(idx, len(insertable) - 1) for idx in chosen_indices]
+        # Deduplicate
+        chosen_indices = list(dict.fromkeys(chosen_indices))
+
+    # Build placeholder tags (IMAGE_2 = first inline, IMAGE_3 = second inline)
+    placeholders = ['{{IMAGE_2}}', '{{IMAGE_3}}']
+
+    # Insert from end to start (to preserve positions)
+    placed = 0
+    for idx in reversed(chosen_indices):
+        if placed >= len(placeholders):
+            break
+        pos = insertable[idx]
+        placeholder_idx = len(chosen_indices) - 1 - list(reversed(chosen_indices)).index(idx)
+        if placeholder_idx < len(placeholders):
+            tag = placeholders[placeholder_idx]
+            # Insert the placeholder right before the <h2> with a newline
+            html = html[:pos] + f'\n{tag}\n' + html[pos:]
+            placed += 1
+
+    print(f"  📸 Inserted {placed} inline image placeholder(s) into article body")
+    return html
 
 
 def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None):
@@ -304,14 +507,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 tag_names.append(year_str)
                 print(f"🏷️ Auto-added year tag: {year_str}")
         
-        # 2.6.2 AUTO-ADD DRIVETRAIN TAG from enriched specs
-        drivetrain = specs.get('drivetrain')
-        if drivetrain and drivetrain not in ('Not specified', '', None):
-            dt_upper = drivetrain.upper()
-            has_dt_tag = any(t.upper() in ('AWD', 'FWD', 'RWD', '4WD') for t in tag_names)
-            if not has_dt_tag and dt_upper in ('AWD', 'FWD', 'RWD', '4WD'):
-                tag_names.append(dt_upper)
-                print(f"🏷️ Auto-added drivetrain tag: {dt_upper}")
+        _auto_add_drivetrain_tag(specs, tag_names)
         
         # 2.6.3 AUTO-ADD MODEL TAG from DB if not already present
         try:
@@ -406,14 +602,8 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         except Exception as e:
             print(f"⚠️ Spec refill failed (continuing): {e}")
         
-        # 2.9 POST-ENRICHMENT: auto-add drivetrain tag if enricher found it
-        drivetrain = specs.get('drivetrain')
-        if drivetrain and drivetrain not in ('Not specified', '', None):
-            dt_upper = drivetrain.upper()
-            has_dt_tag = any(t.upper() in ('AWD', 'FWD', 'RWD', '4WD') for t in tag_names)
-            if not has_dt_tag and dt_upper in ('AWD', 'FWD', 'RWD', '4WD'):
-                tag_names.append(dt_upper)
-                print(f"🏷️ Auto-added drivetrain tag (post-enrichment): {dt_upper}")
+        # Step 5.1: POST-ENRICHMENT: re-check drivetrain tag (enricher may have found it)
+        _auto_add_drivetrain_tag(specs, tag_names)
         
         # 2.10 AUTO-ADD SEGMENT TAG based on price
         try:
@@ -430,6 +620,9 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                     if price_usd < 25000:
                         tag_names.append('Budget')
                         print(f"🏷️ Auto-added segment: Budget (${price_usd:,.0f})")
+                    elif 25000 <= price_usd < 50000:
+                        tag_names.append('Mid-Range')
+                        print(f"🏷️ Auto-added segment: Mid-Range (${price_usd:,.0f})")
                     elif 50000 <= price_usd < 80000:
                         tag_names.append('Premium')
                         print(f"🏷️ Auto-added segment: Premium (${price_usd:,.0f})")
@@ -444,108 +637,11 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         send_progress(5, 65, f"✍️ Generating article with {provider_name}...")
         print(f"✍️  Generating article...")
         
-        # 2.95 COMPETITOR LOOKUP — enrich prompt with real cars from our DB
-        competitor_context = ""
-        competitor_data = []
-        try:
-            from ai_engine.modules.competitor_lookup import get_competitor_context
-            _make = specs.get('make', '')
-            _model = specs.get('model', '')
-            # Infer fuel_type from specs (EV/PHEV/Gas/Hybrid)
-            _fuel_raw = specs.get('powertrain_type') or specs.get('fuel_type') or ''
-            _fuel_map = {
-                'ev': 'EV', 'electric': 'EV', 'bev': 'EV',
-                'phev': 'PHEV', 'plug-in': 'PHEV',
-                'hybrid': 'Hybrid', 'erev': 'Hybrid',
-                'gas': 'Gas', 'petrol': 'Gas', 'ice': 'Gas',
-                'diesel': 'Diesel', 'hydrogen': 'Hydrogen',
-            }
-            _fuel_type = _fuel_map.get(_fuel_raw.lower().strip(), '')
-            _body_type = specs.get('body_type', '')
-            # Try to parse power_hp from specs string
-            _power_hp = None
-            _price_usd = None
-            try:
-                import re as _re2
-                hp_match = _re2.search(r'(\d+)\s*(?:hp|HP|bhp)', specs.get('horsepower', ''))
-                if hp_match:
-                    _power_hp = int(hp_match.group(1))
-                _price_usd = int(specs.get('price_usd', 0) or 0) or None
-            except Exception:
-                pass
-            if _make and _model:
-                send_progress(4, 64, "🏆 Finding similar cars for comparison...")
-                competitor_context, competitor_data = get_competitor_context(
-                    make=_make,
-                    model_name=_model,
-                    fuel_type=_fuel_type,
-                    body_type=_body_type,
-                    power_hp=_power_hp,
-                    price_usd=_price_usd,
-                )
-                if competitor_context:
-                    print(f"✓ Competitor context: {len(competitor_data)} cars found for comparison")
-                else:
-                    print("ℹ️ No competitor context — no matching cars in DB yet")
-        except Exception as _ce:
-            print(f"⚠️ Competitor lookup failed (non-fatal): {_ce}")
+        # Step 7: COMPETITOR LOOKUP — enrich prompt with real cars from our DB
+        competitor_context, competitor_data = _get_competitor_context_safe(specs, send_progress)
 
-        # 2.96 INTERNAL SPEC VERIFICATION — check our own DB for verified specs
-        internal_specs_context = ""
-        try:
-            from news.models.vehicles import VehicleSpecs
-            _make = specs.get('make', '')
-            _model = specs.get('model', '')
-            if _make and _model and _make != 'Not specified':
-                existing = VehicleSpecs.objects.filter(
-                    make__iexact=_make,
-                    model_name__icontains=_model,
-                ).order_by('-updated_at').first()
-                if existing:
-                    parts = []
-                    parts.append(f"Make: {existing.make}")
-                    parts.append(f"Model: {existing.model_name}")
-                    if existing.trim_name:
-                        parts.append(f"Trim: {existing.trim_name}")
-                    if existing.model_year:
-                        parts.append(f"Year: {existing.model_year}")
-                    if existing.power_hp:
-                        parts.append(f"Power: {existing.power_hp} hp")
-                    if existing.power_kw:
-                        parts.append(f"Power: {existing.power_kw} kW")
-                    if existing.torque_nm:
-                        parts.append(f"Torque: {existing.torque_nm} Nm")
-                    if existing.battery_kwh:
-                        parts.append(f"Battery: {existing.battery_kwh} kWh")
-                    range_val = existing.range_wltp or existing.range_cltc or existing.range_epa or existing.range_km
-                    if range_val:
-                        parts.append(f"Range: {range_val} km")
-                    if existing.acceleration_0_100:
-                        parts.append(f"0-100: {existing.acceleration_0_100}s")
-                    if existing.price_usd_from:
-                        parts.append(f"Price: from ${existing.price_usd_from:,}")
-                    if existing.fuel_type:
-                        parts.append(f"Fuel Type: {existing.fuel_type}")
-                    if existing.body_type:
-                        parts.append(f"Body Type: {existing.body_type}")
-                    if existing.drivetrain:
-                        parts.append(f"Drivetrain: {existing.drivetrain}")
-                    if len(parts) > 4:  # Only inject if we have meaningful data
-                        internal_specs_context = (
-                            "\n═══ VERIFIED SPECS FROM OUR DATABASE (HIGH PRIORITY) ═══\n"
-                            "We already have this car in our database with VERIFIED specs.\n"
-                            "Use these as GROUND TRUTH — they override web search data:\n"
-                            + "\n".join(f"  ▸ {p}" for p in parts)
-                            + "\n\nIf your article contradicts these numbers, YOUR article is WRONG.\n"
-                            "═══════════════════════════════════════════════\n"
-                        )
-                        print(f"✅ Internal DB match: {existing.make} {existing.model_name} — injecting verified specs")
-                    else:
-                        print(f"ℹ️ Internal DB match found but sparse data ({len(parts)} fields)")
-                else:
-                    print(f"ℹ️ No existing VehicleSpecs for {_make} {_model}")
-        except Exception as _vs_e:
-            print(f"⚠️ Internal spec verification failed (non-fatal): {_vs_e}")
+        # Step 8: INTERNAL SPEC VERIFICATION — check our own DB for verified specs
+        internal_specs_context = _get_internal_specs_context(specs)
 
         # Append internal specs to web_context so the generator sees them
         enriched_web_context = web_context
@@ -565,7 +661,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             raise Exception("Article content is empty or too short")
         
         # Stamp the article with AI provider info (hidden from readers, visible in admin)
-        from datetime import datetime
+        # datetime already imported at top level
         gen_stamp = f"<!-- Generated by: {provider_name} | {datetime.now().strftime('%Y-%m-%d %H:%M')} -->"
         article_html = article_html.strip() + f"\n\n{gen_stamp}\n"
         
@@ -626,10 +722,9 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         
         # 4.5. Clean YouTube noise from article body too
         # AI may echo "walk around" in every car name mention
-        import re as _re
-        noise_body_re = _re.compile(
+        noise_body_re = re.compile(
             r'\s+(walk[\s-]*around|walkaround|first\s+look|first\s+drive|test\s+drive)',
-            _re.IGNORECASE
+            re.IGNORECASE
         )
         article_html = noise_body_re.sub('', article_html)
         
@@ -648,7 +743,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         try:
             screenshots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output', 'screenshots')
             os.makedirs(screenshots_dir, exist_ok=True)
-            local_paths = extract_video_screenshots(youtube_url, output_dir=screenshots_dir, count=3)
+            local_paths = extract_video_screenshots(youtube_url, output_dir=screenshots_dir, count=6)
             
             if local_paths:
                 # Upload to Cloudinary immediately
@@ -700,8 +795,15 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             else:
                 send_progress(6, 85, "⚠️ No screenshots found")
         except Exception as e:
-            print(f"⚠️  Ошибка при извлечении/загрузке скриншотов: {e}")
+            print(f"⚠️  Screenshot extraction/upload error: {e}")
             screenshot_paths = []
+        
+        # Split images: first 4 for article (cover + 3 inline), rest for gallery
+        gallery_paths = []
+        if len(screenshot_paths) > 4:
+            gallery_paths = screenshot_paths[4:]
+            screenshot_paths = screenshot_paths[:4]
+            print(f"  📸 Split: {len(screenshot_paths)} inline + {len(gallery_paths)} gallery")
         
         # 6. Create summary/description
         _timings['screenshots'] = round(_time.time() - _t_step, 1)
@@ -775,12 +877,8 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         if isinstance(analysis, dict):
             seo_keywords = generate_seo_keywords(analysis, title)
         
-        # 7. AI Editor — removed (rules consolidated into main generation prompt)
         content_original = article_html  # preserve for metadata
-        _t_step = _time.time()
         send_progress(8, 95, "✅ Generation complete")
-        ai_editor_diff = {'changed': False, 'skipped': True, 'reason': 'consolidated_into_prompt'}
-        _timings['ai_editor'] = round(_time.time() - _t_step, 1)
         
         # 8. SEO Internal Linking
         send_progress(9, 97, "🔗 Injecting SEO internal links...")
@@ -789,14 +887,21 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             article_html = inject_internal_links(article_html, tag_names, specs.get('make'))
         except Exception as seo_err:
             print(f"⚠️ SEO Linker failed: {seo_err}")
+        
+        # 8.5. Inject inline image placeholders into article body
+        # Places {{IMAGE_2}} and {{IMAGE_3}} between h2 sections at logical positions
+        if len(screenshot_paths) >= 2:
+            try:
+                article_html = _inject_inline_image_placeholders(article_html, len(screenshot_paths) - 1)
+            except Exception as img_err:
+                print(f"⚠️ Inline image placeholder injection failed: {img_err}")
             
         # Build generation metadata
         _timings['total'] = round(_time.time() - _t_start, 1)
         generation_metadata = {
             'provider': provider,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'timings': _timings,
-            'ai_editor': ai_editor_diff,
             'competitor_data': competitor_data,  # for ML logging after article save
         }
         print(f"📊 Generation timing: {_timings}")
@@ -833,6 +938,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             'specs': specs,
             'meta_keywords': seo_keywords,
             'image_paths': screenshot_paths,
+            'gallery_paths': gallery_paths,
             'analysis': analysis,
             'web_context': web_context,
             'video_title': video_title,
