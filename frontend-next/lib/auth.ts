@@ -10,6 +10,16 @@ const setCookie = (name: string, value: string, maxAgeSeconds: number = 7 * 24 *
   document.cookie = `${name}=${value}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax${secureFlag}`;
 };
 
+// Helper to delete cookies — MUST match the flags used during creation
+const deleteCookie = (name: string) => {
+  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const secureFlag = isSecure ? '; Secure' : '';
+  // Set max-age=0 to delete. Must include same path/SameSite/Secure flags.
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax${secureFlag}`;
+  // Also try without Secure flag (handles edge cases where cookie was set on HTTP)
+  document.cookie = `${name}=; path=/; max-age=0`;
+};
+
 // Special error class to signal that 2FA is required
 export class TwoFARequiredError extends Error {
   hasPasskeys: boolean;
@@ -147,9 +157,9 @@ export const logout = () => {
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('user');
 
-  // Clear cookies
-  document.cookie = 'access_token=; path=/; max-age=0';
-  document.cookie = 'refresh_token=; path=/; max-age=0';
+  // Clear cookies (must match Secure/SameSite flags used during creation!)
+  deleteCookie('access_token');
+  deleteCookie('refresh_token');
 
   // Очистить пользователя из Sentry
   clearUserContext();
@@ -229,8 +239,8 @@ const _clearAuthData = () => {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('user');
-  document.cookie = 'access_token=; path=/; max-age=0';
-  document.cookie = 'refresh_token=; path=/; max-age=0';
+  deleteCookie('access_token');
+  deleteCookie('refresh_token');
 };
 
 export const getAccessToken = (): string | null => {
