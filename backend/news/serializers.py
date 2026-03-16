@@ -662,6 +662,95 @@ class YouTubeChannelSerializer(serializers.ModelSerializer):
         return obj.default_category.name if obj.default_category else None
 
 
+class YouTubeVideoCandidateSerializer(serializers.ModelSerializer):
+    """Serializer for YouTube Video Inbox candidates."""
+    channel_name = serializers.CharField(source='channel.name', read_only=True)
+    duration_display = serializers.CharField(read_only=True)
+    video_url = serializers.SerializerMethodField()
+    has_article = serializers.SerializerMethodField()
+    article_status = serializers.SerializerMethodField()
+    article_slug = serializers.SerializerMethodField()
+    similar_articles_count = serializers.SerializerMethodField()
+
+    class Meta:
+        from .models import YouTubeVideoCandidate
+        model = YouTubeVideoCandidate
+        fields = [
+            'id', 'channel', 'channel_name', 'video_id', 'title',
+            'description', 'thumbnail_url',
+            'duration_seconds', 'duration_display', 'view_count',
+            'published_at', 'status', 'video_url', 'created_at',
+            'has_article', 'article_status', 'article_slug',
+            'similar_articles_count',
+            'generation_task_id', 'generation_error',
+        ]
+        read_only_fields = ['video_id', 'created_at', 'generation_task_id', 'generation_error']
+
+    def get_video_url(self, obj):
+        return f"https://www.youtube.com/watch?v={obj.video_id}"
+
+    def _get_article_info(self, obj):
+        """Cache article lookup per object — check PendingArticle and Article."""
+        cache_key = f'_article_info_{obj.pk}'
+        if hasattr(self, cache_key):
+            return getattr(self, cache_key)
+
+        from .models import Article, PendingArticle
+
+        # 1) Check published/draft articles by youtube video_id in youtube_url
+        yt_url = f"youtube.com/watch?v={obj.video_id}"
+        article = Article.objects.filter(
+            youtube_url__icontains=obj.video_id, is_deleted=False
+        ).first()
+        if article:
+            info = {
+                'has_article': True,
+                'status': 'published' if article.is_published else 'draft',
+                'slug': article.slug,
+            }
+            setattr(self, cache_key, info)
+            return info
+
+        # 2) Check pending articles (PendingArticle uses 'video_url' and 'video_id')
+        from django.db.models import Q as Q_lookup
+        pending = PendingArticle.objects.filter(
+            Q_lookup(video_url__icontains=obj.video_id) | Q_lookup(video_id=obj.video_id)
+        ).first()
+        if pending:
+            info = {
+                'has_article': True,
+                'status': 'pending',
+                'slug': None,
+            }
+            setattr(self, cache_key, info)
+            return info
+
+        info = {'has_article': False, 'status': None, 'slug': None}
+        setattr(self, cache_key, info)
+        return info
+
+    def get_has_article(self, obj):
+        return self._get_article_info(obj)['has_article']
+
+    def get_article_status(self, obj):
+        return self._get_article_info(obj)['status']
+
+    def get_article_slug(self, obj):
+        return self._get_article_info(obj)['slug']
+
+    def get_similar_articles_count(self, obj):
+        """Count published articles with similar titles (first 5 words)."""
+        from .models import Article
+        words = obj.title.split()[:5]
+        if len(words) < 3:
+            return 0
+        search_fragment = ' '.join(words[:3])
+        return Article.objects.filter(
+            title__icontains=search_fragment,
+            is_deleted=False,
+        ).count()
+
+
 class RSSFeedSerializer(serializers.ModelSerializer):
     pending_count = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()

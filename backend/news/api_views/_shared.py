@@ -54,7 +54,7 @@ def trigger_nextjs_revalidation(paths=None):
         if is_railway:
             urls_to_try = [vercel_url] if vercel_url else []
         elif os.environ.get('RUNNING_IN_DOCKER'):
-            docker_url = frontend_url or 'http://frontend:3000'
+            docker_url = frontend_url or 'http://host.docker.internal:3000'
             urls_to_try = [docker_url]
             if vercel_url:
                 urls_to_try.append(vercel_url)

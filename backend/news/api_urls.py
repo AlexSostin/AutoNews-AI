@@ -28,6 +28,7 @@ from .api_views import (
     ScheduledTasksView,
 )
 from .health import health_check, health_check_detailed, readiness_check
+from .api_views.video_inbox import VideoInboxViewSet
 from .api_views.system_graph import SystemGraphView, EmbeddingStatsView
 from .ab_testing_views import (
     ABImpressionView, ABClickView, ABTestsListView,
@@ -144,6 +145,7 @@ router.register(r'users', UserViewSet, basename='user')
 router.register(r'favorites', FavoriteViewSet, basename='favorite')
 router.register(r'subscribers', SubscriberViewSet, basename='subscriber')
 router.register(r'youtube-channels', YouTubeChannelViewSet, basename='youtube-channel')
+router.register(r'video-inbox', VideoInboxViewSet, basename='video-inbox')
 router.register(r'rss-feeds', RSSFeedViewSet, basename='rss-feed')
 router.register(r'rss-news-items', RSSNewsItemViewSet, basename='rss-news-item')
 router.register(r'pending-articles', PendingArticleViewSet, basename='pending-article')
@@ -170,6 +172,7 @@ from .search_analytics_views import (
 from .cars import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet, CarCompareView, CarPickerListView
 from .api_views.ai_costs import AICostDashboardView
 from .api_views.moderation import ModerationQueueView
+from .api_views.token_usage import TokenUsageSummaryView, TokenUsageRealtimeView
 
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
@@ -271,6 +274,8 @@ urlpatterns = [
     # Admin action analytics
     path('admin/action-stats/', AdminActionStatsView.as_view(), name='admin_action_stats'),
     path('admin/ai-costs/', AICostDashboardView.as_view(), name='admin_ai_costs'),
+    path('admin/token-usage/summary/', TokenUsageSummaryView.as_view(), name='admin_token_usage_summary'),
+    path('admin/token-usage/realtime/', TokenUsageRealtimeView.as_view(), name='admin_token_usage_realtime'),
     path('admin/moderation/', ModerationQueueView.as_view(), name='admin_moderation'),
     path('admin/scheduled-tasks/', ScheduledTasksView.as_view(), name='admin_scheduled_tasks'),
     

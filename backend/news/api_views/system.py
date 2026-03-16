@@ -818,11 +818,19 @@ class NavBadgesView(APIView):
             status='new'
         ).count()
 
+        # New video candidates in the Video Inbox (last 30 days)
+        from news.models import YouTubeVideoCandidate
+        video_inbox = YouTubeVideoCandidate.objects.filter(
+            status='new',
+            published_at__gte=now - timedelta(days=30),
+        ).count()
+
         badges = {
             'comments': comments_pending,
             'feedback': feedback_unresolved,
             'subscribers': subscribers_new,
             'rss_pending': rss_pending,
+            'video_inbox': video_inbox,
         }
 
         cache.set(self.CACHE_KEY, badges, 30)  # 30s cache for more responsive badges

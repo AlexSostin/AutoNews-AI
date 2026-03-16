@@ -246,3 +246,64 @@ class RSSNewsItem(models.Model):
     def __str__(self):
         return f"[{self.get_status_display()}] {self.title[:80]}"
 
+
+class YouTubeVideoCandidate(models.Model):
+    """YouTube videos discovered by channel scans — inbox for cherry-picking.
+    
+    Videos land here first. The editor reviews thumbnails/titles and selects
+    which ones to turn into articles. Entries older than 30 days are auto-deleted.
+    """
+    STATUS_CHOICES = [
+        ('new', 'New'),
+        ('approved', 'Approved'),
+        ('generating', 'Generating'),
+        ('dismissed', 'Dismissed'),
+    ]
+
+    channel = models.ForeignKey(
+        'YouTubeChannel', on_delete=models.CASCADE,
+        related_name='video_candidates'
+    )
+    video_id = models.CharField(max_length=50, unique=True, db_index=True)
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True, default='')
+    thumbnail_url = models.URLField(max_length=1000, blank=True, default='')
+    
+    # Metadata from YouTube API
+    duration_seconds = models.IntegerField(null=True, blank=True, help_text="Video duration in seconds")
+    view_count = models.IntegerField(null=True, blank=True, help_text="YouTube view count at scan time")
+    published_at = models.DateTimeField(null=True, blank=True, help_text="Video publish date on YouTube")
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', db_index=True)
+    
+    # Generation tracking (persisted so UI can resume after reload)
+    generation_task_id = models.CharField(max_length=100, blank=True, default='', help_text="Background task ID for article generation")
+    generation_error = models.CharField(max_length=500, blank=True, default='', help_text="Last generation error message")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-published_at']
+        verbose_name = "YouTube Video Candidate"
+        verbose_name_plural = "YouTube Video Candidates"
+        indexes = [
+            models.Index(fields=['status', '-published_at']),
+            models.Index(fields=['channel', '-published_at']),
+        ]
+
+    def __str__(self):
+        return f"[{self.get_status_display()}] {self.title[:80]}"
+
+    @property
+    def duration_display(self):
+        """Format seconds as HH:MM:SS or MM:SS."""
+        if not self.duration_seconds:
+            return ''
+        m, s = divmod(self.duration_seconds, 60)
+        h, m = divmod(m, 60)
+        if h:
+            return f"{h}:{m:02d}:{s:02d}"
+        return f"{m}:{s:02d}"
+
+
