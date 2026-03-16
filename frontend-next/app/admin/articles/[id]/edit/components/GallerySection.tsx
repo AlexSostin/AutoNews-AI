@@ -51,13 +51,19 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
         if (!confirm('Delete this gallery image?')) return;
         try {
             await api.delete(`/article-images/${imageId}/`);
-            const updated = galleryImages.filter(img => img.id !== imageId);
-            setGalleryImages(updated);
-            onGalleryLoaded?.(updated);
-        } catch (error) {
-            console.error('Failed to delete gallery image:', error);
-            alert('Failed to delete image');
+        } catch (error: unknown) {
+            // 404 = already deleted (e.g. via promote) — treat as success
+            const status = (error as { response?: { status?: number } })?.response?.status;
+            if (status !== 404) {
+                console.error('Failed to delete gallery image:', error);
+                alert('Failed to delete image');
+                return;
+            }
         }
+        // Always remove from UI state (even on 404)
+        const updated = galleryImages.filter(img => img.id !== imageId);
+        setGalleryImages(updated);
+        onGalleryLoaded?.(updated);
     };
 
     const handlePromote = (img: GalleryImage, targetSlot: number) => {
