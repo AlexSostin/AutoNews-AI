@@ -14,7 +14,7 @@ import re
 import json
 import logging
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Tuple, Optional
 from collections import Counter
 
@@ -156,16 +156,21 @@ def build(force: bool = False) -> Dict:
     tfidf_matrix = vectorizer.fit_transform(texts)
     
     # Pre-compute similarity matrix (for similar articles — instant lookup)
-    # Only store top-20 similar per article to save memory
+    # NOTE: Full N×N matrix. Memory ~ N² × 8 bytes (e.g. 500 articles ≈ 2MB,
+    # 2000 articles ≈ 32MB). Consider sparse top-K storage if N > 2000.
     sim_matrix = cosine_similarity(tfidf_matrix)
     
     # Save model
     os.makedirs(MODEL_DIR, exist_ok=True)
     
+    # Build O(1) lookup index for article_id → matrix row
+    id_to_idx = {aid: i for i, aid in enumerate(article_ids)}
+    
     model_data = {
         'vectorizer': vectorizer,
         'tfidf_matrix': tfidf_matrix,
         'article_ids': article_ids,
+        'id_to_idx': id_to_idx,
         'tag_map': tag_map,
         'cat_map': cat_map,
         'tag_names': tag_names,
@@ -182,7 +187,7 @@ def build(force: bool = False) -> Dict:
         'vocabulary_size': len(vectorizer.vocabulary_),
         'unique_tags': len(tag_names),
         'unique_categories': len(cat_names),
-        'built_at': datetime.utcnow().isoformat(),
+        'built_at': datetime.now(timezone.utc).isoformat(),
     }
     
     with open(META_PATH, 'w') as f:
@@ -400,12 +405,12 @@ def find_similar(article_id: int, top_n: int = 5) -> List[Dict]:
     
     try:
         # Find index of this article
-        article_ids = model['article_ids']
-        if article_id not in article_ids:
+        id_to_idx = model.get('id_to_idx') or {}
+        if article_id not in id_to_idx:
             # Article not in model — might be new, try live similarity
             return _find_similar_live(article_id, model, top_n)
         
-        idx = article_ids.index(article_id)
+        idx = id_to_idx[article_id]
         sim_row = model['sim_matrix'][idx]
         
         # Get top-N most similar (excluding self)
@@ -694,7 +699,7 @@ def extract_specs_from_text(title: str, content: str) -> Dict:
     
     # General range (if no standard specified)
     if not any(k in specs for k in ['range_cltc', 'range_wltp', 'range_epa']):
-        range_match = re.search(r'(?:range|запас хода)[:\s]*(?:up to\s*)?(\d{3,4})\s*km', text, re.IGNORECASE)
+        range_match = re.search(r'(?:range)[:\s]*(?:up to\s*)?(\d{3,4})\s*km', text, re.IGNORECASE)
         if range_match:
             specs['range_km'] = int(range_match.group(1))
     
@@ -843,8 +848,7 @@ def extract_specs_from_text(title: str, content: str) -> Dict:
     
     if prices_found:
         # Group by currency, use the most common one
-        from collections import Counter as PriceCounter
-        currency_counts = PriceCounter(p[1] for p in prices_found)
+        currency_counts = Counter(p[1] for p in prices_found)
         main_currency = currency_counts.most_common(1)[0][0]
         currency_prices = sorted([p[0] for p in prices_found if p[1] == main_currency])
         specs['currency'] = main_currency
@@ -902,8 +906,7 @@ def find_duplicate_specs(threshold: float = 0.80):
     Returns:
         List of dicts: [{'spec_a': {id, make, model}, 'spec_b': {id, make, model}, 'score': 0.92}]
     """
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import cosine_similarity
+    # TfidfVectorizer, cosine_similarity already imported globally
     from news.models import VehicleSpecs
     
     specs = list(VehicleSpecs.objects.all().values(
@@ -974,7 +977,7 @@ def validate_specs_consistency():
     Returns:
         List of dicts: [{article_id, article_title, field, carspec_val, vehiclespecs_val, diff_pct}]
     """
-    import re
+    # re already imported globally
     from news.models import CarSpecification, VehicleSpecs
     
     mismatches = []
@@ -1175,7 +1178,7 @@ def detect_brand(title: str, content: str = ''):
     Returns:
         dict: {brand: str, confidence: float, method: str} or None
     """
-    import re
+    # re already imported globally
     from news.models import Brand, BrandAlias
     
     text = f"{title} {title}".lower()  # Title weighted 2x
@@ -1199,7 +1202,7 @@ def detect_brand(title: str, content: str = ''):
             'huawei': ['Avatr'],
             'dongfeng': ['VOYAH'],
             'great wall': ['GWM'],
-            'changan': ['ArcFox'],
+            'changan': ['Deepal', 'Avatr'],
             'baic': ['ArcFox'],
         }
     
@@ -1254,11 +1257,10 @@ def detect_brand(title: str, content: str = ''):
         try:
             model = _load_model()
             if model:
-                from sklearn.feature_extraction.text import TfidfVectorizer
-                from sklearn.metrics.pairwise import cosine_similarity as cs
+                # TfidfVectorizer, cosine_similarity already imported globally
                 query_text = _prepare_text(title, '', content)
                 query_vec = model['vectorizer'].transform([query_text])
-                sims = cs(query_vec, model['tfidf_matrix'])[0]
+                sims = cosine_similarity(query_vec, model['tfidf_matrix'])[0]
                 
                 # Get top similar article's brand
                 top_idx = sims.argsort()[-3:][::-1]  # Top 3
@@ -1326,29 +1328,37 @@ def get_ml_health_report():
     spec_coverage = (articles_with_vs / max(total_articles, 1)) * 100
     
     # Spec completeness — how many fields are filled on average
-    SPEC_FIELDS = [
+    # Uses per-field SQL COUNT to avoid N+1 query (was: Python loop over all specs × 22 fields)
+    SPEC_FIELDS_NUMERIC = [
         'power_hp', 'power_kw', 'torque_nm', 'acceleration_0_100',
         'top_speed_kmh', 'battery_kwh', 'range_wltp', 'range_cltc',
         'range_epa', 'weight_kg', 'length_mm', 'width_mm', 'height_mm',
-        'wheelbase_mm', 'cargo_liters', 'seats', 'fuel_type', 'drivetrain',
-        'body_type', 'voltage_architecture', 'price_from', 'currency',
+        'wheelbase_mm', 'cargo_liters', 'seats', 'voltage_architecture',
+        'price_from',
     ]
-    
-    total_filled = 0
-    total_possible = 0
-    for vs in VehicleSpecs.objects.all():
-        for field in SPEC_FIELDS:
-            total_possible += 1
-            val = getattr(vs, field, None)
-            if val is not None and val != '' and val != 0:
-                total_filled += 1
-    
+    SPEC_FIELDS_TEXT = ['fuel_type', 'drivetrain', 'body_type', 'currency']
+    ALL_SPEC_FIELDS = SPEC_FIELDS_NUMERIC + SPEC_FIELDS_TEXT
+    total_possible = total_vehicle_specs * len(ALL_SPEC_FIELDS)
+    if total_possible > 0:
+        total_filled = 0
+        # Numeric fields: not null and > 0
+        for field in SPEC_FIELDS_NUMERIC:
+            total_filled += VehicleSpecs.objects.filter(
+                **{f"{field}__isnull": False}
+            ).exclude(**{field: 0}).count()
+        # Text fields: not null and not empty
+        for field in SPEC_FIELDS_TEXT:
+            total_filled += VehicleSpecs.objects.filter(
+                **{f"{field}__isnull": False}
+            ).exclude(**{field: ''}).count()
+    else:
+        total_filled = 0
     spec_completeness = (total_filled / max(total_possible, 1)) * 100
     
     # TF-IDF model status
     model_info = get_model_info()
-    model_trained = model_info.get('status') != 'not_trained'
-    model_articles = model_info.get('articles', 0)
+    model_trained = model_info.get('trained', False)
+    model_articles = model_info.get('article_count', 0)
     
     # ── Per-Feature Scores ───────────────────────────
     features = {}
