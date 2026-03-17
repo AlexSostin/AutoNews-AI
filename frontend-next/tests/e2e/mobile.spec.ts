@@ -138,12 +138,22 @@ test.describe('Mobile Experience', () => {
 
         const articleUrl = page.url();
 
-        // Scroll down aggressively — mobile scrolls faster
-        for (let i = 0; i < 10; i++) {
+        // Scroll down aggressively — use mouse.wheel to ensure IntersectionObserver fires
+        for (let i = 0; i < 8; i++) {
             await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-            await page.waitForTimeout(800);
+            await page.mouse.wheel(0, 2000);
+            await page.waitForTimeout(1000);
         }
-        await page.waitForTimeout(5000);
+
+        // Fallback: scroll sentinel into view to ensure IntersectionObserver fires
+        await page.evaluate(() => {
+            const sentinel = document.querySelector('[aria-hidden="true"]');
+            if (sentinel) {
+                sentinel.scrollIntoView({ behavior: 'instant', block: 'end' });
+            }
+        });
+
+        await page.waitForTimeout(8000);
 
         const finalUrl = page.url();
         const articleCount = await page.locator('article').count();

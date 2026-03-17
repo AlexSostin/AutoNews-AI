@@ -95,14 +95,26 @@ test.describe('Infinite Scroll', () => {
         // Give the page time to fully hydrate
         await page.waitForTimeout(3000);
 
-        // Scroll to bottom aggressively
-        for (let i = 0; i < 10; i++) {
+        // Scroll aggressively — use both scrollTo (for replaceState) and mouse.wheel
+        // (for IntersectionObserver, which doesn't fire on scrollTo in some headless envs)
+        for (let i = 0; i < 8; i++) {
             await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-            await page.waitForTimeout(1000);
+            await page.mouse.wheel(0, 2000);
+            await page.waitForTimeout(1200);
         }
 
+        // Fallback: programmatically fire IntersectionObserver on the sentinel element
+        // In headless CI, the observer sometimes needs a nudge
+        await page.evaluate(() => {
+            const sentinel = document.querySelector('[aria-hidden="true"]');
+            if (sentinel) {
+                // Scroll sentinel into viewport
+                sentinel.scrollIntoView({ behavior: 'instant', block: 'end' });
+            }
+        });
+
         // Wait for next article to potentially load
-        await page.waitForTimeout(5000);
+        await page.waitForTimeout(8000);
 
         const currentUrl = page.url();
         const h1Count = await page.locator('h1').count();
