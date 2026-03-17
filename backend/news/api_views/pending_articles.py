@@ -8,8 +8,82 @@ from ..serializers import PendingArticleSerializer
 from ._shared import invalidate_article_cache
 import os
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
+
+
+def _enrich_article_background(article_id: int):
+    """
+    Background thread: runs AI enrichment after article is published.
+    - A/B title variants (Gemini)
+    - Deep vehicle specs with web search (Gemini)
+    Both are non-critical — article is already published.
+    """
+    import django
+    django.setup()  # Ensure Django ORM is ready in the thread
+
+    try:
+        article = Article.objects.get(id=article_id)
+    except Article.DoesNotExist:
+        logger.warning(f"[ENRICH-BG] Article {article_id} not found")
+        return
+
+    logger.info(f"[ENRICH-BG] Starting background enrichment for '{article.title[:50]}'")
+
+    # 1. Generate A/B title variants
+    try:
+        from ai_engine.main import generate_title_variants
+        generate_title_variants(article, provider='gemini')
+        logger.info(f"[ENRICH-BG] ✓ A/B title variants generated")
+    except Exception as ab_err:
+        logger.warning(f"[ENRICH-BG] A/B title variant generation failed: {ab_err}")
+
+    # 2. Deep specs enrichment with web search
+    try:
+        from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
+        specs_dict = None
+        web_context = ''
+
+        try:
+            car_spec = CarSpecification.objects.filter(article=article).first()
+            if car_spec:
+                import re as _re
+                _year = None
+                _y_match = _re.search(r'\b(20[2-3]\d)\b', article.title)
+                if _y_match:
+                    _year = int(_y_match.group(1))
+                elif car_spec.release_date:
+                    _ry = _re.search(r'(20[2-3]\d)', car_spec.release_date)
+                    if _ry:
+                        _year = int(_ry.group(1))
+                specs_dict = {
+                    'make': car_spec.make or '',
+                    'model': car_spec.model or '',
+                    'trim': car_spec.trim or '',
+                    'year': _year,
+                    'horsepower': car_spec.horsepower,
+                    'torque': car_spec.torque or '',
+                    'acceleration': car_spec.zero_to_sixty or '',
+                    'top_speed': car_spec.top_speed or '',
+                    'drivetrain': car_spec.drivetrain or '',
+                    'price': car_spec.price or '',
+                }
+        except Exception:
+            pass
+
+        if specs_dict and specs_dict.get('make'):
+            try:
+                from ai_engine.modules.searcher import get_web_context
+                web_context = get_web_context(specs_dict)
+            except Exception:
+                pass
+            generate_deep_vehicle_specs(article, specs=specs_dict, web_context=web_context, provider='gemini')
+            logger.info(f"[ENRICH-BG] ✓ Deep vehicle specs generated")
+    except Exception as ds_err:
+        logger.warning(f"[ENRICH-BG] Deep specs enrichment failed: {ds_err}")
+
+    logger.info(f"[ENRICH-BG] Background enrichment complete for article {article_id}")
 
 
 class PendingArticleViewSet(viewsets.ModelViewSet):
@@ -420,57 +494,16 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
             pending.reviewed_at = timezone.now()
             pending.save()
             
-            # Generate A/B title variants
-            try:
-                from ai_engine.main import generate_title_variants
-                generate_title_variants(article, provider='gemini')
-            except Exception as ab_err:
-                logger.warning(f"A/B title variant generation failed: {ab_err}")
-            
-            # Deep specs enrichment — auto-fill VehicleSpecs card
-            try:
-                from ai_engine.modules.deep_specs import generate_deep_vehicle_specs
-                # Build specs dict from CarSpecification if available
-                specs_dict = None
-                web_context = ''
-                try:
-                    car_spec = CarSpecification.objects.filter(article=article).first()
-                    if car_spec:
-                        # CarSpecification has no 'year' field — extract from title
-                        import re as _re
-                        _year = None
-                        _y_match = _re.search(r'\b(20[2-3]\d)\b', article.title)
-                        if _y_match:
-                            _year = int(_y_match.group(1))
-                        elif car_spec.release_date:
-                            _ry = _re.search(r'(20[2-3]\d)', car_spec.release_date)
-                            if _ry:
-                                _year = int(_ry.group(1))
-                        specs_dict = {
-                            'make': car_spec.make or '',
-                            'model': car_spec.model or '',
-                            'trim': car_spec.trim or '',
-                            'year': _year,
-                            'horsepower': car_spec.horsepower,
-                            'torque': car_spec.torque or '',
-                            'acceleration': car_spec.zero_to_sixty or '',
-                            'top_speed': car_spec.top_speed or '',
-                            'drivetrain': car_spec.drivetrain or '',
-                            'price': car_spec.price or '',
-                        }
-                except Exception:
-                    pass
-                
-                # Web search for better spec accuracy
-                if specs_dict and specs_dict.get('make'):
-                    try:
-                        from ai_engine.modules.searcher import get_web_context
-                        web_context = get_web_context(specs_dict)
-                    except Exception:
-                        pass
-                    generate_deep_vehicle_specs(article, specs=specs_dict, web_context=web_context, provider='gemini')
-            except Exception as ds_err:
-                logger.warning(f"Deep specs enrichment failed: {ds_err}")
+            # AI enrichment (A/B titles + deep specs) — runs in background thread
+            # to avoid blocking the approve response for 10-25 seconds
+            enrichment_thread = threading.Thread(
+                target=_enrich_article_background,
+                args=(article.id,),
+                daemon=True,
+                name=f"enrich-{article.id}",
+            )
+            enrichment_thread.start()
+            logger.info(f"[APPROVE] Background enrichment thread started for article {article.id}")
             
             # Clear cache so the new article appears on homepage immediately
             try:
