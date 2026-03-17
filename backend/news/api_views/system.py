@@ -1094,8 +1094,9 @@ class FrontendEventLogViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.warning(f"FrontendEventLog resolve_all error: {e}")
             count = 0
-        # Bust nav badge cache so sidebar updates immediately
+        # Bust nav badge + health summary cache so dashboard updates immediately
         cache.delete('nav_badges_v1')
+        cache.delete('health_summary_v2')
         return Response({'resolved': count})
 
 
@@ -1147,8 +1148,9 @@ class BackendErrorLogViewSet(viewsets.ModelViewSet):
         count = self.get_queryset().filter(resolved=False).update(
             resolved=True, resolved_at=timezone.now()
         )
-        # Bust nav badge cache so sidebar updates immediately
+        # Bust nav badge + health summary cache so dashboard updates immediately
         cache.delete('nav_badges_v1')
+        cache.delete('health_summary_v2')
         return Response({'resolved': count})
 
     @action(detail=False, methods=['post'], url_path='clear-stale')
@@ -1157,19 +1159,20 @@ class BackendErrorLogViewSet(viewsets.ModelViewSet):
         from ..models.system import FrontendEventLog
         from datetime import timedelta
 
-        cutoff = timezone.now() - timedelta(minutes=5)
+        cutoff = timezone.now() - timedelta(hours=1)
 
         backend_count = self.get_queryset().filter(
             resolved=False, last_seen__lt=cutoff,
-        ).update(resolved=True, resolved_at=timezone.now(), resolution_notes='Manually cleared as stale')
+        ).update(resolved=True, resolved_at=timezone.now(), resolution_notes='Auto-cleared as stale (>1h)')
 
         try:
             frontend_count = FrontendEventLog.objects.filter(
                 resolved=False, last_seen__lt=cutoff,
-            ).update(resolved=True, resolved_at=timezone.now(), resolution_notes='Manually cleared as stale')
+            ).update(resolved=True, resolved_at=timezone.now(), resolution_notes='Auto-cleared as stale (>1h)')
         except Exception:
             frontend_count = 0
 
+        cache.delete('health_summary_v2')
         return Response({'resolved': backend_count + frontend_count})
 
 
@@ -1382,11 +1385,18 @@ class HealthSummaryView(APIView):
     """
     GET /api/v1/health/errors-summary/
     Unified error summary across all sources — for the System Health Dashboard.
-    Admin-only.
+    Admin-only. Cached for 30s to avoid hammering DB on auto-refresh.
     """
     permission_classes = [IsAdminUser]
+    CACHE_KEY = 'health_summary_v2'
+    CACHE_TTL = 30  # seconds
 
     def get(self, request):
+        # Serve from cache if fresh (frontend auto-refreshes every 30s)
+        cached = cache.get(self.CACHE_KEY)
+        if cached is not None:
+            return Response(cached)
+
         from ..models.system import BackendErrorLog, FrontendEventLog
         from datetime import timedelta
 
@@ -1414,7 +1424,7 @@ class HealthSummaryView(APIView):
         except Exception:
             frontend_total = frontend_unresolved = frontend_24h = 0
 
-        # Overall status
+        # Overall status (factoring in infrastructure later)
         total_unresolved = backend_unresolved + frontend_unresolved
         if total_unresolved == 0:
             overall_status = 'healthy'
@@ -1445,7 +1455,6 @@ class HealthSummaryView(APIView):
             
         # 2. Redis Ping
         try:
-            from django.core.cache import cache
             cache.set('health_ping', '1', 5)
             if cache.get('health_ping') == '1':
                 infrastructure['redis'] = 'online'
@@ -1489,25 +1498,60 @@ class HealthSummaryView(APIView):
         except Exception as e:
             logger.error(f"Health check: YouTube quota check failed: {e}")
 
-        # 7-day trend
+        # Factor infrastructure into overall status
+        infra_down = (
+            infrastructure['database'] == 'offline'
+            or infrastructure['redis'] == 'offline'
+        )
+        if infra_down:
+            overall_status = 'critical'
+
+        # 7-day trend — optimized with single aggregation per source
+        from django.db.models.functions import TruncDate
+        from django.db.models import Count
+
+        week_start = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Backend trend aggregation (1 query instead of 14)
+        backend_trend_qs = (
+            backend_qs.filter(last_seen__gte=week_start)
+            .annotate(day=TruncDate('last_seen'))
+            .values('day', 'source')
+            .annotate(count=Count('id'))
+        )
+        backend_trend_map = {}
+        for row in backend_trend_qs:
+            day_str = row['day'].strftime('%Y-%m-%d')
+            if day_str not in backend_trend_map:
+                backend_trend_map[day_str] = {'api': 0, 'scheduler': 0}
+            backend_trend_map[day_str][row['source']] = row['count']
+
+        # Frontend trend aggregation (1 query instead of 7)
+        frontend_trend_map = {}
+        try:
+            frontend_trend_qs = (
+                frontend_qs.filter(last_seen__gte=week_start)
+                .annotate(day=TruncDate('last_seen'))
+                .values('day')
+                .annotate(count=Count('id'))
+            )
+            for row in frontend_trend_qs:
+                frontend_trend_map[row['day'].strftime('%Y-%m-%d')] = row['count']
+        except Exception:
+            pass
+
         trend = []
         for i in range(6, -1, -1):
-            day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
-            day_end = day_start + timedelta(days=1)
-            api_count = backend_qs.filter(source='api', last_seen__gte=day_start, last_seen__lt=day_end).count()
-            sched_count = backend_qs.filter(source='scheduler', last_seen__gte=day_start, last_seen__lt=day_end).count()
-            try:
-                fe_count = frontend_qs.filter(last_seen__gte=day_start, last_seen__lt=day_end).count()
-            except Exception:
-                fe_count = 0
+            day_str = (now - timedelta(days=i)).strftime('%Y-%m-%d')
+            be_data = backend_trend_map.get(day_str, {'api': 0, 'scheduler': 0})
             trend.append({
-                'date': day_start.strftime('%Y-%m-%d'),
-                'api': api_count,
-                'scheduler': sched_count,
-                'frontend': fe_count,
+                'date': day_str,
+                'api': be_data.get('api', 0),
+                'scheduler': be_data.get('scheduler', 0),
+                'frontend': frontend_trend_map.get(day_str, 0),
             })
 
-        return Response({
+        result = {
             'backend_errors': {
                 'total': backend_total,
                 'unresolved': backend_unresolved,
@@ -1530,6 +1574,9 @@ class HealthSummaryView(APIView):
             'overall_status': overall_status,
             'total_unresolved': total_unresolved,
             'trend': trend,
-        })
+        }
+
+        cache.set(self.CACHE_KEY, result, self.CACHE_TTL)
+        return Response(result)
 
 
