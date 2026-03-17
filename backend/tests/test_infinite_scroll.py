@@ -136,8 +136,9 @@ class TestNextArticle:
         assert resp.data['article']['slug'] == a_popular.slug
         assert resp.data['source'] == 'popular'
 
-    def test_category_fallback(self, api_client):
-        """Priority 4: same category when no make/model match."""
+    @patch('ai_engine.modules.content_recommender.is_available', return_value=False)
+    def test_category_fallback(self, _mock_ml, api_client):
+        """Priority 4: same category when no make/model match and ML is unavailable."""
         cat = Category.objects.create(name='Electric', slug='electric')
         a1 = _make_article('ev-article')
         a1.categories.add(cat)
