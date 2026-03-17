@@ -68,6 +68,7 @@ def trigger_nextjs_revalidation(paths=None):
         payload = {
             'secret': secret,
             'paths': paths or ['/', '/articles', '/trending'],
+            'tags': ['articles', 'categories'],
         }
 
         logger.info(f"🔄 Triggering Next.js revalidation — paths: {payload['paths']}, trying URLs: {urls_to_try}")

@@ -398,6 +398,11 @@ def _run_auto_publish():
         
         if published > 0:
             logger.info(f"[SCHEDULER/AUTO-PUBLISH] 📝 {published} articles published")
+            try:
+                from news.api_views._shared import invalidate_article_cache
+                invalidate_article_cache()
+            except Exception:
+                pass
         
         _schedule_auto_publish(AUTO_PUBLISH_CHECK_INTERVAL)
         

@@ -322,6 +322,11 @@ def auto_publish():
 
         if published > 0:
             logger.info(f"[CELERY/AUTO-PUBLISH] {published} articles published")
+            try:
+                from news.api_views._shared import invalidate_article_cache
+                invalidate_article_cache()
+            except Exception:
+                pass
 
     except Exception as e:
         logger.error(f"[CELERY/AUTO-PUBLISH] Fatal error: {e}", exc_info=True)

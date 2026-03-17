@@ -166,6 +166,14 @@ class ModerationQueueView(APIView):
                 f"by {request.user.username}"
             )
         
+        # Invalidate caches if any article was published
+        if action == 'approve' and auto_publish and updated_ids:
+            try:
+                from ._shared import invalidate_article_cache
+                invalidate_article_cache()
+            except Exception:
+                pass
+
         return Response({
             'success': True,
             'action': action,

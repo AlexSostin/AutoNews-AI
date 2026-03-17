@@ -201,11 +201,23 @@ class ArticleAdmin(admin.ModelAdmin):
     def publish_articles(self, request, queryset):
         updated = queryset.update(is_published=True)
         self.message_user(request, f'{updated} article(s) published successfully.')
+        if updated > 0:
+            try:
+                from news.api_views._shared import invalidate_article_cache
+                invalidate_article_cache()
+            except Exception:
+                pass
     publish_articles.short_description = "Publish selected articles"
     
     def unpublish_articles(self, request, queryset):
         updated = queryset.update(is_published=False)
         self.message_user(request, f'{updated} article(s) unpublished successfully.')
+        if updated > 0:
+            try:
+                from news.api_views._shared import invalidate_article_cache
+                invalidate_article_cache()
+            except Exception:
+                pass
     unpublish_articles.short_description = "Unpublish selected articles"
     
     def soft_delete_articles(self, request, queryset):
