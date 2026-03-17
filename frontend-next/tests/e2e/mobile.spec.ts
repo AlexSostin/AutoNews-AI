@@ -88,7 +88,7 @@ test.describe('Mobile Experience', () => {
 
     test('infinite scroll works on mobile viewport', async ({ page }) => {
         test.setTimeout(45000);
-        // Pre-check: need ≥2 articles
+        // Pre-check: need ≥2 articles AND infinite scroll enabled
         try {
             const resp = await page.request.get(`${API_BASE}/articles/?is_published=true&page_size=1`);
             if (resp.ok()) {
@@ -100,8 +100,23 @@ test.describe('Mobile Experience', () => {
                 }
             }
         } catch {
-            // Backend not reachable — skip gracefully
             test.skip(true, 'Backend API not reachable');
+            return;
+        }
+
+        // Check if infinite scroll is enabled in settings
+        try {
+            const settingsResp = await page.request.get(`${API_BASE}/settings/1/`);
+            if (settingsResp.ok()) {
+                const settings = await settingsResp.json();
+                if (settings.infinite_scroll_enabled === false) {
+                    test.skip(true, 'Infinite scroll is disabled in site settings');
+                    return;
+                }
+            }
+        } catch {
+            // If settings endpoint fails, skip gracefully
+            test.skip(true, 'Settings API not reachable');
             return;
         }
 
