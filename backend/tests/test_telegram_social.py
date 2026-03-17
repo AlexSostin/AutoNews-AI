@@ -313,9 +313,10 @@ class TestAutoTelegramOnPublish:
         finally:
             self._disconnect_signal(handler)
 
+    @patch('news.api_views._shared.trigger_nextjs_revalidation')
     @patch('news.signals.threading.Thread')
     @patch('news.signals.transaction.on_commit')
-    def test_skips_unpublished_articles(self, mock_commit, mock_thread, pub_article):
+    def test_skips_unpublished_articles(self, mock_commit, mock_thread, mock_reval, pub_article):
         """Signal must not attempt to post unpublished or deleted articles."""
         handler = self._reconnect_signal()
         try:
