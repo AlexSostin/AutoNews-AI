@@ -632,115 +632,150 @@ class ArticleEngagementMixin:
         Priority: same make+model → session affinity → ML similar → same category → popular.
         Accepts ?exclude=slug1&exclude=slug2 to avoid repeats across sessions.
         Accepts ?session_brands=BMW,Toyota&session_categories=electric,suv for session context.
+        
+        Performance:
+        - Uses ArticleListSerializer (lightweight, no content/specs/gallery)
+        - Cached 60s per (slug, exclude_set) to avoid repeated ML/DB lookups
+        - base_qs uses select_related/prefetch_related to avoid N+1
         """
         from news.models import Article, CarSpecification
-        from news.serializers import ArticleDetailSerializer as _ArticleSerializer
+        from news.serializers import ArticleListSerializer
+        from django.core.cache import cache
+        from django.db.models import Avg, Count
+        import hashlib
 
         article = self.get_object()
         exclude_slugs = set(request.GET.getlist('exclude', []))
         exclude_slugs.add(slug)  # always exclude self
 
+        # --- Cache key: slug + sorted exclude set hash ---
+        exclude_hash = hashlib.md5(
+            ','.join(sorted(exclude_slugs)).encode()
+        ).hexdigest()[:12]
+        cache_key = f'next_article:{slug}:{exclude_hash}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         # Parse session context
         session_brands = [b.strip() for b in request.GET.get('session_brands', '').split(',') if b.strip()]
         session_categories = [c.strip() for c in request.GET.get('session_categories', '').split(',') if c.strip()]
 
-        # Build base queryset of published, non-deleted articles
+        # Build base queryset with proper prefetching (avoid N+1)
         base_qs = Article.objects.filter(
             is_published=True, is_deleted=False
-        ).exclude(slug__in=exclude_slugs)
+        ).exclude(slug__in=exclude_slugs).select_related(
+            'specs'
+        ).prefetch_related(
+            'categories', 'tags', 'gallery'
+        ).annotate(
+            avg_rating=Avg('ratings__rating'),
+            num_ratings=Count('ratings'),
+        )
 
         def first_article(qs):
             """Return serialized first result or None."""
             a = qs.first()
             if a:
-                s = _ArticleSerializer(a, context={'request': request})
+                s = ArticleListSerializer(a, context={'request': request})
                 return s.data
             return None
+
+        result_data = None
+        source = 'none'
 
         # --- Priority 1: Same make + same model ---
         try:
             spec = CarSpecification.objects.filter(article=article).first()
             if spec and spec.make and spec.make != 'Not specified':
                 qs = base_qs.filter(
-                    carspecification__make__iexact=spec.make
+                    specs__make__iexact=spec.make
                 )
                 if spec.model and spec.model != 'Not specified':
                     model_qs = qs.filter(
-                        carspecification__model__iexact=spec.model
+                        specs__model__iexact=spec.model
                     ).order_by('-created_at').distinct()
-                    result = first_article(model_qs)
-                    if result:
+                    result_data = first_article(model_qs)
+                    if result_data:
+                        source = 'same_model'
                         logger.info(f"[next_article] Priority 1 (same model) for {slug}")
-                        return Response({'article': result, 'source': 'same_model'})
-                # Same make (any model)
-                make_qs = qs.order_by('-created_at').distinct()
-                result = first_article(make_qs)
-                if result:
-                    logger.info(f"[next_article] Priority 2 (same make) for {slug}")
-                    return Response({'article': result, 'source': 'same_make'})
+                if not result_data:
+                    # Same make (any model)
+                    make_qs = qs.order_by('-created_at').distinct()
+                    result_data = first_article(make_qs)
+                    if result_data:
+                        source = 'same_make'
+                        logger.info(f"[next_article] Priority 2 (same make) for {slug}")
         except Exception as e:
             logger.warning(f"[next_article] make/model lookup failed: {e}")
 
         # --- Priority 2.5: Session affinity (brands/categories user read this session) ---
-        if session_brands:
+        if not result_data and session_brands:
             try:
                 session_qs = base_qs.filter(
-                    carspecification__make__in=session_brands
+                    specs__make__in=session_brands
                 ).order_by('-created_at').distinct()
-                result = first_article(session_qs)
-                if result:
+                result_data = first_article(session_qs)
+                if result_data:
+                    source = 'session_brand'
                     logger.info(f"[next_article] Priority 2.5 (session brand) for {slug}")
-                    return Response({'article': result, 'source': 'session_brand'})
             except Exception as e:
                 logger.debug(f"[next_article] session brand lookup failed: {e}")
-        if session_categories:
+        if not result_data and session_categories:
             try:
                 session_qs = base_qs.filter(
                     categories__slug__in=session_categories
                 ).order_by('-created_at').distinct()
-                result = first_article(session_qs)
-                if result:
+                result_data = first_article(session_qs)
+                if result_data:
+                    source = 'session_category'
                     logger.info(f"[next_article] Priority 2.5 (session category) for {slug}")
-                    return Response({'article': result, 'source': 'session_category'})
             except Exception as e:
                 logger.debug(f"[next_article] session category lookup failed: {e}")
 
         # --- Priority 3: ML similar articles ---
-        try:
-            from ai_engine.modules.content_recommender import find_similar, is_available
-            if is_available():
-                similar = find_similar(article.id, top_n=20)
-                for s in similar:
-                    aid = s['id']
-                    candidate = base_qs.filter(id=aid).first()
-                    if candidate:
-                        serializer = _ArticleSerializer(candidate, context={'request': request})
-                        logger.info(f"[next_article] Priority 3 (ML) for {slug}")
-                        return Response({'article': serializer.data, 'source': 'ml_similar'})
-        except Exception as e:
-            logger.warning(f"[next_article] ML similar failed: {e}")
+        if not result_data:
+            try:
+                from ai_engine.modules.content_recommender import find_similar, is_available
+                if is_available():
+                    similar = find_similar(article.id, top_n=20)
+                    for s in similar:
+                        aid = s['id']
+                        candidate = base_qs.filter(id=aid).first()
+                        if candidate:
+                            result_data = ArticleListSerializer(candidate, context={'request': request}).data
+                            source = 'ml_similar'
+                            logger.info(f"[next_article] Priority 3 (ML) for {slug}")
+                            break
+            except Exception as e:
+                logger.warning(f"[next_article] ML similar failed: {e}")
 
         # --- Priority 4: Same category ---
-        try:
-            cat_ids = article.categories.values_list('id', flat=True)
-            if cat_ids:
-                cat_qs = base_qs.filter(
-                    categories__id__in=cat_ids
-                ).order_by('-views').distinct()
-                result = first_article(cat_qs)
-                if result:
-                    logger.info(f"[next_article] Priority 4 (category) for {slug}")
-                    return Response({'article': result, 'source': 'same_category'})
-        except Exception as e:
-            logger.warning(f"[next_article] category fallback failed: {e}")
+        if not result_data:
+            try:
+                cat_ids = article.categories.values_list('id', flat=True)
+                if cat_ids:
+                    cat_qs = base_qs.filter(
+                        categories__id__in=cat_ids
+                    ).order_by('-views').distinct()
+                    result_data = first_article(cat_qs)
+                    if result_data:
+                        source = 'same_category'
+                        logger.info(f"[next_article] Priority 4 (category) for {slug}")
+            except Exception as e:
+                logger.warning(f"[next_article] category fallback failed: {e}")
 
         # --- Priority 5: Popular ---
-        result = first_article(base_qs.order_by('-views', '-created_at'))
-        if result:
-            logger.info(f"[next_article] Priority 5 (popular) for {slug}")
-            return Response({'article': result, 'source': 'popular'})
+        if not result_data:
+            result_data = first_article(base_qs.order_by('-views', '-created_at'))
+            if result_data:
+                source = 'popular'
+                logger.info(f"[next_article] Priority 5 (popular) for {slug}")
 
-        return Response({'article': None, 'source': 'none'}, status=200)
+        response_data = {'article': result_data, 'source': source}
+        # Cache for 60 seconds
+        cache.set(cache_key, response_data, 60)
+        return Response(response_data)
 
     @action(detail=False, methods=['get'], url_path='semantic-search')
     def semantic_search(self, request):

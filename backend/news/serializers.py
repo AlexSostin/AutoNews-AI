@@ -191,15 +191,13 @@ class ArticleListSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
-    image_2_url = serializers.SerializerMethodField()
-    image_3_url = serializers.SerializerMethodField()
     is_favorited = serializers.SerializerMethodField()
     
     class Meta:
         model = Article
         fields = ['id', 'title', 'slug', 'summary', 'categories', 'category_names',
-                  'tag_names', 'image', 'thumbnail_url', 'image_2', 'image_2_url',
-                  'image_3', 'image_3_url', 'price_usd', 'average_rating', 'views',
+                  'tag_names', 'image', 'thumbnail_url',
+                  'price_usd', 'average_rating', 'views',
                   'rating_count', 'created_at', 'updated_at', 'is_published', 'scheduled_publish_at', 'is_favorited', 
                   'is_hero', 'is_news_only', 'author_name', 'author_channel_url',
                   'show_source', 'show_youtube', 'show_price', 'image_source']
@@ -246,23 +244,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
                 return obj.image.url
         return None
     
-    def get_image_2_url(self, obj):
-        if obj.image_2:
-            img_name = str(obj.image_2)
-            if img_name.startswith('http'):
-                return img_name
-            if hasattr(obj.image_2, 'url'):
-                return obj.image_2.url
-        return None
-    
-    def get_image_3_url(self, obj):
-        if obj.image_3:
-            img_name = str(obj.image_3)
-            if img_name.startswith('http'):
-                return img_name
-            if hasattr(obj.image_3, 'url'):
-                return obj.image_3.url
-        return None
+
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)

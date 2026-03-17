@@ -81,7 +81,7 @@ export default function InfiniteArticleList({
                     loadMore();
                 }
             },
-            { threshold: 0.5, rootMargin: '100px' }
+            { threshold: 0.1, rootMargin: '600px' }
         );
 
         const currentTarget = observerTarget.current;

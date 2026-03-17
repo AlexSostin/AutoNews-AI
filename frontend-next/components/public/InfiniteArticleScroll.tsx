@@ -95,8 +95,8 @@ export default function InfiniteArticleScroll({ initialArticle }: InfiniteArticl
             setArticles(prev => [...prev, data.article]);
             // Cooldown and phase delay must be equal to prevent dead zone
             // where sentinel is visible but cooldown blocks triggering
-            cooldownUntilRef.current = Date.now() + 3000;
-            setTimeout(() => setPhase('idle'), 3000);
+            cooldownUntilRef.current = Date.now() + 1500;
+            setTimeout(() => setPhase('idle'), 1500);
         } catch {
             setPhase('done');
         }
