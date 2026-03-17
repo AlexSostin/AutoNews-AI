@@ -849,6 +849,28 @@ def start_scheduler():
 
     logger.info("🕐 Starting background scheduler (GSC 6h, currency 7d, RSS/YouTube/auto-publish from settings)")
     
+    # --- Deploy cache flush: clear stale API caches from Redis ---
+    # Redis survives deploys, so cached API responses (cache_page) may contain
+    # stale data. We flush all cache_page keys on startup but preserve sessions.
+    try:
+        from news.cache_signals import (
+            invalidate_article_caches, invalidate_category_caches,
+            invalidate_tag_caches, invalidate_cars_caches, invalidate_settings_cache,
+            _delete_cache_page_prefix
+        )
+        for prefix in ['articles_list', 'trending', 'popular', 'categories_list',
+                        'tags_list', 'cars_picker', 'currency_rates', 'robots_txt']:
+            _delete_cache_page_prefix(prefix)
+        invalidate_settings_cache()
+        logger.info("🧹 Deploy cache flush: cleared all cache_page API responses from Redis")
+        
+        # Also notify Vercel to revalidate (deploy may have changed templates/logic)
+        from news.api_views._shared import trigger_nextjs_revalidation
+        trigger_nextjs_revalidation(paths=['/', '/articles', '/trending'])
+        logger.info("🔄 Deploy: triggered Next.js ISR revalidation")
+    except Exception as e:
+        logger.warning(f"⚠️ Deploy cache flush failed (non-critical): {e}")
+    
     # --- Startup recovery: check for overdue tasks ---
     recovery_timer = threading.Timer(30, _check_overdue_tasks)
     recovery_timer.daemon = True
