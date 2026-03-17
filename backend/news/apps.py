@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+import sys
 
 
 class NewsConfig(AppConfig):
@@ -14,5 +15,7 @@ class NewsConfig(AppConfig):
         # Celery Beat is NOT running on Railway (Procfile only has web process),
         # so we need the in-process scheduler for all background tasks:
         # RSS scan, YouTube scan, auto-publish, scheduled publish, etc.
-        from news.scheduler import start_scheduler
-        start_scheduler()
+        # Skip during pytest — scheduler threads can't access test DB.
+        if 'pytest' not in sys.modules:
+            from news.scheduler import start_scheduler
+            start_scheduler()

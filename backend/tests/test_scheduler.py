@@ -514,13 +514,19 @@ class TestAppConfigCallsScheduler:
     @patch('news.scheduler.start_scheduler')
     def test_ready_calls_start_scheduler(self, mock_start):
         """Simulate AppConfig.ready() and verify start_scheduler is called."""
+        import sys
         from django.apps import apps
         config = apps.get_app_config('news')
-        # Mock the signal imports to avoid side effects
-        with patch('news.cache_signals', create=True), \
-             patch('news.signals', create=True):
-            config.ready()
-        mock_start.assert_called_once()
+        # Temporarily hide pytest from sys.modules so the guard allows the call
+        pytest_mod = sys.modules.pop('pytest', None)
+        try:
+            with patch('news.cache_signals', create=True), \
+                 patch('news.signals', create=True):
+                config.ready()
+            mock_start.assert_called_once()
+        finally:
+            if pytest_mod is not None:
+                sys.modules['pytest'] = pytest_mod
 
 
 # ═══════════════════════════════════════════════════════════════════════════

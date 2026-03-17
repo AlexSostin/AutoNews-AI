@@ -336,6 +336,9 @@ class TestHealthSummaryAPI:
         """No errors → healthy."""
         client, _ = admin_client
         BackendErrorLog.objects.all().delete()
+        # Clear cached health summary so we get a fresh query
+        from django.core.cache import cache
+        cache.delete('health_summary_v2')
         response = client.get('/api/v1/health/errors-summary/')
         data = response.json()
         assert data['overall_status'] == 'healthy'
