@@ -262,7 +262,7 @@ jobs:
         env:
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
-        run: npx playwright test --project=chromium --project=webkit --reporter=list --timeout=60000 --retries=2
+        run: npx playwright test --project=chromium --project=webkit --reporter=list --timeout=60000 --retries=2 --workers=2
 
   dependency-audit:
     runs-on: ubuntu-latest
