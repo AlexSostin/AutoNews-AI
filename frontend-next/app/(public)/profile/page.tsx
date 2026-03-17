@@ -245,7 +245,7 @@ export default function ProfilePage() {
         const error = await response.json();
         setProfileError(error.detail || 'Failed to update profile');
       }
-    } catch (err) {
+    } catch {
       setProfileError('Network error. Please try again.');
     } finally {
       setProfileSaving(false);
@@ -295,7 +295,7 @@ export default function ProfilePage() {
         const error = await response.json();
         setPasswordError(error.old_password?.[0] || error.new_password1?.[0] || error.detail || 'Failed to change password');
       }
-    } catch (err) {
+    } catch {
       setPasswordError('Network error. Please try again.');
     } finally {
       setPasswordSaving(false);
@@ -390,7 +390,7 @@ export default function ProfilePage() {
         const error = await response.json();
         setEmailVerifError(error.new_email?.[0] || error.detail || 'Failed to send verification code');
       }
-    } catch (err) {
+    } catch {
       setEmailVerifError('Network error. Please try again.');
     } finally {
       setEmailVerifSaving(false);
@@ -435,7 +435,7 @@ export default function ProfilePage() {
         const error = await response.json();
         setEmailVerifError(error.code?.[0] || error.detail || 'Invalid or expired code');
       }
-    } catch (err) {
+    } catch {
       setEmailVerifError('Network error. Please try again.');
     } finally {
       setEmailVerifSaving(false);

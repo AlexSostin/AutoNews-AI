@@ -439,6 +439,7 @@ export default function AdsPage() {
                                 {/* Preview */}
                                 {ad.image && (
                                     <div className="w-32 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src={ad.image.startsWith('http') ? ad.image : `${getApiUrl().replace('/api/v1', '')}/media/${ad.image}`} alt={ad.alt_text || ad.name} className="w-full h-full object-cover" />
                                     </div>
                                 )}
@@ -623,6 +624,7 @@ export default function AdsPage() {
                                         <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 file:cursor-pointer" />
                                         {imagePreview && (
                                             <div className="mt-2 relative w-full max-h-32 overflow-hidden rounded-lg border border-gray-200">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={imagePreview} alt="Preview" className="w-full object-contain max-h-32" />
                                             </div>
                                         )}
@@ -706,6 +708,7 @@ export default function AdsPage() {
                                         <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 file:cursor-pointer" />
                                         {imagePreview && (
                                             <div className="mt-2 relative w-full max-h-32 overflow-hidden rounded-lg border border-gray-200">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={imagePreview} alt="Preview" className="w-full object-contain max-h-32" />
                                             </div>
                                         )}

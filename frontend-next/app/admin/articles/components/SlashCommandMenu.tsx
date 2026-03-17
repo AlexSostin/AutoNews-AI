@@ -1,8 +1,15 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 
+interface SlashCommandItem {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  command: (args: { editor: unknown; range: unknown }) => void;
+}
+
 interface SlashCommandMenuProps {
-  items: any[];
-  command: (item: any) => void;
+  items: SlashCommandItem[];
+  command: (item: SlashCommandItem) => void;
 }
 
 export const SlashCommandMenu = forwardRef((props: SlashCommandMenuProps, ref) => {
@@ -59,7 +66,7 @@ export const SlashCommandMenu = forwardRef((props: SlashCommandMenuProps, ref) =
         Create Blocks & Actions
       </div>
       <div className="p-1 max-h-[300px] overflow-y-auto">
-        {props.items.map((item: any, index: number) => (
+        {props.items.map((item: SlashCommandItem, index: number) => (
           <button
             key={index}
             className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${

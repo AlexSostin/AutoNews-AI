@@ -15,10 +15,8 @@ import {
   ShieldCheck,
   ShieldX,
   Copy,
-  RefreshCw,
   AlertTriangle
 } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
 import { authenticatedFetch } from '@/lib/authenticatedFetch';
 import dynamic from 'next/dynamic';
 

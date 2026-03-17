@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
     Plus, Edit, Trash2, X, ArrowRightLeft, AlertCircle,
-    Building2, ChevronDown, ChevronRight, Globe, ExternalLink,
+    Building2, ChevronDown, ChevronRight, ExternalLink,
     Shield, Search, Car, Wrench, Check, Loader2, RefreshCw, Wand2
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -198,8 +198,9 @@ export default function BrandIntelligencePage() {
                 setAliases([...aliases, res.data]);
             }
             setShowModal(false);
-        } catch (err: any) {
-            const detail = err.response?.data?.alias?.[0] || err.response?.data?.detail || err.message;
+        } catch (err: unknown) {
+            const e = err as { response?: { data?: { alias?: string[]; detail?: string } }; message?: string };
+            const detail = e.response?.data?.alias?.[0] || e.response?.data?.detail || e.message || 'Unknown error';
             setError(`Failed: ${detail}`);
         }
     };
@@ -216,7 +217,7 @@ export default function BrandIntelligencePage() {
     const handleFixBrand = async (issue: AuditIssue) => {
         setFixingIds(prev => new Set(prev).add(issue.article_id));
         try {
-            const payload: any = { article_id: issue.article_id };
+            const payload: { article_id: number; new_make?: string } = { article_id: issue.article_id };
             // Use suggestion if available, otherwise let backend resolve via alias
             if (issue.suggestion && issue.suggestion !== issue.current_make) {
                 payload.new_make = issue.suggestion;
@@ -235,8 +236,9 @@ export default function BrandIntelligencePage() {
             } else {
                 alert(res.data.message || 'Fix failed');
             }
-        } catch (err: any) {
-            alert(err.response?.data?.message || 'Fix failed');
+        } catch (err: unknown) {
+            const e = err as { response?: { data?: { message?: string } } };
+            alert(e.response?.data?.message || 'Fix failed');
         } finally {
             setFixingIds(prev => {
                 const next = new Set(prev);
@@ -257,8 +259,9 @@ export default function BrandIntelligencePage() {
             fetchTree();
             fetchAudit();
             fetchAliases();
-        } catch (err: any) {
-            alert(err.response?.data?.detail || 'Sync failed');
+        } catch (err: unknown) {
+            const e = err as { response?: { data?: { detail?: string } } };
+            alert(e.response?.data?.detail || 'Sync failed');
         } finally {
             setSyncing(false);
         }
@@ -273,8 +276,9 @@ export default function BrandIntelligencePage() {
             setNormalizeResult(res.data);
             fetchTree();
             fetchAudit();
-        } catch (err: any) {
-            alert(err.response?.data?.detail || 'Normalize failed');
+        } catch (err: unknown) {
+            const e = err as { response?: { data?: { detail?: string } } };
+            alert(e.response?.data?.detail || 'Normalize failed');
         } finally {
             setNormalizing(false);
         }
@@ -541,7 +545,7 @@ export default function BrandIntelligencePage() {
                             <div className="flex items-start gap-2 text-sm text-indigo-700">
                                 <AlertCircle size={16} className="mt-0.5 shrink-0" />
                                 <span>
-                                    When AI extracts a brand name matching an alias, it's automatically replaced with the canonical name.
+                                    When AI extracts a brand name matching an alias, it&apos;s automatically replaced with the canonical name.
                                 </span>
                             </div>
                         </div>
