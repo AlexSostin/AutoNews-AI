@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 120; // Revalidate every 2 minutes
+export const dynamic = 'force-dynamic'; // Always fetch fresh article data
 
 // Production API URL - hardcoded for server-side rendering
 const PRODUCTION_API_URL = 'https://heroic-healing-production-2365.up.railway.app/api/v1';
@@ -55,7 +55,7 @@ async function getArticles() {
   try {
     const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
       headers: SSR_HEADERS,
-      next: { revalidate: 60, tags: ['articles'] },
+      cache: 'no-store',  // Always fresh — no ISR cache for article list
     });
     if (!res.ok) return { results: [] };
     return await res.json();

@@ -18,7 +18,6 @@ const getApiUrl = () => {
 };
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 60;
 
 async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const resolvedParams = await searchParams;
@@ -48,7 +47,7 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
     const SSR_HEADERS = { 'User-Agent': 'FreshMotors-SSR/1.0 (Next.js)', 'Accept': 'application/json' };
 
     const [articlesRes, categoriesRes, tagsRes] = await Promise.all([
-      fetch(`${apiUrl}/articles/?${queryParams.toString()}`, { headers: SSR_HEADERS, next: { revalidate: 60 } }),
+      fetch(`${apiUrl}/articles/?${queryParams.toString()}`, { headers: SSR_HEADERS, cache: 'no-store' }),
       fetch(`${apiUrl}/categories/`, { headers: SSR_HEADERS, next: { revalidate: 300 } }),
       fetch(`${apiUrl}/tags/`, { headers: SSR_HEADERS, next: { revalidate: 300 } })
     ]);
