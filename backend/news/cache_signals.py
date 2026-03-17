@@ -96,10 +96,33 @@ def invalidate_settings_cache():
 
 @receiver([post_save, post_delete], sender=Article)
 def on_article_change(sender, instance, **kwargs):
-    """Article saved/deleted → clear article + category caches."""
+    """Article saved/deleted → clear article + category caches + Vercel ISR."""
     invalidate_article_caches(article_id=instance.id, slug=instance.slug)
     # Categories are affected because article counts change
     invalidate_category_caches()
+
+    # Trigger Next.js ISR revalidation when publish-relevant fields change.
+    # We check update_fields to avoid triggering on every save (e.g. view count).
+    # post_delete always triggers (deleted articles must disappear from homepage).
+    is_delete = not kwargs.get('created', False) and kwargs.get('signal') == post_delete
+    update_fields = kwargs.get('update_fields')
+    publish_fields = {'is_published', 'is_deleted', 'is_hero', 'title', 'slug', 'summary', 'image'}
+
+    should_revalidate = (
+        is_delete
+        or update_fields is None  # full save (admin form, list_editable, etc.)
+        or bool(publish_fields & set(update_fields))  # targeted save with relevant field
+    )
+
+    if should_revalidate:
+        try:
+            from news.api_views._shared import trigger_nextjs_revalidation
+            paths = ['/', '/articles', '/trending']
+            if instance.slug:
+                paths.append(f'/articles/{instance.slug}')
+            trigger_nextjs_revalidation(paths=paths)
+        except Exception:
+            pass
 
 
 @receiver([post_save, post_delete], sender=Category)
