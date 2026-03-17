@@ -212,12 +212,12 @@ def _run_rss_scan():
         # Update settings
         AutomationSettings.objects.filter(pk=1).update(
             rss_last_run=timezone.now(),
-            rss_last_status=f"✅ {total_created} articles from {feeds.count()} feeds",
+            rss_last_status=f"✅ {total_created} articles from {len(feeds)} feeds",
             rss_articles_today=F('rss_articles_today') + total_created
         )
         settings.refresh_from_db()
         
-        logger.info(f"[SCHEDULER/RSS] ✅ Done: {total_created} articles from {feeds.count()} feeds")
+        logger.info(f"[SCHEDULER/RSS] ✅ Done: {total_created} articles from {len(feeds)} feeds")
         
         # Schedule next run using configured interval
         _schedule_rss_scan(settings.rss_scan_interval_minutes * 60)
