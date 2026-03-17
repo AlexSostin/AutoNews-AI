@@ -127,24 +127,25 @@ ARTICLE PREVIEW:
 - Include numbers if possible: price, range, horsepower, 0-100 time.
 
 ═══ SUMMARY RULES ═══
-- YOU MUST WRITE AT LEAST 400 WORDS. THIS IS NON-NEGOTIABLE.
-- Do NOT just write a short brief. Write a detailed, rich, and engaging overview that spans 400 to 500 words.
-- Use attractive short headings (e.g., using UPPERCASE or bullet points) to make it skimmable and exciting.
-- Sell the car's best features, explain who it is for, and why it matters in the current market. Expand on the facts if needed to reach the 400-word minimum.
+- LENGTH: STRICTLY 150-200 CHARACTERS (2-3 sentences).
+- Used on article cards, social previews, and listing pages.
+- Include the car name and its most impressive spec or selling point.
+- Must be a complete, engaging sentence — NOT truncated mid-word.
+- Do NOT write a long essay. Just 2-3 punchy sentences.
 
 ═══ OUTPUT FORMAT (strict) ═══
 TITLE: [your title here]
-SEO_DESCRIPTION: [your description here, STRICTLY 150-160 letters/chars]
-SUMMARY: [your 400-500 word rich summary here]
+SEO_DESCRIPTION: [your description here, STRICTLY 150-160 chars]
+SUMMARY: [your 150-200 char summary here]
 """
 
     try:
         ai = get_generate_provider()
         result = ai.generate_completion(
             prompt=prompt,
-            system_prompt="You are a senior automotive SEO specialist and editor. Generate concise metadata and a rich, comprehensive 500-word summary.",
+            system_prompt="You are a senior automotive SEO specialist and editor. Generate concise, high-quality metadata.",
             temperature=0.7,
-            max_tokens=1500,
+            max_tokens=2500,
             caller='title_seo'
         )
 
@@ -182,7 +183,7 @@ SUMMARY: [your 400-500 word rich summary here]
         # Validate SEO description
         if seo_desc:
             seo_desc = seo_desc.strip('"').strip("'")
-            if len(seo_desc) < 130:
+            if len(seo_desc) < 80:
                 print(f"⚠️ AI SEO description rejected (too short: {len(seo_desc)}): {seo_desc}")
                 seo_desc = None
             elif len(seo_desc) > 160:
@@ -858,10 +859,14 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         import html
         
         # Try to extract summary from AI analysis if available
+        # Target: 150-200 characters (for article cards, OG tags, listing pages)
         summary = ""
         if ai_summary and len(ai_summary) > 50:
             summary = ai_summary
-            print(f"✅ Using AI-generated enriched Summary ({len(summary)} chars)")
+            # Ensure AI summary stays within 200 chars for card display
+            if len(summary) > 200:
+                summary = _truncate_summary(summary, max_len=200)
+            print(f"✅ Using AI-generated Summary ({len(summary)} chars)")
         elif isinstance(analysis, str) and 'Summary:' in analysis:
             summary = analysis.split('Summary:')[-1].split('\n')[0].strip()
         elif isinstance(analysis, dict) and analysis.get('summary'):
@@ -887,11 +892,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 clean_all = re.sub(r'<[^>]+>', '', html.unescape(temp_content))
                 summary = clean_all.strip()
             
-            # Smart truncation — cut at sentence or word boundary, not mid-word
-            if len(summary) > 3000:
-                summary = _truncate_summary(summary, max_len=3000)
-            
-            # Card-friendly summary: 200 chars max (for article cards and listing pages)
+            # For fallback summaries (not AI-generated): truncate to 200 chars
             if len(summary) > 200:
                 summary = _truncate_summary(summary, max_len=200)
                 
@@ -920,10 +921,15 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             
             if make and model and make != 'Not specified':
                 year_str = f"{year} " if year else ""
-                hp_str = f" {hp_num} HP" if hp_num else ""
-                seo_description = f"Explore the {year_str}{make} {model}{hp_str}. Full specs, pricing, range, performance data & expert review."
-                if len(seo_description) > 155:
-                    seo_description = seo_description[:152] + '...'
+                hp_str = f", {hp_num} HP" if hp_num else ""
+                # Build data-rich SEO description with key specs
+                range_val = specs.get('range', '')
+                price_val = specs.get('price', '')
+                range_str = f", {range_val} range" if range_val and range_val != 'Not specified' else ""
+                price_str = f" from {price_val}" if price_val and price_val != 'Not specified' else ""
+                seo_description = f"The {year_str}{make} {model}{hp_str}{range_str}{price_str}. Full specs, pricing, performance data & expert review."
+                if len(seo_description) > 160:
+                    seo_description = seo_description[:157].rsplit(' ', 1)[0] + '...'
             if not seo_description:
                 seo_description = summary[:157].rsplit(' ', 1)[0] + '...' if len(summary) > 160 else summary
             print(f"📌 Fallback SEO description ({len(seo_description)} chars)")
