@@ -400,6 +400,113 @@ class SystemGraphView(APIView):
         except Exception:
             pass
 
+        # ── Scheduler / Background Tasks ─────────────────────────
+        try:
+            from news.scheduler import get_scheduler_heartbeat
+            from news.models import AutomationSettings, Article
+
+            heartbeat = get_scheduler_heartbeat()
+            scheduler_alive = heartbeat is not None
+
+            auto_settings = AutomationSettings.load()
+
+            # Check each task's last_run vs its expected interval
+            task_statuses = {}
+            overdue_tasks = []
+
+            # RSS scan
+            if auto_settings.rss_scan_enabled:
+                rss_interval = timedelta(minutes=auto_settings.rss_scan_interval_minutes * 2)  # allow 2x grace
+                if auto_settings.rss_last_run and (now - auto_settings.rss_last_run) > rss_interval:
+                    task_statuses['rss_scan'] = '⚠️ overdue'
+                    overdue_tasks.append('RSS scan')
+                elif auto_settings.rss_last_run:
+                    task_statuses['rss_scan'] = '✅ running'
+                else:
+                    task_statuses['rss_scan'] = '❓ never ran'
+                    overdue_tasks.append('RSS scan (never ran)')
+            else:
+                task_statuses['rss_scan'] = '⏸️ disabled'
+
+            # YouTube scan
+            if auto_settings.youtube_scan_enabled:
+                yt_interval = timedelta(minutes=auto_settings.youtube_scan_interval_minutes * 2)
+                if auto_settings.youtube_last_run and (now - auto_settings.youtube_last_run) > yt_interval:
+                    task_statuses['youtube_scan'] = '⚠️ overdue'
+                    overdue_tasks.append('YouTube scan')
+                elif auto_settings.youtube_last_run:
+                    task_statuses['youtube_scan'] = '✅ running'
+                else:
+                    task_statuses['youtube_scan'] = '❓ never ran'
+                    overdue_tasks.append('YouTube scan (never ran)')
+            else:
+                task_statuses['youtube_scan'] = '⏸️ disabled'
+
+            # Auto-publish
+            if auto_settings.auto_publish_enabled:
+                ap_interval = timedelta(minutes=30)  # 10 min interval * 3x grace
+                if auto_settings.auto_publish_last_run and (now - auto_settings.auto_publish_last_run) > ap_interval:
+                    task_statuses['auto_publish'] = '⚠️ overdue'
+                    overdue_tasks.append('Auto-publish')
+                elif auto_settings.auto_publish_last_run:
+                    task_statuses['auto_publish'] = '✅ running'
+                else:
+                    task_statuses['auto_publish'] = '❓ never ran'
+            else:
+                task_statuses['auto_publish'] = '⏸️ disabled'
+
+            # Scheduled publish — check if articles are stuck
+            stuck_scheduled = Article.objects.filter(
+                is_published=False,
+                is_deleted=False,
+                scheduled_publish_at__isnull=False,
+                scheduled_publish_at__lte=now - timedelta(minutes=5),
+            ).count()
+
+            if stuck_scheduled > 0:
+                task_statuses['scheduled_publish'] = f'🚨 {stuck_scheduled} stuck'
+                overdue_tasks.append(f'Scheduled publish ({stuck_scheduled} stuck articles)')
+            else:
+                task_statuses['scheduled_publish'] = '✅ running'
+
+            # Determine overall health
+            if not scheduler_alive:
+                sched_health = 'error'
+            elif overdue_tasks:
+                sched_health = 'warning'
+            else:
+                sched_health = 'healthy'
+
+            nodes.append({
+                'id': 'scheduler', 'label': 'Scheduler', 'group': 'system',
+                'icon': '⏰', 'count': len([v for v in task_statuses.values() if '✅' in v]),
+                'breakdown': {
+                    'heartbeat': f'✅ alive ({heartbeat[:19]})' if heartbeat else '🚨 DEAD — no heartbeat',
+                    **task_statuses,
+                },
+                'health': sched_health,
+            })
+            edges.append({'from': 'scheduler', 'to': 'ai_pipeline', 'label': 'drives', 'count': 0})
+            edges.append({'from': 'scheduler', 'to': 'rss_feeds', 'label': 'scans', 'count': 0})
+
+            if not scheduler_alive:
+                warnings.append({
+                    'level': 'error',
+                    'message': '🚨 Scheduler is DEAD — no heartbeat detected. All background tasks are stopped!'
+                })
+            if stuck_scheduled > 0:
+                warnings.append({
+                    'level': 'error',
+                    'message': f'{stuck_scheduled} article(s) stuck in "Publishing..." — scheduler may not be running'
+                })
+            if overdue_tasks and scheduler_alive:
+                warnings.append({
+                    'level': 'warning',
+                    'message': f'Overdue tasks: {", ".join(overdue_tasks)}'
+                })
+        except Exception as e:
+            logger.warning(f"[SYSTEM-GRAPH] Scheduler health check failed: {e}")
+
         # ── WebAuthn / Passkeys ──────────────────────────────────
         try:
             from news.models import WebAuthnCredential

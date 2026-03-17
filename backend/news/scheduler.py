@@ -24,6 +24,29 @@ DISABLED_CHECK_INTERVAL = 60  # Check again in 60s if disabled
 # Track which tasks were already triggered by recovery to prevent double-fire
 _recovery_triggered = set()
 
+# Cache key for scheduler heartbeat — System Graph reads this to verify scheduler is alive
+SCHEDULER_HEARTBEAT_KEY = 'scheduler:heartbeat'
+SCHEDULER_HEARTBEAT_TTL = 300  # 5 minutes — if no heartbeat in 5 min, scheduler is dead
+
+
+def _update_heartbeat():
+    """Write heartbeat timestamp to cache so System Graph can verify scheduler is alive."""
+    try:
+        from django.core.cache import cache
+        from django.utils import timezone
+        cache.set(SCHEDULER_HEARTBEAT_KEY, timezone.now().isoformat(), SCHEDULER_HEARTBEAT_TTL)
+    except Exception:
+        pass  # Never let heartbeat break the scheduler
+
+
+def get_scheduler_heartbeat():
+    """Read last heartbeat. Returns ISO timestamp string or None if scheduler is dead."""
+    try:
+        from django.core.cache import cache
+        return cache.get(SCHEDULER_HEARTBEAT_KEY)
+    except Exception:
+        return None
+
 
 def _log_scheduler_error(task_name, exception, severity='error'):
     """Log scheduler task failure to BackendErrorLog for dashboard visibility."""
@@ -505,6 +528,7 @@ def _run_scheduled_publish():
         _log_scheduler_error('scheduled_publish', e)
     finally:
         close_old_connections()
+        _update_heartbeat()  # Record heartbeat after each cycle
         _schedule_scheduled_publish()
 
 
