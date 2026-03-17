@@ -124,7 +124,7 @@ class TestArticleGeneratorPure:
 
 class TestArticleGeneratorAI:
 
-    @patch('ai_engine.modules.article_generator.get_ai_provider')
+    @patch('ai_engine.modules.article_prompt_builder.get_ai_provider')
     def test_generate_article(self, mock_provider):
         from ai_engine.modules.article_generator import generate_article
         mock_ai = MagicMock()
@@ -134,7 +134,7 @@ class TestArticleGeneratorAI:
         assert isinstance(result, str)
         assert '<h2>' in result
 
-    @patch('ai_engine.modules.article_generator.get_ai_provider')
+    @patch('ai_engine.modules.article_prompt_builder.get_ai_provider')
     def test_expand_press_release(self, mock_provider):
         from ai_engine.modules.article_generator import expand_press_release
         mock_ai = MagicMock()

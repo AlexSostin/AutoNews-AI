@@ -17,7 +17,14 @@ from ai_engine.modules.article_prompt_builder import (
     generate_article,
     expand_press_release,
     enhance_existing_article,
+    _try_fallback_provider,
 )
+
+# ── AI provider (re-exported for mock compatibility in tests) ─────────
+try:
+    from ai_engine.modules.ai_provider import get_ai_provider, get_light_provider
+except ImportError:
+    from modules.ai_provider import get_ai_provider, get_light_provider
 
 # ── Post-processing pipeline ──────────────────────────────────────────
 from ai_engine.modules.article_post_processor import (
@@ -25,6 +32,11 @@ from ai_engine.modules.article_post_processor import (
     _detect_missing_sections,
     _strip_empty_compare_cards,
     _dedup_guard,
+    _validate_prices,
+    _detect_duplicate_paragraphs,
+    _check_self_consistency,
+    _clean_source_typos,
+    _reduce_repetition,
 )
 
 # ── AI self-review & verdict ──────────────────────────────────────────

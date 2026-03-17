@@ -83,7 +83,7 @@ class TestEnsureHtmlOnly:
 
 class TestGenerateArticle:
 
-    @patch('ai_engine.modules.article_generator.get_ai_provider')
+    @patch('ai_engine.modules.article_prompt_builder.get_ai_provider')
     def test_generate_with_gemini(self, mock_provider):
         from ai_engine.modules.article_generator import generate_article
         mock_ai = MagicMock()
@@ -101,7 +101,7 @@ class TestGenerateArticle:
         assert '<h2>' in result
         assert 'BYD' in result or 'Seal' in result
 
-    @patch('ai_engine.modules.article_generator.get_ai_provider')
+    @patch('ai_engine.modules.article_prompt_builder.get_ai_provider')
     def test_generate_with_web_context(self, mock_provider):
         from ai_engine.modules.article_generator import generate_article
         mock_ai = MagicMock()
@@ -117,7 +117,7 @@ class TestGenerateArticle:
         )
         assert result is not None
 
-    @patch('ai_engine.modules.article_generator.get_ai_provider')
+    @patch('ai_engine.modules.article_prompt_builder.get_ai_provider')
     def test_generate_returns_empty_on_failure(self, mock_provider):
         from ai_engine.modules.article_generator import generate_article
         mock_ai = MagicMock()
@@ -135,7 +135,7 @@ class TestGenerateArticle:
 
 class TestExpandPressRelease:
 
-    @patch('ai_engine.modules.article_generator.get_ai_provider')
+    @patch('ai_engine.modules.article_prompt_builder.get_ai_provider')
     def test_expand_success(self, mock_provider):
         from ai_engine.modules.article_generator import expand_press_release
         mock_ai = MagicMock()
@@ -155,7 +155,7 @@ class TestExpandPressRelease:
         assert '<h2>' in result
         assert len(result) > 100
 
-    @patch('ai_engine.modules.article_generator.get_ai_provider')
+    @patch('ai_engine.modules.article_prompt_builder.get_ai_provider')
     def test_expand_with_web_context(self, mock_provider):
         from ai_engine.modules.article_generator import expand_press_release
         mock_ai = MagicMock()
@@ -170,7 +170,7 @@ class TestExpandPressRelease:
         )
         assert result is not None
 
-    @patch('ai_engine.modules.article_generator.get_ai_provider')
+    @patch('ai_engine.modules.article_prompt_builder.get_ai_provider')
     def test_expand_failure(self, mock_provider):
         from ai_engine.modules.article_generator import expand_press_release
         mock_ai = MagicMock()
