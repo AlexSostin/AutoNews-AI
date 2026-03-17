@@ -1,46 +1,5 @@
-import { test, expect, Page, BrowserContext } from '@playwright/test';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Config — Uses a dedicated e2e_admin user created via management command
-// ═══════════════════════════════════════════════════════════════════════════
-const E2E_USER = 'e2e_admin';
-const E2E_PASS = 'E2eTestPass123!';
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Helper: Real login via the backend /token/ API
-// ═══════════════════════════════════════════════════════════════════════════
-
-async function loginAsAdmin(page: Page, context: BrowserContext) {
-    // 1. Get real JWT tokens from the backend
-    const tokenResponse = await page.request.post(`${API_BASE}/token/`, {
-        data: { username: E2E_USER, password: E2E_PASS },
-        headers: { 'Content-Type': 'application/json' },
-    });
-
-    expect(tokenResponse.ok(), `Login failed: ${tokenResponse.status()}`).toBeTruthy();
-    const { access, refresh } = await tokenResponse.json();
-
-    // 2. Set cookies so the Next.js middleware allows access
-    await context.addCookies([
-        { name: 'access_token', value: access, domain: 'localhost', path: '/' },
-        { name: 'refresh_token', value: refresh, domain: 'localhost', path: '/' },
-    ]);
-
-    // 3. Navigate to a page to establish localStorage context
-    await page.goto('/login');
-    await page.evaluate(
-        ({ access, refresh }) => {
-            localStorage.setItem('access_token', access);
-            localStorage.setItem('refresh_token', refresh);
-            localStorage.setItem(
-                'user',
-                JSON.stringify({ id: 1, username: 'e2e_admin', is_staff: true, is_superuser: true })
-            );
-        },
-        { access, refresh }
-    );
-}
+import { test, expect } from '@playwright/test';
+import { loginAsAdmin, getToken, API_BASE } from './helpers/auth';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Admin Panel Test Suite
@@ -168,12 +127,3 @@ test.describe('Admin Panel', () => {
 });
 
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Helper: Extract token from cookies
-// ═══════════════════════════════════════════════════════════════════════════
-
-async function getToken(context: BrowserContext): Promise<string> {
-    const cookies = await context.cookies();
-    const accessCookie = cookies.find(c => c.name === 'access_token');
-    return accessCookie?.value || '';
-}

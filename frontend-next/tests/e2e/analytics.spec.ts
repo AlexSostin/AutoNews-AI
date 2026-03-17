@@ -1,30 +1,5 @@
-import { test, expect, Page, BrowserContext } from '@playwright/test';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Config
-// ═══════════════════════════════════════════════════════════════════════════
-const E2E_USER = 'e2e_admin';
-const E2E_PASS = 'E2eTestPass123!';
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
-async function loginAsAdmin(page: Page, context: BrowserContext) {
-    const tokenResponse = await page.request.post(`${API_BASE}/token/`, {
-        data: { username: E2E_USER, password: E2E_PASS },
-        headers: { 'Content-Type': 'application/json' },
-    });
-    if (!tokenResponse.ok()) return; // Skip silently if backend not running
-    const { access, refresh } = await tokenResponse.json();
-    await context.addCookies([
-        { name: 'access_token', value: access, domain: 'localhost', path: '/' },
-        { name: 'refresh_token', value: refresh, domain: 'localhost', path: '/' },
-    ]);
-    await page.goto('/login');
-    await page.evaluate(({ access, refresh }) => {
-        localStorage.setItem('access_token', access);
-        localStorage.setItem('refresh_token', refresh);
-        localStorage.setItem('user', JSON.stringify({ id: 1, username: 'e2e_admin', is_staff: true, is_superuser: true }));
-    }, { access, refresh });
-}
+import { test, expect } from '@playwright/test';
+import { loginAsAdmin } from './helpers/auth';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Analytics Dashboard

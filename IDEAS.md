@@ -4,7 +4,85 @@
 
 ---
 
-## 📅 13 Марта 2026
+## 📅 17 Марта 2026
+
+### ✅ Реализовано сегодня
+
+> **Статус:** ✅ Завершено
+
+- [x] **Infinite Scroll — 6 оптимизаций** — lightweight serializer, select_related/prefetch, Redis cache 60s, rootMargin 600px, remove image_2/3 from list, cooldown 1.5s
+- [x] **Бонус баг-фикс** — `carspecification__make` → `specs__make` — silent bug убивал make/model приоритизацию
+- [x] **19 новых pytest тестов** — `test_infinite_scroll.py` (next-article, пагинация, кеш, response weight)
+- [x] **48 тестовых ошибок → 0** — `testpaths = tests` в pytest.ini (3 stale standalone скрипта в корне)
+- [x] **5 flaky тестов починены** — 2 stale provider rejection + 3 search data contamination
+- [x] **Scheduler баг `feeds.count()`** — `list.count()` → `len(feeds)` (TypeError в продакшене)
+
+### 🔍 Полный аудит Playwright E2E
+
+> **Статус:** 📊 Аудит завершён
+
+**Текущее покрытие:** 45 тестов / 6 spec файлов / 4 браузера (Chromium, Firefox, WebKit, Mobile Chrome)
+
+| Spec файл | Тестов | Что покрывает | Качество |
+|-----------|--------|---------------|----------|
+| `basic.spec.ts` | 15 | Homepage, Articles, SEO meta, Performance, Mobile | ✅ Хорошо |
+| `article-ux.spec.ts` | 5 | Infinite Scroll, Capsule Voting, View Tracking | ⚠️ Soft-pass (не ломает CI) |
+| `admin.spec.ts` | 10 | Dashboard, CRUD, Analytics, RSS Feeds | ✅ Хорошо |
+| `auth.spec.ts` | 2 | Login, Token Refresh | ✅ Отлично (проверяет JWT flow) |
+| `analytics.spec.ts` | 5 | Dashboard widgets, ML Health, A/B Tests | ✅ Хорошо |
+| `search.spec.ts` | 3 | Search page, Results, Navigation | 🟡 Базово |
+
+**CI конфигурация:**
+- `continue-on-error: true` — E2E **не блокируют** деплой
+- Только Chromium в CI (остальные 3 браузера не запускаются)
+- Django запускается с `populate_db` + `e2e_admin` юзером
+- Next.js build + start (production mode)
+
+### 🔴 Что важно улучшить в E2E
+
+#### 1. Infinite Scroll тест слишком мягкий
+> `article-ux.spec.ts` всегда проходит — soft-pass без реальных assertions.
+
+- [ ] Сделать `assertive` тест: прокрутка вниз → URL изменился → новая h1 появилась
+- [ ] Если <2 статей в тестовой БД — `test.skip()` вместо soft-pass
+- [ ] Добавить проверку что `increment_views` вызвался для второй статьи
+
+#### 2. Нет мобильных E2E тестов
+> Config имеет `Mobile Chrome (Pixel 5)`, но единственный мобильный тест — просто проверка ширины body.
+
+- [ ] Мобильный infinite scroll (rootMargin 600px должен работать)
+- [ ] Hamburger меню + навигация
+- [ ] Touch scroll + cooldown поведение
+
+#### 3. Нет тестов на ключевые user flows
+- [ ] **Полный read flow**: Homepage → Article → Scroll → Next Article → Back
+- [ ] **Share/Favorite flow**: Open article → Click favorite → Verify icon change
+- [ ] **Admin publish flow**: Login → Pending → Approve → Verify on public site
+
+#### 4. CI не запускает Firefox/WebKit
+> 4 проекта в config, но CI запускает только Chromium. 
+
+- [ ] Добавить хотя бы WebKit (Safari) в CI — это ловит 80% кросс-браузерных багов
+- [ ] Или параллельные matrix jobs: `strategy.matrix.project: [chromium, webkit]`
+
+### 🟡 Nice to have для E2E
+
+- [ ] **Visual regression** — `toHaveScreenshot()` для homepage, article page, admin dashboard
+- [ ] **Performance assertions** — `page.evaluate(performance.getEntriesByType('navigation'))` для LCP/FCP
+- [ ] **API interception** — мокать медленные/flaky AI endpoints чтобы стабилизировать E2E
+- [ ] **Auth storage state** — `storageState` файл вместо повторного login в каждом тесте (x5 быстрее)
+- [ ] **Retry policy** — убрать `continue-on-error: true`, добавить `retries: 2` (уже в config но CI игнорирует)
+
+### 📊 Обновлённая статистика (17 марта 2026)
+
+| Метрика | Значение |
+|---------|----------|
+| Python тесты | 2524+ (0 errors) |
+| E2E Playwright | 45 тестов (6 spec файлов) |
+| API endpoints | 112+ |
+| AI modules | 46 |
+
+---
 
 ### 🔬 Архитектурный аудит стека
 >

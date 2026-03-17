@@ -255,14 +255,14 @@ jobs:
       
       - name: Install Playwright browsers
         working-directory: ./frontend-next
-        run: npx playwright install chromium --with-deps
+        run: npx playwright install chromium webkit --with-deps
       
       - name: Run E2E tests
         working-directory: ./frontend-next
         env:
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
-        run: npx playwright test --project=chromium --reporter=list --timeout=60000
+        run: npx playwright test --project=chromium --project=webkit --reporter=list --timeout=60000 --retries=2
 
   dependency-audit:
     runs-on: ubuntu-latest
