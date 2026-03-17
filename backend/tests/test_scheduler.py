@@ -478,3 +478,151 @@ class TestStartScheduler:
                 os.environ['RUN_MAIN'] = original_run_main
             else:
                 os.environ.pop('RUN_MAIN', None)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# APPS.PY — scheduler activation guard
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestAppConfigCallsScheduler:
+    """Verify that NewsConfig.ready() actually calls start_scheduler().
+
+    This is the CRITICAL integration test that would have caught the bug where
+    start_scheduler() was commented out in apps.py, leaving ALL background
+    tasks (RSS, YouTube, auto-publish, scheduled publish) dead on production.
+    """
+
+    def test_apps_ready_imports_start_scheduler(self):
+        """apps.py must contain 'start_scheduler()' call — not commented out."""
+        import inspect
+        from news.apps import NewsConfig
+        source = inspect.getsource(NewsConfig.ready)
+        # Must contain an actual call (not just a comment)
+        assert 'start_scheduler()' in source, (
+            "NewsConfig.ready() must call start_scheduler(). "
+            "Without it, ALL background tasks are dead on production."
+        )
+        # Make sure it's not commented out
+        for line in source.splitlines():
+            stripped = line.strip()
+            if 'start_scheduler()' in stripped:
+                assert not stripped.startswith('#'), (
+                    "start_scheduler() is commented out in apps.py! "
+                    "This kills ALL background tasks on production."
+                )
+
+    @patch('news.scheduler.start_scheduler')
+    def test_ready_calls_start_scheduler(self, mock_start):
+        """Simulate AppConfig.ready() and verify start_scheduler is called."""
+        from django.apps import apps
+        config = apps.get_app_config('news')
+        # Mock the signal imports to avoid side effects
+        with patch('news.cache_signals', create=True), \
+             patch('news.signals', create=True):
+            config.ready()
+        mock_start.assert_called_once()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RECOVERY — must include scheduled_publish
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRecoveryIncludesScheduledPublish:
+    """Verify startup recovery triggers scheduled_publish."""
+
+    @patch('news.scheduler.threading.Thread')
+    def test_recovery_triggers_scheduled_publish(self, mock_thread, automation_settings):
+        from news.scheduler import _check_overdue_tasks
+        _check_overdue_tasks()
+
+        # Check that at least one Thread was started with target=_run_scheduled_publish
+        from news.scheduler import _run_scheduled_publish
+        targets = [call.kwargs.get('target') for call in mock_thread.call_args_list]
+        assert _run_scheduled_publish in targets, (
+            "_check_overdue_tasks must trigger _run_scheduled_publish on recovery. "
+            "Without it, articles scheduled during downtime/deploys are never published."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SCHEDULED PUBLISH — end-to-end
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRunScheduledPublish:
+    """Tests for _run_scheduled_publish()"""
+
+    @patch('news.scheduler._schedule_scheduled_publish')
+    def test_publishes_due_article(self, mock_schedule, db):
+        """Article with scheduled_publish_at in the past should be flipped to published."""
+        from news.models import Article
+        from news.scheduler import _run_scheduled_publish
+
+        article = Article.objects.create(
+            title='Scheduled Test',
+            slug='scheduled-test',
+            content='<p>Content</p>',
+            summary='Summary',
+            is_published=False,
+            scheduled_publish_at=timezone.now() - timedelta(minutes=5),
+        )
+
+        _run_scheduled_publish()
+
+        article.refresh_from_db()
+        assert article.is_published is True
+        assert article.scheduled_publish_at is None
+
+    @patch('news.scheduler._schedule_scheduled_publish')
+    def test_skips_future_articles(self, mock_schedule, db):
+        """Article scheduled for the future should NOT be published yet."""
+        from news.models import Article
+        from news.scheduler import _run_scheduled_publish
+
+        article = Article.objects.create(
+            title='Future Article',
+            slug='future-article',
+            content='<p>Content</p>',
+            summary='Summary',
+            is_published=False,
+            scheduled_publish_at=timezone.now() + timedelta(hours=2),
+        )
+
+        _run_scheduled_publish()
+
+        article.refresh_from_db()
+        assert article.is_published is False
+        assert article.scheduled_publish_at is not None
+
+    @patch('news.scheduler._schedule_scheduled_publish')
+    def test_sends_telegram_on_publish(self, mock_schedule, db):
+        """When telegram is enabled, published article should trigger send_to_channel."""
+        from news.models import Article, AutomationSettings
+        from news.scheduler import _run_scheduled_publish
+
+        settings = AutomationSettings.load()
+        settings.telegram_enabled = True
+        settings.save()
+
+        article = Article.objects.create(
+            title='Telegram Test',
+            slug='telegram-test',
+            content='<p>Content</p>',
+            summary='Summary',
+            is_published=False,
+            scheduled_publish_at=timezone.now() - timedelta(minutes=1),
+        )
+
+        with patch('ai_engine.modules.telegram_publisher.send_to_channel', return_value={'ok': True, 'result': {'message_id': 999}}) as mock_tg:
+            _run_scheduled_publish()
+            mock_tg.assert_called_once()
+
+        article.refresh_from_db()
+        assert article.is_published is True
+
+    @patch('news.scheduler._schedule_scheduled_publish')
+    def test_always_reschedules(self, mock_schedule, db):
+        """_run_scheduled_publish must always reschedule itself, even on error."""
+        from news.scheduler import _run_scheduled_publish
+        _run_scheduled_publish()
+        mock_schedule.assert_called_once()
+
