@@ -138,12 +138,18 @@ class TestGenerateFromYouTubeDeep:
         }, format='json', **UA)
         assert resp.status_code == 500
 
-    def test_invalid_provider_rejected(self, staff_client):
+    @patch('ai_engine.main.generate_article_from_youtube')
+    def test_invalid_provider_normalized(self, mock_gen, staff_client):
+        """Invalid provider gets silently normalized to 'gemini' (not rejected)."""
+        result_article = Article.objects.create(
+            title='Normalized', slug='normalized', content='<p>Content</p>',
+        )
+        mock_gen.return_value = {'success': True, 'article_id': result_article.id}
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'provider': 'openai',
         }, format='json', **UA)
-        assert resp.status_code == 400
+        assert resp.status_code == 200
 
     @patch('ai_engine.main.generate_article_from_youtube')
     def test_provider_normalized_to_gemini(self, mock_gen, staff_client):

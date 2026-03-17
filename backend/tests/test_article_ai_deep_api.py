@@ -164,12 +164,20 @@ class TestGenerateFromYouTubeFullFlow:
         }, format='json')
         assert resp.status_code == 400
 
-    def test_generate_invalid_provider(self, staff_client):
+    @patch('ai_engine.main.generate_article_from_youtube')
+    def test_generate_invalid_provider_normalized(self, mock_generate, staff_client):
+        """Invalid provider gets silently normalized to 'gemini' (not rejected)."""
+        from news.models import Article
+        art = Article.objects.create(
+            title='Normalized', slug='normalized-prov',
+            content='<p>Content</p>', summary='Summary', is_published=False,
+        )
+        mock_generate.return_value = {'success': True, 'article_id': art.id}
         resp = staff_client.post(f'{API}/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'provider': 'chatgpt',
         }, format='json')
-        assert resp.status_code == 400
+        assert resp.status_code == 200
 
     @patch('ai_engine.main.generate_article_from_youtube',
            side_effect=Exception('API down'))

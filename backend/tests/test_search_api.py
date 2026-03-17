@@ -144,21 +144,23 @@ class TestSearchAPI:
         # Should return all published articles
         assert response.data['total'] >= 2
     
-    def test_no_results(self, api_client):
+    @patch('news.search_analytics_views.SearchAPIView._hybrid_article_ids', return_value=[])
+    def test_no_results(self, mock_hybrid, api_client):
         """Test search with no matching results"""
         response = api_client.get('/api/v1/search/', {
-            'q': 'xyznonexistent123'
+            'q': 'zzz_nonexistent_brand_xyz_9999'
         })
         
         assert response.status_code == 200
         assert response.data['total'] == 0
         assert response.data['results'] == []
     
-    def test_search_ignores_unpublished(self, api_client):
+    @patch('news.search_analytics_views.SearchAPIView._hybrid_article_ids', return_value=[])
+    def test_search_ignores_unpublished(self, mock_hybrid, api_client):
         """Test that unpublished articles are not returned"""
-        # Create unpublished article
+        # Create unpublished article with unique title
         a = Article.objects.create(
-            title='Unpublished Article',
+            title='ZZQQ_Unpublished_UniqueMarker_8877',
             content='<p>Secret content</p>',
             is_published=False,
             is_deleted=False
@@ -166,17 +168,18 @@ class TestSearchAPI:
         a.categories.add(self.category)
         
         response = api_client.get('/api/v1/search/', {
-            'q': 'Unpublished'
+            'q': 'ZZQQ_Unpublished_UniqueMarker_8877'
         })
         
         assert response.status_code == 200
         assert response.data['total'] == 0
     
-    def test_search_ignores_deleted(self, api_client):
+    @patch('news.search_analytics_views.SearchAPIView._hybrid_article_ids', return_value=[])
+    def test_search_ignores_deleted(self, mock_hybrid, api_client):
         """Test that deleted articles are not returned"""
-        # Create deleted article
+        # Create deleted article with unique title
         a = Article.objects.create(
-            title='Deleted Article',
+            title='ZZQQ_Deleted_UniqueMarker_9988',
             content='<p>Deleted content</p>',
             is_published=True,
             is_deleted=True
@@ -184,7 +187,7 @@ class TestSearchAPI:
         a.categories.add(self.category)
         
         response = api_client.get('/api/v1/search/', {
-            'q': 'Deleted'
+            'q': 'ZZQQ_Deleted_UniqueMarker_9988'
         })
         
         assert response.status_code == 200
