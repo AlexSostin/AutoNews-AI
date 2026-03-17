@@ -27,10 +27,11 @@ export async function POST(request: NextRequest) {
         }
         console.log(`[REVALIDATE] Tags invalidated: ${tags.join(', ')}`);
 
-        // Revalidate specified paths (clears route/page cache)
+        // Revalidate specified paths — use 'layout' type to invalidate the FULL
+        // route tree (all layouts + nested pages), not just individual page segments
         const paths = body.paths || ['/', '/articles', '/trending'];
         for (const path of paths) {
-            revalidatePath(path);
+            revalidatePath(path, 'layout');
         }
         console.log(`[REVALIDATE] Paths invalidated: ${paths.join(', ')}`);
 
