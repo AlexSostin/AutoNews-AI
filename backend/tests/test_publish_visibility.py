@@ -11,6 +11,7 @@ Verifies that:
 import pytest
 from unittest.mock import patch, MagicMock
 from django.test import TestCase
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 from news.models import Article
@@ -58,6 +59,7 @@ class TestArticlePublishVisibility:
 
     def test_published_article_appears_in_public_list(self, anon_client, published_article):
         """Published articles should appear in the public (anonymous) article list."""
+        cache.clear()  # prevent stale cache from parallel pytest-xdist workers
         resp = anon_client.get('/api/v1/articles/')
         assert resp.status_code == 200
         slugs = [a['slug'] for a in resp.data['results']]
@@ -117,6 +119,7 @@ class TestArticlePublishVisibility:
     def test_unpublish_hides_article_immediately(self, mock_revalidate, staff_client, anon_client, published_article):
         """After unpublishing, article should immediately disappear from public list."""
         # Step 1: Verify article IS visible
+        cache.clear()  # prevent stale cache from parallel pytest-xdist workers
         resp = anon_client.get('/api/v1/articles/')
         slugs = [a['slug'] for a in resp.data['results']]
         assert published_article.slug in slugs
