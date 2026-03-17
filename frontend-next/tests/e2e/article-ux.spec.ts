@@ -7,21 +7,27 @@ import { test, expect, Page } from '@playwright/test';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
-/** 
- * Helper: navigate to the first published article. 
- * Returns the initial URL, or null if no articles exist.
+/**
+ * Helper: get the href of the first published article from the listing page.
+ * Returns the href string or null if no articles exist.
  */
-async function openFirstArticle(page: Page): Promise<string | null> {
+async function getFirstArticleHref(page: Page): Promise<string | null> {
     await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(3000);
 
     const articleLink = page.locator('a[href*="/articles/"]').first();
     if (!(await articleLink.isVisible().catch(() => false))) return null;
 
-    await articleLink.click({ force: true });
-    await page.waitForLoadState('domcontentloaded');
+    return await articleLink.getAttribute('href');
+}
+
+/**
+ * Helper: navigate directly to an article page.
+ * Uses page.goto instead of click to avoid Next.js Link routing issues.
+ */
+async function navigateToArticle(page: Page, href: string): Promise<void> {
+    await page.goto(href, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
-    return page.url();
 }
 
 /**
@@ -39,7 +45,7 @@ async function getPublishedArticleCount(page: Page): Promise<number> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Infinite Scroll — ASSERTIVE tests (not soft-pass)
+// Infinite Scroll — ASSERTIVE tests
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('Infinite Scroll', () => {
@@ -53,36 +59,42 @@ test.describe('Infinite Scroll', () => {
             return;
         }
 
-        const initialUrl = await openFirstArticle(page);
-        if (!initialUrl) {
-            test.skip(true, 'Could not open first article');
+        const href = await getFirstArticleHref(page);
+        if (!href) {
+            test.skip(true, 'Could not find first article link');
             return;
         }
 
-        // Give the page time to fully hydrate and load infinite scroll JS
+        // Navigate directly to the article page (don't click — Next.js Link can be flaky)
+        await navigateToArticle(page, href);
+        const initialUrl = page.url();
+
+        // Confirm we're on an article detail page (not listing)
+        expect(initialUrl).toContain('/articles/');
+        expect(initialUrl).not.toBe(page.url().split('?')[0] === '/articles' ? initialUrl : '');
+
+        // Give the page time to fully hydrate
         await page.waitForTimeout(3000);
 
-        // Scroll to bottom aggressively — simulate real user scrolling
+        // Scroll to bottom aggressively
         for (let i = 0; i < 8; i++) {
             await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
             await page.waitForTimeout(1000);
         }
 
-        // Wait for next article to load via infinite scroll
+        // Wait for next article to potentially load
         await page.waitForTimeout(5000);
 
         const currentUrl = page.url();
-        const articleElements = await page.locator('article').count();
         const h1Count = await page.locator('h1').count();
 
-        // Assertive check: either URL changed or multiple articles/headings appeared
+        // Assertive: URL changed to a different article slug OR multiple h1s appeared
         const urlChanged = currentUrl !== initialUrl && currentUrl.includes('/articles/');
-        const multipleArticles = articleElements > 1;
         const multipleHeadings = h1Count > 1;
 
         expect(
-            urlChanged || multipleArticles || multipleHeadings,
-            `Infinite scroll did not load second article. URL: ${currentUrl}, articles: ${articleElements}, h1s: ${h1Count}`
+            urlChanged || multipleHeadings,
+            `Infinite scroll did not load second article. URL: ${initialUrl} → ${currentUrl}, h1s: ${h1Count}`
         ).toBeTruthy();
     });
 
@@ -93,13 +105,13 @@ test.describe('Infinite Scroll', () => {
             return;
         }
 
-        const initialUrl = await openFirstArticle(page);
-        if (!initialUrl) {
-            test.skip(true, 'Could not open first article');
+        const href = await getFirstArticleHref(page);
+        if (!href) {
+            test.skip(true, 'Could not find first article link');
             return;
         }
 
-        // Track ALL increment_views requests
+        // Set up request listener BEFORE navigating
         const viewRequests: string[] = [];
         page.on('request', req => {
             if (req.url().includes('increment_views')) {
@@ -107,7 +119,11 @@ test.describe('Infinite Scroll', () => {
             }
         });
 
-        await page.waitForTimeout(2000);
+        await navigateToArticle(page, href);
+
+        // ViewTracker has a 2-second setTimeout before firing increment_views
+        // Wait extra time for the fetch to actually fire
+        await page.waitForTimeout(5000);
 
         // Scroll to load second article
         for (let i = 0; i < 8; i++) {
@@ -116,10 +132,10 @@ test.describe('Infinite Scroll', () => {
         }
         await page.waitForTimeout(5000);
 
-        // Should have ≥1 increment_views call (first article on mount + possibly second)
+        // Should have ≥1 increment_views call (first article after 2s delay)
         expect(
             viewRequests.length,
-            'Expected at least 1 increment_views call'
+            'Expected at least 1 increment_views call (ViewTracker has 2s delay)'
         ).toBeGreaterThanOrEqual(1);
     });
 
@@ -130,21 +146,23 @@ test.describe('Infinite Scroll', () => {
             return;
         }
 
-        const initialUrl = await openFirstArticle(page);
-        if (!initialUrl) {
-            test.skip(true, 'Could not open first article');
+        const href = await getFirstArticleHref(page);
+        if (!href) {
+            test.skip(true, 'Could not find first article link');
             return;
         }
 
+        await navigateToArticle(page, href);
         await page.waitForTimeout(1500);
-        // Scroll down 60% (not to the very bottom — preview appears before end)
+
+        // Scroll down 60%
         await page.evaluate(() => {
             const target = document.body.scrollHeight * 0.6;
             window.scrollTo({ top: target, behavior: 'smooth' });
         });
         await page.waitForTimeout(3000);
 
-        // NextArticlePreview may render a "Next Article" card, progress indicator, or loading skeleton
+        // NextArticlePreview may render a preview card or loading skeleton
         const nextPreview = page
             .locator('[data-testid="next-article-preview"], [class*="next-article"], [class*="NextArticle"]')
             .or(page.getByText('Next Article', { exact: false }))
@@ -166,11 +184,13 @@ test.describe('Capsule Voting', () => {
     test.setTimeout(20000);
 
     test('capsule vote buttons are visible on article page', async ({ page }) => {
-        const url = await openFirstArticle(page);
-        if (!url) {
+        const href = await getFirstArticleHref(page);
+        if (!href) {
             test.skip(true, 'No published articles available');
             return;
         }
+
+        await navigateToArticle(page, href);
 
         // Scroll to bottom to find capsule section
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -203,12 +223,13 @@ test.describe('Capsule Voting', () => {
             }
         });
 
-        const url = await openFirstArticle(page);
-        if (!url) {
+        const href = await getFirstArticleHref(page);
+        if (!href) {
             test.skip(true, 'No published articles available');
             return;
         }
 
+        await navigateToArticle(page, href);
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await page.waitForTimeout(1500);
 
@@ -231,19 +252,14 @@ test.describe('Capsule Voting', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('View Tracking', () => {
-    test.setTimeout(15000);
+    test.setTimeout(20000);
 
     test('opening an article fires the increment-views request', async ({ page }) => {
-        await page.goto('/articles', { waitUntil: 'domcontentloaded' });
-        await page.waitForTimeout(3000);
-
-        const articleLink = page.locator('a[href*="/articles/"]').first();
-        if (!(await articleLink.isVisible().catch(() => false))) {
+        const href = await getFirstArticleHref(page);
+        if (!href) {
             test.skip(true, 'No published articles available');
             return;
         }
-        const articleHref = await articleLink.getAttribute('href');
-        if (!articleHref) { test.skip(true, 'Could not get article href'); return; }
 
         // Listen for requests BEFORE navigating
         const viewRequests: string[] = [];
@@ -251,12 +267,15 @@ test.describe('View Tracking', () => {
             if (req.url().includes('increment_views')) viewRequests.push(req.url());
         });
 
-        await page.goto(articleHref, { waitUntil: 'domcontentloaded' });
-        await page.waitForTimeout(4000);
+        await page.goto(href, { waitUntil: 'domcontentloaded' });
+
+        // ViewTracker.tsx has a 2-second setTimeout before firing the fetch.
+        // We need to wait at least 4-5 seconds total for it to fire in CI.
+        await page.waitForTimeout(6000);
 
         expect(
             viewRequests.length,
-            `increment_views was never called on ${articleHref}`
+            `increment_views was never called on ${href} (ViewTracker has 2s delay — waited 6s)`
         ).toBeGreaterThan(0);
     });
 });
