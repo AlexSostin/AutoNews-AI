@@ -12,6 +12,8 @@ from django.utils import timezone
 from datetime import timedelta
 import logging
 
+from news.scheduler import get_scheduler_heartbeat
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,8 +28,11 @@ class SystemGraphView(APIView):
             Brand, BrandAlias, CarSpecification, VehicleSpecs,
             RSSFeed, RSSNewsItem, YouTubeChannel,
             Subscriber, ArticleEmbedding, ArticleTitleVariant,
-            FrontendEventLog, BackendErrorLog, AdminNotification
+            FrontendEventLog, BackendErrorLog, AdminNotification,
+            SecurityLog, GSCReport, AutoPublishLog,
+            TOTPDevice, WebAuthnCredential,
         )
+        from news.models.sources import YouTubeVideoCandidate
 
         nodes = []
         edges = []
@@ -92,6 +97,26 @@ class SystemGraphView(APIView):
             'breakdown': {'active': yt_active, 'inactive': yt_total - yt_active},
             'health': 'healthy' if yt_active > 0 else 'warning',
         })
+
+        # YouTube Video Candidates (inbox)
+        vc_data = YouTubeVideoCandidate.objects.aggregate(
+            total=Count('id'),
+            new=Count('id', filter=Q(status='new')),
+            approved=Count('id', filter=Q(status='approved')),
+            generating=Count('id', filter=Q(status='generating')),
+            dismissed=Count('id', filter=Q(status='dismissed')),
+        )
+        nodes.append({
+            'id': 'video_candidates', 'label': 'Video Inbox', 'group': 'sources',
+            'icon': '🎬', 'count': vc_data['total'],
+            'breakdown': {k: v for k, v in vc_data.items() if k != 'total'},
+            'health': 'warning' if vc_data['new'] > 10 else 'healthy',
+        })
+        edges.append({'from': 'youtube', 'to': 'video_candidates', 'label': 'discovers', 'count': vc_data['total']})
+        edges.append({'from': 'video_candidates', 'to': 'pending_articles', 'label': 'generates', 'count': vc_data['approved'] + vc_data['generating']})
+
+        if vc_data['new'] > 10:
+            warnings.append({'level': 'info', 'message': f'{vc_data["new"]} YouTube videos awaiting review in inbox'})
 
         # ── Content ──────────────────────────────────────────────
         pending = PendingArticle.objects.aggregate(
@@ -397,12 +422,48 @@ class SystemGraphView(APIView):
 
             if fc_warnings > 3:
                 warnings.append({'level': 'warning', 'message': f'{fc_warnings} published articles have unresolved fact-check warnings'})
+
+            # Auto-Publish Logs (success/fail ratio)
+            ap_logs_7d = AutoPublishLog.objects.filter(
+                created_at__gte=now - timedelta(days=7),
+            )
+            ap_log_data = ap_logs_7d.aggregate(
+                total=Count('id'),
+                published=Count('id', filter=Q(decision='published')),
+                drafted=Count('id', filter=Q(decision='drafted')),
+                human_approved=Count('id', filter=Q(decision='human_approved')),
+                failed=Count('id', filter=Q(decision='failed')),
+                skipped=Count('id', filter=Q(
+                    decision__in=['skipped_quality', 'skipped_safety', 'skipped_no_image',
+                                  'skipped_warnings', 'skipped_limit', 'skipped_duplicate']
+                )),
+            )
+            ap_total_7d = ap_log_data['total']
+            ap_fail_7d = ap_log_data['failed']
+            ap_fail_rate = round(ap_fail_7d / ap_total_7d * 100, 1) if ap_total_7d > 0 else 0
+
+            nodes.append({
+                'id': 'auto_publish_logs', 'label': 'Publish Logs', 'group': 'ml',
+                'icon': '📊', 'count': ap_total_7d,
+                'breakdown': {
+                    'published': ap_log_data['published'],
+                    'drafted': ap_log_data['drafted'],
+                    'human_approved': ap_log_data['human_approved'],
+                    'failed': ap_fail_7d,
+                    'skipped': ap_log_data['skipped'],
+                    'fail_rate_7d': f'{ap_fail_rate}%',
+                },
+                'health': 'error' if ap_fail_rate > 50 else ('warning' if ap_fail_rate > 20 else 'healthy'),
+            })
+            edges.append({'from': 'ai_pipeline', 'to': 'auto_publish_logs', 'label': 'logs', 'count': ap_total_7d})
+
+            if ap_fail_rate > 20:
+                warnings.append({'level': 'warning', 'message': f'Auto-publish failure rate is {ap_fail_rate}% in last 7 days'})
         except Exception:
             pass
 
         # ── Scheduler / Background Tasks ─────────────────────────
         try:
-            from news.scheduler import get_scheduler_heartbeat
             from news.models import AutomationSettings, Article
 
             heartbeat = get_scheduler_heartbeat()
@@ -507,28 +568,138 @@ class SystemGraphView(APIView):
         except Exception as e:
             logger.warning(f"[SYSTEM-GRAPH] Scheduler health check failed: {e}")
 
-        # ── WebAuthn / Passkeys ──────────────────────────────────
+        # ── Security Monitoring ────────────────────────────────────
         try:
-            from news.models import WebAuthnCredential
+            failed_24h = SecurityLog.objects.filter(
+                action='login_failed',
+                created_at__gte=now - timedelta(hours=24),
+            ).count()
+            locked_24h = SecurityLog.objects.filter(
+                action='account_locked',
+                created_at__gte=now - timedelta(hours=24),
+            ).count()
+            total_events = SecurityLog.objects.count()
+
+            # Check django-axes blocked IPs
+            try:
+                from axes.models import AccessAttempt
+                blocked_ips = AccessAttempt.objects.filter(
+                    failures_since_start__gte=5,
+                ).values('ip_address').distinct().count()
+            except Exception:
+                blocked_ips = 0
+
+            sec_health = 'error' if failed_24h > 20 or locked_24h > 0 else (
+                'warning' if failed_24h > 5 else 'healthy'
+            )
+            nodes.append({
+                'id': 'security', 'label': 'Security', 'group': 'system',
+                'icon': '🛡️', 'count': total_events,
+                'breakdown': {
+                    'failed_logins_24h': failed_24h,
+                    'accounts_locked_24h': locked_24h,
+                    'blocked_ips': blocked_ips,
+                    'total_events': total_events,
+                },
+                'health': sec_health,
+            })
+
+            if failed_24h > 20:
+                warnings.append({'level': 'error', 'message': f'🛡️ {failed_24h} failed login attempts in last 24h — possible brute force!'})
+            elif failed_24h > 5:
+                warnings.append({'level': 'warning', 'message': f'{failed_24h} failed login attempts in last 24h'})
+            if locked_24h > 0:
+                warnings.append({'level': 'error', 'message': f'{locked_24h} account(s) locked in last 24h'})
+        except Exception:
+            pass
+
+        # ── GSC Sync Freshness ────────────────────────────────────
+        try:
+            latest_gsc = GSCReport.objects.order_by('-date').first()
+            gsc_total = GSCReport.objects.count()
+
+            if latest_gsc:
+                days_since_sync = (now.date() - latest_gsc.date).days
+                gsc_health = 'error' if days_since_sync > 14 else (
+                    'warning' if days_since_sync > 7 else 'healthy'
+                )
+                gsc_freshness = f'{days_since_sync}d ago ({latest_gsc.date})'
+            else:
+                gsc_health = 'warning'
+                gsc_freshness = '❓ never synced'
+                days_since_sync = -1
+
+            nodes.append({
+                'id': 'gsc_sync', 'label': 'GSC Sync', 'group': 'system',
+                'icon': '📈', 'count': gsc_total,
+                'breakdown': {
+                    'last_sync': gsc_freshness,
+                    'total_reports': gsc_total,
+                },
+                'health': gsc_health,
+            })
+            edges.append({'from': 'articles', 'to': 'gsc_sync', 'label': 'SEO data', 'count': gsc_total})
+
+            if days_since_sync > 7:
+                warnings.append({
+                    'level': 'warning' if days_since_sync <= 14 else 'error',
+                    'message': f'GSC data is {days_since_sync} days old — SEO insights are stale'
+                })
+        except Exception:
+            pass
+
+        # ── 2FA Coverage (TOTP + Passkeys) ────────────────────────
+        try:
+            from django.contrib.auth.models import User
+            import os
+
+            total_admins = User.objects.filter(is_staff=True).count()
+
+            # TOTP
+            totp_confirmed = TOTPDevice.objects.filter(is_confirmed=True).count()
+            totp_users = TOTPDevice.objects.filter(is_confirmed=True).values('user').distinct().count()
+
+            # Passkeys
             passkey_total = WebAuthnCredential.objects.count()
             passkey_users = WebAuthnCredential.objects.values('user').distinct().count()
-            import os
+
+            # Unique admins with ANY 2FA
+            totp_user_ids = set(TOTPDevice.objects.filter(is_confirmed=True).values_list('user_id', flat=True))
+            passkey_user_ids = set(WebAuthnCredential.objects.values_list('user_id', flat=True))
+            admin_user_ids = set(User.objects.filter(is_staff=True).values_list('id', flat=True))
+            enrolled_admins = len((totp_user_ids | passkey_user_ids) & admin_user_ids)
+            coverage_pct = round(enrolled_admins / total_admins * 100) if total_admins > 0 else 0
+
+            # WebAuthn config
             wn_origin_set = bool(os.environ.get('WEBAUTHN_ORIGIN', ''))
             wn_rp_set = bool(os.environ.get('WEBAUTHN_RP_ID', ''))
 
+            tfa_health = 'error' if coverage_pct == 0 else (
+                'warning' if coverage_pct < 50 else 'healthy'
+            )
+
             nodes.append({
-                'id': 'passkeys', 'label': 'Passkeys', 'group': 'system',
-                'icon': '🔑', 'count': passkey_total,
+                'id': 'two_factor_auth', 'label': '2FA Security', 'group': 'system',
+                'icon': '🔐', 'count': enrolled_admins,
                 'breakdown': {
-                    'credentials': passkey_total,
-                    'users_enrolled': passkey_users,
-                    'origin': '✅ set' if wn_origin_set else '❌ missing',
-                    'rp_id': '✅ set' if wn_rp_set else '❌ missing',
+                    'totp_users': totp_users,
+                    'totp_devices': totp_confirmed,
+                    'passkey_users': passkey_users,
+                    'passkey_credentials': passkey_total,
+                    'total_admins': total_admins,
+                    'coverage': f'{coverage_pct}%',
+                    'webauthn_origin': '✅' if wn_origin_set else '❌',
+                    'webauthn_rp_id': '✅' if wn_rp_set else '❌',
                 },
-                'health': 'error' if not (wn_origin_set and wn_rp_set) else 'healthy',
+                'health': tfa_health,
             })
+
+            if coverage_pct == 0 and total_admins > 0:
+                warnings.append({'level': 'error', 'message': 'No admin accounts have 2FA enabled!'})
+            elif coverage_pct < 50:
+                warnings.append({'level': 'warning', 'message': f'Only {coverage_pct}% of admins have 2FA — {total_admins - enrolled_admins} unprotected'})
             if not (wn_origin_set and wn_rp_set):
-                warnings.append({'level': 'error', 'message': 'WebAuthn not configured — WEBAUTHN_ORIGIN or WEBAUTHN_RP_ID missing'})
+                warnings.append({'level': 'warning', 'message': 'WebAuthn not configured — WEBAUTHN_ORIGIN or WEBAUTHN_RP_ID missing'})
         except Exception:
             pass
 
