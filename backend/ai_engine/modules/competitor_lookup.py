@@ -238,7 +238,30 @@ def get_competitor_context(
             used_makes.add(pick.make.lower())
             pool = [c for c in pool if c.id != pick.id]
 
-        # ── Step 8: format for prompt ────────────────────────────────────────
+        # ── Step 8: Hard price guard ──────────────────────────────────────────
+        # Even after all fallbacks, never return a competitor whose price is
+        # wildly different from the subject car. This prevents nonsensical
+        # comparisons (e.g. $21K SUV vs $58K luxury sedan).
+        if price_usd and price_usd > 0:
+            price_lo = int(price_usd * 0.4)
+            price_hi = int(price_usd * 2.5)
+            before_count = len(selected)
+            selected = [
+                c for c in selected
+                if not c.price_usd_from  # keep cars with unknown price (benefit of doubt)
+                or (price_lo <= c.price_usd_from <= price_hi)
+            ]
+            removed = before_count - len(selected)
+            if removed:
+                logger.info(
+                    f"competitor_lookup: hard price guard removed {removed} competitor(s) "
+                    f"outside ${price_lo:,}–${price_hi:,} range"
+                )
+
+        if not selected:
+            return "", []
+
+        # ── Step 9: format for prompt ────────────────────────────────────────
         lines = []
         competitors_data = []
         for v in selected:

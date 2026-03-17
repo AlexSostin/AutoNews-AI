@@ -9,7 +9,7 @@ import { X } from 'lucide-react';
 import api from '@/lib/api';
 import { PhotoSearchModal } from './components/PhotoSearchModal';
 import { TagSelector, Category, Tag } from './components/TagSelector';
-import { GallerySection, GallerySectionRef, GalleryImage } from './components/GallerySection';
+import { GallerySection, GalleryImage } from './components/GallerySection';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { ArticleBasicInfo } from '../../components/ArticleBasicInfo';
 import { ArticleContentEditor } from '../../components/ArticleContentEditor';
@@ -25,7 +25,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const galleryRef = useRef<GallerySectionRef>(null);
+
   const [reformatting, setReformatting] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -400,8 +400,6 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
         await api.put(`/articles/${articleId}/`, payload);
       }
 
-      // Upload gallery images if any
-      await galleryRef.current?.upload();
 
       alert('Article updated successfully!');
       router.push('/admin/articles');
@@ -781,7 +779,6 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
           {/* 6. Gallery */}
           <GallerySection
-            ref={galleryRef}
             articleId={articleId}
             onGalleryLoaded={setGalleryImages}
             availableMainSlots={[

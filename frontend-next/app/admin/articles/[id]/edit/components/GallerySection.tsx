@@ -1,5 +1,5 @@
 import { Plus, ArrowUp } from 'lucide-react';
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 
 export interface GalleryImage {
@@ -25,18 +25,11 @@ interface GallerySectionProps {
     onGalleryLoaded?: (images: GalleryImage[]) => void;
 }
 
-export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>(({ articleId, availableMainSlots, onPromoteToSlot, onGalleryLoaded }, ref) => {
+export function GallerySection({ articleId, availableMainSlots, onPromoteToSlot, onGalleryLoaded }: GallerySectionProps) {
     const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-    const [newGalleryImages, setNewGalleryImages] = useState<File[]>([]);
     const [uploadingGallery, setUploadingGallery] = useState(false);
 
-    useEffect(() => {
-        if (articleId) {
-            fetchGalleryImages(articleId);
-        }
-    }, [articleId]);
-
-    const fetchGalleryImages = async (id: string) => {
+    const fetchGalleryImages = useCallback(async (id: string) => {
         try {
             const response = await api.get(`/article-images/?article=${id}`);
             const images = response.data.results || response.data || [];
@@ -45,14 +38,19 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
         } catch (error) {
             console.error('Failed to fetch gallery images:', error);
         }
-    };
+    }, [onGalleryLoaded]);
+
+    useEffect(() => {
+        if (articleId) {
+            fetchGalleryImages(articleId);
+        }
+    }, [articleId, fetchGalleryImages]);
 
     const deleteGalleryImage = async (imageId: number) => {
         if (!confirm('Delete this gallery image?')) return;
         try {
             await api.delete(`/article-images/${imageId}/`);
         } catch (error: unknown) {
-            // 404 = already deleted (e.g. via promote) — treat as success
             const status = (error as { response?: { status?: number } })?.response?.status;
             if (status !== 404) {
                 console.error('Failed to delete gallery image:', error);
@@ -60,7 +58,6 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
                 return;
             }
         }
-        // Always remove from UI state (even on 404)
         const updated = galleryImages.filter(img => img.id !== imageId);
         setGalleryImages(updated);
         onGalleryLoaded?.(updated);
@@ -70,43 +67,9 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
         if (!onPromoteToSlot) return;
         const fullUrl = getImageUrl(img.image);
         onPromoteToSlot(fullUrl, targetSlot, img.id);
-        // Remove from gallery list locally
         const updated = galleryImages.filter(g => g.id !== img.id);
         setGalleryImages(updated);
         onGalleryLoaded?.(updated);
-    };
-
-    const uploadGalleryImages = async () => {
-        if (newGalleryImages.length === 0 || !articleId) return;
-        setUploadingGallery(true);
-        try {
-            await Promise.all(
-                newGalleryImages.map(file => {
-                    const formData = new FormData();
-                    formData.append('article', articleId);
-                    formData.append('image', file);
-                    formData.append('order', '0');
-                    return api.post('/article-images/', formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
-                })
-            );
-            await fetchGalleryImages(articleId);
-            setNewGalleryImages([]);
-        } catch (error) {
-            console.error('Failed to upload gallery images:', error);
-            alert('Failed to upload some images');
-        } finally {
-            setUploadingGallery(false);
-        }
-    };
-
-    useImperativeHandle(ref, () => ({
-        upload: uploadGalleryImages
-    }));
-
-    const removeNewGalleryImage = (index: number) => {
-        setNewGalleryImages(prev => prev.filter((_, i) => i !== index));
     };
 
     const getImageUrl = (imagePath: string) => {
@@ -157,7 +120,6 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
                                     </button>
                                 </div>
                             </div>
-                            {/* Promote to main slot buttons */}
                             {hasSlots && onPromoteToSlot && (
                                 <div className="flex flex-wrap gap-1.5 mt-1.5">
                                     {availableMainSlots!.map(s => (
@@ -176,57 +138,47 @@ export const GallerySection = forwardRef<GallerySectionRef, GallerySectionProps>
                             )}
                         </div>
                     ))}
-
-                    {newGalleryImages.map((file, index) => (
-                        <div key={`new-${index}`}>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Image {galleryImages.length + index + 4}</label>
-                            <div className="mb-2 relative h-32 rounded-lg overflow-hidden border-2 border-green-300 group">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={URL.createObjectURL(file)}
-                                    alt={file.name}
-                                    className="w-full h-full object-cover"
-                                />
-                                <div className="absolute top-1 right-1 flex gap-1">
-                                    <span className="bg-green-500 text-white text-xs px-2 py-1 rounded shadow-sm">New</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeNewGalleryImage(index)}
-                                        className="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-red-600 transition-colors"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            </div>
-                            <p className="text-xs text-green-600 mt-1">✓ Will upload: {file.name}</p>
-                        </div>
-                    ))}
                 </div>
 
                 <div>
-                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg border-2 border-dashed border-indigo-300 hover:bg-indigo-100 transition-colors cursor-pointer font-semibold">
+                    <label className={`inline-flex items-center gap-2 px-4 py-2 ${uploadingGallery ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer'} rounded-lg border-2 border-dashed border-indigo-300 transition-colors font-semibold`}>
                         <Plus size={20} />
-                        + Add More Images
+                        {uploadingGallery ? 'Uploading...' : '+ Add More Images'}
                         <input
                             type="file"
                             accept="image/*"
-                            onChange={(e) => {
-                                if (e.target.files?.[0]) {
-                                    const newFile = e.target.files[0];
-                                    setNewGalleryImages(prev => [...prev, newFile]);
-                                    e.target.value = '';
+                            multiple
+                            disabled={uploadingGallery}
+                            onChange={async (e) => {
+                                const files = e.target.files;
+                                if (!files || files.length === 0 || !articleId) return;
+                                e.target.value = '';
+                                setUploadingGallery(true);
+                                try {
+                                    await Promise.all(
+                                        Array.from(files).map(file => {
+                                            const formData = new FormData();
+                                            formData.append('article', articleId);
+                                            formData.append('image', file);
+                                            formData.append('order', '0');
+                                            return api.post('/article-images/', formData, {
+                                                headers: { 'Content-Type': 'multipart/form-data' }
+                                            });
+                                        })
+                                    );
+                                    await fetchGalleryImages(articleId);
+                                } catch (error) {
+                                    console.error('Failed to upload gallery images:', error);
+                                    alert('Failed to upload some images');
+                                } finally {
+                                    setUploadingGallery(false);
                                 }
                             }}
                             className="hidden"
                         />
                     </label>
-                    {uploadingGallery && (
-                        <span className="ml-3 text-sm text-gray-600">Uploading...</span>
-                    )}
                 </div>
             </div>
         </div>
     );
-});
-
-GallerySection.displayName = 'GallerySection';
+}

@@ -1690,27 +1690,58 @@ def _ensure_verdict_written(html: str, analysis_data, provider: str = 'gemini') 
     """
     Post-generation guarantee: if FreshMotors Verdict section is missing or empty,
     make a short targeted API call to write a proper verdict and inject it.
+    
+    Handles all Gemini output patterns:
+    1. Proper <div class="fm-verdict"> with <p> content inside → check word count
+    2. Empty <div class="fm-verdict"> + duplicate <h2>FreshMotors Verdict</h2> → strip both, regenerate
+    3. Bare <h2>FreshMotors Verdict</h2> with truncated <p> → strip, regenerate
+    4. No verdict at all → generate and append
     """
 
-    # Check if verdict heading exists and has content
-    verdict_match = re.search(
-        r'(<h2[^>]*>[^<]*(?:verdict|conclusion|final)[^<]*</h2>)(.*?)(?=<h2|<div class="alt-texts"|$)',
+    # ── Step 1: Check for existing verdict content ────────────────────────
+    # First check the fm-verdict div (the correct format)
+    fm_verdict_match = re.search(
+        r'<div\s+class="fm-verdict">\s*<div\s+class="verdict-label">.*?</div>\s*(.*?)</div>',
         html, re.IGNORECASE | re.DOTALL
     )
+    
+    verdict_text = ""
+    if fm_verdict_match:
+        verdict_text = re.sub(r'<[^>]+>', ' ', fm_verdict_match.group(1)).strip()
+    
+    # Also check for bare <h2>...Verdict...</h2> followed by content
+    h2_verdict_match = re.search(
+        r'(<h2[^>]*>[^<]*(?:verdict|conclusion|final)[^<]*</h2>)(.*?)(?=<h2|<div class="alt-texts"|<!-- Generated|$)',
+        html, re.IGNORECASE | re.DOTALL
+    )
+    if h2_verdict_match and not verdict_text:
+        verdict_text = re.sub(r'<[^>]+>', ' ', h2_verdict_match.group(2)).strip()
+    
+    verdict_words = len(verdict_text.split()) if verdict_text else 0
+    
+    if verdict_words >= 30:
+        # Verdict is fine — but clean up any duplicate <h2> if fm-verdict div exists
+        if fm_verdict_match and h2_verdict_match:
+            html = html[:h2_verdict_match.start()] + html[h2_verdict_match.end():]
+            print(f"  🧹 Cleaned duplicate verdict <h2> (fm-verdict div has {verdict_words} words)")
+        return html
+    
+    print(f"  🔧 Verdict injector: {'found but only ' + str(verdict_words) + ' words' if verdict_words else 'missing'} — generating verdict...")
 
-    if verdict_match:
-        verdict_content = re.sub(r'<[^>]+>', ' ', verdict_match.group(2)).strip()
-        verdict_words = len(verdict_content.split())
-        if verdict_words >= 30:
-            return html  # Verdict looks fine
-        verdict_heading_html = verdict_match.group(1)
-        print(f"  🔧 Verdict injector: found heading but only {verdict_words} words — generating verdict...")
-    else:
-        verdict_heading_html = '<h2>FreshMotors Verdict</h2>'
-        print(f"  🔧 Verdict injector: verdict section missing — generating verdict...")
+    # ── Step 2: Strip ALL existing verdict artifacts ──────────────────────
+    # Remove orphaned/empty fm-verdict divs
+    html = re.sub(
+        r'<div\s+class="fm-verdict">\s*<div\s+class="verdict-label">.*?</div>\s*(?:<p>.*?</p>\s*)?</div>\s*',
+        '', html, flags=re.IGNORECASE | re.DOTALL
+    )
+    # Remove bare <h2>...Verdict...</h2> + any trailing truncated <p>
+    html = re.sub(
+        r'<h2[^>]*>[^<]*(?:verdict|conclusion|final)[^<]*</h2>\s*(?:<p>.*?</p>\s*)*',
+        '', html, flags=re.IGNORECASE | re.DOTALL
+    )
 
-    # Extract article context for the verdict prompt
-    article_text = re.sub(r'<[^>]+>', ' ', html)[:2500]  # first 2500 chars of plain text
+    # ── Step 3: Generate verdict via AI ───────────────────────────────────
+    article_text = re.sub(r'<[^>]+>', ' ', html)[:2500]
 
     verdict_prompt = f"""You are writing the final section of an automotive article for FreshMotors.com.
 
@@ -1731,6 +1762,41 @@ Example of good verdict:
 <p>The VOYAH Taishan 1430 is the ultimate long-haul family SUV for buyers who want to leave range anxiety behind permanently. Its 1,430 km combined range and 350 km electric-only capability make it genuinely useful for both daily commutes and cross-country trips, while the Huawei-powered tech stack keeps it feeling premium throughout. The 2.8-ton curb weight is a real-world caveat, but for families prioritizing space and range over outright agility, this is a serious contender at its price point.</p>
 """
 
+    def _inject_verdict(verdict_para):
+        """Clean and inject verdict into the proper fm-verdict div structure."""
+        nonlocal html
+        verdict_para = verdict_para.strip()
+        if not verdict_para.startswith('<p'):
+            verdict_para = f'<p>{verdict_para}</p>'
+        # Remove any heading the model might have added
+        verdict_para = re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=re.IGNORECASE | re.DOTALL).strip()
+        # Remove any fm-verdict wrapper the model might have added
+        verdict_para = re.sub(r'<div[^>]*class="fm-verdict"[^>]*>.*?<div class="verdict-label">.*?</div>', '', verdict_para, flags=re.IGNORECASE | re.DOTALL).strip()
+        verdict_para = re.sub(r'</div>\s*$', '', verdict_para).strip()
+
+        verdict_block = (
+            '<div class="fm-verdict">\n'
+            '  <div class="verdict-label">FreshMotors Verdict</div>\n'
+            f'  {verdict_para}\n'
+            '</div>'
+        )
+
+        # Insert before alt-texts div, comment tag, or at the end
+        alt_pos = html.find('<div class="alt-texts"')
+        comment_pos = html.find('<!-- Generated')
+        insert_pos = -1
+        if alt_pos > 0:
+            insert_pos = alt_pos
+        elif comment_pos > 0:
+            insert_pos = comment_pos
+        
+        if insert_pos > 0:
+            html = html[:insert_pos] + verdict_block + '\n' + html[insert_pos:]
+        else:
+            html = html.rstrip() + '\n' + verdict_block
+
+        print(f"  ✅ Verdict injected ({len(verdict_para.split())} words)")
+
     try:
         ai = get_light_provider()
         verdict_para = ai.generate_completion(
@@ -1740,30 +1806,8 @@ Example of good verdict:
             max_tokens=300,
             caller='article_verdict'
         )
-
         if verdict_para:
-            verdict_para = verdict_para.strip()
-            # Ensure it's wrapped in <p>
-            if not verdict_para.startswith('<p'):
-                verdict_para = f'<p>{verdict_para}</p>'
-
-            # Remove any heading the model might have added
-            verdict_para = re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=re.IGNORECASE | re.DOTALL).strip()
-
-            verdict_block = f'{verdict_heading_html}\n{verdict_para}'
-
-            if verdict_match:
-                # Replace the existing empty verdict
-                html = html[:verdict_match.start(1)] + verdict_block + html[verdict_match.end():]
-            else:
-                # Insert before alt-texts div or at the end
-                alt_pos = html.find('<div class="alt-texts"')
-                if alt_pos > 0:
-                    html = html[:alt_pos] + verdict_block + '\n\n' + html[alt_pos:]
-                else:
-                    html = html.rstrip() + '\n\n' + verdict_block
-
-            print(f"  ✅ Verdict injected ({len(verdict_para.split())} words)")
+            _inject_verdict(verdict_para)
     except Exception as e:
         print(f"  ⚠️ Verdict injector failed: {e}")
         try:
@@ -1776,26 +1820,8 @@ Example of good verdict:
                 max_tokens=300,
                 caller='article_verdict_fallback'
             )
-
             if verdict_para:
-                verdict_para = verdict_para.strip()
-                if not verdict_para.startswith('<p'):
-                    verdict_para = f'<p>{verdict_para}</p>'
-
-                verdict_para = re.sub(r'<h2[^>]*>.*?</h2>', '', verdict_para, flags=re.IGNORECASE | re.DOTALL).strip()
-
-                verdict_block = f'{verdict_heading_html}\n{verdict_para}'
-
-                if verdict_match:
-                    html = html[:verdict_match.start(1)] + verdict_block + html[verdict_match.end():]
-                else:
-                    alt_pos = html.find('<div class="alt-texts"')
-                    if alt_pos > 0:
-                        html = html[:alt_pos] + verdict_block + '\n\n' + html[alt_pos:]
-                    else:
-                        html = html.rstrip() + '\n\n' + verdict_block
-
-                print(f"  ✅ Verdict injected with Gemini ({len(verdict_para.split())} words)")
+                _inject_verdict(verdict_para)
         except Exception as fb_err:
             print(f"  ⚠️ Verdict fallback injector also failed: {fb_err}")
 
