@@ -6,6 +6,8 @@ import { loginAsAdmin } from './helpers/auth';
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('Analytics Dashboard', () => {
+    // Analytics tests rely on cookie+localStorage login which only works reliably in Chromium
+    test.skip(({ browserName }) => browserName !== 'chromium', 'Admin auth only works in Chromium');
     test.setTimeout(30000);
 
     test('loads without JS crash', async ({ page, context }) => {

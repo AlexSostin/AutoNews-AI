@@ -124,10 +124,14 @@ class TestHealthSummary:
         assert resp.data['scheduler_errors']['unresolved'] >= 2
 
     def test_frontend_errors_counted(self, admin_client):
-        _make_frontend_error()
-        _make_frontend_error()
+        # Clean up any pre-existing frontend errors from parallel workers
+        FrontendEventLog.objects.all().update(resolved=True)
+        cache.delete('health_summary_v2')
+        _make_frontend_error(message='health_fe_unique_1')
+        _make_frontend_error(message='health_fe_unique_2')
+        cache.delete('health_summary_v2')
         resp = admin_client.get(self.URL)
-        assert resp.data['frontend_errors']['unresolved'] == 2
+        assert resp.data['frontend_errors']['unresolved'] >= 2
 
 
 

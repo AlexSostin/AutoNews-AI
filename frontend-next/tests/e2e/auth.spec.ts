@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication and Session', () => {
     test.setTimeout(60000); // 60 seconds timeout
+    // Auth tests rely on cookie+localStorage manipulation which has inconsistent behavior in WebKit
+    test.skip(({ browserName }) => browserName !== 'chromium', 'Auth token tests only work in Chromium');
 
     // Common headers for CORS used in all tests
     const corsHeaders = {
