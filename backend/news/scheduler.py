@@ -785,6 +785,12 @@ def _check_overdue_tasks():
             _recovery_triggered.add('auto-publish')
             threading.Thread(target=_run_auto_publish, daemon=True).start()
         
+        # Check Scheduled Publish — always run on recovery to catch articles
+        # that were due during downtime/deploys
+        overdue.append('scheduled-publish')
+        _recovery_triggered.add('scheduled-publish')
+        threading.Thread(target=_run_scheduled_publish, daemon=True).start()
+        
         if overdue:
             logger.info(f"[SCHEDULER] 🔄 Startup recovery: triggered overdue tasks: {', '.join(overdue)}")
         else:
