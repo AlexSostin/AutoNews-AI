@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/ai_costs.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.075, 0.3, 3000, 4000, 1000000, '%Y-%m-%d', 'Gemini 2.5 Flash', 'avg_coverage', 'avg_daily_calls', 'avg_quality', 'avg_time_seconds', 'by_provider', 'count', 'coverage_scores', 'daily', 'data_days', 'date', 'estimated_cost_usd', 'gemini', 'input', 'input_per_1m', 'label', 'model', 'output', 'output_per_1m', 'pricing', 'provider', 'quality', 'quality_score', 'quality_scores', 'records', 'spec_coverage', 'summary', 'times', 'timestamp', 'total', 'total_calls', 'total_time']

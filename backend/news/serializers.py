@@ -315,6 +315,13 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     image_2_url = serializers.SerializerMethodField()
     image_3_url = serializers.SerializerMethodField()
     is_favorited = serializers.SerializerMethodField()
+    # Source attribution — channel/feed info for the bottom-of-article block
+    youtube_channel_name = serializers.SerializerMethodField()
+    youtube_channel_url = serializers.SerializerMethodField()
+    youtube_channel_is_partner = serializers.SerializerMethodField()
+    rss_feed_name = serializers.SerializerMethodField()
+    rss_feed_website_url = serializers.SerializerMethodField()
+    rss_feed_is_partner = serializers.SerializerMethodField()
     
     class Meta:
         model = Article
@@ -324,8 +331,12 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
                   'car_specification', 'vehicle_specs', 'images', 'average_rating', 'rating_count',
                   'created_at', 'updated_at', 'is_published', 'scheduled_publish_at', 'is_favorited', 'is_hero', 'is_news_only',
                   'author_name', 'author_channel_url',
-                  'show_source', 'show_youtube', 'show_price', 'image_source']
-        read_only_fields = ['views', 'created_at', 'updated_at']
+                  'show_source', 'show_youtube', 'show_price', 'image_source',
+                  'youtube_channel_name', 'youtube_channel_url', 'youtube_channel_is_partner',
+                  'rss_feed_name', 'rss_feed_website_url', 'rss_feed_is_partner']
+        read_only_fields = ['views', 'created_at', 'updated_at',
+                            'youtube_channel_name', 'youtube_channel_url', 'youtube_channel_is_partner',
+                            'rss_feed_name', 'rss_feed_website_url', 'rss_feed_is_partner']
     
     def validate_image(self, value):
         """Validate main image"""
@@ -440,6 +451,62 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return Favorite.objects.filter(user=request.user, article=obj).exists()
+        return False
+
+    def _get_source_pending(self, obj):
+        """Cached lookup for the PendingArticle that generated this Article.
+        Article doesn't have direct FKs to YouTubeChannel/RSSFeed,
+        but PendingArticle does."""
+        if hasattr(obj, '_source_pending_cache'):
+            return obj._source_pending_cache
+        try:
+            pending = obj.source_pending.select_related(
+                'youtube_channel', 'rss_feed'
+            ).first()
+        except Exception:
+            pending = None
+        obj._source_pending_cache = pending
+        return pending
+
+    def get_youtube_channel_name(self, obj):
+        pending = self._get_source_pending(obj)
+        if pending and pending.youtube_channel:
+            return pending.youtube_channel.name
+        # Fallback: author_name when source came from YouTube
+        if obj.youtube_url and obj.author_name:
+            return obj.author_name
+        return None
+
+    def get_youtube_channel_url(self, obj):
+        pending = self._get_source_pending(obj)
+        if pending and pending.youtube_channel:
+            return pending.youtube_channel.channel_url
+        if obj.youtube_url and obj.author_channel_url:
+            return obj.author_channel_url
+        return None
+
+    def get_youtube_channel_is_partner(self, obj):
+        pending = self._get_source_pending(obj)
+        if pending and pending.youtube_channel:
+            return pending.youtube_channel.is_partner
+        return False
+
+    def get_rss_feed_name(self, obj):
+        pending = self._get_source_pending(obj)
+        if pending and pending.rss_feed:
+            return pending.rss_feed.name
+        return None
+
+    def get_rss_feed_website_url(self, obj):
+        pending = self._get_source_pending(obj)
+        if pending and pending.rss_feed:
+            return pending.rss_feed.website_url or pending.source_url
+        return None
+
+    def get_rss_feed_is_partner(self, obj):
+        pending = self._get_source_pending(obj)
+        if pending and pending.rss_feed:
+            return pending.rss_feed.is_partner
         return False
 
 
@@ -631,7 +698,7 @@ class YouTubeChannelSerializer(serializers.ModelSerializer):
         model = YouTubeChannel
         fields = [
             'id', 'name', 'channel_url', 'channel_id',
-            'is_enabled', 'auto_publish', 'default_category', 'category_name',
+            'is_enabled', 'is_partner', 'auto_publish', 'default_category', 'category_name',
             'last_checked', 'last_video_id', 'videos_processed',
             'pending_count', 'created_at', 'updated_at'
         ]
@@ -741,7 +808,7 @@ class RSSFeedSerializer(serializers.ModelSerializer):
         model = RSSFeed
         fields = [
             'id', 'name', 'feed_url', 'website_url', 'source_type',
-            'is_enabled', 'scan_frequency', 'include_keywords', 'exclude_keywords',
+            'is_enabled', 'is_partner', 'scan_frequency', 'include_keywords', 'exclude_keywords',
             'auto_publish', 'auto_publish_min_score', 'default_category', 'category_name',
             'last_checked', 'last_entry_date', 'entries_processed',
             'logo_url', 'description', 'pending_count',

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/main.py
+# hypothesis_version: 6.151.9
+
+[160, 500, 10000, 'Duplicate detected', 'Duplicate video_id', 'GROQ_API_KEY', 'Pipeline finished.', 'Unknown', 'YouTube Video URL', '__main__', 'approved', 'article_id', 'author_channel_url', 'author_name', 'auto_failed', 'category', 'category_name', 'content', 'deleted', 'duplicate', 'error', 'exists', 'gallery_images', 'gallery_paths', 'gemini', 'generation_metadata', 'generation_source', 'image_paths', 'meta_keywords', 'pending', 'pending_id', 'published', 'reason', 'rejected', 'seo_description', 'slug', 'specs', 'success', 'summary', 'tag_names', 'tags', 'title', 'unique', 'url', 'video_title', 'web_context', 'youtube']

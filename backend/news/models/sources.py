@@ -13,6 +13,10 @@ class YouTubeChannel(models.Model):
     
     # Settings
     is_enabled = models.BooleanField(default=True, help_text="Enable monitoring for this channel")
+    is_partner = models.BooleanField(
+        default=False,
+        help_text="Partner channel — we have explicit permission to use their content. Shows 'Special thanks' instead of 'Source' at the bottom of articles."
+    )
     auto_publish = models.BooleanField(default=False, help_text="Automatically publish articles (skip review)")
     default_category = models.ForeignKey(
         'Category', on_delete=models.SET_NULL, null=True, blank=True,
@@ -50,6 +54,10 @@ class RSSFeed(models.Model):
     
     # Settings
     is_enabled = models.BooleanField(default=True, help_text="Enable monitoring for this feed")
+    is_partner = models.BooleanField(
+        default=False,
+        help_text="Partner feed — we have explicit permission to use their content. Shows 'Special thanks' instead of 'Source' at the bottom of articles."
+    )
     scan_frequency = models.IntegerField(
         choices=[(15, '15 Minutes'), (60, '1 Hour'), (360, '6 Hours'), (720, '12 Hours'), (1440, '24 Hours')],
         default=720,

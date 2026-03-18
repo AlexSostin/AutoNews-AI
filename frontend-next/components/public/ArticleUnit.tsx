@@ -24,6 +24,7 @@ import { Calendar, User, Rss, ExternalLink, Youtube, Tag, Clock } from 'lucide-r
 import AuthorCard from '@/components/public/AuthorCard';
 import JsonLd from '@/components/public/JsonLd';
 import TableOfContents, { TocHeading } from '@/components/public/TableOfContents';
+import SourceAttribution from '@/components/public/SourceAttribution';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -349,6 +350,33 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 )}
 
                 <ShareButtons url={fullUrl} title={article.title} />
+
+                {/* Source attribution — partner "special thanks" or regular "source" */}
+                {(() => {
+                    // YouTube channel (preferred)
+                    if (article.youtube_channel_name) {
+                        return (
+                            <SourceAttribution
+                                channelName={article.youtube_channel_name}
+                                channelUrl={article.youtube_channel_url}
+                                isPartner={article.youtube_channel_is_partner ?? false}
+                                sourceType="youtube"
+                            />
+                        );
+                    }
+                    // RSS feed fallback
+                    if (article.rss_feed_name) {
+                        return (
+                            <SourceAttribution
+                                channelName={article.rss_feed_name}
+                                channelUrl={article.rss_feed_website_url}
+                                isPartner={article.rss_feed_is_partner ?? false}
+                                sourceType="rss"
+                            />
+                        );
+                    }
+                    return null;
+                })()}
 
                 {/* Author signature */}
                 <AuthorCard />

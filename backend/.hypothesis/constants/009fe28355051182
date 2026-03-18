@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/token_tracker.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.1, 0.15, 0.4, 0.6, 1.25, 5.0, 2000, 86400, 1000000, 'by_caller', 'by_model', 'caller', 'calls', 'completion_tokens', 'cost', 'gemini-2.0-flash', 'gemini-2.5-flash', 'hours', 'input', 'model', 'output', 'prompt_tokens', 'token_usage_records', 'top_caller', 'total_calls', 'total_cost', 'total_prompt_tokens', 'total_tokens', 'ts', 'unknown']

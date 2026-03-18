@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0117_youtube_video_candidate.py
+# hypothesis_version: 6.151.9
+
+[500, 1000, '-published_at', 'Approved', 'Dismissed', 'ID', 'New', 'approved', 'channel', 'created_at', 'description', 'dismissed', 'duration_seconds', 'id', 'indexes', 'new', 'news', 'news.youtubechannel', 'ordering', 'published_at', 'status', 'thumbnail_url', 'title', 'verbose_name', 'verbose_name_plural', 'video_candidates', 'video_id', 'view_count']

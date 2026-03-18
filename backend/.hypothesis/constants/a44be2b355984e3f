@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/article_generator.py
+# hypothesis_version: 6.151.9
+
+['_dedup_guard', '_self_review_pass', 'ensure_html_only', 'expand_press_release', 'generate_article', 'post_process_article']

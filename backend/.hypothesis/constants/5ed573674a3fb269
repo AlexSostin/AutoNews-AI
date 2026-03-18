@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/mixins/article_copilot.py
+# hypothesis_version: 6.151.9
+
+[0.7, 800, 1500, 'ASSISTANT: ', '```', '```html', 'content', 'context', 'edited_text', 'error', 'instruction', 'messages', 'original_text', 'post', 'response', 'role', 'success', 'text', 'user']

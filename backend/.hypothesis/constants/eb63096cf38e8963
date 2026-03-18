@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/api_views/_shared.py
+# hypothesis_version: 6.151.9
+
+['/', '/articles', '/trending', 'FRONTEND_URL', 'GET', 'HEAD', 'OPTIONS', 'RAILWAY_ENVIRONMENT', 'REVALIDATION_SECRET', 'RUNNING_IN_DOCKER', 'VERCEL_URL', 'articles', 'categories', 'http', 'paths', 'secret', 'tags']

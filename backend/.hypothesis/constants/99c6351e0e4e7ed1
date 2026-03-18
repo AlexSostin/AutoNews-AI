@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/scan_youtube.py
+# hypothesis_version: 6.151.9
+
+['--channel_id', '--limit', 'channel_id', 'duplicate', 'duplicate_pending', 'id', 'limit', 'manual_cli', 'reason', 'success', 'title', 'url']

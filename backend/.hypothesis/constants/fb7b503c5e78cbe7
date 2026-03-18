@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/fact_checker.py
+# hypothesis_version: 6.151.9
+
+[0.1, 0.6, 100, 200, 500, 1000, 8000, 8192, '"', '&gt;', '&lt;', '&quot;', '(20\\d{2})', '-updated_at', '<', '</div>', '<[^>]+>', '<div', '>', 'Unknown Article', '\\bRMB\\s+([\\d,]+)', '```', '```json', 'caveated', 'content', 'error', 'fact_check', 'fact_check_fix', 'fixed_html', 'gemini', 'hallucinations_found', 'issues', 'make', 'model', 'removed', 'replaced', 'warning', 'year', '¥\\1 CNY']

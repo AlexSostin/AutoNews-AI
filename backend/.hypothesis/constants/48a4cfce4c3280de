@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0118_add_generation_tracking_to_video_candidate.py
+# hypothesis_version: 6.151.9
+
+[100, 500, 'Approved', 'Dismissed', 'Generating', 'New', 'approved', 'dismissed', 'generating', 'generation_error', 'generation_task_id', 'new', 'news', 'status']

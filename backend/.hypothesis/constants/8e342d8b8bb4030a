@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/html_normalizer.py
+# hypothesis_version: 6.151.9
+
+['<', '</ul>', '<em>\\1</em>', '<h2>\\1</h2>', '<h3>\\1</h3>', '<li>', '<p>', '<strong>\\1</strong>', '<ul>', '\\*\\*(.*?)\\*\\*', '\\*\\*\\*(.*?)\\*\\*\\*', '^###\\s+(.*)$', '^##\\s+(.*)$', '^#\\s+(.*)$', '^[\\*\\-]\\s+', '^[\\*\\-]\\s+(.+)', '^\\s*[\\*\\-]\\s+', '```', '```[a-z]*\\n?']
