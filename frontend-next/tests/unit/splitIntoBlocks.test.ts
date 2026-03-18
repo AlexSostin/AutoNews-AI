@@ -7,6 +7,7 @@
  * 
  * @jest-environment jsdom
  */
+/// <reference types="vitest/globals" />
 
 // ─── Extract the splitter logic for isolated testing ────────────────────────
 

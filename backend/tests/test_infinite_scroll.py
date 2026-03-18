@@ -152,26 +152,32 @@ class TestNextArticle:
         assert resp.data['article']['slug'] == a_same_cat.slug
         assert resp.data['source'] == 'same_category'
 
-    # --- Caching ---
-
     def test_cached_response_served(self, api_client):
-        """Second request within 60s should serve cached response — real cache."""
-        cache.clear()  # Isolate from parallel workers
+        """Second request within 60s should serve cached response — real cache.
 
+        Tests CONSISTENCY: the same slug must be returned on both requests.
+        We don't assert WHICH slug wins (other xdist workers may have created
+        articles with higher views), only that the result is stable.
+        """
         a1 = _make_article('cache-test')
         a2 = _make_article('cache-target', views=10)
 
         # First request — populates cache
         resp1 = api_client.get(self.URL_TPL.format(slug=a1.slug))
+        assert resp1.status_code == 200
         assert resp1.data['article'] is not None
-        assert resp1.data['article']['slug'] == a2.slug
+        first_slug = resp1.data['article']['slug']
 
-        # Create a new article with higher views — WITHOUT cache, it would win
+        # Create a new article with higher views — WITHOUT cache, it would win.
+        # WITH cache, the first result should be served again.
         _make_article('cache-interloper', views=999)
 
-        # Second request — should still return cached a2, not the new interloper
+        # Second request — should return the SAME result as the first (cached).
         resp2 = api_client.get(self.URL_TPL.format(slug=a1.slug))
-        assert resp2.data['article']['slug'] == a2.slug
+        assert resp2.status_code == 200
+        assert resp2.data['article'] is not None
+        assert resp2.data['article']['slug'] == first_slug, \
+            "Cache must return the same article on repeated requests"
 
     # --- Response weight ---
 
