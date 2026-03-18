@@ -15,7 +15,6 @@ Flow:
 """
 import logging
 from django.shortcuts import render, redirect
-from django.urls import reverse
 from django.contrib import messages
 
 logger = logging.getLogger('news')
@@ -24,7 +23,6 @@ logger = logging.getLogger('news')
 EXEMPT_PATHS = [
     '/admin/login/',
     '/admin/logout/',
-    '/admin/verify-2fa/',
     '/admin/jsi18n/',
 ]
 
@@ -40,7 +38,7 @@ class Admin2FAMiddleware:
         if not request.path.startswith('/admin/'):
             return self.get_response(request)
 
-        # Skip exempt paths
+        # Skip exempt paths (login/logout)
         if any(request.path.startswith(p) for p in EXEMPT_PATHS):
             return self.get_response(request)
 
@@ -65,7 +63,8 @@ class Admin2FAMiddleware:
         if request.session.get('admin_2fa_verified'):
             return self.get_response(request)
 
-        # Handle the verification page
+        # Handle the verification page — serve it directly from middleware
+        # (no Django URL pattern needed, avoids 404)
         if request.path == '/admin/verify-2fa/':
             return self._handle_verify_page(request, device)
 
