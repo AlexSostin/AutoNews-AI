@@ -109,6 +109,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'axes.middleware.AxesMiddleware',  # Brute-force protection — AFTER auth middleware
+    'news.admin_2fa_middleware.Admin2FAMiddleware',  # 2FA for Django admin
     'news.middleware.MaintenanceModeMiddleware',  # Maintenance mode
 ]
 
@@ -413,7 +414,7 @@ if CLOUDINARY_URL:
             "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
         },
         "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
         },
     }
     
@@ -612,6 +613,14 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
     'sentry-trace',
     'baggage',
+]
+
+# CSRF Trusted Origins (required for Django 4.0+ cross-origin POST)
+CSRF_TRUSTED_ORIGINS = [
+    'https://freshmotors.net',
+    'https://www.freshmotors.net',
+    'https://api.freshmotors.net',
+    'https://heroic-healing-production-2365.up.railway.app',
 ]
 
 # Security Headers
