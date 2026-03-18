@@ -125,7 +125,7 @@ class ArticleAdmin(admin.ModelAdmin):
     inlines = [CarSpecificationInline, VehicleSpecsInline, ArticleImageInline]
     date_hierarchy = 'created_at'
     list_editable = ('is_published', 'is_hero')
-    actions = ['publish_articles', 'unpublish_articles', 'soft_delete_articles', 'restore_articles', 'hard_delete_articles']
+    actions = ['publish_articles', 'unpublish_articles', 'soft_delete_articles', 'restore_articles', 'hard_delete_articles', 'repair_compare_grid_html']
     readonly_fields = ('created_at', 'updated_at')
     
     def get_categories(self, obj):
@@ -198,6 +198,23 @@ class ArticleAdmin(admin.ModelAdmin):
                     return value
         return default
     
+    def repair_compare_grid_html(self, request, queryset):
+        """Fix malformed compare-grid HTML where AI closed divs too early."""
+        from ai_engine.modules.article_post_processor import _repair_compare_grid
+        fixed = 0
+        for article in queryset:
+            original = article.content or ''
+            repaired = _repair_compare_grid(original)
+            if repaired != original:
+                article.content = repaired
+                article.save(update_fields=['content'])
+                fixed += 1
+        if fixed:
+            self.message_user(request, f'✅ Repaired compare-grid HTML in {fixed} article(s).')
+        else:
+            self.message_user(request, '✓ No broken compare-grid found — all selected articles are already valid.')
+    repair_compare_grid_html.short_description = '🔧 Repair compare-grid HTML'
+
     def publish_articles(self, request, queryset):
         updated = queryset.update(is_published=True)
         self.message_user(request, f'{updated} article(s) published successfully.')
