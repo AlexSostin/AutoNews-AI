@@ -176,18 +176,15 @@ class TestNextArticle:
     # --- Response weight ---
 
     def test_response_is_lightweight(self, api_client):
-        """Response should NOT contain full content, vehicle_specs, or gallery."""
+        """Response uses ArticleDetailSerializer for infinite scroll rendering."""
         a1 = _make_article('light-test')
         a2 = _make_article('light-result', views=10)
         resp = api_client.get(self.URL_TPL.format(slug=a1.slug))
         article_data = resp.data['article']
         assert article_data is not None
-        # Must NOT have heavy fields
-        assert 'content' not in article_data
-        assert 'vehicle_specs' not in article_data
-        assert 'images' not in article_data
-        assert 'car_specification' not in article_data
-        # Must HAVE lightweight list fields
+        # ArticleDetailSerializer includes full content for infinite scroll
+        assert 'content' in article_data
+        # Must HAVE essential fields for rendering
         assert 'title' in article_data
         assert 'slug' in article_data
         assert 'thumbnail_url' in article_data
