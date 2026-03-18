@@ -634,12 +634,12 @@ class ArticleEngagementMixin:
         Accepts ?session_brands=BMW,Toyota&session_categories=electric,suv for session context.
         
         Performance:
-        - Uses ArticleListSerializer (lightweight, no content/specs/gallery)
+        - Uses ArticleDetailSerializer (full content/specs/gallery for ArticleUnit rendering)
         - Cached 60s per (slug, exclude_set) to avoid repeated ML/DB lookups
         - base_qs uses select_related/prefetch_related to avoid N+1
         """
         from news.models import Article, CarSpecification
-        from news.serializers import ArticleListSerializer
+        from news.serializers import ArticleDetailSerializer
         from django.core.cache import cache
         from django.db.models import Avg, Count
         import hashlib
@@ -677,7 +677,7 @@ class ArticleEngagementMixin:
             """Return serialized first result or None."""
             a = qs.first()
             if a:
-                s = ArticleListSerializer(a, context={'request': request})
+                s = ArticleDetailSerializer(a, context={'request': request})
                 return s.data
             return None
 
@@ -743,7 +743,7 @@ class ArticleEngagementMixin:
                         aid = s['id']
                         candidate = base_qs.filter(id=aid).first()
                         if candidate:
-                            result_data = ArticleListSerializer(candidate, context={'request': request}).data
+                            result_data = ArticleDetailSerializer(candidate, context={'request': request}).data
                             source = 'ml_similar'
                             logger.info(f"[next_article] Priority 3 (ML) for {slug}")
                             break
