@@ -95,9 +95,24 @@ export default function ArticleContentWithImages({ content, images, imageSource,
     // Strip the alt-texts div and duplicate title h2 from content before parsing
     const cleanContent = stripLeadingTitleH2(stripAltTextsDiv(content));
 
+    // Known compound structures that must NEVER be split into separate blocks.
+    const COMPOUND_CLASSES = [
+      'compare-grid', 'compare-card', 'pros-cons', 'pc-block',
+      'spec-bar', 'powertrain-specs', 'fm-verdict', 'price-tag',
+      'seo-related-links',
+    ];
+
+    const isCompoundOpen = (token: string): boolean => {
+      const classMatch = token.match(/class=["']([^"']*)["']/);
+      if (!classMatch) return false;
+      const classes = classMatch[1].split(/\s+/);
+      return classes.some(c => COMPOUND_CLASSES.some(prefix => c === prefix));
+    };
+
     const topLevelBlocks: string[] = [];
     let current = '';
     let depth = 0;
+    let compoundDepth = 0;
 
     const tokens = cleanContent.split(/(<?\/?[^>]+>)/g);
 
@@ -105,16 +120,23 @@ export default function ArticleContentWithImages({ content, images, imageSource,
       const openMatch = token.match(/^<(ul|ol|table|blockquote|pre|div|section)[\s>]/i);
       const closeMatch = token.match(/^<\/(ul|ol|table|blockquote|pre|div|section)>/i);
 
-      if (openMatch) depth++;
+      if (openMatch) {
+        depth++;
+        if (isCompoundOpen(token)) compoundDepth++;
+      }
       current += token;
 
       if (closeMatch) {
         depth--;
+        if (compoundDepth > 0 && closeMatch[1].toLowerCase() === 'div') {
+          compoundDepth--;
+        }
         if (depth <= 0) {
           depth = 0;
+          compoundDepth = 0;
           if (current.trim()) { topLevelBlocks.push(current); current = ''; }
         }
-      } else if (depth === 0) {
+      } else if (depth === 0 && compoundDepth === 0) {
         const topCloseMatch = token.match(/^<\/(h[1-6]|p)>/i);
         if (topCloseMatch && current.trim()) { topLevelBlocks.push(current); current = ''; }
       }
