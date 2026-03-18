@@ -831,6 +831,23 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
           <div className="flex justify-end gap-3 pt-2 pb-6">
             <button
               type="button"
+              onClick={async () => {
+                if (!articleId) return;
+                if (!confirm('🔧 Repair compare-grid HTML?\n\nThis will fix malformed compare-grid structures in article content.')) return;
+                try {
+                  const { data } = await api.post(`/articles/${articleId}/repair-html/`);
+                  alert(data.repaired ? `✅ ${data.message}\n\nPage will reload.` : `✓ ${data.message}`);
+                  if (data.repaired) window.location.reload();
+                } catch (err: any) {
+                  alert(`❌ ${err.response?.data?.detail || err.message}`);
+                }
+              }}
+              className="px-4 py-2.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors"
+            >
+              🔧 Repair HTML
+            </button>
+            <button
+              type="button"
               onClick={() => router.push('/admin/articles')}
               className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
             >

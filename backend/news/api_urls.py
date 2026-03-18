@@ -174,6 +174,28 @@ from .api_views.ai_costs import AICostDashboardView
 from .api_views.moderation import ModerationQueueView
 from .api_views.token_usage import TokenUsageSummaryView, TokenUsageRealtimeView
 
+
+class RepairArticleHTMLView(APIView):
+    """Repair malformed HTML (compare-grid, spec-bar) in article content."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'detail': 'Staff only.'}, status=http_status.HTTP_403_FORBIDDEN)
+        try:
+            from .models import Article
+            from ai_engine.modules.article_post_processor import _repair_compare_grid
+            article = Article.objects.get(pk=pk)
+            original = article.content or ''
+            repaired = _repair_compare_grid(original)
+            if repaired != original:
+                article.content = repaired
+                article.save(update_fields=['content'])
+                return Response({'repaired': True, 'message': f'Repaired compare-grid HTML for "{article.title}".'})
+            return Response({'repaired': False, 'message': 'No broken compare-grid found — HTML is already valid.'})
+        except Article.DoesNotExist:
+            return Response({'detail': 'Article not found.'}, status=http_status.HTTP_404_NOT_FOUND)
+
 urlpatterns = [
     # Health check endpoints (for load balancers and monitoring)
     path('health/', health_check, name='health_check'),
@@ -293,6 +315,9 @@ urlpatterns = [
     path('articles/<str:identifier>/save-external-image/', SaveExternalImageView.as_view(), name='save_external_image'),
     path('ai-image-styles/', GenerateAIImageView.as_view(), name='ai_image_styles'),
     path('articles/proxy-image/', ProxyImageView.as_view(), name='proxy_image'),
+
+    # Article HTML repair (admin only)
+    path('articles/<int:pk>/repair-html/', RepairArticleHTMLView.as_view(), name='repair_article_html'),
     
     
     # Automation Control Panel
