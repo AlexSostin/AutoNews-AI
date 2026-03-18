@@ -2,10 +2,12 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: autonews_postgres
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: autonews
-      POSTGRES_USER: autonews_user
-      POSTGRES_PASSWORD: SecurePass123
+      POSTGRES_DB: ${POSTGRES_DB:-autonews}
+      POSTGRES_USER: ${POSTGRES_USER:-autonews_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST_AUTH_METHOD: md5
     ports:
       - "5433:5432"
@@ -15,7 +17,7 @@ services:
       postgres -c listen_addresses='*' -c log_connections=on -c log_disconnections=on -c log_statement=all
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U autonews_user -d autonews" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autonews_user} -d ${POSTGRES_DB:-autonews}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,6 +30,7 @@ services:
       dockerfile: Dockerfile
     container_name: autonews_backend
     env_file:
+      - .env
       - .env
     command: >
       sh -c "python manage.py migrate &&
@@ -45,9 +48,9 @@ services:
       - RUNNING_IN_DOCKER=1
       - DB_HOST=postgres
       - DB_PORT=5432
-      - POSTGRES_DB=autonews
-      - POSTGRES_USER=autonews_user
-      - POSTGRES_PASSWORD=SecurePass123
+      - POSTGRES_DB=${POSTGRES_DB:-autonews}
+      - POSTGRES_USER=${POSTGRES_USER:-autonews_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - ALLOWED_HOSTS=localhost,127.0.0.1,backend
       - GROQ_API_KEY=${GROQ_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
@@ -67,6 +70,8 @@ services:
       context: ../frontend-next
       dockerfile: Dockerfile
     container_name: autonews_frontend
+    env_file:
+      - .env
     volumes:
       - ../frontend-next:/app
       - /app/.next
@@ -82,8 +87,8 @@ services:
       - API_INTERNAL_URL=http://backend:8000/api/v1
       - NEXT_PUBLIC_MEDIA_URL=http://localhost:8000
       - NEXT_PUBLIC_SITE_URL=http://localhost:3000
-      - NEXT_PUBLIC_SENTRY_DSN=https://87d896ae25bc56da5e80115c2c1364da@o4510742370648064.ingest.de.sentry.io/4510742712746064
-      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=691854985255-jm789a08dajc3ulb94fk3nvnadu2m54d.apps.googleusercontent.com
+      - NEXT_PUBLIC_SENTRY_DSN=${SENTRY_DSN:-}
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
     depends_on:
       - backend
     restart: unless-stopped
@@ -106,6 +111,7 @@ services:
     container_name: autonews_celery_worker
     env_file:
       - .env
+      - .env
     command: celery -A auto_news_site worker -l info --concurrency=2
     volumes:
       - .:/app
@@ -114,9 +120,9 @@ services:
       - RUNNING_IN_DOCKER=1
       - DB_HOST=postgres
       - DB_PORT=5432
-      - POSTGRES_DB=autonews
-      - POSTGRES_USER=autonews_user
-      - POSTGRES_PASSWORD=SecurePass123
+      - POSTGRES_DB=${POSTGRES_DB:-autonews}
+      - POSTGRES_USER=${POSTGRES_USER:-autonews_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - GROQ_API_KEY=${GROQ_API_KEY}
@@ -137,6 +143,7 @@ services:
     container_name: autonews_celery_beat
     env_file:
       - .env
+      - .env
     command: celery -A auto_news_site beat -l info
     volumes:
       - .:/app
@@ -145,9 +152,9 @@ services:
       - RUNNING_IN_DOCKER=1
       - DB_HOST=postgres
       - DB_PORT=5432
-      - POSTGRES_DB=autonews
-      - POSTGRES_USER=autonews_user
-      - POSTGRES_PASSWORD=SecurePass123
+      - POSTGRES_DB=${POSTGRES_DB:-autonews}
+      - POSTGRES_USER=${POSTGRES_USER:-autonews_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
     depends_on:
