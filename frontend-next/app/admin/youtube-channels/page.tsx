@@ -34,6 +34,7 @@ interface YouTubeChannel {
   channel_url: string;
   channel_id: string;
   is_enabled: boolean;
+  is_partner: boolean;
   auto_publish: boolean;
   default_category: number | null;
   category_name: string | null;
@@ -73,6 +74,7 @@ export default function YouTubeChannelsPage() {
     name: '',
     channel_url: '',
     is_enabled: true,
+    is_partner: false,
     auto_publish: false,
     default_category: ''
   });
@@ -135,7 +137,7 @@ export default function YouTubeChannelsPage() {
       setMessage({ type: 'success', text: editingChannel ? 'Channel updated!' : 'Channel added!' });
       setShowAddModal(false);
       setEditingChannel(null);
-      setFormData({ name: '', channel_url: '', is_enabled: true, auto_publish: false, default_category: '' });
+      setFormData({ name: '', channel_url: '', is_enabled: true, is_partner: false, auto_publish: false, default_category: '' });
       fetchData();
     } catch (error: any) {
       const errorMsg = error.response?.data?.detail || 'Failed to save channel';
@@ -194,6 +196,7 @@ export default function YouTubeChannelsPage() {
       name: channel.name,
       channel_url: channel.channel_url,
       is_enabled: channel.is_enabled,
+      is_partner: channel.is_partner,
       auto_publish: channel.auto_publish,
       default_category: channel.default_category?.toString() || ''
     });
@@ -348,7 +351,7 @@ export default function YouTubeChannelsPage() {
           <button
             onClick={() => {
               setEditingChannel(null);
-              setFormData({ name: '', channel_url: '', is_enabled: true, auto_publish: false, default_category: '' });
+              setFormData({ name: '', channel_url: '', is_enabled: true, is_partner: false, auto_publish: false, default_category: '' });
               setShowAddModal(true);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
@@ -595,7 +598,7 @@ export default function YouTubeChannelsPage() {
                 </select>
               </div>
 
-              <div className="flex items-center gap-6 pt-2">
+              <div className="flex items-center gap-6 pt-2 flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -614,6 +617,16 @@ export default function YouTubeChannelsPage() {
                     className="w-5 h-5 text-green-600 rounded"
                   />
                   <span className="text-sm text-gray-700">Auto-publish (skip review)</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_partner}
+                    onChange={(e) => setFormData({ ...formData, is_partner: e.target.checked })}
+                    className="w-5 h-5 text-indigo-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700">🤝 Partner channel (shows &ldquo;Special thanks&rdquo;)</span>
                 </label>
               </div>
 
