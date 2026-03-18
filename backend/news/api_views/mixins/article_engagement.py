@@ -602,6 +602,43 @@ class ArticleEngagementMixin:
                     result_ids.extend(same_make)
             except Exception as e:
                 logger.warning(f"Make/model fallback failed: {e}")
+        # Fallback: match by price, body type, and horsepower via VehicleSpecs
+        if len(result_ids) < 6:
+            try:
+                from news.models.vehicles import VehicleSpecs
+                v_spec = VehicleSpecs.objects.filter(article=article).first()
+                if v_spec:
+                    existing_ids = set(result_ids) | {article.id}
+                    filters = {
+                        'article__is_published': True,
+                        'article__is_deleted': False,
+                    }
+                    # Match by body type (exact)
+                    if v_spec.body_type:
+                        filters['body_type'] = v_spec.body_type
+                    # Match by price range (±30%)
+                    if v_spec.price_from:
+                        price_low = int(v_spec.price_from * 0.7)
+                        price_high = int(v_spec.price_from * 1.3)
+                        filters['price_from__gte'] = price_low
+                        filters['price_from__lte'] = price_high
+                    # Match by horsepower (±40%)
+                    if v_spec.power_hp:
+                        hp_low = int(v_spec.power_hp * 0.6)
+                        hp_high = int(v_spec.power_hp * 1.4)
+                        filters['power_hp__gte'] = hp_low
+                        filters['power_hp__lte'] = hp_high
+                    spec_matches = VehicleSpecs.objects.filter(
+                        **filters
+                    ).exclude(
+                        article_id__in=existing_ids
+                    ).order_by('-article__views').values_list(
+                        'article_id', flat=True
+                    ).distinct()[:10]
+                    result_ids.extend(spec_matches)
+                    logger.info(f"VehicleSpecs similarity found {len(spec_matches)} matches for article {article.id}")
+            except Exception as e:
+                logger.warning(f"VehicleSpecs similarity fallback failed: {e}")
         if len(result_ids) < 6:
             try:
                 existing_ids = set(result_ids) | {article.id}
