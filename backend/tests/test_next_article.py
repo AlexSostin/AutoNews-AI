@@ -340,4 +340,11 @@ class TestNextArticleEdgeCases:
         assert resp1.status_code == 200
         assert resp2.status_code == 200
         # Same result both times (whether from cache or fresh)
-        assert resp1.data['article']['slug'] == resp2.data['article']['slug']
+        # Guard for None: may be None in isolated xdist worker with no candidates
+        a1 = resp1.data['article']
+        a2 = resp2.data['article']
+        if a1 is not None and a2 is not None:
+            assert a1['slug'] == a2['slug'], "Cache must return consistent results"
+        else:
+            # Both must agree on None (no candidates)
+            assert a1 is None and a2 is None
