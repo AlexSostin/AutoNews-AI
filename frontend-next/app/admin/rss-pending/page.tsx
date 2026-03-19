@@ -171,6 +171,7 @@ interface RSSNewsItem {
     llm_score: number | null;       // gpt-4o-mini score stored in DB
     llm_score_reason: string;       // short reason phrase
     source_count: number;           // how many feeds covered this story
+    content_type: 'review' | 'debut' | 'news' | 'noise' | 'general';  // keyword classification
 }
 
 // ----------------------------------------------------------------
@@ -1292,6 +1293,17 @@ export default function RSSNewsPage() {
                                                     {(item.source_count ?? 1) >= 3 && (
                                                         <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-50 text-red-600 border border-red-200 flex items-center gap-0.5">
                                                             🔥 Hot · {item.source_count} sources
+                                                        </span>
+                                                    )}
+                                                    {/* Content type badge */}
+                                                    {item.content_type && item.content_type !== 'general' && (
+                                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border shrink-0 ${
+                                                            item.content_type === 'review' ? 'bg-violet-50 text-violet-700 border-violet-200' :
+                                                            item.content_type === 'debut'  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                            'bg-blue-50 text-blue-600 border-blue-200'
+                                                        }`}>
+                                                            {item.content_type === 'review' ? '🎬 Review' :
+                                                             item.content_type === 'debut'  ? '🚗 Debut' : '📰 News'}
                                                         </span>
                                                     )}
                                                     {/* LLM score reason pill */}

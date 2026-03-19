@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Youtube,
@@ -35,12 +35,14 @@ interface PendingArticle {
   title: string;
   content: string;
   excerpt: string;
+  rss_feed: number | null;
   suggested_category: number;
   category_names: string[];
   images: string[];
   featured_image: string;
   status: string;
   generation_source?: string;
+  content_type?: 'review' | 'debut' | 'news' | 'general' | null;
   created_at: string;
 }
 
@@ -59,6 +61,7 @@ export default function PendingArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
   const [sourceFilter, setSourceFilter] = useState<'youtube' | 'rss'>('youtube'); // New: source filter
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'status'>('newest');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [processing, setProcessing] = useState<number | null>(null);
   const [autoResolving, setAutoResolving] = useState<number | null>(null);
@@ -82,13 +85,22 @@ export default function PendingArticlesPage() {
       ]);
 
       setArticles(Array.isArray(articlesRes.data) ? articlesRes.data : articlesRes.data.results || []);
-      setStats(statsRes.data);
-    } catch (error) {
-      logCaughtError('youtube_pending_fetch', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setStats(statsRes.data);
+  } catch (error) {
+    logCaughtError('youtube_pending_fetch', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Client-side sort (server already filters)
+const sortedArticles = useMemo(() => {
+  return [...articles].sort((a, b) => {
+    if (sortOrder === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    if (sortOrder === 'status') return a.status.localeCompare(b.status);
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // newest
+  });
+}, [articles, sortOrder]);
 
   // Auto-scroll to highlighted article
   useEffect(() => {
@@ -277,8 +289,8 @@ export default function PendingArticlesPage() {
         </button>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-2">
+      {/* Filter + Sort row */}
+      <div className="flex flex-wrap gap-2 items-center">
         <button
           onClick={() => setFilter('pending')}
           className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'pending'
@@ -297,12 +309,27 @@ export default function PendingArticlesPage() {
         >
           All Articles
         </button>
+        {/* Sort */}
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-gray-400 font-medium">Sort:</span>
+          {(['newest', 'oldest', 'status'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setSortOrder(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                sortOrder === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {s === 'newest' ? '🕐 Newest' : s === 'oldest' ? '📅 Oldest' : '📊 Status'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Articles List */}
       <div className="space-y-4">
         {articles.length > 0 ? (
-          articles.map((article) => (
+          sortedArticles.map((article) => (
             <div
               key={article.id}
               ref={highlightId && article.id === parseInt(highlightId) ? highlightRef : undefined}
@@ -340,9 +367,22 @@ export default function PendingArticlesPage() {
                         <h3 className="font-bold text-gray-900 text-lg">{article.title}</h3>
                         <div className="flex flex-wrap items-center gap-2 mt-2 text-sm">
                           <span className="flex items-center gap-1 text-gray-500">
-                            <Youtube size={14} className="text-red-600" />
+                            {article.rss_feed
+                              ? <span className="text-indigo-500">📰</span>
+                              : <Youtube size={14} className="text-red-600" />}
                             {article.channel_name}
                           </span>
+                          {/* Content type badge for RSS items */}
+                          {article.content_type && article.content_type !== 'general' && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${
+                              article.content_type === 'review' ? 'bg-violet-100 text-violet-700 border-violet-200' :
+                              article.content_type === 'debut'  ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                              'bg-blue-100 text-blue-700 border-blue-200'
+                            }`}>
+                              {article.content_type === 'review' ? '🎬 Review' :
+                               article.content_type === 'debut'  ? '🚗 Debut' : '📰 News'}
+                            </span>
+                          )}
                           {article.category_names && article.category_names.length > 0 && (
                             <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
                               {article.category_names[0]}

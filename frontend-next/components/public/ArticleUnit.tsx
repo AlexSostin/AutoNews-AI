@@ -16,7 +16,7 @@ import ImageLightbox from '@/components/public/ImageLightbox';
 import SpecsCardLink from '@/components/public/SpecsCardLink';
 import ViewTracker from '@/components/public/ViewTracker';
 import FavoriteButton from '@/components/public/FavoriteButton';
-import PriceConverter from '@/components/public/PriceConverter';
+
 import ArticleFeedbackCapsules from '@/components/public/ArticleFeedbackCapsules';
 import CommentSection from '@/components/public/CommentSection';
 import FeedbackButton from '@/components/public/FeedbackButton';
@@ -323,24 +323,47 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
 
                 <AdBanner position="after_content" />
 
-                {hasYoutubeVideo && (
-                    <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-                            <Youtube className="text-red-600" size={24} />
-                            Watch Video Review
-                        </h3>
-                        <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg">
-                            <iframe
-                                src={youtubeEmbedUrl}
-                                title={article.title}
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowFullScreen
-                                loading="lazy"
-                                className="absolute inset-0 w-full h-full"
-                            />
+                {hasYoutubeVideo && (() => {
+                    const channelName = article.youtube_channel_name || article.author_name;
+                    const channelUrl  = article.youtube_channel_url  || article.author_channel_url;
+                    return (
+                        <div className="rounded-2xl overflow-hidden"
+                            style={{
+                                boxShadow: '0 4px 24px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.14)',
+                                background: '#0f0f0f',
+                            }}>
+                            {/* Channel attribution header */}
+                            {channelName && (
+                                <div className="flex items-center gap-3 px-4 py-2.5"
+                                    style={{ background: 'linear-gradient(90deg, #1a1a1a 0%, #2d0000 100%)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                    <Youtube size={16} className="text-red-500 shrink-0" />
+                                    <span className="text-xs text-gray-400 font-semibold">Video by</span>
+                                    {channelUrl ? (
+                                        <a href={channelUrl} target="_blank" rel="noopener noreferrer"
+                                            className="text-white font-bold text-sm hover:text-red-400 transition-colors truncate">
+                                            {channelName}
+                                        </a>
+                                    ) : (
+                                        <span className="text-white font-bold text-sm truncate">{channelName}</span>
+                                    )}
+                                </div>
+                            )}
+                            {/* Video embed */}
+                            <div className="relative w-full aspect-video">
+                                <iframe
+                                    src={youtubeEmbedUrl}
+                                    title={article.title}
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                    loading="lazy"
+                                    className="absolute inset-0 w-full h-full"
+                                />
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
+
+
 
                 {allGalleryImages.length > 0 && (
                     <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
