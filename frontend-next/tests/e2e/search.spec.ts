@@ -5,22 +5,21 @@ import { test, expect } from '@playwright/test';
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('Search', () => {
-    test.setTimeout(60_000);
+    test.setTimeout(90_000); // 90s to handle slow CI backend
 
     test('search page loads without error', async ({ page }) => {
-        const response = await page.goto('/search?q=Toyota');
+        const response = await page.goto('/search?q=Toyota', { waitUntil: 'domcontentloaded' });
         expect(response?.status()).toBeLessThan(500);
     });
 
     test('search page shows results or empty state', async ({ page }) => {
-        await page.goto('/search?q=BYD');
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(5000); // Extra wait for WebKit hydration
+        await page.goto('/search?q=BYD', { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(3000); // Short wait for client-side hydration
 
         // Either a result list or a "no results" message — never a blank screen
         const hasResults = await page.locator('a[href*="/articles/"]').first().isVisible().catch(() => false);
         const hasNoResults = await page.getByText(/no results|nothing found|try another/i).isVisible().catch(() => false);
-        const hasHeading = await page.locator('h1, h2').first().isVisible({ timeout: 8000 }).catch(() => false);
+        const hasHeading = await page.locator('h1, h2').first().isVisible({ timeout: 5000 }).catch(() => false);
         const hasAnyContent = await page.locator('main, [role="main"], .content, #__next > div').first()
             .isVisible({ timeout: 5000 }).catch(() => false);
         // Broadest fallback: any visible text on the page
@@ -35,7 +34,7 @@ test.describe('Search', () => {
 
     test('typing in search and pressing enter navigates', async ({ page }) => {
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Find the search input (header search bar or search icon)
         const searchInput = page.locator('input[type="search"], input[placeholder*="Search" i], input[placeholder*="Поиск" i]').first();
@@ -64,8 +63,7 @@ test.describe('Search', () => {
     });
 
     test('search for nonexistent term shows no-results state', async ({ page }) => {
-        await page.goto('/search?q=zzz_nonexistent_brand_xyz_999');
-        await page.waitForLoadState('networkidle');
+        await page.goto('/search?q=zzz_nonexistent_brand_xyz_999', { waitUntil: 'domcontentloaded' });
 
         // Should show "no results" or "nothing found" — NOT a crash
         const hasNoResults = await page.getByText(/no results|nothing found|try another|no articles/i)
@@ -82,8 +80,8 @@ test.describe('Search', () => {
     });
 
     test('search results contain links to articles', async ({ page }) => {
-        await page.goto('/search?q=electric');
-        await page.waitForLoadState('networkidle');
+        await page.goto('/search?q=electric', { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(2000);
 
         const articleLinks = page.locator('a[href*="/articles/"]');
         const count = await articleLinks.count();
