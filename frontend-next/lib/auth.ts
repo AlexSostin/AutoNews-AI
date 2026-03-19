@@ -3,24 +3,28 @@ import { authenticatedFetch } from './authenticatedFetch';
 import { AuthTokens, LoginCredentials, User } from '@/types';
 import { setUserContext, clearUserContext } from './errorTracking';
 
-// Helper to set cookies with proper security flags
+// ─── Cookie helpers ───────────────────────────────────────────────────────────
+
 const setCookie = (name: string, value: string, maxAgeSeconds: number = 7 * 24 * 60 * 60) => {
   const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
   const secureFlag = isSecure ? '; Secure' : '';
   document.cookie = `${name}=${value}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax${secureFlag}`;
 };
 
-// Helper to delete cookies — MUST match the flags used during creation
 const deleteCookie = (name: string) => {
-  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-  const secureFlag = isSecure ? '; Secure' : '';
-  // Set max-age=0 to delete. Must include same path/SameSite/Secure flags.
-  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax${secureFlag}`;
-  // Also try without Secure flag (handles edge cases where cookie was set on HTTP)
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
   document.cookie = `${name}=; path=/; max-age=0`;
 };
 
-// Special error class to signal that 2FA is required
+const getCookieValue = (name: string): string | null => {
+  if (typeof window === 'undefined') return null;
+  const found = document.cookie.split('; ').find(row => row.startsWith(`${name}=`));
+  const value = found?.split('=')[1];
+  return value && value !== 'null' && value !== 'undefined' ? value : null;
+};
+
+// ─── Custom error classes ─────────────────────────────────────────────────────
+
 export class TwoFARequiredError extends Error {
   hasPasskeys: boolean;
   pendingToken: string;
@@ -32,7 +36,6 @@ export class TwoFARequiredError extends Error {
   }
 }
 
-// Special error class to signal that Passkey verification is required
 export class PasskeyRequiredError extends Error {
   pendingToken: string;
   has2FA: boolean;
@@ -47,124 +50,151 @@ export class PasskeyRequiredError extends Error {
   }
 }
 
+// ─── Token management ─────────────────────────────────────────────────────────
+
+/**
+ * Single source of truth for refreshing access tokens.
+ * Reads refresh_token from cookie, calls /token/refresh/, updates cookies.
+ * Used by: authenticatedFetch.ts, useProactiveTokenRefresh.ts, verifyAndRefreshSession()
+ */
+export const refreshAccessToken = async (): Promise<string | null> => {
+  if (typeof window === 'undefined') return null;
+
+  const refreshToken = getCookieValue('refresh_token');
+  if (!refreshToken) return null;
+
+  try {
+    const response = await fetch(`${getApiUrl()}/token/refresh/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+
+    if (!response.ok) return null;
+
+    const { access, refresh: newRefresh } = await response.json();
+
+    setCookie('access_token', access, 7 * 24 * 60 * 60);
+    if (newRefresh) {
+      setCookie('refresh_token', newRefresh, 30 * 24 * 60 * 60);
+    }
+
+    // Keep user in localStorage (non-sensitive, used for quick display)
+    localStorage.setItem('access_token', access);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('authChange'));
+    }
+
+    return access;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Verifies current session is alive; tries to refresh if expired.
+ * Use in admin layout on mount instead of raw fetch() inline code.
+ * Returns true = session ok, false = both tokens invalid (should redirect to login).
+ */
+export const verifyAndRefreshSession = async (): Promise<boolean> => {
+  if (typeof window === 'undefined') return false;
+
+  const accessToken = getCookieValue('access_token');
+  if (!accessToken) {
+    // No access token — try refresh directly
+    const newToken = await refreshAccessToken();
+    return newToken !== null;
+  }
+
+  try {
+    const res = await fetch(`${getApiUrl()}/token/verify/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: accessToken }),
+    });
+
+    if (res.ok) return true;
+
+    // Access token expired — try refresh
+    const newToken = await refreshAccessToken();
+    return newToken !== null;
+  } catch {
+    // Network error (e.g. 502 during Railway redeploy) — don't log out!
+    // If we have any token at all, assume session is still valid.
+    const refreshToken = getCookieValue('refresh_token');
+    if (accessToken || refreshToken) {
+      console.warn('⚠️ Token verify failed (network?), assuming session valid');
+      return true;
+    }
+    return false;
+  }
+};
+
+const _storeTokensAndUser = async (access: string, refresh: string) => {
+  setCookie('access_token', access, 7 * 24 * 60 * 60);
+  setCookie('refresh_token', refresh, 30 * 24 * 60 * 60);
+  // Keep access_token in localStorage as a convenience fallback for SSR edge cases
+  localStorage.setItem('access_token', access);
+
+  const userData = await getCurrentUser(access);
+  if (userData) {
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUserContext({
+      id: userData.id.toString(),
+      email: userData.email,
+      username: userData.username,
+      is_staff: userData.is_staff
+    });
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('authChange'));
+  }
+};
+
+// ─── Auth actions ─────────────────────────────────────────────────────────────
+
 export const login = async (credentials: LoginCredentials): Promise<AuthTokens> => {
   const response = await api.post('/token/', credentials);
   const data = response.data;
 
-  // If backend requires 2FA — throw special error for the login page to handle
   if (data.requires_2fa) {
     throw new TwoFARequiredError(data.has_passkeys === true, data.pending_token ?? '');
   }
 
-  // If backend requires Passkey — throw special error with the one-time token
   if (data.requires_passkey) {
     throw new PasskeyRequiredError(data.pending_token ?? '', data.has_2fa === true, data.google_user_id);
   }
 
   const { access, refresh } = data;
-
-  // Store tokens in cookies (needed for middleware)
-  setCookie('access_token', access);
-  setCookie('refresh_token', refresh, 30 * 24 * 60 * 60);
-
-  localStorage.setItem('access_token', access);
-  localStorage.setItem('refresh_token', refresh);
-
-  const userData = await getCurrentUser(access);
-  if (userData) {
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUserContext({
-      id: userData.id.toString(),
-      email: userData.email,
-      username: userData.username,
-      is_staff: userData.is_staff
-    });
-  }
-
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('authChange'));
-  }
-
+  await _storeTokensAndUser(access, refresh);
   return { access, refresh };
 };
 
-// Complete 2FA login — backend expects {username, password, totp_code}
 export const login2FA = async (username: string, password: string, totpCode: string): Promise<AuthTokens> => {
-  const response = await api.post('/auth/2fa/verify/', {
-    username,
-    password,
-    totp_code: totpCode,
-  });
+  const response = await api.post('/auth/2fa/verify/', { username, password, totp_code: totpCode });
   const { access, refresh } = response.data;
-
-  setCookie('access_token', access);
-  setCookie('refresh_token', refresh, 30 * 24 * 60 * 60);
-  localStorage.setItem('access_token', access);
-  localStorage.setItem('refresh_token', refresh);
-
-  const userData = await getCurrentUser(access);
-  if (userData) {
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUserContext({
-      id: userData.id.toString(),
-      email: userData.email,
-      username: userData.username,
-      is_staff: userData.is_staff
-    });
-  }
-
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('authChange'));
-  }
-
+  await _storeTokensAndUser(access, refresh);
   return { access, refresh };
 };
 
-// Complete 2FA login after Google OAuth — backend expects {google_user_id, totp_code}
 export const loginGoogle2FA = async (googleUserId: string, totpCode: string): Promise<AuthTokens> => {
-  const response = await api.post('/auth/2fa/google-verify/', {
-    google_user_id: googleUserId,
-    totp_code: totpCode,
-  });
+  const response = await api.post('/auth/2fa/google-verify/', { google_user_id: googleUserId, totp_code: totpCode });
   const { access, refresh } = response.data;
-
-  setCookie('access_token', access);
-  setCookie('refresh_token', refresh, 30 * 24 * 60 * 60);
-  localStorage.setItem('access_token', access);
-  localStorage.setItem('refresh_token', refresh);
-
-  const userData = await getCurrentUser(access);
-  if (userData) {
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUserContext({
-      id: userData.id.toString(),
-      email: userData.email,
-      username: userData.username,
-      is_staff: userData.is_staff
-    });
-  }
-
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('authChange'));
-  }
-
+  await _storeTokensAndUser(access, refresh);
   return { access, refresh };
 };
 
 export const logout = () => {
-  // Clear localStorage
   localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
   localStorage.removeItem('user');
 
-  // Clear cookies (must match Secure/SameSite flags used during creation!)
   deleteCookie('access_token');
   deleteCookie('refresh_token');
 
-  // Очистить пользователя из Sentry
   clearUserContext();
 
-  // Trigger auth change event
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('authChange'));
   }
@@ -172,128 +202,89 @@ export const logout = () => {
   window.location.href = '/login';
 };
 
+// ─── Token state helpers ──────────────────────────────────────────────────────
+
 const _isTokenExpired = (token: string): boolean => {
   try {
     const payload = token.split('.')[1];
     if (!payload) return true;
-
-    // JWT uses Base64Url, which atob doesn't directly support (needs + and / instead of - and _)
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
     const decoded = JSON.parse(atob(base64));
-
-    if (!decoded.exp) return false; // No expiry = treat as valid
-    // exp is in seconds, Date.now() is in ms. Add 30s buffer.
-    return decoded.exp * 1000 < Date.now() + 30000;
+    if (!decoded.exp) return false;
+    return decoded.exp * 1000 < Date.now() + 30000; // 30s buffer
   } catch {
-    return true; // Can't decode = treat as expired
+    return true;
+  }
+};
+
+export const getTokenExpiresInMs = (token: string): number => {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return 0;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(base64));
+    if (!decoded.exp) return Infinity;
+    return decoded.exp * 1000 - Date.now();
+  } catch {
+    return 0;
   }
 };
 
 export const isAuthenticated = (): boolean => {
   if (typeof window === 'undefined') return false;
 
-  // Check cookies first (middleware uses cookies)
-  const cookieToken = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('access_token='));
-
-  if (cookieToken) {
-    const token = cookieToken.split('=')[1];
-    if (token && !_isTokenExpired(token)) return true;
-
-    // Token is expired. Check if we have a refresh token before clearing!
-    const hasRefreshToken = document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token');
-    if (hasRefreshToken) return true; // Let api.ts interceptor handle the refresh
-
-    // Only clean up if BOTH are missing/expired
-    _clearAuthData();
-    return false;
+  const token = getCookieValue('access_token');
+  if (token) {
+    if (!_isTokenExpired(token)) return true;
+    // Expired access token — still authenticated if refresh token exists
+    return getCookieValue('refresh_token') !== null;
   }
 
-  // Fallback to localStorage - if found, restore the cookie!
+  // Fallback: localStorage access token (restores cookie for middleware)
   const tokenFromStorage = localStorage.getItem('access_token');
-  if (tokenFromStorage) {
-    if (_isTokenExpired(tokenFromStorage)) {
-      // Check if we have a refresh token before clearing
-      const hasRefreshToken = document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token');
-      if (hasRefreshToken) return true; // Let api.ts interceptor handle the refresh
-
-      // Token expired and no refresh token — clean up stale data
-      _clearAuthData();
-      return false;
+  if (tokenFromStorage && tokenFromStorage !== 'null' && tokenFromStorage !== 'undefined') {
+    if (!_isTokenExpired(tokenFromStorage)) {
+      setCookie('access_token', tokenFromStorage);
+      return true;
     }
-    // Restore the cookie for middleware
-    setCookie('access_token', tokenFromStorage);
-    const refreshFromStorage = localStorage.getItem('refresh_token');
-    if (refreshFromStorage) {
-      setCookie('refresh_token', refreshFromStorage);
-    }
-    return true;
+    // Expired — check if refresh token cookie exists
+    return getCookieValue('refresh_token') !== null;
   }
 
   return false;
 };
 
-// Clean up expired/stale auth data without redirect
-const _clearAuthData = () => {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-  localStorage.removeItem('user');
-  deleteCookie('access_token');
-  deleteCookie('refresh_token');
-};
-
 export const getAccessToken = (): string | null => {
   if (typeof window === 'undefined') return null;
 
-  // Check cookies first (middleware uses cookies)
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('access_token='));
+  const token = getCookieValue('access_token');
+  if (token) return token;
 
-  if (token) {
-    const access = token.split('=')[1];
-    if (access && access !== 'null' && access !== 'undefined') {
-      // If we have an access token, check if it's valid.
-      // Even if it's expired, if we have a refresh token, return it so the api interceptor can catch the 401 and refresh it.
-      if (!_isTokenExpired(access) || document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token')) {
-        return access;
-      }
-    }
-  }
-
-  // Fallback to localStorage - if found, restore the cookie!
+  // Fallback to localStorage (restores cookie)
   const tokenFromStorage = localStorage.getItem('access_token');
   if (tokenFromStorage && tokenFromStorage !== 'null' && tokenFromStorage !== 'undefined') {
-    if (!_isTokenExpired(tokenFromStorage) || document.cookie.includes('refresh_token=') || localStorage.getItem('refresh_token')) {
-      // Restore the cookie for middleware
-      setCookie('access_token', tokenFromStorage);
-      const refreshFromStorage = localStorage.getItem('refresh_token');
-      if (refreshFromStorage) {
-        setCookie('refresh_token', refreshFromStorage);
-      }
-      return tokenFromStorage;
-    }
+    setCookie('access_token', tokenFromStorage);
+    return tokenFromStorage;
   }
+
   return null;
 };
 
 // Alias for convenience
 export const getToken = getAccessToken;
 
+// ─── User helpers ─────────────────────────────────────────────────────────────
+
 export const getCurrentUser = async (token?: string): Promise<User | null> => {
   try {
     const accessToken = token || getAccessToken();
     if (!accessToken) return null;
 
-    // Use authenticatedFetch instead of raw fetch to ensure token refresh works
-    // if this is ever called outside of the immediate login flow
     const response = await authenticatedFetch('/users/me/', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
     });
 
     if (!response.ok) return null;
-
     return await response.json();
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -303,7 +294,6 @@ export const getCurrentUser = async (token?: string): Promise<User | null> => {
 
 export const getUserFromStorage = (): User | null => {
   if (typeof window === 'undefined') return null;
-
   const userData = localStorage.getItem('user');
   return userData ? JSON.parse(userData) : null;
 };

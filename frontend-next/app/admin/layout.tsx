@@ -6,7 +6,8 @@ import Sidebar from '@/components/admin/Sidebar';
 import AdminHeader from '@/components/admin/AdminHeader';
 import { IdleWarningModal } from '@/components/admin/IdleWarningModal';
 import { useIdleTimeout } from '@/lib/useIdleTimeout';
-import { isAdmin, isAuthenticated } from '@/lib/auth';
+import { useProactiveTokenRefresh } from '@/lib/useProactiveTokenRefresh';
+import { isAdmin, isAuthenticated, verifyAndRefreshSession } from '@/lib/auth';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 
@@ -40,7 +41,7 @@ export default function AdminLayout({
       setIsCollapsed(true);
     }
 
-    // Check if user is authenticated and is staff
+    // Check authentication + verify token liveness
     const checkAuth = async () => {
       if (!isAuthenticated()) {
         router.push('/login');
@@ -53,69 +54,13 @@ export default function AdminLayout({
         return;
       }
 
-      // ── Token liveness check ──────────────────────────────────────
-      // Verify the access token is actually valid (catches zombie state
-      // after backend restart / Docker rebuild / deploy).
-      // If access token is expired, try to refresh it first (like proper
-      // auth flows in production apps) before kicking the user out.
-      try {
-        const { getApiUrl } = await import('@/lib/api');
-        const accessToken = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('access_token='))
-          ?.split('=')[1];
-
-        if (!accessToken) throw new Error('no token');
-
-        const res = await fetch(`${getApiUrl()}/token/verify/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: accessToken }),
-        });
-
-        if (!res.ok) {
-          // Access token expired — try to refresh before giving up
-          const refreshToken = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('refresh_token='))
-            ?.split('=')[1]
-            || localStorage.getItem('refresh_token');
-
-          if (!refreshToken) throw new Error('no refresh token');
-
-          const refreshRes = await fetch(`${getApiUrl()}/token/refresh/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh: refreshToken }),
-          });
-
-          if (!refreshRes.ok) throw new Error('refresh failed');
-
-          const { access: newAccess, refresh: newRefresh } = await refreshRes.json();
-
-          // Update tokens everywhere
-          const isSecure = window.location.protocol === 'https:';
-          const secureFlag = isSecure ? '; Secure' : '';
-          document.cookie = `access_token=${newAccess}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax${secureFlag}`;
-          if (newRefresh) {
-            document.cookie = `refresh_token=${newRefresh}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax${secureFlag}`;
-            localStorage.setItem('refresh_token', newRefresh);
-          }
-          localStorage.setItem('access_token', newAccess);
-          console.log('🔄 Token refreshed silently during auth check');
-        }
-      } catch {
-        // Both access AND refresh tokens are invalid — clear everything
-        document.cookie = 'access_token=; path=/; max-age=0';
-        document.cookie = 'refresh_token=; path=/; max-age=0';
-        localStorage.removeItem('user');
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
+      // Verify token is live; refresh if expired; handle network errors gracefully
+      const sessionOk = await verifyAndRefreshSession();
+      if (!sessionOk) {
         toast.error('Session expired. Please log in again.');
         router.push('/login');
         return;
       }
-      // ─────────────────────────────────────────────────────────────
 
       setAuthorized(true);
     };
@@ -140,6 +85,7 @@ export default function AdminLayout({
     document.cookie = 'refresh_token=; path=/; max-age=0';
     localStorage.removeItem('user');
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');  // ← was missing before
     localStorage.removeItem('admin_last_active');
 
     toast('🔒 Session expired due to inactivity', { icon: '⏰' });
@@ -155,6 +101,9 @@ export default function AdminLayout({
     onWarn: handleWarn,
     onLogout: handleLogout,
   });
+
+  // Proactive token refresh: silently renew when < 10 min left
+  useProactiveTokenRefresh(authorized);
 
   const handleStayLoggedIn = useCallback(() => {
     setShowIdleWarning(false);
