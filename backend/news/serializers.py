@@ -472,9 +472,25 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         pending = self._get_source_pending(obj)
         if pending and pending.youtube_channel:
             return pending.youtube_channel.name
-        # Fallback: author_name when source came from YouTube
+        # Fallback 1: author_name set directly on Article
         if obj.youtube_url and obj.author_name:
             return obj.author_name
+        # Fallback 2: match video ID against YouTubeChannel's known videos
+        if obj.youtube_url:
+            try:
+                from news.models import YouTubeChannel
+                # Extract video ID from youtube_url
+                import re
+                vid_match = re.search(r'(?:watch\?v=|embed/|youtu\.be/)([\w-]+)', obj.youtube_url)
+                if vid_match:
+                    video_id = vid_match.group(1)
+                    channel = YouTubeChannel.objects.filter(
+                        pending_articles__video_id=video_id
+                    ).first()
+                    if channel:
+                        return channel.name
+            except Exception:
+                pass
         return None
 
     def get_youtube_channel_url(self, obj):
@@ -483,6 +499,20 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
             return pending.youtube_channel.channel_url
         if obj.youtube_url and obj.author_channel_url:
             return obj.author_channel_url
+        # Fallback: match video ID against YouTubeChannel
+        if obj.youtube_url:
+            try:
+                from news.models import YouTubeChannel
+                import re
+                vid_match = re.search(r'(?:watch\?v=|embed/|youtu\.be/)([\w-]+)', obj.youtube_url)
+                if vid_match:
+                    channel = YouTubeChannel.objects.filter(
+                        pending_articles__video_id=vid_match.group(1)
+                    ).first()
+                    if channel:
+                        return channel.channel_url
+            except Exception:
+                pass
         return None
 
     def get_youtube_channel_is_partner(self, obj):
@@ -937,6 +967,7 @@ class PendingArticleSerializer(serializers.ModelSerializer):
     category_name = serializers.SerializerMethodField()
     reviewed_by_name = serializers.SerializerMethodField()
     generation_source = serializers.SerializerMethodField()
+    content_type = serializers.SerializerMethodField()
     rss_feed = PendingArticleRSSFeedSerializer(read_only=True)
     
     class Meta:
@@ -950,7 +981,7 @@ class PendingArticleSerializer(serializers.ModelSerializer):
             'images', 'featured_image', 'image_source',
             'status', 'published_article',
             'reviewed_by', 'reviewed_by_name', 'reviewed_at', 'review_notes',
-            'generation_source',
+            'generation_source', 'content_type',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['reviewed_by', 'reviewed_at', 'published_article', 'created_at', 'updated_at']
@@ -969,6 +1000,11 @@ class PendingArticleSerializer(serializers.ModelSerializer):
             return obj.specs.get('generation_source', 'Unknown')
         return 'Unknown'
 
+    def get_content_type(self, obj):
+        """Returns content type classification from specs (set by RSS auto-queue)."""
+        if obj.specs:
+            return obj.specs.get('content_type')
+        return None
 
 
 

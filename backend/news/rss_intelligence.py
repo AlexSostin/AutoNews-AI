@@ -53,6 +53,55 @@ GENERIC_MODEL_WORDS = frozenset({
 })
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Content type classification keywords
+# ─────────────────────────────────────────────────────────────────────────────
+
+CONTENT_TYPE_KEYWORDS: dict[str, list[str]] = {
+    # High-value: deep editorial content — schedule for generation
+    'review': [
+        'review', 'test drive', 'first drive', 'road test', 'driven',
+        'hands-on', 'deep dive', 'long-term', 'walkaround', 'walk-around',
+    ],
+    # High-value: new model / reveal — generate article
+    'debut': [
+        'debut', 'unveil', 'unveiled', 'reveal', 'revealed', 'world premiere',
+        'first look', 'spy shots', 'leaked', 'new model', 'all-new',
+        'next-gen', 'next generation', 'production version', 'concept',
+        'launch', 'launched', 'introduces', 'introduced',
+    ],
+    # Medium: general news that's still relevant
+    'news': [
+        'new', 'announce', 'announced', 'update', 'updated', 'facelift',
+        'refreshed', 'confirmed', 'price', 'spec', 'specs', 'features',
+        'deliveries', 'sales', 'production', 'order', 'preorder',
+    ],
+    # Low: noise / recall / legal — keep for brand tracking, skip generation
+    'noise': [
+        'recall', 'lawsuit', 'fine', 'investigation', 'settlement',
+        'crash', 'accident', 'fire', 'explosion', 'death', 'injury',
+    ],
+}
+
+
+def classify_rss_item(title: str, excerpt: str = '') -> str:
+    """
+    Classify an RSS news item by content type.
+
+    Returns one of: 'review' | 'debut' | 'news' | 'noise' | 'general'
+
+    Priority order: review > debut > noise > news > general
+    """
+    text = f'{title} {excerpt}'.lower()
+
+    for content_type in ('review', 'debut', 'noise', 'news'):
+        keywords = CONTENT_TYPE_KEYWORDS[content_type]
+        if any(kw in text for kw in keywords):
+            return content_type
+
+    return 'general'
+
+
 # ============================================================
 # Feature 1: Brand Detection
 # ============================================================
@@ -211,29 +260,15 @@ def process_rss_intelligence(queryset=None, dry_run=False):
                     stats['brands_created'].append(resolved)
                     logger.info(f'🆕 Created draft brand: {resolved}')
             
-            # Try to extract model
+            # Try to extract model (tracking only — no VehicleSpecs stub created)
             model_info = extract_model_from_title(item.title, brand_key)
             if model_info and model_info['model']:
                 model_label = f"{display_name} {model_info['model']}"
                 stats['models_found'][model_label] += 1
-                
-                if not dry_run:
-                    resolved_make = BrandAlias.resolve(display_name)
-                    # Use get_or_create to respect unique_together constraint
-                    _, created = VehicleSpecs.objects.get_or_create(
-                        make=resolved_make,
-                        model_name=model_info['model'],
-                        trim_name='',  # Base model, no trim
-                        defaults={
-                            'article': None,
-                            'year': model_info.get('year'),
-                            'confidence_score': 0.3,  # Low confidence for RSS discovery
-                            'extra_specs': {'source': 'rss_discovery'},
-                        }
-                    )
-                    if created:
-                        stats['models_created'].append(model_label)
-                        logger.info(f'🆕 Discovered model: {model_label}')
+                # NOTE: We intentionally do NOT create VehicleSpecs here.
+                # Stubs without real specs pollute sibling/predecessor matching.
+                # VehicleSpecs are created only when an article is generated
+                # and the AI extracts actual technical data.
     
     return stats
 

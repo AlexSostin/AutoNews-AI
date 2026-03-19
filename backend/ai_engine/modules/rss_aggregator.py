@@ -778,11 +778,20 @@ class RSSAggregator:
                 source_url = source_url[:2000] if source_url else ''
                 featured_image = featured_image[:1000] if featured_image else ''
 
+                # Classify content type (keyword-based, free)
+                from news.rss_intelligence import classify_rss_item
+                content_type = classify_rss_item(title, plain_text[:400])
+
+                # Skip saving 'noise' items entirely (recall/crash/legal — no value)
+                if content_type == 'noise':
+                    logger.debug(f'Skipping noise item: {title[:50]}')
+                    continue
+
                 # LLM scoring — gpt-4o-mini, ~$0.0001/item, fallback to keyword scorer
                 llm_score, llm_reason = score_item_with_llm(title, plain_text[:400])
 
                 # Create RSSNewsItem with intelligence fields
-                RSSNewsItem.objects.create(
+                news_item = RSSNewsItem.objects.create(
                     rss_feed=rss_feed,
                     title=title,
                     content=content,
@@ -794,8 +803,32 @@ class RSSAggregator:
                     status='new',
                     llm_score=llm_score,
                     llm_score_reason=llm_reason,
+                    content_type=content_type,
                 )
-                logger.info(f'Saved RSS news item (score={llm_score}): {title[:50]}')
+                logger.info(f'Saved RSS news item (type={content_type}, score={llm_score}): {title[:50]}')
+
+                # Auto-queue high-value items as PendingArticle (review/debut + auto_publish feed)
+                if content_type in ('review', 'debut') and rss_feed.auto_publish:
+                    try:
+                        pending = PendingArticle.objects.create(
+                            rss_feed=rss_feed,
+                            source_url=source_url,
+                            content_hash=content_hash + '_pending',  # avoid hash collision with news item
+                            title=title,
+                            content=content,
+                            excerpt=plain_text[:500] if len(plain_text) > 500 else plain_text,
+                            images=[featured_image] if featured_image else [],
+                            featured_image=featured_image,
+                            suggested_category=rss_feed.default_category,
+                            specs={'source': 'rss_auto_queue', 'content_type': content_type},
+                            status='pending',
+                        )
+                        news_item.pending_article = pending
+                        news_item.status = 'generating'
+                        news_item.save(update_fields=['pending_article', 'status'])
+                        logger.info(f'🚀 Auto-queued {content_type} item: {title[:50]}')
+                    except Exception as eq:
+                        logger.warning(f'Auto-queue failed for {title[:50]}: {eq}')
 
                 created_count += 1
                 

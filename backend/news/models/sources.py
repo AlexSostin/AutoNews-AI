@@ -234,6 +234,19 @@ class RSSNewsItem(models.Model):
         help_text="Number of different RSS sources covering the same story. ≥3 = hot topic."
     )
 
+    # Content classification (set at ingest time by classify_rss_item)
+    CONTENT_TYPE_CHOICES = [
+        ('review',  'Review / Test Drive'),
+        ('debut',   'Debut / Reveal'),
+        ('news',    'News / Update'),
+        ('noise',   'Noise / Recall / Legal'),
+        ('general', 'General'),
+    ]
+    content_type = models.CharField(
+        max_length=20, choices=CONTENT_TYPE_CHOICES, default='general', db_index=True,
+        help_text="Auto-classified content type based on title/excerpt keywords."
+    )
+
     # Link to generated article (if any)
     pending_article = models.ForeignKey(
         'PendingArticle', null=True, blank=True,
