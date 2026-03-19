@@ -11,7 +11,12 @@
     "**/*.spec.ts",
     "**/node_modules/**",
     "**/.next/**",
-    "**/out/**"
+    "**/out/**",
+    "**/app/(public)/privacy-policy/**",
+    "**/app/(public)/terms/**",
+    "**/app/(public)/about/**",
+    "**/app/(public)/contact/**"
+
   ],
   "languages": ["typescript"]
 }

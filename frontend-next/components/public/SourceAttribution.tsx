@@ -24,6 +24,29 @@ interface SourceAttributionProps {
     sourceType?: 'youtube' | 'rss';
 }
 
+/** Renders channel name as a link (if URL present) or plain text. */
+function ChannelLink({ name, url, className, weight = 'font-bold' }: {
+    name: string;
+    url: string | null | undefined;
+    className: string;
+    weight?: string;
+}) {
+    if (url) {
+        return (
+            <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${weight} inline-flex items-center gap-1 transition-colors ${className}`}
+            >
+                {name}
+                <ExternalLink size={13} className="inline" />
+            </a>
+        );
+    }
+    return <span className={`${weight} ${className}`}>{name}</span>;
+}
+
 export default function SourceAttribution({
     channelName,
     channelUrl,
@@ -41,36 +64,12 @@ export default function SourceAttribution({
     const label = isPartner ? (
         <>
             Special thanks to our friends at{' '}
-            {channelUrl ? (
-                <a
-                    href={channelUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`font-bold inline-flex items-center gap-1 transition-colors ${accentColor}`}
-                >
-                    {channelName}
-                    <ExternalLink size={13} className="inline" />
-                </a>
-            ) : (
-                <span className="font-bold text-indigo-700">{channelName}</span>
-            )}
+            <ChannelLink name={channelName} url={channelUrl} className={accentColor} />
         </>
     ) : (
         <>
             Source:{' '}
-            {channelUrl ? (
-                <a
-                    href={channelUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`font-semibold inline-flex items-center gap-1 transition-colors ${accentColor}`}
-                >
-                    {channelName}
-                    <ExternalLink size={13} className="inline" />
-                </a>
-            ) : (
-                <span className="font-semibold">{channelName}</span>
-            )}
+            <ChannelLink name={channelName} url={channelUrl} className={accentColor} weight="font-semibold" />
         </>
     );
 

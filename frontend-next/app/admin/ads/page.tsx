@@ -97,6 +97,24 @@ const emptyForm: Omit<AdPlacement, 'id' | 'impressions' | 'clicks' | 'ctr' | 'is
     target_pages: 'all',
 };
 
+function ImageUploadField({ label, preview, onChange }: {
+    label: string; preview: string | null;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+    return (
+        <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+            <input type="file" accept="image/*" onChange={onChange} className="w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 file:cursor-pointer" />
+            {preview && (
+                <div className="mt-2 relative w-full max-h-32 overflow-hidden rounded-lg border border-gray-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={preview} alt="Preview" className="w-full object-contain max-h-32" />
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function AdsPage() {
     const [ads, setAds] = useState<AdPlacement[]>([]);
     const [loading, setLoading] = useState(true);
@@ -617,18 +635,9 @@ export default function AdsPage() {
                                             <li>Header/Footer: horizontal banners (<strong>1200×200</strong> or <strong>728×90</strong>)</li>
                                             <li>Sidebar: square or tall (<strong>300×250</strong> or <strong>300×600</strong>)</li>
                                             <li>Use contrasting colors and a clear call-to-action</li>
-                                        </ul>
+                                         </ul>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Banner Image</label>
-                                        <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 file:cursor-pointer" />
-                                        {imagePreview && (
-                                            <div className="mt-2 relative w-full max-h-32 overflow-hidden rounded-lg border border-gray-200">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={imagePreview} alt="Preview" className="w-full object-contain max-h-32" />
-                                            </div>
-                                        )}
-                                    </div>
+                                    <ImageUploadField label="Banner Image" preview={imagePreview} onChange={handleImageChange} />
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Click-through URL</label>
                                         <input
@@ -703,16 +712,7 @@ export default function AdsPage() {
                                             placeholder="BMW"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor Image</label>
-                                        <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 file:cursor-pointer" />
-                                        {imagePreview && (
-                                            <div className="mt-2 relative w-full max-h-32 overflow-hidden rounded-lg border border-gray-200">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={imagePreview} alt="Preview" className="w-full object-contain max-h-32" />
-                                            </div>
-                                        )}
-                                    </div>
+                                    <ImageUploadField label="Sponsor Image" preview={imagePreview} onChange={handleImageChange} />
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Sponsored Text</label>
                                         <textarea
