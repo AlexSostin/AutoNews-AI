@@ -1,0 +1,17 @@
+{
+  "minLines": 8,
+  "minTokens": 50,
+  "threshold": 5,
+  "reporters": ["console", "json"],
+  "output": "reports/jscpd",
+  "ignore": [
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/out/**"
+  ],
+  "languages": ["typescript"]
+}
