@@ -164,6 +164,24 @@ _BANNED_INLINE_REPLACEMENTS = [
     # Mid-sentence "While X not specified/detailed, Y" → keep only Y
     (re.compile(r'While\s+(?:the\s+)?(?:exact|specific|precise|detailed)\s+[^,]{5,80}(?:are|is|were)\s+not\s+(?:specified|provided|detailed|disclosed|confirmed|available|announced)[^,]*,\s*', re.I), ''),
     (re.compile(r'Although\s+(?:the\s+)?(?:exact|specific|precise)\s+[^,]{5,80}(?:are|is)\s+not\s+(?:specified|provided|detailed|disclosed|confirmed)[^,]*,\s*', re.I), ''),
+    # Round 6: Marketing hype (Zeekr 8X review, 2026-03-19)
+    (re.compile(r'pavement[- ]crushing', re.I), 'heavy'),
+    (re.compile(r'unprecedented\s+(?:mix|blend|combination|level)', re.I), 'notable combination'),
+    (re.compile(r'sheer\s+brute\s+force', re.I), 'strong performance'),
+    (re.compile(r'hypercar[- ]level', re.I), 'rapid'),
+    (re.compile(r'aggressively\s+(?:positioned|priced)', re.I), 'competitively priced'),
+    (re.compile(r'completely\s+disrupt', re.I), 'enter'),
+    (re.compile(r'definitive[, ]+(?:a\s+)?(?:pavement-crushing\s+)?proof\s+point', re.I), 'a clear example'),
+    (re.compile(r'poised\s+to\s+redefine', re.I), 'entering'),
+    (re.compile(r'stole\s+the\s+show', re.I), 'attracted attention'),
+    (re.compile(r'takes?\s+it\s+to\s+(?:a(?:nother)?\s+)?(?:whole\s+)?(?:new\s+)?level', re.I), 'improves significantly'),
+    # Round 7: Zeekr 8X verdict filler (2026-03-19)
+    (re.compile(r'\bblistering\b', re.I), 'rapid'),
+    (re.compile(r'\bmonumental\s+achievement\b', re.I), 'strong achievement'),
+    (re.compile(r'\blavishly\s+appointed\b', re.I), 'well-appointed'),
+    (re.compile(r'\bserenity\s+of\s+(?:its|the)\b', re.I), 'comfort of its'),
+    (re.compile(r'\bsheer\s+violence\b', re.I), 'speed'),
+    (re.compile(r'\bbloody\s+fast\b', re.I), 'very fast'),
 ]
 
 

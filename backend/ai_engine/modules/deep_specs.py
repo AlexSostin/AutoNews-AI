@@ -941,7 +941,28 @@ No extra text, no markdown, just the JSON object."""
         
     except json.JSONDecodeError as e:
         logger.warning(f"[SPEC-REFILL] JSON parse error: {e}")
-        meta['error'] = f'json_parse: {e}'
+        # Regex fallback: extract "field": "value" pairs from truncated JSON
+        refill_data = {}
+        pairs = re.findall(r'"(\w+)"\s*:\s*"([^"]+)"', response_text)
+        if pairs:
+            refill_data = {k: v for k, v in pairs if v not in ('Not specified', 'null', 'None')}
+            logger.info(f"[SPEC-REFILL] Regex recovery: extracted {len(refill_data)} fields")
+            # Merge into specs
+            filled_by_refill = []
+            for field in missing:
+                value = refill_data.get(field)
+                if value and str(value).strip():
+                    specs[field] = str(value).strip()
+                    filled_by_refill.append(field)
+                    logger.info(f"[SPEC-REFILL] ✓ {field} = {value}")
+            _, _, coverage_after, missing_after = compute_coverage(specs)
+            meta['filled_by_refill'] = filled_by_refill
+            meta['coverage_after'] = round(coverage_after, 1)
+            meta['missing_after'] = missing_after
+            meta['recovery'] = 'regex'
+            logger.info(f"[SPEC-REFILL] Coverage: {coverage:.0f}% → {coverage_after:.0f}% (+{len(filled_by_refill)} via regex)")
+        else:
+            meta['error'] = f'json_parse: {e}'
     except Exception as e:
         logger.warning(f"[SPEC-REFILL] Failed: {e}")
         meta['error'] = str(e)

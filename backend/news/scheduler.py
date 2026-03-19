@@ -20,6 +20,8 @@ AUTO_PUBLISH_CHECK_INTERVAL = 10 * 60
 SCHEDULED_PUBLISH_INTERVAL = 60
 # Default fallback check interval when module is disabled
 DISABLED_CHECK_INTERVAL = 60  # Check again in 60s if disabled
+# DB backup: once every 24 hours
+DB_BACKUP_INTERVAL = 24 * 60 * 60
 
 # Track which tasks were already triggered by recovery to prevent double-fire
 _recovery_triggered = set()
@@ -947,6 +949,35 @@ def start_scheduler():
     ab_lifecycle_timer.daemon = True
     ab_lifecycle_timer.start()
     logger.info("[SCHEDULER] 🧹 A/B lifecycle cleanup scheduled (daily)")
+
+    # Database backup — daily, first fire after 420 seconds
+    backup_timer = threading.Timer(420, _run_db_backup)
+    backup_timer.daemon = True
+    backup_timer.start()
+    logger.info("[SCHEDULER] 🗄️ Database backup scheduled (daily)")
+
+
+def _run_db_backup():
+    """Run daily database backup and upload to Cloudinary."""
+    from django.db import close_old_connections
+    close_old_connections()
+    try:
+        from django.core.management import call_command
+        call_command('backup_db', upload=True, keep=5)
+        logger.info("[SCHEDULER/BACKUP] ✅ Daily database backup completed")
+    except Exception as e:
+        logger.error(f"[SCHEDULER/BACKUP] ❌ Database backup failed: {e}")
+        _log_scheduler_error('db_backup', e)
+    finally:
+        close_old_connections()
+        _schedule_db_backup()
+
+
+def _schedule_db_backup():
+    """Schedule the next database backup."""
+    timer = threading.Timer(DB_BACKUP_INTERVAL, _run_db_backup)
+    timer.daemon = True
+    timer.start()
 
 
 def _auto_resolve_stale_errors():

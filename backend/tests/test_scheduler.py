@@ -632,3 +632,99 @@ class TestRunScheduledPublish:
         _run_scheduled_publish()
         mock_schedule.assert_called_once()
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DATABASE BACKUP
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRunDBBackup:
+    """Tests for _run_db_backup() in scheduler."""
+
+    @patch('news.scheduler._schedule_db_backup')
+    @patch('news.scheduler.call_command', create=True)
+    def test_backup_success(self, mock_call, mock_schedule):
+        from news.scheduler import _run_db_backup
+        with patch('news.scheduler.call_command', mock_call):
+            from django.core.management import call_command as _cc
+            with patch('news.scheduler.call_command', wraps=None) as mock_cmd:
+                # Reimport to apply patch
+                pass
+        # Direct test: mock call_command inside _run_db_backup
+        with patch('django.core.management.call_command') as mock_cmd:
+            _run_db_backup()
+            mock_cmd.assert_called_once_with('backup_db', upload=True, keep=5)
+        mock_schedule.assert_called_once()
+
+    @patch('news.scheduler._schedule_db_backup')
+    def test_backup_failure_reschedules(self, mock_schedule):
+        from news.scheduler import _run_db_backup
+        with patch('django.core.management.call_command', side_effect=Exception('pg_dump not found')):
+            _run_db_backup()  # Should not crash
+        mock_schedule.assert_called_once()  # Must always reschedule
+
+
+class TestScheduleDBBackup:
+    """Tests for _schedule_db_backup()."""
+
+    @patch('news.scheduler.threading.Timer')
+    def test_schedules_timer(self, mock_timer):
+        from news.scheduler import _schedule_db_backup, DB_BACKUP_INTERVAL, _run_db_backup
+        timer_instance = MagicMock()
+        mock_timer.return_value = timer_instance
+
+        _schedule_db_backup()
+        mock_timer.assert_called_once_with(DB_BACKUP_INTERVAL, _run_db_backup)
+        timer_instance.start.assert_called_once()
+        assert timer_instance.daemon is True
+
+
+class TestBackupDBCommand:
+    """Tests for the backup_db management command."""
+
+    @patch.dict('os.environ', {'DATABASE_URL': 'postgres://user:pass@host:5432/dbname'})
+    @patch('subprocess.run')
+    def test_command_success(self, mock_run, tmp_path):
+        from news.management.commands.backup_db import Command
+        mock_run.return_value = MagicMock(returncode=0, stdout=b'SQL data...')
+        cmd = Command()
+        cmd.BACKUP_DIR = tmp_path
+        output_path = tmp_path / 'test_backup.sql.gz'
+        cmd.handle(upload=False, keep=5, output=str(output_path))
+        mock_run.assert_called_once()
+        assert output_path.exists()
+
+    @patch.dict('os.environ', {'DATABASE_URL': 'postgres://user:pass@host:5432/dbname'})
+    @patch('subprocess.run', side_effect=FileNotFoundError)
+    def test_command_pg_dump_missing(self, mock_run, capsys):
+        from news.management.commands.backup_db import Command
+        cmd = Command()
+        cmd.handle(upload=False, keep=5, output=None)
+        # Should print error about pg_dump not found
+
+    @patch.dict('os.environ', {'DATABASE_URL': 'postgres://user:pass@host:5432/dbname'})
+    @patch('subprocess.run')
+    def test_command_pg_dump_failure(self, mock_run, tmp_path):
+        from news.management.commands.backup_db import Command
+        mock_run.return_value = MagicMock(returncode=1, stderr=b'connection refused')
+        cmd = Command()
+        cmd.BACKUP_DIR = tmp_path
+        cmd.handle(upload=False, keep=5, output=str(tmp_path / 'test.sql.gz'))
+        # Command should handle the error gracefully
+
+    @patch.dict('os.environ', {'DATABASE_URL': 'postgres://user:pass@host:5432/dbname'})
+    @patch('subprocess.run')
+    def test_command_cleans_old_backups(self, mock_run, tmp_path):
+        from news.management.commands.backup_db import Command
+        mock_run.return_value = MagicMock(returncode=0, stdout=b'data')
+        cmd = Command()
+        cmd.BACKUP_DIR = tmp_path
+        # Create 7 old backups
+        for i in range(7):
+            (tmp_path / f'freshmotors_2026-03-{10+i:02d}_0300.sql.gz').write_bytes(b'old')
+        # Write to a file that matches the cleanup pattern
+        output = str(tmp_path / 'freshmotors_2026-03-20_0300.sql.gz')
+        cmd.handle(upload=False, keep=3, output=output)
+        # Should delete oldest, keeping only 3 + the new one = 4
+        remaining = list(tmp_path.glob('freshmotors_*.sql.gz'))
+        assert len(remaining) <= 4  # 3 kept + 1 new
+

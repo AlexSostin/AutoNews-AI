@@ -191,6 +191,31 @@ SUMMARY: [your 150-200 char summary here]
                 if not seo_desc.endswith('.'):
                     seo_desc += '...'
         
+        # Validate summary
+        if summary:
+            summary = summary.strip('"').strip("'").replace('\n', ' ')
+            # Reject garbage summaries about transcript errors
+            _summary_garbage = ['captcha', 'error page', 'could not be extracted',
+                                'automated query', 'no specifications', 'consequently',
+                                'rather than', 'not the actual', 'provided text']
+            if any(g in summary.lower() for g in _summary_garbage):
+                print(f"⚠️ AI summary rejected (garbage): {summary[:60]}")
+                summary = None
+            elif len(summary) < 80:
+                print(f"⚠️ AI summary rejected (too short: {len(summary)}): {summary}")
+                summary = None
+            elif len(summary) > 200:
+                # Truncate at sentence boundary
+                truncated = summary[:200]
+                last_period = truncated.rfind('. ')
+                if last_period > 100:
+                    summary = truncated[:last_period + 1]
+                else:
+                    summary = truncated.rsplit(' ', 1)[0]
+                    if not summary.endswith('.'):
+                        summary += '...'
+                print(f"⚠️ AI summary truncated to {len(summary)} chars")
+
         if title or seo_desc or summary:
             return {'title': title, 'seo_description': seo_desc, 'summary': summary}
         
@@ -267,7 +292,7 @@ def _get_internal_specs_context(specs: dict) -> str:
         existing = VehicleSpecs.objects.filter(
             make__iexact=_make,
             model_name__icontains=_model,
-        ).order_by('-updated_at').first()
+        ).order_by('-id').first()
         if not existing:
             print(f"ℹ️ No existing VehicleSpecs for {_make} {_model}")
             return ""
@@ -476,6 +501,14 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         import time as _time
         _t_start = _time.time()
         _timings = {}
+
+        # Fallback tracker — every degraded step is recorded here
+        try:
+            from ai_engine.modules.generation_errors import FallbackTracker, GenerationError, is_token_limit_error
+        except ImportError:
+            from modules.generation_errors import FallbackTracker, GenerationError, is_token_limit_error
+        _tracker = FallbackTracker()
+
         
         provider_name = "Groq" if provider == 'groq' else "Google Gemini"
         send_progress(1, 5, f"🚀 Starting generation with {provider_name}...")
@@ -512,9 +545,26 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         if not transcript or len(transcript) < 5 or transcript.startswith("ERROR:"):
             error_msg = transcript if transcript and transcript.startswith("ERROR:") else "Failed to retrieve transcript or it is too short"
             send_progress(2, 100, f"❌ {error_msg}")
-            raise Exception(error_msg)
+            _tracker.add('transcript', error_msg, critical=True)
+            if _tracker.needs_token_retry:
+                return {**GenerationError.token_limit('transcript', error_msg).to_result_dict(),
+                        'title': '', 'content': ''}
+            raise GenerationError.from_tracker(_tracker, step='transcript')
         
         send_progress(2, 30, f"✓ Transcript received ({len(transcript)} chars)")
+        
+        # 1.5 Video fact extraction via Gemini vision
+        video_facts = {}
+        try:
+            from ai_engine.modules.video_fact_extractor import (
+                extract_facts_from_video,
+                format_video_facts_for_prompt,
+            )
+            send_progress(2, 32, "🎬 Extracting facts from video visuals...")
+            video_facts = extract_facts_from_video(youtube_url)
+            _timings['video_facts'] = True
+        except Exception as e:
+            _tracker.add('video_facts', str(e), critical=False)  # non-critical
         
         # 2. Analyze transcript
         _t_step = _time.time()
@@ -523,13 +573,26 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         analysis = analyze_transcript(transcript, video_title=video_title, provider=provider)
         
         if not analysis:
+            _tracker.add('analysis', 'analyze_transcript returned empty', critical=True)
+            if _tracker.needs_token_retry:
+                return {**GenerationError.from_tracker(_tracker, 'analysis').to_result_dict(),
+                        'title': '', 'content': ''}
             send_progress(3, 100, "❌ Analysis failed")
-            raise Exception("Failed to analyze transcript")
+            raise GenerationError.from_tracker(_tracker, step='analysis')
         
         _timings['analysis'] = round(_time.time() - _t_step, 1)
         send_progress(3, 50, "✓ Analysis complete")
         
-        # 2.5. Categorize and Tags
+        # 2.4 Merge video facts into analysis (enriches prompt with visual data)
+        if video_facts:
+            try:
+                video_facts_text = format_video_facts_for_prompt(video_facts)
+                if video_facts_text:
+                    analysis += video_facts_text
+                    print(f"✅ Video facts merged into analysis")
+            except Exception as e:
+                print(f"⚠️ Video facts merge failed (non-fatal): {e}")
+        
         send_progress(4, 55, "🏷️ Categorizing...")
         try:
             from ai_engine.modules.analyzer import categorize_article, extract_specs_dict
@@ -862,11 +925,21 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         # Target: 150-200 characters (for article cards, OG tags, listing pages)
         summary = ""
         if ai_summary and len(ai_summary) > 50:
-            summary = ai_summary
-            # Ensure AI summary stays within 200 chars for card display
-            if len(summary) > 200:
-                summary = _truncate_summary(summary, max_len=200)
-            print(f"✅ Using AI-generated Summary ({len(summary)} chars)")
+            # Reject if summary is about transcript/error rather than the car
+            _garbage_indicators = ['captcha', 'error page', 'could not be extracted',
+                                   'provided text', 'not an actual', 'google captcha',
+                                   'unable to', 'no information', 'automated query',
+                                   'no specifications', 'consequently',
+                                   'rather than', 'not the actual']
+            if any(g in ai_summary.lower() for g in _garbage_indicators):
+                print(f"⚠️ AI summary rejected (garbage content): {ai_summary[:80]}")
+                ai_summary = None
+            else:
+                summary = ai_summary
+                # Ensure AI summary stays within 200 chars for card display
+                if len(summary) > 200:
+                    summary = _truncate_summary(summary, max_len=200)
+                print(f"✅ Using AI-generated Summary ({len(summary)} chars)")
         elif isinstance(analysis, str) and 'Summary:' in analysis:
             summary = analysis.split('Summary:')[-1].split('\n')[0].strip()
         elif isinstance(analysis, dict) and analysis.get('summary'):
@@ -1014,10 +1087,31 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         }
         
     except Exception as e:
-        print(f"❌ Error in _generate_article_content: {str(e)}")
         import traceback
-        print(traceback.format_exc())
+        err_str = str(e)
+        err_tb = traceback.format_exc()
+        print(f"❌ Error in _generate_article_content: {err_str}")
+        print(err_tb)
+
+        # If it's already a structured GenerationError, pass its info up
+        try:
+            from ai_engine.modules.generation_errors import GenerationError, is_token_limit_error
+        except ImportError:
+            from modules.generation_errors import GenerationError, is_token_limit_error
+
+        if isinstance(e, GenerationError):
+            result = e.to_result_dict()
+            result['traceback'] = err_tb[:1000]
+            return result
+
+        # For unexpected exceptions, detect token-limit errors and mark for retry
+        needs_retry = is_token_limit_error(err_str)
         return {
             'success': False,
-            'error': str(e)
+            'error': err_str,
+            'error_step': 'unknown',
+            'needs_retry': needs_retry,
+            'retry_after_seconds': 300 if needs_retry else None,
+            'traceback': err_tb[:1000],
+            'degradation_report': None,
         }

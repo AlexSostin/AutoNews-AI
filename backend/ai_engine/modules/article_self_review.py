@@ -114,8 +114,8 @@ OUTPUT RULES:
 
         # Sanity check: the reviewed version shouldn't be dramatically shorter
         reviewed_words = len(re.sub(r'<[^>]+>', ' ', reviewed).split())
-        if reviewed_words < word_count * 0.7:
-            print(f"  ⚠️ Review truncated article ({reviewed_words} vs {word_count} words), keeping original")
+        if reviewed_words < word_count * 0.85:
+            print(f"  ⚠️ Review trimmed too aggressively ({reviewed_words} vs {word_count} words, >15% loss), keeping original")
             return html
 
         elapsed = round(_time.time() - start, 1)
@@ -162,7 +162,7 @@ def _ensure_verdict_written(html: str, analysis_data, provider: str = 'gemini') 
     
     verdict_words = len(verdict_text.split()) if verdict_text else 0
     
-    if verdict_words >= 30:
+    if verdict_words >= 60:
         # Verdict is fine — but clean up any duplicate <h2> if fm-verdict div exists
         if fm_verdict_match and h2_verdict_match:
             html = html[:h2_verdict_match.start()] + html[h2_verdict_match.end():]
@@ -238,7 +238,10 @@ Example of good verdict:
         else:
             html = html.rstrip() + '\n' + verdict_block
 
-        print(f"  ✅ Verdict injected ({len(verdict_para.split())} words)")
+        verdict_word_count = len(verdict_para.split())
+        print(f"  ✅ Verdict injected ({verdict_word_count} words)")
+        if verdict_word_count < 60:
+            print(f"  ⚠️ Verdict too short ({verdict_word_count} words < 60) — will regenerate")
 
     try:
         ai = get_light_provider()

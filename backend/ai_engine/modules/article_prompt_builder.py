@@ -297,6 +297,52 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     except Exception as e:
         print(f"⚠️ Could not load correction memory: {e}")
     
+    # Load editorial memory (learning loop from editor style corrections)
+    editorial_block = ""
+    try:
+        from ai_engine.modules.editorial_memory import get_style_examples
+        editorial_block = get_style_examples(n=3)
+        if editorial_block:
+            print(f"  📝 Loaded editorial memory ({editorial_block.count('Example')} patterns) into prompt")
+    except Exception as e:
+        print(f"⚠️ Could not load editorial memory: {e}")
+    
+    # Load predecessor comparison (year-over-year evolution context)
+    predecessor_block = ""
+    try:
+        from ai_engine.modules.predecessor_lookup import get_predecessor_context
+        # Extract make/model from source_title (e.g. "Zeekr 8X. Очень быстрый жесткий люкс.")
+        _make = ''
+        _model = ''
+        _year = None
+        if source_title:
+            # Try to identify brand from title words
+            title_words = source_title.replace('.', ' ').replace(',', ' ').split()
+            # Known brands often appear as first 1-2 words
+            for i in range(min(2, len(title_words))):
+                from news.models.vehicles import VehicleSpecs
+                candidate = title_words[i]
+                if VehicleSpecs.objects.filter(make__iexact=candidate).exists():
+                    _make = candidate
+                    if i + 1 < len(title_words):
+                        _model = title_words[i + 1]
+                    break
+            # Extract year if present
+            import re as _re
+            year_match = _re.search(r'\b(202[0-9])\b', source_title)
+            if year_match:
+                _year = int(year_match.group(1))
+        if _make and _model:
+            # Build minimal specs dict for comparison
+            _current_specs = {}
+            if isinstance(analysis_data, dict):
+                _current_specs = analysis_data
+            predecessor_block = get_predecessor_context(_make, _model, _current_specs, year=_year)
+            if predecessor_block:
+                print(f"  🚗 Loaded predecessor comparison into prompt")
+    except Exception as e:
+        print(f"⚠️ Could not load predecessor comparison: {e}")
+    
     # Load current exchange rates for accurate price conversions
     exchange_rates_block = ""
     try:
@@ -665,6 +711,10 @@ ALT_TEXT_3: [descriptive alt text for detail/tech image]
 
 {correction_block}
 
+{editorial_block}
+
+{predecessor_block}
+
 Analysis Data:
 {analysis_data}
 
@@ -770,6 +820,19 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
         # Second AI call: the same model re-reads its article as an editor.
         # Catches spec inconsistencies, missing premium HTML classes, and readability issues.
         article_content = _self_review_pass(article_content, analysis_data, provider)
+
+        # ── Quality Gate — structural completeness check ─────────────────────
+        try:
+            from ai_engine.modules.quality_gate import check_quality_gate
+            gate_result = check_quality_gate(article_content, has_competitor_data=has_competitors)
+            if gate_result['passed']:
+                print(f"🚦 Quality Gate: PASS ({gate_result['score']}/100)")
+            else:
+                print(f"🚦 Quality Gate: FAIL ({gate_result['score']}/100)")
+                for issue in gate_result.get('issues', []):
+                    print(f"   ⚠️ {issue}")
+        except Exception as qg_err:
+            print(f"⚠️ Quality gate check failed (non-fatal): {qg_err}")
 
         return article_content
     except Exception as e:

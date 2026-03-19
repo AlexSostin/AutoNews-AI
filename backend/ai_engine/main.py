@@ -182,7 +182,55 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
     result = _generate_article_content(youtube_url, task_id=None, provider=provider, video_title=video_title)
     
     if not result['success']:
+        error_msg = result.get('error', 'Unknown error')
+        needs_retry = result.get('needs_retry', False)
+        retry_after = result.get('retry_after_seconds', 300)
+        
+        if needs_retry:
+            # Token/rate limit — save a placeholder PendingArticle to retry in 5 min
+            print(f"⏳ Token limit hit — scheduling retry in {retry_after//60}min for {youtube_url}")
+            try:
+                from django.utils import timezone
+                import datetime
+                final_video_title = video_title or "Untitled YouTube Video"
+                if not video_id:
+                    import re as _re
+                    m = _re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', youtube_url)
+                    video_id = m.group(1) if m else f"retry_{int(timezone.now().timestamp())}"
+                
+                # Write retry info into specs so scheduler can recover it
+                retry_specs = {
+                    'generation_source': generation_source,
+                    'retry_scheduled': True,
+                    'retry_after': (timezone.now() + datetime.timedelta(seconds=retry_after)).isoformat(),
+                    'last_error': error_msg[:500],
+                    'degradation_report': result.get('degradation_report'),
+                }
+                pending = PendingArticle.objects.create(
+                    youtube_channel=None,
+                    video_url=youtube_url,
+                    video_id=video_id,
+                    video_title=final_video_title[:500],
+                    title=video_title or 'Awaiting generation...',
+                    content='',
+                    excerpt='',
+                    specs=retry_specs,
+                    tags=[],
+                    status='auto_failed',  # scheduler will retry on auto_failed with retry_scheduled=True
+                )
+                print(f"✅ Created retry PendingArticle id={pending.id}")
+                return {'success': False, 'reason': 'token_limit_retry', 'pending_id': pending.id,
+                        'retry_after': retry_after, 'error': error_msg}
+            except Exception as retry_err:
+                print(f"⚠️ Could not create retry PendingArticle: {retry_err}")
+        
+        # Non-recoverable failure — return error with full details
+        print(f"❌ Generation failed (non-recoverable): {error_msg}")
+        degradation = result.get('degradation_report')
+        if degradation:
+            print(f"   Degradation report: {result.get('error_step')} — {degradation}")
         return result
+
 
     # 4. Get Channel and Category
     try:

@@ -82,9 +82,55 @@ def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini'
             clean_json = clean_json[3:]
         if clean_json.endswith("```"):
             clean_json = clean_json[:-3]
-            
-        result = json.loads(clean_json.strip())
-        
+
+        # Tier 1: Standard JSON parse
+        result = None
+        try:
+            result = json.loads(clean_json.strip())
+        except (json.JSONDecodeError, ValueError) as json_err:
+            logger.warning(f"Fact-check JSON parse failed (tier 1): {json_err}")
+
+            # Tier 2: Regex extraction from malformed JSON
+            hall_match = re.search(r'"hallucinations_found"\s*:\s*(true|false)', clean_json, re.I)
+            issues_match = re.search(r'"issues"\s*:\s*\[(.*?)\]', clean_json, re.DOTALL)
+            if hall_match:
+                found = hall_match.group(1).lower() == 'true'
+                issues = []
+                if issues_match:
+                    # Extract individual quoted strings
+                    issues = re.findall(r'"([^"]+)"', issues_match.group(1))
+                result = {'hallucinations_found': found, 'issues': issues}
+                logger.info(f"Fact-check recovered via regex (tier 2): found={found}, {len(issues)} issues")
+            else:
+                # Tier 3: Retry with simpler prompt
+                logger.warning("Fact-check tier 2 failed — retrying with simpler prompt")
+                try:
+                    simple_prompt = (
+                        f"Does this article contain factual errors compared to the web context? "
+                        f"Answer ONLY with this JSON: {{\"hallucinations_found\": true/false, \"issues\": [\"...\"]}}\\n\\n"
+                        f"WEB CONTEXT (first 2000 chars):\\n{web_context[:2000]}\\n\\n"
+                        f"ARTICLE (first 2000 chars):\\n{article_html[:2000]}"
+                    )
+                    retry_resp = ai.generate_completion(
+                        prompt=simple_prompt,
+                        system_prompt="Output ONLY valid JSON. No markdown, no explanation.",
+                        temperature=0.0,
+                        max_tokens=500,
+                        caller='fact_check_retry'
+                    )
+                    if retry_resp:
+                        retry_clean = retry_resp.strip().strip('`').strip()
+                        if retry_clean.startswith('json'):
+                            retry_clean = retry_clean[4:].strip()
+                        result = json.loads(retry_clean)
+                        logger.info(f"Fact-check recovered via retry (tier 3)")
+                except Exception as retry_err:
+                    logger.error(f"Fact-check tier 3 also failed: {retry_err}")
+
+        if result is None:
+            logger.error(f"Fact-checking: all 3 parse tiers failed. Skipping validation.")
+            return article_html
+
         if result.get('hallucinations_found') and result.get('issues'):
             logger.warning(f"Fact-check detected issues: {result['issues']}")
             
@@ -165,7 +211,7 @@ def _build_enriched_context(article_html: str, web_context: str) -> str:
         existing = VehicleSpecs.objects.filter(
             make__iexact=make,
             model_name__icontains=model.split()[0] if model else '',
-        ).order_by('-updated_at').first()
+        ).order_by('-id').first()
         if existing:
             db_parts = []
             if existing.power_hp:
