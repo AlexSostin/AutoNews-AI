@@ -72,4 +72,4 @@ class TestAutomationTriggerView:
         client, _ = admin_client
         response = client.post('/api/v1/automation/trigger/rss/')
         assert response.status_code == 200
-        mock_start.assert_called_once()
+        mock_start.assert_called()

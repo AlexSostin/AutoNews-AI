@@ -27,6 +27,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
@@ -185,6 +186,10 @@ class PasskeyAuthenticateView(APIView):
     POST → verifies assertion → returns JWT tokens
     """
     permission_classes = [AllowAny]
+    # Override default auth classes to exclude SessionAuthentication
+    # — SessionAuthentication re-enables CSRF enforcement, which breaks
+    # cross-origin passkey flows (Vercel frontend → Railway backend).
+    authentication_classes = [JWTAuthentication]
 
     @method_decorator(ratelimit(key='ip', rate='10/5m', method='GET', block=True))
     def get(self, request):
@@ -311,6 +316,7 @@ class PasskeyVerifyPendingView(APIView):
     Uses Django cache (Redis) — no session cookies needed (stateless, cross-origin safe).
     """
     permission_classes = [AllowAny]
+    authentication_classes = [JWTAuthentication]  # Exclude SessionAuthentication → no CSRF
 
     def get(self, request):
         """Return authentication options for pending passkey verification."""
