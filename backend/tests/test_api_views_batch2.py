@@ -100,73 +100,73 @@ def category():
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestGenerateFromYouTubeDeep:
-    """Covers L779-838 — the AI processing and article creation paths."""
+    """Tests for async generate_from_youtube — dispatches Celery task, returns task_id."""
 
-    @patch('ai_engine.main.generate_article_from_youtube')
-    def test_success_creates_article(self, mock_gen, staff_client):
-        result_article = Article.objects.create(
-            title='AI Generated', slug='ai-gen', content='<p>AI</p>',
-        )
-        mock_gen.return_value = {
-            'success': True,
-            'article_id': result_article.id,
-        }
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_success_creates_task(self, mock_delay, staff_client):
+        mock_task = MagicMock()
+        mock_task.id = 'yt-task-001'
+        mock_delay.return_value = mock_task
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'provider': 'gemini',
         }, format='json', **UA)
         assert resp.status_code == 200
         assert resp.data['success'] is True
+        assert resp.data['task_id'] == 'yt-task-001'
+        mock_delay.assert_called_once()
 
-    @patch('ai_engine.main.generate_article_from_youtube')
-    def test_ai_failure_returns_error(self, mock_gen, staff_client):
-        mock_gen.return_value = {
-            'success': False,
-            'error': 'Transcript not available',
-        }
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_ai_failure_dispatches_task(self, mock_delay, staff_client):
+        """AI failures now happen inside Celery task, not in the view.
+        View always returns 200 + task_id (failure only seen via status poll)."""
+        mock_task = MagicMock()
+        mock_task.id = 'fail-task-002'
+        mock_delay.return_value = mock_task
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         }, format='json', **UA)
-        assert resp.status_code == 400
-        assert 'Transcript' in resp.data.get('error', '')
+        assert resp.status_code == 200
+        assert resp.data['task_id'] == 'fail-task-002'
 
-    @patch('ai_engine.main.generate_article_from_youtube')
-    def test_ai_exception_returns_500(self, mock_gen, staff_client):
-        mock_gen.side_effect = RuntimeError('Gemini quota exceeded')
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_ai_exception_dispatches_task(self, mock_delay, staff_client):
+        """Exceptions happen inside Celery task, view only dispatches."""
+        mock_task = MagicMock()
+        mock_task.id = 'exc-task-003'
+        mock_delay.return_value = mock_task
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         }, format='json', **UA)
-        assert resp.status_code == 500
+        assert resp.status_code == 200
+        assert resp.data['task_id'] == 'exc-task-003'
 
-    @patch('ai_engine.main.generate_article_from_youtube')
-    def test_invalid_provider_normalized(self, mock_gen, staff_client):
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_invalid_provider_normalized(self, mock_delay, staff_client):
         """Invalid provider gets silently normalized to 'gemini' (not rejected)."""
-        result_article = Article.objects.create(
-            title='Normalized', slug='normalized', content='<p>Content</p>',
-        )
-        mock_gen.return_value = {'success': True, 'article_id': result_article.id}
+        mock_task = MagicMock()
+        mock_task.id = 'norm-task-004'
+        mock_delay.return_value = mock_task
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'provider': 'openai',
         }, format='json', **UA)
         assert resp.status_code == 200
 
-    @patch('ai_engine.main.generate_article_from_youtube')
-    def test_provider_normalized_to_gemini(self, mock_gen, staff_client):
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_provider_normalized_to_gemini(self, mock_delay, staff_client):
         """Any non-gemini provider gets normalized to 'gemini'."""
-        result_article = Article.objects.create(
-            title='Normalized Generated', slug='norm-gen', content='<p>Content</p>',
-        )
-        mock_gen.return_value = {'success': True, 'article_id': result_article.id}
+        mock_task = MagicMock()
+        mock_task.id = 'gemini-norm-005'
+        mock_delay.return_value = mock_task
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'provider': 'groq',
         }, format='json', **UA)
         assert resp.status_code == 200
-        mock_gen.assert_called_once()
-        # Verify provider was normalized to gemini
-        call_kwargs = mock_gen.call_args
-        assert call_kwargs[1].get('provider') == 'gemini' or call_kwargs[0][0] == 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        mock_delay.assert_called_once()
+        call_kwargs = mock_delay.call_args.kwargs
+        assert call_kwargs['provider'] == 'gemini'
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -134,54 +134,49 @@ class TestArticleUpdate:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestGenerateFromYouTubeFullFlow:
+    """Tests for async generate_from_youtube — dispatches Celery task, returns task_id."""
 
-    @patch('ai_engine.main.generate_article_from_youtube')
-    def test_generate_success(self, mock_generate, staff_client):
-        from news.models import Article
-        # Create article first so the flow can find it
-        art = Article.objects.create(
-            title='AI Generated', slug='ai-generated',
-            content='<p>Generated content</p>', summary='Summary',
-            is_published=False,
-        )
-        mock_generate.return_value = {
-            'success': True, 'article_id': art.id,
-        }
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_generate_success(self, mock_delay, staff_client):
+        mock_task = MagicMock()
+        mock_task.id = 'full-flow-001'
+        mock_delay.return_value = mock_task
         resp = staff_client.post(f'{API}/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'provider': 'gemini',
         }, format='json')
         assert resp.status_code == 200
         assert resp.data['success'] is True
+        assert resp.data['task_id'] == 'full-flow-001'
 
-    @patch('ai_engine.main.generate_article_from_youtube')
-    def test_generate_ai_failure(self, mock_generate, staff_client):
-        mock_generate.return_value = {
-            'success': False, 'error': 'Transcript not found',
-        }
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_generate_ai_failure(self, mock_delay, staff_client):
+        """AI failures now happen in Celery task. View always returns 200+task_id."""
+        mock_task = MagicMock()
+        mock_task.id = 'full-flow-002'
+        mock_delay.return_value = mock_task
         resp = staff_client.post(f'{API}/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         }, format='json')
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.data['task_id'] == 'full-flow-002'
 
-    @patch('ai_engine.main.generate_article_from_youtube')
-    def test_generate_invalid_provider_normalized(self, mock_generate, staff_client):
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_generate_invalid_provider_normalized(self, mock_delay, staff_client):
         """Invalid provider gets silently normalized to 'gemini' (not rejected)."""
-        from news.models import Article
-        art = Article.objects.create(
-            title='Normalized', slug='normalized-prov',
-            content='<p>Content</p>', summary='Summary', is_published=False,
-        )
-        mock_generate.return_value = {'success': True, 'article_id': art.id}
+        mock_task = MagicMock()
+        mock_task.id = 'full-flow-003'
+        mock_delay.return_value = mock_task
         resp = staff_client.post(f'{API}/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'provider': 'chatgpt',
         }, format='json')
         assert resp.status_code == 200
 
-    @patch('ai_engine.main.generate_article_from_youtube',
-           side_effect=Exception('API down'))
-    def test_generate_exception(self, mock_generate, staff_client):
+    @patch('news.tasks.generate_from_youtube_task.delay')
+    def test_generate_exception(self, mock_delay, staff_client):
+        """Celery broker failure → 500."""
+        mock_delay.side_effect = Exception('API down')
         resp = staff_client.post(f'{API}/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         }, format='json')
