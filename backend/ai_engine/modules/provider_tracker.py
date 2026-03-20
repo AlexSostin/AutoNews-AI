@@ -44,7 +44,8 @@ def _save_stats(data: dict):
 
 def record_generation(provider: str, make: str, quality_score: int = 0,
                       spec_coverage: float = 0.0, total_time: float = 0.0,
-                      spec_fields_filled: int = 0, model: str = ''):
+                      spec_fields_filled: int = 0, model: str = '',
+                      step_timings: dict = None):
     """
     Record a generation event for provider performance tracking.
     
@@ -56,6 +57,7 @@ def record_generation(provider: str, make: str, quality_score: int = 0,
         total_time: total generation time in seconds
         spec_fields_filled: number of spec fields filled
         model: specific model name used (e.g. 'gemini-2.5-flash-lite')
+        step_timings: per-step timing breakdown dict (transcript, analysis, generation, screenshots)
     """
     from datetime import datetime
     
@@ -71,11 +73,17 @@ def record_generation(provider: str, make: str, quality_score: int = 0,
         'spec_fields_filled': spec_fields_filled,
         'timestamp': datetime.utcnow().isoformat(),
     }
+    if step_timings:
+        record['steps'] = {
+            k: v for k, v in step_timings.items()
+            if isinstance(v, (int, float))
+        }
     
     data['records'].append(record)
     _save_stats(data)
     logger.info(f"[PROVIDER-TRACKER] Recorded: {model or provider} × {make} — "
-                f"quality={quality_score}, coverage={spec_coverage:.0f}%")
+                f"quality={quality_score}, coverage={spec_coverage:.0f}%, "
+                f"time={total_time:.1f}s")
 
 
 def recommend_provider(make: str = None) -> str:
@@ -195,4 +203,47 @@ def get_provider_summary() -> dict:
         'by_brand': result_brands,
         'total_records': len(records),
         'storage': 'redis',
+    }
+
+
+def get_timing_history(limit: int = 100) -> dict:
+    """
+    Get generation timing history for graphing performance trends.
+    Returns chronological list of {timestamp, total, transcript, analysis, generation, screenshots, make, model}.
+    """
+    data = _load_stats()
+    records = data.get('records', [])
+    
+    # Take last N records with timing data
+    entries = []
+    for r in records[-limit:]:
+        total = r.get('total_time', 0)
+        if total <= 0:
+            continue
+        entry = {
+            'timestamp': r.get('timestamp', ''),
+            'total': total,
+            'make': r.get('make', ''),
+            'model': r.get('model', ''),
+            'quality': r.get('quality_score', 0),
+        }
+        steps = r.get('steps', {})
+        if steps:
+            entry.update({
+                'transcript': steps.get('transcript', 0),
+                'analysis': steps.get('analysis', 0),
+                'generation': steps.get('generation', 0),
+                'screenshots': steps.get('screenshots', 0),
+            })
+        entries.append(entry)
+    
+    # Compute summary stats
+    totals = [e['total'] for e in entries]
+    return {
+        'history': entries,
+        'count': len(entries),
+        'avg': round(sum(totals) / len(totals), 1) if totals else 0,
+        'median': round(sorted(totals)[len(totals) // 2], 1) if totals else 0,
+        'min': round(min(totals), 1) if totals else 0,
+        'max': round(max(totals), 1) if totals else 0,
     }

@@ -170,7 +170,7 @@ from .search_analytics_views import (
     AnalyticsExtraStatsAPIView, ReaderEngagementView, CapsuleFeedbackSummaryView, ArticleComplaintsView
 )
 from .cars import CarBrandsListView, CarBrandDetailView, CarModelDetailView, BrandCleanupView, BrandViewSet, CarCompareView, CarPickerListView
-from .api_views.ai_costs import AICostDashboardView
+from .api_views.ai_costs import AICostDashboardView, TimingHistoryView
 from .api_views.moderation import ModerationQueueView
 from .api_views.token_usage import TokenUsageSummaryView, TokenUsageRealtimeView
 
@@ -296,6 +296,7 @@ urlpatterns = [
     # Admin action analytics
     path('admin/action-stats/', AdminActionStatsView.as_view(), name='admin_action_stats'),
     path('admin/ai-costs/', AICostDashboardView.as_view(), name='admin_ai_costs'),
+    path('admin/ai-costs/timing-history/', TimingHistoryView.as_view(), name='admin_timing_history'),
     path('admin/token-usage/summary/', TokenUsageSummaryView.as_view(), name='admin_token_usage_summary'),
     path('admin/token-usage/realtime/', TokenUsageRealtimeView.as_view(), name='admin_token_usage_realtime'),
     path('admin/moderation/', ModerationQueueView.as_view(), name='admin_moderation'),

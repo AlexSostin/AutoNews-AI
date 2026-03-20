@@ -281,6 +281,12 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
         if web_ctx:
             specs_with_context['web_context'] = web_ctx[:10000]  # cap at 10k chars
         specs_with_context['generation_source'] = generation_source
+        # Store generation timings for performance tracking
+        gen_meta = result.get('generation_metadata')
+        if gen_meta:
+            specs_with_context['generation_timings'] = gen_meta.get('timings', {})
+            specs_with_context['generation_provider'] = gen_meta.get('provider', '')
+            specs_with_context['generation_timestamp'] = gen_meta.get('timestamp', '')
         # Store gallery images (beyond inline 3) for ArticleImage creation on publish
         gallery_paths = result.get('gallery_paths', [])
         if gallery_paths:

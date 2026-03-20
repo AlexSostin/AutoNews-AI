@@ -158,3 +158,23 @@ class AICostDashboardView(APIView):
             'by_provider': by_provider,
             'daily': daily_list[-30:],  # Last 30 days
         })
+
+
+class TimingHistoryView(APIView):
+    """
+    GET /api/v1/ai-costs/timing-history/
+    
+    Returns generation timing history for performance trend graphing.
+    Query params:
+      - limit: max records to return (default 100)
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request):
+        limit = int(request.query_params.get('limit', 100))
+        try:
+            from ai_engine.modules.provider_tracker import get_timing_history
+            return Response(get_timing_history(limit=min(limit, 500)))
+        except Exception as e:
+            logger.warning(f"[TIMING-HISTORY] Failed: {e}")
+            return Response({'history': [], 'count': 0, 'avg': 0, 'median': 0, 'min': 0, 'max': 0})

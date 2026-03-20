@@ -1397,6 +1397,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 total_time=_timings.get('total', 0),
                 spec_fields_filled=int(_spec_cov / 10),
                 model=_model_used,
+                step_timings=_timings,
             )
         except Exception as e:
             print(f"⚠️ Provider tracking failed: {e}")
