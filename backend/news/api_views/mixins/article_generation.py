@@ -79,13 +79,37 @@ class ArticleGenerationMixin:
         if provider != 'gemini':
             provider = 'gemini'
             
-        # Generate article with task_id for WebSocket progress and selected provider
+        # Generate article — 10 minute hard timeout via signal.alarm (Linux only)
+        import signal as _signal
+
+        class _GenerationTimeout(Exception):
+            pass
+
+        def _timeout_handler(signum, frame):
+            raise _GenerationTimeout("Generation timed out after 10 minutes")
+
+        # signal.SIGALRM is only available on Unix; skip on Windows
+        _use_alarm = hasattr(_signal, 'SIGALRM')
+        if _use_alarm:
+            _signal.signal(_signal.SIGALRM, _timeout_handler)
+            _signal.alarm(600)  # 10 minutes
+
         try:
             result = generate_article_from_youtube(
-                youtube_url, 
-                task_id=task_id, 
+                youtube_url,
+                task_id=task_id,
                 provider=provider,
                 is_published=False  # Save as Draft!
+            )
+        except _GenerationTimeout:
+            return Response(
+                {
+                    'error': 'Generation timed out after 10 minutes. '
+                             'The video may be too long or the AI service is overloaded. '
+                             'Please try again.',
+                    'timeout': True,
+                },
+                status=status.HTTP_408_REQUEST_TIMEOUT
             )
         except Exception as gen_error:
             import traceback
@@ -95,6 +119,10 @@ class ArticleGenerationMixin:
                 {'error': f'Article generation failed: {str(gen_error)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        finally:
+            if _use_alarm:
+                _signal.alarm(0)  # cancel alarm regardless of outcome
+
         
         if result.get('success'):
             article_id = result['article_id']

@@ -16,6 +16,7 @@ import { ArticleContentEditor } from '../../components/ArticleContentEditor';
 import { ArticleSeoMeta } from '../../components/ArticleSeoMeta';
 import { ArticlePublishSettings } from '../../components/ArticlePublishSettings';
 import { ArticleImageManager } from '../../components/ArticleImageManager';
+import { useGenerationStore } from '@/lib/useGenerationStore';
 
 export default function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -524,6 +525,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                 : '🔄 REGENERATE RSS ARTICLE?\n\nThis will:\n• Re-expand the original press release with AI\n• Re-generate title, content, summary\n• Update A/B titles\n\n⚠️ Current content will be backed up but REPLACED!\n\nContinue?';
               if (!confirm(confirmMsg)) return;
               setRegenerating(true);
+              const genLabel = formData.title || articleId || 'Article';
+              useGenerationStore.getState().startGeneration(genLabel);
               try {
                 const { data: startData } = await api.post(`/articles/${articleId}/regenerate/`, {
                   provider: 'gemini',
@@ -540,14 +543,14 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                       const data = statusRes.data;
                       
                       if (data.status === 'done') {
-                        const timing = data.result?.generation_metadata?.timings?.total || data.result?.generation_metadata?.word_count || '?';
-                        alert(`✅ Article regenerated! (${timing}${typeof timing === 'number' ? ' words' : 's'})\n\nNew title: ${data.article?.title || 'N/A'}\n\nPage will reload to show new content.`);
+                        useGenerationStore.getState().finishGeneration(formData.slug || articleId!);
                         window.location.reload();
                         return;
                       }
                       
                       if (data.status === 'error') {
-                        alert(`❌ ${data.error || 'Regeneration failed'}`);
+                        const isTimeout = !!data.result?.timeout;
+                        useGenerationStore.getState().failGeneration(data.error || 'Regeneration failed', isTimeout);
                         setRegenerating(false);
                         return;
                       }
@@ -556,18 +559,21 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                       await new Promise(r => setTimeout(r, 3000));
                       return poll();
                     } catch (err: any) {
-                      alert(`❌ Polling error: ${err.response?.data?.error || err.message}`);
+                      const errMsg = err.response?.data?.error || err.message || 'Polling error';
+                      useGenerationStore.getState().failGeneration(errMsg);
                       setRegenerating(false);
                     }
                   };
                   
                   await poll();
                 } else {
-                  alert(`❌ ${startData.message || 'Failed to start regeneration'}`);
+                  const errMsg = startData.message || 'Failed to start regeneration';
+                  useGenerationStore.getState().failGeneration(errMsg);
                   setRegenerating(false);
                 }
               } catch (err: any) {
-                alert(`❌ Error: ${err.response?.data?.message || err.message}`);
+                const errMsg = err.response?.data?.message || err.message || 'Error starting regeneration';
+                useGenerationStore.getState().failGeneration(errMsg);
                 setRegenerating(false);
               }
             }}

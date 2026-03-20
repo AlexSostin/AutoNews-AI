@@ -8,6 +8,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { sanitizeHtml } from '@/lib/sanitize';
 import GenerationProgress from '@/components/admin/GenerationProgress';
+import { useGenerationStore } from '@/lib/useGenerationStore';
 import { TagSelector } from '../[id]/edit/components/TagSelector';
 import { PhotoSearchModal } from '../[id]/edit/components/PhotoSearchModal';
 import { PageHeader } from '@/app/admin/components/ui/PageHeader';
@@ -137,6 +138,9 @@ export default function NewArticlePage() {
     setTaskId(newTaskId);
     setGenerating(true);
 
+    // Drive the floating generation drawer
+    useGenerationStore.getState().startGeneration(formData.youtube_url);
+
     try {
       const response = await api.post('/articles/generate_from_youtube/', {
         youtube_url: formData.youtube_url,
@@ -145,20 +149,24 @@ export default function NewArticlePage() {
       });
 
       if (response.data.success) {
-        // Progress component will handle completion, just redirect
+        const slug = String(response.data.article?.slug || response.data.article?.id);
+        useGenerationStore.getState().finishGeneration(slug);
         router.push(`/admin/articles/${response.data.article.id}/edit`);
       } else {
-        alert('Failed to generate article: ' + response.data.error);
+        const errMsg = response.data.error || 'Generation failed';
+        useGenerationStore.getState().failGeneration(errMsg, !!response.data.timeout);
         setGenerating(false);
         setTaskId('');
       }
     } catch (error: any) {
-      console.error('Generation error:', error);
-      alert('Failed to generate article: ' + (error.response?.data?.error || error.message));
+      const errMsg = error.response?.data?.error || error.message || 'Generation failed';
+      const isTimeout = error.response?.status === 408 || !!error.response?.data?.timeout;
+      useGenerationStore.getState().failGeneration(errMsg, isTimeout);
       setGenerating(false);
       setTaskId('');
     }
   };
+
 
   const handleGenerationComplete = (success: boolean, articleId?: number) => {
     setGenerating(false);

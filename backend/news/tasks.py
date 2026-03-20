@@ -604,11 +604,18 @@ def _score_new_pending_articles():
 # Async API Tasks
 # =============================================================================
 
-@shared_task(name='news.tasks.regenerate_article_task', bind=True)
+@shared_task(
+    name='news.tasks.regenerate_article_task',
+    bind=True,
+    soft_time_limit=9 * 60,   # 9 min → raises SoftTimeLimitExceeded for clean shutdown
+    time_limit=10 * 60,       # 10 min → hard kill if soft limit not caught
+)
 def regenerate_article_task(self, article_id, slug, provider, user_id=None):
     """
     Async Celery task to regenerate an existing article.
     Runs the logic from `ai_engine.modules.regenerator` and avoids HTTP proxy timeouts.
+
+    Hard limit: 10 minutes. Returns structured error on timeout.
     """
     close_old_connections()
     try:
@@ -616,8 +623,17 @@ def regenerate_article_task(self, article_id, slug, provider, user_id=None):
         result = regenerate_existing_article(article_id, provider=provider, user_id=user_id)
         return result
     except Exception as e:
+        from celery.exceptions import SoftTimeLimitExceeded
+        if isinstance(e, SoftTimeLimitExceeded):
+            logger.error(f"[CELERY/REGENERATE] Task timed out after 9 minutes for article {article_id}")
+            return {
+                'success': False,
+                'message': 'Generation timed out after 9 minutes. The AI may be overloaded — please try again.',
+                'timeout': True,
+            }
         logger.error(f"[CELERY/REGENERATE] Regenerate task failed: {e}")
         return {'success': False, 'message': str(e)}
     finally:
         close_old_connections()
+
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/admin/Sidebar';
 import AdminHeader from '@/components/admin/AdminHeader';
 import { IdleWarningModal } from '@/components/admin/IdleWarningModal';
+import GenerationDrawer from '@/components/admin/GenerationDrawer';
 import { useIdleTimeout } from '@/lib/useIdleTimeout';
 import { useProactiveTokenRefresh } from '@/lib/useProactiveTokenRefresh';
 import { isAdmin, isAuthenticated, verifyAndRefreshSession } from '@/lib/auth';
@@ -147,6 +148,9 @@ export default function AdminLayout({
         onLogout={handleLogout}
         countdownSeconds={120}
       />
+
+      {/* Floating generation progress drawer — visible across all admin pages */}
+      <GenerationDrawer />
     </div>
   );
 }
