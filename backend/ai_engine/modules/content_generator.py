@@ -482,7 +482,15 @@ def _inject_tech_highlights(article_html: str, tech_tags: list[str]) -> str:
     if not tech_tags:
         return article_html
 
-    # Filter to only tags we have descriptions for
+    import re
+
+    # Guard: require minimum article length to avoid polluting fallback/stub articles.
+    # A proper generated article is always > 2000 chars of HTML; skip injection
+    # on short/minimal content where the block would dominate the summary.
+    plain_text_len = len(re.sub(r'<[^>]+>', '', article_html))
+    if plain_text_len < 800:
+        print(f"  ⏭️ Tech highlights: skipped (article too short: {plain_text_len} chars)")
+        return article_html
     items = []
     for tag in tech_tags:
         desc = _TECH_DESCRIPTIONS.get(tag)
@@ -513,8 +521,6 @@ def _inject_tech_highlights(article_html: str, tech_tags: list[str]) -> str:
         f'<div class="tech-grid">\n{badges_html}\n</div>\n'
         f'</div>\n'
     )
-
-    import re
 
     # Strategy 1: Insert after "Technology & Features" h2 and its first <p>
     tech_h2 = re.search(

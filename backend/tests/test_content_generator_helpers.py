@@ -317,8 +317,30 @@ class TestAutoAddTechTags:
 class TestInjectTechHighlights:
     """Tests for _inject_tech_highlights — visual tech block injection."""
 
+    # Minimum ~800 chars of plain text required by the length guard.
+    # Build reusable snippets that are always long enough.
+    _LONG_PARA = '<p>' + 'x' * 120 + '</p>\n'  # 120 plain chars per paragraph
+
+    def _make_tech_html(self, extra_heading='', suffix=''):
+        """Return an article HTML stub with Technology & Features and enough filler content."""
+        filler = self._LONG_PARA * 7  # 840 plain chars
+        return (
+            f'<h2>Performance & Specs</h2>\n{filler}'
+            f'<h2>Technology &amp; Features</h2>\n{self._LONG_PARA * 2}'
+            f'{extra_heading}'
+            + suffix
+        )
+
+    def _make_no_tech_html(self, suffix=''):
+        """Return an article HTML stub WITHOUT Technology heading."""
+        filler = self._LONG_PARA * 7
+        return (
+            f'<h2>Design</h2>\n{filler}'
+            + suffix
+        )
+
     def test_injects_after_technology_heading(self):
-        html = '<h2>Technology & Features</h2><p>Some text.</p><h2>Pricing</h2>'
+        html = self._make_tech_html(suffix='<h2>Pricing</h2><p>From $30k.</p>')
         result = _inject_tech_highlights(html, ['ADAS', 'LiDAR'])
         assert 'tech-highlights' in result
         assert 'KEY TECHNOLOGIES' in result
@@ -328,14 +350,14 @@ class TestInjectTechHighlights:
         assert tech_pos < pricing_pos
 
     def test_injects_correct_items(self):
-        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        html = self._make_tech_html()
         result = _inject_tech_highlights(html, ['ADAS', 'Fast Charging'])
         assert 'ADAS' in result
         assert 'Fast Charging' in result
         assert 'tech-item' in result
 
     def test_limits_to_8_items(self):
-        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        html = self._make_tech_html()
         many_tags = ['ADAS', 'LiDAR', 'Adaptive Cruise', 'Lane Assist',
                      'Fast Charging', 'Battery', 'Turbo', 'Infotainment',
                      'Safety', 'CarPlay']  # 10 tags
@@ -343,24 +365,36 @@ class TestInjectTechHighlights:
         assert result.count('tech-item') == 8
 
     def test_empty_tags_returns_unchanged(self):
-        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        # Empty tags check happens before length guard — HTML size doesn't matter
+        html = '<h2>Technology &amp; Features</h2><p>Text.</p>'
         result = _inject_tech_highlights(html, [])
         assert result == html
 
     def test_unknown_tags_skipped(self):
-        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        html = self._make_tech_html()
         result = _inject_tech_highlights(html, ['UnknownTag123'])
         assert result == html
 
     def test_fallback_before_pricing(self):
         """When no Technology heading exists, inject before Pricing."""
-        html = '<h2>Design</h2><p>Nice.</p><h2>Pricing & Availability</h2><p>$30k</p>'
+        html = self._make_no_tech_html(
+            suffix='<h2>Pricing &amp; Availability</h2><p>From $30k.</p>'
+        )
         result = _inject_tech_highlights(html, ['ADAS'])
         assert 'tech-highlights' in result
         assert 'Key Technologies' in result
 
     def test_includes_descriptions(self):
-        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        html = self._make_tech_html()
         result = _inject_tech_highlights(html, ['LiDAR'])
         assert 'tech-desc' in result
         assert 'Laser-based' in result
+
+    def test_short_article_skipped(self):
+        """Stub/fallback articles (< 800 plain chars) must NOT get the tech block."""
+        html = '<h2>Technology &amp; Features</h2><p>Short.</p>'
+        result = _inject_tech_highlights(html, ['ADAS', 'LiDAR'])
+        assert result == html  # Unchanged
+        assert 'tech-highlights' not in result
+
+
