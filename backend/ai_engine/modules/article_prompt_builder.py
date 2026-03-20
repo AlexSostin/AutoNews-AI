@@ -800,14 +800,14 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
         reading_time = calculate_reading_time(article_content)
         print(f"📖 Reading time: ~{reading_time} min")
 
-        # Run Fact-Checking (if web_context available)
-        if web_context:
-            try:
-                print("🕵️ Running secondary LLM Fact-Check pass...")
-                from ai_engine.modules.fact_checker import run_fact_check
-                article_content = run_fact_check(article_content, web_context, provider)
-            except Exception as fc_err:
-                print(f"⚠️ Fact-check module failed: {fc_err}")
+        # Run Fact-Checking — always runs; enriches context from VehicleSpecs DB if no web_context
+        try:
+            print("🕵️ Running Fact-Check pass (web context + DB verification)...")
+            from ai_engine.modules.fact_checker import run_fact_check
+            article_content = run_fact_check(article_content, web_context or '', specs, provider)
+        except Exception as fc_err:
+            print(f"⚠️ Fact-check module failed: {fc_err}")
+
         
         # (Entity validation removed — entity_anchor in prompt is sufficient)
         # (RLAIF Judge removed — was the main source of content truncation/duplication)

@@ -11,14 +11,94 @@ try:
 except ImportError:
     from modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
 
-def run_fact_check(article_html: str, web_context: str, provider: str = 'gemini', source_title: str = None) -> str:
+
+def _enrich_context_from_specs(web_context: str, specs: dict) -> str:
+    """
+    Inject verified VehicleSpecs DB data into the context string.
+
+    This runs before the web_context length check so that DB data alone
+    can trigger fact-checking even when there's no web search context.
+
+    Args:
+        web_context: Existing context string (may be empty).
+        specs:       Dict with 'make' and 'model' keys from the pipeline.
+
+    Returns:
+        Enriched context string with DB data prepended.
+    """
+    make = (specs or {}).get('make', '')
+    model = (specs or {}).get('model', '')
+    if not make or make in ('Not specified', ''):
+        return web_context
+
+    try:
+        from news.models.vehicles import VehicleSpecs
+        qs = VehicleSpecs.objects.filter(make__iexact=make)
+        if model and model not in ('Not specified', ''):
+            qs = qs.filter(model_name__icontains=model.split()[0])
+        vs = qs.order_by('-confidence_score').first()
+        if not vs:
+            return web_context
+
+        parts = []
+        if vs.power_hp:
+            parts.append(f"Power: {vs.power_hp} hp")
+        if vs.power_kw:
+            parts.append(f"Power: {vs.power_kw} kW")
+        if vs.battery_kwh:
+            parts.append(f"Battery: {vs.battery_kwh} kWh")
+        range_val = vs.range_wltp or vs.range_cltc or vs.range_epa or vs.range_km
+        if range_val:
+            parts.append(f"Range: {range_val} km")
+        if vs.acceleration_0_100:
+            parts.append(f"0-100: {vs.acceleration_0_100}s")
+        if vs.price_usd_from:
+            parts.append(f"Price: from ${vs.price_usd_from:,}")
+        if vs.torque_nm:
+            parts.append(f"Torque: {vs.torque_nm} Nm")
+        if vs.top_speed_kmh:
+            parts.append(f"Top speed: {vs.top_speed_kmh} km/h")
+
+        if not parts:
+            return web_context
+
+        label = f"{make} {vs.model_name}".strip()
+        db_block = (
+            f"\n\n--- VERIFIED SPECS FROM INTERNAL DATABASE ({label}) ---\n"
+            + "\n".join(parts)
+            + "\nThese are our verified specs. Use them to cross-check the article.\n"
+        )
+        logger.info(f"[fact_checker] Injected {len(parts)} verified specs from DB ({label})")
+        return db_block + web_context  # prepend so LLM sees it first
+
+    except Exception as e:
+        logger.debug(f"[fact_checker] _enrich_context_from_specs failed: {e}")
+        return web_context
+
+def run_fact_check(article_html: str, web_context: str, specs: dict = None,
+                   provider: str = 'gemini', source_title: str = None) -> str:
+
     """
     Runs a secondary LLM pass to extract factual claims from the generated article
-    and cross-reference them against the raw web context.
+    and cross-reference them against the raw web context + VehicleSpecs DB.
+
+    Args:
+        article_html:  Generated article HTML.
+        web_context:   String from the web search already performed in the pipeline.
+        specs:         Dict with 'make', 'model' from the generation pipeline.
+                       Used to enrich context with VehicleSpecs DB data.
+        provider:      AI provider name.
+        source_title:  Original video/article title (for entity verification).
+
     If hallucinations are found, injects a warning banner into the HTML.
     """
+    # Enrich the context with DB-verified specs (before the length check
+    # so that DB data alone can trigger fact-checking even if web_context is empty).
+    if specs:
+        web_context = _enrich_context_from_specs(web_context or '', specs)
+
     if not web_context or len(web_context.strip()) < 50:
-        return article_html # No context to check against
+        return article_html  # No context to check against
         
     try:
         from ai_engine.modules.ai_provider import get_ai_provider
