@@ -396,26 +396,33 @@ class TestHealthIntegration:
     BACKEND_URL = '/api/v1/backend-errors/'
 
     def test_resolve_reduces_unresolved_count(self, admin_client):
+        # Capture baseline before creating our test error (parallel workers may
+        # already have rows in the DB, so we measure delta, not absolute value).
+        cache.delete('health_summary_v2')
+        baseline = admin_client.get(self.SUMMARY_URL).data['total_unresolved']
+
         err = _make_backend_error()
-        # Confirm unresolved
         cache.delete('health_summary_v2')
         resp = admin_client.get(self.SUMMARY_URL)
-        assert resp.data['total_unresolved'] == 1
+        assert resp.data['total_unresolved'] == baseline + 1
 
-        # Resolve it
+        # Resolve it — count must drop back to baseline
         admin_client.patch(f'{self.BACKEND_URL}{err.id}/', {'resolved': True}, format='json')
         cache.delete('health_summary_v2')
         resp = admin_client.get(self.SUMMARY_URL)
-        assert resp.data['total_unresolved'] == 0
-        assert resp.data['overall_status'] == 'healthy'
+        assert resp.data['total_unresolved'] == baseline
 
     def test_delete_reduces_total_count(self, admin_client):
+        # Capture baseline before our test error (parallel workers may have rows too).
+        cache.delete('health_summary_v2')
+        baseline = admin_client.get(self.SUMMARY_URL).data['backend_errors']['total']
+
         err = _make_backend_error()
         cache.delete('health_summary_v2')
         resp = admin_client.get(self.SUMMARY_URL)
-        assert resp.data['backend_errors']['total'] == 1
+        assert resp.data['backend_errors']['total'] == baseline + 1
 
         admin_client.delete(f'{self.BACKEND_URL}{err.id}/')
         cache.delete('health_summary_v2')
         resp = admin_client.get(self.SUMMARY_URL)
-        assert resp.data['backend_errors']['total'] == 0
+        assert resp.data['backend_errors']['total'] == baseline
