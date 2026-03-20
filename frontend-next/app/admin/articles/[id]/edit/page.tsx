@@ -9,7 +9,7 @@ import { X } from 'lucide-react';
 import api from '@/lib/api';
 import { PhotoSearchModal } from './components/PhotoSearchModal';
 import { TagSelector, Category, Tag } from './components/TagSelector';
-import { GallerySection, GalleryImage } from './components/GallerySection';
+// GallerySection kept for GallerySectionRef type only — gallery is now managed inside ArticleImageManager
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { ArticleBasicInfo } from '../../components/ArticleBasicInfo';
 import { ArticleContentEditor } from '../../components/ArticleContentEditor';
@@ -43,7 +43,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [photoSearchQuery, setPhotoSearchQuery] = useState('');
   const [savingPhoto, setSavingPhoto] = useState<string | null>(null);
   const [imageSource, setImageSource] = useState<string>('unknown');
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  // Gallery state is now managed internally by ArticleImageManager
   // Content backups per slot — used to restore <figure> on Undo
   const contentBackups = useRef<Record<number, string>>({});
 
@@ -744,80 +744,9 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             generatingAI={generatingAI}
             restoreYouTubeThumbnail={restoreYouTubeThumbnail}
             restoringYT={restoringYT}
-            galleryImages={galleryImages.map(img => ({
-              id: img.id,
-              image: img.image.startsWith('http') ? img.image : (
-                typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-                  ? `https://heroic-healing-production-2365.up.railway.app${img.image}`
-                  : `http://localhost:8000${img.image}`
-              ),
-              caption: img.caption,
-            }))}
-            onPickFromGallery={async (galleryImageId, galleryImageUrl, targetSlot) => {
-              const slotMap: Record<number, { currentKey: string; deleteKey: string; fileKey: string }> = {
-                1: { currentKey: 'current_image', deleteKey: 'delete_image', fileKey: 'image' },
-                2: { currentKey: 'current_image_2', deleteKey: 'delete_image_2', fileKey: 'image_2' },
-                3: { currentKey: 'current_image_3', deleteKey: 'delete_image_3', fileKey: 'image_3' },
-              };
-              const keys = slotMap[targetSlot];
-              if (!keys) return;
-              // Sync content HTML: replace old slot image with gallery image
-              const oldUrl = (formData as any)[keys.currentKey] || null;
-              if (targetSlot >= 2) syncContentWithSlotImage(oldUrl, galleryImageUrl);
-              setFormData((prev: any) => ({
-                ...prev,
-                [keys.currentKey]: galleryImageUrl,
-                [keys.deleteKey]: false,
-                [keys.fileKey]: null,
-              }));
-              // Delete the gallery image server-side
-              try {
-                await api.delete(`/article-images/${galleryImageId}/`);
-                setGalleryImages(prev => prev.filter(g => g.id !== galleryImageId));
-              } catch (err) {
-                console.error('Failed to delete promoted gallery image:', err);
-              }
-            }}
+            articleId={articleId}
             onSlotChange={(slot, oldUrl, newUrl) => {
               if (slot >= 2) syncContentWithSlotImage(oldUrl, newUrl, slot);
-            }}
-          />
-
-          {/* 6. Gallery */}
-          <GallerySection
-            articleId={articleId}
-            onGalleryLoaded={setGalleryImages}
-            availableMainSlots={[
-              ...(!formData.current_image || formData.delete_image ? [{ slot: 1, label: 'Image 1' }] : []),
-              ...(!formData.current_image_2 || formData.delete_image_2 ? [{ slot: 2, label: 'Image 2' }] : []),
-              ...(!formData.current_image_3 || formData.delete_image_3 ? [{ slot: 3, label: 'Image 3' }] : []),
-            ]}
-            onPromoteToSlot={async (imageUrl, targetSlot, galleryImageId) => {
-              // Set the gallery image into the target main slot
-              const slotMap: Record<number, { currentKey: string; deleteKey: string; fileKey: string }> = {
-                1: { currentKey: 'current_image', deleteKey: 'delete_image', fileKey: 'image' },
-                2: { currentKey: 'current_image_2', deleteKey: 'delete_image_2', fileKey: 'image_2' },
-                3: { currentKey: 'current_image_3', deleteKey: 'delete_image_3', fileKey: 'image_3' },
-              };
-              const keys = slotMap[targetSlot];
-              if (!keys) return;
-              // Sync content HTML: replace old slot image with promoted gallery image
-              if (targetSlot >= 2) {
-                const oldUrl = (formData as any)[keys.currentKey] || null;
-                syncContentWithSlotImage(oldUrl, imageUrl);
-              }
-              setFormData((prev: any) => ({
-                ...prev,
-                [keys.currentKey]: imageUrl,
-                [keys.deleteKey]: false,
-                [keys.fileKey]: null,
-              }));
-              // Delete the gallery image server-side
-              try {
-                await api.delete(`/article-images/${galleryImageId}/`);
-              } catch (err) {
-                console.error('Failed to delete promoted gallery image:', err);
-              }
             }}
           />
 
