@@ -25,7 +25,7 @@ function stepIndex(step: GenerationStep): number {
 export default function GenerationDrawer() {
   const {
     isRunning, label, progress, step,
-    articleSlug, errorMessage,
+    articleSlug, errorMessage, backendMessage,
     minimized, dismiss, toggleMinimize,
   } = useGenerationStore();
 
@@ -180,8 +180,8 @@ export default function GenerationDrawer() {
                   {stepLabel}
                 </span>
                 {active && (
-                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#818cf8' }}>
-                    running…
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#818cf8', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {backendMessage || 'running…'}
                   </span>
                 )}
               </div>

@@ -607,8 +607,8 @@ def _score_new_pending_articles():
 @shared_task(
     name='news.tasks.regenerate_article_task',
     bind=True,
-    soft_time_limit=9 * 60,   # 9 min → raises SoftTimeLimitExceeded for clean shutdown
-    time_limit=10 * 60,       # 10 min → hard kill if soft limit not caught
+    soft_time_limit=14 * 60,   # 14 min → raises SoftTimeLimitExceeded for clean shutdown
+    time_limit=15 * 60,        # 15 min → hard kill if soft limit not caught
 )
 def regenerate_article_task(self, article_id, slug, provider, user_id=None):
     """
@@ -625,10 +625,10 @@ def regenerate_article_task(self, article_id, slug, provider, user_id=None):
     except Exception as e:
         from celery.exceptions import SoftTimeLimitExceeded
         if isinstance(e, SoftTimeLimitExceeded):
-            logger.error(f"[CELERY/REGENERATE] Task timed out after 9 minutes for article {article_id}")
+            logger.error(f"[CELERY/REGENERATE] Task timed out after 14 minutes for article {article_id}")
             return {
                 'success': False,
-                'message': 'Generation timed out after 9 minutes. The AI may be overloaded — please try again.',
+                'message': 'Generation timed out after 14 minutes. The AI may be overloaded — please try again.',
                 'timeout': True,
             }
         logger.error(f"[CELERY/REGENERATE] Regenerate task failed: {e}")
@@ -642,8 +642,8 @@ def regenerate_article_task(self, article_id, slug, provider, user_id=None):
 @shared_task(
     name='news.tasks.generate_from_youtube_task',
     bind=True,
-    soft_time_limit=9 * 60,
-    time_limit=10 * 60,
+    soft_time_limit=14 * 60,
+    time_limit=15 * 60,
 )
 def generate_from_youtube_task(self, youtube_url, provider='gemini', user_id=None):
     """

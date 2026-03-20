@@ -182,7 +182,7 @@ export default function NewArticlePage() {
 
           // Use real progress from backend if available, else simulate
           if (data.progress && data.progress > 0) {
-            useGenerationStore.getState().updateProgress(data.progress, percentToStep(data.progress));
+            useGenerationStore.getState().updateProgress(data.progress, percentToStep(data.progress), data.message || undefined);
           } else {
             fallbackTick++;
             const pct = Math.min(Math.round(5 + 90 * (1 - Math.exp(-fallbackTick / 30))), 95);

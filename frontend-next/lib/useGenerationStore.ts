@@ -29,6 +29,8 @@ export interface GenerationState {
   step: GenerationStep;
   /** Article slug/id on completion — for "Edit Article" link */
   articleSlug: string | null;
+  /** Real-time message from backend (e.g. "✍️ Writing article...") */
+  backendMessage: string | null;
   /** Error message on failure */
   errorMessage: string | null;
   /** Whether the drawer is minimized to the pill */
@@ -36,7 +38,7 @@ export interface GenerationState {
 
   // Actions
   startGeneration: (label: string) => void;
-  updateProgress: (progress: number, step: GenerationStep) => void;
+  updateProgress: (progress: number, step: GenerationStep, message?: string) => void;
   finishGeneration: (articleSlug: string) => void;
   failGeneration: (message: string, timeout?: boolean) => void;
   dismiss: () => void;
@@ -48,6 +50,7 @@ export const useGenerationStore = create<GenerationState>((set) => ({
   label: '',
   progress: 0,
   step: 'idle',
+  backendMessage: null,
   articleSlug: null,
   errorMessage: null,
   minimized: false,
@@ -58,13 +61,14 @@ export const useGenerationStore = create<GenerationState>((set) => ({
       label,
       progress: 5,
       step: 'starting',
+      backendMessage: null,
       articleSlug: null,
       errorMessage: null,
       minimized: false,
     }),
 
-  updateProgress: (progress, step) =>
-    set({ progress, step }),
+  updateProgress: (progress, step, message) =>
+    set({ progress, step, backendMessage: message || null }),
 
   finishGeneration: (articleSlug) =>
     set({
