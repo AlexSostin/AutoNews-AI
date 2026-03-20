@@ -58,6 +58,8 @@ interface Video {
   errorMsg?: string;
   articleId?: number;
   pendingId?: number;
+  progressMessage?: string;
+  progressPercent?: number;
 }
 
 export default function YouTubeChannelsPage() {
@@ -281,6 +283,13 @@ export default function YouTubeChannelsPage() {
               v.id === video.id ? { ...v, status: 'error', errorMsg: data.error || 'Generation failed' } : v
             ));
             return;
+          }
+
+          // Update progress if available
+          if (data.progress !== undefined && data.message) {
+            setScannedVideos(prev => prev.map(v =>
+              v.id === video.id ? { ...v, progressMessage: data.message, progressPercent: data.progress } : v
+            ));
           }
 
           // Still running — wait 3s and poll again
@@ -792,7 +801,12 @@ export default function YouTubeChannelsPage() {
                             {video.status === 'loading' ? (
                               <>
                                 <Loader2 size={16} className="animate-spin" />
-                                Generating...
+                                <span className="flex flex-col items-start">
+                                  <span>{video.progressPercent ? `${video.progressPercent}%` : 'Generating...'}</span>
+                                  {video.progressMessage && (
+                                    <span className="text-[10px] opacity-70 font-normal max-w-[120px] truncate">{video.progressMessage}</span>
+                                  )}
+                                </span>
                               </>
                             ) : video.status === 'error' ? (
                               <>

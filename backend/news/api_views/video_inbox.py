@@ -298,6 +298,7 @@ class VideoInboxViewSet(viewsets.ModelViewSet):
                     video_id=video_id,
                     provider=provider,
                     generation_source='video_inbox',
+                    cache_task_id=task_id,
                 )
 
                 if result.get('success'):

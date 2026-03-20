@@ -150,7 +150,7 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', 
 # Workflow 2: Pending Article (new scheduler flow)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def create_pending_article(youtube_url, channel_id, video_title, video_id, provider='gemini', generation_source='Unknown'):
+def create_pending_article(youtube_url, channel_id, video_title, video_id, provider='gemini', generation_source='Unknown', cache_task_id=None):
     """Generate article and save as PendingArticle (NEW flow)"""
     
     # Setup Django
@@ -180,7 +180,7 @@ def create_pending_article(youtube_url, channel_id, video_title, video_id, provi
             return {'success': False, 'reason': 'pending', 'error': 'Article is already in the pending queue'}
     
     # 3. Generate content
-    result = _generate_article_content(youtube_url, task_id=None, provider=provider, video_title=video_title)
+    result = _generate_article_content(youtube_url, task_id=None, provider=provider, video_title=video_title, cache_task_id=cache_task_id)
     
     if not result['success']:
         error_msg = result.get('error', 'Unknown error')

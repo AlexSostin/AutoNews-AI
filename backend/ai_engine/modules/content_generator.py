@@ -22,8 +22,8 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 
-def _send_progress(task_id, step, progress, message, celery_task=None):
-    """Send progress update via Celery state (primary) and WebSocket (fallback)."""
+def _send_progress(task_id, step, progress, message, celery_task=None, cache_task_id=None):
+    """Send progress update via Celery state (primary), Django cache, and WebSocket (fallback)."""
     print(f"[{progress}%] {message}")
 
     # Primary: Celery state update — readable via AsyncResult.info on polling
@@ -35,6 +35,20 @@ def _send_progress(task_id, step, progress, message, celery_task=None):
             )
         except Exception as e:
             print(f"Celery update_state error: {e}")
+
+    # Cache-based progress for thread-based flows (YouTube channels page, video inbox)
+    if cache_task_id:
+        try:
+            import json
+            from django.core.cache import cache
+            cache.set(f'gen_task:{cache_task_id}', json.dumps({
+                'status': 'running',
+                'step': step,
+                'progress': progress,
+                'message': message,
+            }), timeout=600)
+        except Exception as e:
+            print(f"Cache progress update error: {e}")
 
     # Secondary: WebSocket (channels) — if configured
     if task_id:
@@ -201,10 +215,20 @@ SUMMARY: [your 150-200 char summary here]
                 seo_desc = seo_desc[:157].rsplit(' ', 1)[0]
                 if not seo_desc.endswith('.'):
                     seo_desc += '...'
+            # Fix truncated endings: dangling numbers, prices, specs
+            # e.g. "...and a quick 6." or "...Explore this $6"
+            if seo_desc and re.search(r'[\s,]\$?\d{1,2}[.!]?$', seo_desc):
+                # Cut back to last complete sentence
+                last_period = seo_desc.rfind('. ')
+                if last_period > 60:
+                    seo_desc = seo_desc[:last_period + 1]
+                    print(f"⚠️ SEO desc trimmed (dangling number): {seo_desc}")
         
         # Validate summary
         if summary:
             summary = summary.strip('"').strip("'").replace('\n', ' ')
+            # Newline replacement can expand length — re-strip
+            summary = re.sub(r'\s+', ' ', summary).strip()
             # Reject garbage summaries about transcript errors
             _summary_garbage = ['captcha', 'error page', 'could not be extracted',
                                 'automated query', 'no specifications', 'consequently',
@@ -753,13 +777,14 @@ def _inject_inline_image_placeholders(html: str, max_images: int = 2) -> str:
     return html
 
 
-def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None, celery_task=None):
+def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None, celery_task=None, cache_task_id=None):
     """
     Internal function to generate article content without saving to DB.
     Returns dictionary with all article data.
 
     Args:
         celery_task: Bound Celery task instance (self) — enables real-time progress via update_state().
+        cache_task_id: UUID string — enables progress via Django cache for thread-based flows.
     """
     # Import modules (with fallback for different run contexts)
     try:
@@ -780,7 +805,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         from modules.utils import clean_video_title
 
     def send_progress(step, progress, message):
-        _send_progress(task_id, step, progress, message, celery_task=celery_task)
+        _send_progress(task_id, step, progress, message, celery_task=celery_task, cache_task_id=cache_task_id)
 
 
     try:
@@ -1249,8 +1274,12 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 print(f"✅ Using AI-generated Summary ({len(summary)} chars)")
         elif isinstance(analysis, str) and 'Summary:' in analysis:
             summary = analysis.split('Summary:')[-1].split('\n')[0].strip()
+            if len(summary) > 200:
+                summary = _truncate_summary(summary, max_len=200)
         elif isinstance(analysis, dict) and analysis.get('summary'):
-            summary = analysis.get('summary')
+            summary = str(analysis.get('summary'))
+            if len(summary) > 200:
+                summary = _truncate_summary(summary, max_len=200)
             
         if not summary:
             # Scrape from HTML, but skip the first heading (it's often redundant)

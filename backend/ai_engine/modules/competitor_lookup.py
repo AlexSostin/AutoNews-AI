@@ -81,7 +81,8 @@ def get_competitor_context(
         # 1. Same fuel + body (current segment_qs)
         # 2. Same body (any fuel)
         # 3. Same fuel (any body)
-        # 4. All cars
+        # 4. Same price range (±60%) regardless of fuel/body
+        # 5. All cars
         if count < 2:
             if body_type:
                 fallback_qs = qs.filter(body_type__iexact=body_type)
@@ -94,6 +95,22 @@ def get_competitor_context(
                 if fallback_qs.count() >= 2:
                     segment_qs = fallback_qs
                     count = segment_qs.count()
+
+            # Price-priority fallback: find ANY car in a similar price range
+            if count < 2 and price_usd and price_usd > 0:
+                price_lo = int(price_usd * 0.4)
+                price_hi = int(price_usd * 1.7)
+                price_fallback = qs.filter(
+                    price_usd_from__gte=price_lo,
+                    price_usd_from__lte=price_hi,
+                )
+                if price_fallback.count() >= 2:
+                    segment_qs = price_fallback
+                    count = segment_qs.count()
+                    logger.info(
+                        f"competitor_lookup: used price-priority fallback "
+                        f"(${price_lo:,}–${price_hi:,}), found {count} candidates"
+                    )
             
             if count < 2:
                 segment_qs = qs
@@ -241,10 +258,10 @@ def get_competitor_context(
         # ── Step 8: Hard price guard ──────────────────────────────────────────
         # Even after all fallbacks, never return a competitor whose price is
         # wildly different from the subject car. This prevents nonsensical
-        # comparisons (e.g. $21K SUV vs $58K luxury sedan).
+        # comparisons (e.g. $22K SUV vs $43K luxury sedan).
         if price_usd and price_usd > 0:
             price_lo = int(price_usd * 0.4)
-            price_hi = int(price_usd * 2.5)
+            price_hi = int(price_usd * 1.7)  # tightened: was 2.5x → 2.0x → 1.7x
             before_count = len(selected)
             selected = [
                 c for c in selected

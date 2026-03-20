@@ -198,7 +198,8 @@ class TestRegenerateArticleTask:
             sys.modules.pop('ai_engine.modules.regenerator', None)
 
         assert result == expected
-        mock_fn.assert_called_once_with(article.id, provider='gemini', user_id=None)
+        from unittest.mock import ANY
+        mock_fn.assert_called_once_with(article.id, provider='gemini', user_id=None, celery_task=ANY)
 
     def test_task_has_time_limits_configured(self):
         """Ensure the task decorator has soft_time_limit and time_limit set."""

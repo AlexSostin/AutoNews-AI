@@ -211,7 +211,8 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
                     video_title=video_title,
                     video_id=video_id,
                     provider=provider,
-                    generation_source='manual_admin_ui'
+                    generation_source='manual_admin_ui',
+                    cache_task_id=task_id,
                 )
 
                 if result.get('success'):

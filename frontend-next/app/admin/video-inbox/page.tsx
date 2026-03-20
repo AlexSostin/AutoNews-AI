@@ -132,7 +132,7 @@ export default function VideoInboxPage() {
   const [approvingIds, setApprovingIds] = useState<Set<number>>(new Set());
 
   // Generation tracking: id -> { taskId, status, message, pendingId }
-  const [genStatus, setGenStatus] = useState<Record<number, { taskId: string; status: 'running' | 'done' | 'error'; message?: string; pendingId?: number }>>({});
+  const [genStatus, setGenStatus] = useState<Record<number, { taskId: string; status: 'running' | 'done' | 'error'; message?: string; pendingId?: number; progress?: number; progressMessage?: string }>>({});
   const pollingRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Pagination
@@ -206,6 +206,8 @@ export default function VideoInboxPage() {
               clearInterval(interval);
               delete pollingRef.current[taskId];
               setGenStatus(prev => ({ ...prev, [v.id]: { taskId, status: 'error', message: poll.data.error || 'Generation failed' } }));
+            } else if (s === 'running' && poll.data.progress !== undefined) {
+              setGenStatus(prev => ({ ...prev, [v.id]: { ...prev[v.id], progress: poll.data.progress, progressMessage: poll.data.message } }));
             } else if (s === 'not_found') {
               // Task expired from cache — check if model has error
               clearInterval(interval);
@@ -291,6 +293,8 @@ export default function VideoInboxPage() {
             clearInterval(interval);
             delete pollingRef.current[taskId];
             setGenStatus(prev => ({ ...prev, [id]: { taskId, status: 'error', message: poll.data.error || 'Generation failed' } }));
+          } else if (s === 'running' && poll.data.progress !== undefined) {
+            setGenStatus(prev => ({ ...prev, [id]: { ...prev[id], progress: poll.data.progress, progressMessage: poll.data.message } }));
           }
           // status 'running' -> keep polling
         } catch {
@@ -631,9 +635,14 @@ export default function VideoInboxPage() {
                       Already processed
                     </div>
                   ) : v.status === 'generating' || genStatus[v.id]?.status === 'running' ? (
-                    <div className="flex-1 flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold animate-pulse">
-                      <Loader2 size={14} className="animate-spin" />
-                      Generating...
+                    <div className="flex-1 flex flex-col items-center justify-center gap-1 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold">
+                      <div className="flex items-center gap-2 animate-pulse">
+                        <Loader2 size={14} className="animate-spin" />
+                        {genStatus[v.id]?.progress ? `${genStatus[v.id].progress}%` : 'Generating...'}
+                      </div>
+                      {genStatus[v.id]?.progressMessage && (
+                        <span className="text-[10px] opacity-70 font-normal truncate max-w-[140px]">{genStatus[v.id].progressMessage}</span>
+                      )}
                     </div>
                   ) : genStatus[v.id]?.status === 'done' ? (
                     <Link
@@ -763,8 +772,14 @@ export default function VideoInboxPage() {
                       {v.has_article ? (
                         <span className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-bold">Done</span>
                       ) : v.status === 'generating' || genStatus[v.id]?.status === 'running' ? (
-                        <span className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold animate-pulse flex items-center gap-1">
-                          <Loader2 size={12} className="animate-spin" /> Generating...
+                        <span className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold flex flex-col items-center gap-0.5">
+                          <span className="flex items-center gap-1 animate-pulse">
+                            <Loader2 size={12} className="animate-spin" />
+                            {genStatus[v.id]?.progress ? `${genStatus[v.id].progress}%` : 'Generating...'}
+                          </span>
+                          {genStatus[v.id]?.progressMessage && (
+                            <span className="text-[10px] opacity-70 font-normal truncate max-w-[100px]">{genStatus[v.id].progressMessage}</span>
+                          )}
                         </span>
                       ) : genStatus[v.id]?.status === 'done' ? (
                         <Link
