@@ -16,7 +16,7 @@ import { ArticleContentEditor } from '../../components/ArticleContentEditor';
 import { ArticleSeoMeta } from '../../components/ArticleSeoMeta';
 import { ArticlePublishSettings } from '../../components/ArticlePublishSettings';
 import { ArticleImageManager } from '../../components/ArticleImageManager';
-import { useGenerationStore } from '@/lib/useGenerationStore';
+import { useGenerationStore, percentToStep } from '@/lib/useGenerationStore';
 
 export default function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -534,6 +534,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                 
                 if (startData.success && startData.task_id) {
                   const taskId = startData.task_id;
+                  let pollCount = 0;
                   
                   const poll = async (): Promise<void> => {
                     try {
@@ -555,6 +556,11 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                         return;
                       }
                       
+                      // Advance drawer progress on each tick (caps at 95%)
+                      pollCount++;
+                      const pct = Math.min(5 + pollCount * 6, 95);
+                      useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
+
                       // Still running
                       await new Promise(r => setTimeout(r, 3000));
                       return poll();

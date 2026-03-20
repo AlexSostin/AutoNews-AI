@@ -8,7 +8,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { sanitizeHtml } from '@/lib/sanitize';
 import GenerationProgress from '@/components/admin/GenerationProgress';
-import { useGenerationStore } from '@/lib/useGenerationStore';
+import { useGenerationStore, percentToStep } from '@/lib/useGenerationStore';
 import { TagSelector } from '../[id]/edit/components/TagSelector';
 import { PhotoSearchModal } from '../[id]/edit/components/PhotoSearchModal';
 import { PageHeader } from '@/app/admin/components/ui/PageHeader';
@@ -152,6 +152,9 @@ export default function NewArticlePage() {
 
       const taskId = startData.task_id;
 
+      // Simulate progress advancement during polling (backend doesn't send per-step info)
+      let pollCount = 0;
+
       // Poll generate_status every 3 seconds
       const poll = async (): Promise<void> => {
         try {
@@ -176,6 +179,11 @@ export default function NewArticlePage() {
             setGenerating(false);
             return;
           }
+
+          // Advance drawer progress on each tick (caps at 95%)
+          pollCount++;
+          const pct = Math.min(5 + pollCount * 6, 95);
+          useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
 
           // Still pending/running — wait 3s and poll again
           await new Promise(r => setTimeout(r, 3000));
