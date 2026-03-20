@@ -558,7 +558,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                       
                       // Advance drawer progress on each tick (caps at 95%)
                       pollCount++;
-                      const pct = Math.min(5 + pollCount * 6, 95);
+                      const pct = Math.min(Math.round(5 + 90 * (1 - Math.exp(-pollCount / 30))), 95);
                       useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
 
                       // Still running
