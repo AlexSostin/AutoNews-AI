@@ -1308,10 +1308,58 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         if not summary:
             summary = f"Comprehensive review of the {specs.get('make', '')} {specs.get('model', '')}"
         
+        # POST-VALIDATION: reject summary that copies the article's first paragraph
+        _first_para = ''
+        _fp_match = re.search(r'<p>(.*?)</p>', article_html or '', re.DOTALL)
+        if _fp_match:
+            _first_para = re.sub(r'<[^>]+>', '', html.unescape(_fp_match.group(1))).strip()
+        if _first_para and summary and len(_first_para) > 50:
+            # Compare first 60 chars — if ≥80% overlap, summary is a lazy copy
+            _s_prefix = summary[:60].lower().strip()
+            _p_prefix = _first_para[:60].lower().strip()
+            if _s_prefix == _p_prefix or (_s_prefix[:40] and _s_prefix[:40] in _p_prefix):
+                print(f"⚠️ Summary copies first paragraph — rebuilding from specs")
+                _make = specs.get('make', '')
+                _model = specs.get('model', '')
+                _year = specs.get('year', '')
+                _hp = specs.get('horsepower', '')
+                _price = specs.get('price', '')
+                _range = specs.get('range', '')
+                if _make and _model:
+                    _parts = [f"The {_year} {_make} {_model}".strip()]
+                    if _hp:
+                        _parts.append(f"delivers {_hp}")
+                    if _range and str(_range) != 'Not specified':
+                        _parts.append(f"with {_range} range")
+                    if _price and str(_price) != 'Not specified':
+                        _parts.append(f"starting at {_price}")
+                    summary = ', '.join(_parts) + '.'
+                    if len(summary) > 200:
+                        summary = _truncate_summary(summary, max_len=200)
+                    print(f"✅ Rebuilt summary from specs ({len(summary)} chars): {summary[:80]}")
+        
         # 6.1 SEO description — use AI-generated if available, else template fallback
         seo_description = ''
         if ai_seo_desc and len(ai_seo_desc) >= 100:
             seo_description = ai_seo_desc
+            # POST-VALIDATION: ensure SEO description fits 160 chars and ends properly
+            if len(seo_description) > 160:
+                # Trim to last complete sentence within 160 chars
+                _trimmed = seo_description[:160]
+                _last_period = _trimmed.rfind('.')
+                if _last_period > 80:
+                    seo_description = _trimmed[:_last_period + 1]
+                else:
+                    seo_description = _trimmed.rsplit(' ', 1)[0] + '...'
+                print(f"⚠️ Trimmed AI SEO description to {len(seo_description)} chars")
+            elif not seo_description.rstrip().endswith(('.', '!', '?')):
+                # AI text doesn't end with punctuation — it was likely cut off
+                _last_period = seo_description.rfind('.')
+                if _last_period > 80:
+                    seo_description = seo_description[:_last_period + 1]
+                    print(f"⚠️ Trimmed SEO description at last sentence ({len(seo_description)} chars)")
+                else:
+                    seo_description = seo_description.rstrip() + '.'
             print(f"✅ Using AI-generated SEO description ({len(seo_description)} chars)")
         else:
             # Fallback: template-based SEO description
