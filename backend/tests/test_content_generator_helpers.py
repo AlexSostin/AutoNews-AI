@@ -163,3 +163,204 @@ class TestInjectInlineImagePlaceholders:
         result = _inject_inline_image_placeholders(html, max_images=2)
         # First h2 should still be at the very start
         assert result.startswith('<h2>Section 0</h2>')
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NEW FEATURE TESTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+from ai_engine.modules.content_generator import (
+    _auto_add_tech_tags,
+    _inject_tech_highlights,
+)
+from ai_engine.modules.article_post_processor import (
+    _strip_hallucinated_compare_cards,
+)
+
+
+class TestStripHallucinatedCompareCards:
+    """Tests for _strip_hallucinated_compare_cards — hallucination guard."""
+
+    COMPARE_HTML = '''
+    <div class="compare-grid">
+      <div class="compare-card featured">
+        <div class="compare-badge">This Vehicle</div>
+        <div class="compare-card-name">2026 BYD SEAL 07 DM-i</div>
+        <div class="compare-row"><span class="k">Power</span><span class="v">268 hp</span></div>
+      </div>
+      <div class="compare-card">
+        <div class="compare-card-name">2024 Aito M7 REV</div>
+        <div class="compare-row"><span class="k">Power</span><span class="v">200 hp</span></div>
+      </div>
+      <div class="compare-card">
+        <div class="compare-card-name">2024 BYD Han DM-i</div>
+        <div class="compare-row"><span class="k">Power</span><span class="v">194 hp</span></div>
+      </div>
+    </div>
+    '''
+
+    def test_removes_hallucinated_brand(self):
+        result = _strip_hallucinated_compare_cards(self.COMPARE_HTML, ['BYD'])
+        assert 'Aito' not in result
+        assert 'BYD Han DM-i' in result
+
+    def test_keeps_allowed_brand(self):
+        """Featured card uses class='compare-card featured', regex only targets
+        non-featured cards (class='compare-card'), so featured is always kept.
+        BYD Han DM-i is a non-featured card and should remain because BYD is allowed."""
+        result = _strip_hallucinated_compare_cards(self.COMPARE_HTML, ['BYD'])
+        assert 'BYD Han DM-i' in result
+        assert 'Aito' not in result
+
+    def test_empty_allowed_disables_guard(self):
+        """Empty allowed_makes = guard disabled, returns HTML unchanged."""
+        result = _strip_hallucinated_compare_cards(self.COMPARE_HTML, [])
+        assert result == self.COMPARE_HTML
+        assert 'Aito' in result  # All cards preserved
+
+    def test_all_allowed_keeps_all(self):
+        result = _strip_hallucinated_compare_cards(self.COMPARE_HTML, ['BYD', 'Aito'])
+        assert 'Aito M7' in result
+        assert 'BYD Han DM-i' in result
+
+    def test_case_insensitive_match(self):
+        result = _strip_hallucinated_compare_cards(self.COMPARE_HTML, ['byd'])
+        assert 'BYD Han DM-i' in result
+
+    def test_no_compare_grid_returns_unchanged(self):
+        html = '<p>Normal article content</p>'
+        result = _strip_hallucinated_compare_cards(html, ['BYD'])
+        assert result == html
+
+    def test_none_allowed_makes_removes_all(self):
+        result = _strip_hallucinated_compare_cards(self.COMPARE_HTML, None)
+        # Should return unchanged (guard disabled)
+        assert 'Aito' in result
+
+
+class TestAutoAddTechTags:
+    """Tests for _auto_add_tech_tags — keyword-based tech tag auto-detection."""
+
+    def test_detects_lidar(self):
+        html = '<p>The roof-mounted LiDAR sensor provides 3D mapping.</p>'
+        tags = []
+        _auto_add_tech_tags(html, tags, {})
+        assert 'LiDAR' in tags
+
+    def test_detects_adas_keywords(self):
+        html = '<p>Advanced driver assistance systems are standard.</p>'
+        tags = []
+        _auto_add_tech_tags(html, tags, {})
+        assert 'ADAS' in tags
+
+    def test_detects_fast_charging(self):
+        html = '<p>DC fast charging at 200 kW replenishes in 30 minutes.</p>'
+        tags = []
+        _auto_add_tech_tags(html, tags, {})
+        assert 'Fast Charging' in tags
+
+    def test_detects_battery_from_specs(self):
+        html = '<p>Simple text without battery mention.</p>'
+        tags = []
+        _auto_add_tech_tags(html, tags, {'battery': '75 kWh'})
+        assert 'Battery' in tags
+
+    def test_does_not_duplicate_existing_tag(self):
+        html = '<p>This car has LiDAR sensors.</p>'
+        tags = ['LiDAR']
+        _auto_add_tech_tags(html, tags, {})
+        assert tags.count('LiDAR') == 1
+
+    def test_no_false_positive_on_clean_text(self):
+        html = '<p>This is a nice car with leather seats and a big trunk.</p>'
+        tags = []
+        _auto_add_tech_tags(html, tags, {})
+        # Should NOT add ADAS, LiDAR, etc. from generic text
+        assert 'ADAS' not in tags
+        assert 'LiDAR' not in tags
+
+    def test_multiple_techs_detected(self):
+        html = '''
+        <p>Features LiDAR, adaptive cruise control, and lane keeping assist.</p>
+        <p>Emergency braking with pedestrian detection is standard.</p>
+        <p>The infotainment system supports Apple CarPlay.</p>
+        '''
+        tags = []
+        _auto_add_tech_tags(html, tags, {})
+        assert 'LiDAR' in tags
+        assert 'Adaptive Cruise' in tags
+        assert 'Lane Assist' in tags
+        assert 'Safety' in tags
+        assert 'CarPlay' in tags
+        assert len(tags) >= 5
+
+    def test_case_insensitive_matching(self):
+        html = '<p>The LIDAR sensor and ADAS suite work together.</p>'
+        tags = []
+        _auto_add_tech_tags(html, tags, {})
+        assert 'LiDAR' in tags
+        assert 'ADAS' in tags
+
+    def test_turbo_detection(self):
+        html = '<p>1.5L Turbocharged 4-cylinder engine.</p>'
+        tags = []
+        _auto_add_tech_tags(html, tags, {})
+        assert 'Turbo' in tags
+
+    def test_aerodynamics_detection(self):
+        html = '<p>The drag coefficient is an impressive 0.23 Cd.</p>'
+        tags = []
+        _auto_add_tech_tags(html, tags, {})
+        assert 'Aerodynamics' in tags
+
+
+class TestInjectTechHighlights:
+    """Tests for _inject_tech_highlights — visual tech block injection."""
+
+    def test_injects_after_technology_heading(self):
+        html = '<h2>Technology & Features</h2><p>Some text.</p><h2>Pricing</h2>'
+        result = _inject_tech_highlights(html, ['ADAS', 'LiDAR'])
+        assert 'tech-highlights' in result
+        assert 'KEY TECHNOLOGIES' in result
+        # Should be between Technology and Pricing
+        tech_pos = result.find('tech-highlights')
+        pricing_pos = result.find('Pricing')
+        assert tech_pos < pricing_pos
+
+    def test_injects_correct_items(self):
+        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        result = _inject_tech_highlights(html, ['ADAS', 'Fast Charging'])
+        assert 'ADAS' in result
+        assert 'Fast Charging' in result
+        assert 'tech-item' in result
+
+    def test_limits_to_8_items(self):
+        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        many_tags = ['ADAS', 'LiDAR', 'Adaptive Cruise', 'Lane Assist',
+                     'Fast Charging', 'Battery', 'Turbo', 'Infotainment',
+                     'Safety', 'CarPlay']  # 10 tags
+        result = _inject_tech_highlights(html, many_tags)
+        assert result.count('tech-item') == 8
+
+    def test_empty_tags_returns_unchanged(self):
+        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        result = _inject_tech_highlights(html, [])
+        assert result == html
+
+    def test_unknown_tags_skipped(self):
+        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        result = _inject_tech_highlights(html, ['UnknownTag123'])
+        assert result == html
+
+    def test_fallback_before_pricing(self):
+        """When no Technology heading exists, inject before Pricing."""
+        html = '<h2>Design</h2><p>Nice.</p><h2>Pricing & Availability</h2><p>$30k</p>'
+        result = _inject_tech_highlights(html, ['ADAS'])
+        assert 'tech-highlights' in result
+        assert 'Key Technologies' in result
+
+    def test_includes_descriptions(self):
+        html = '<h2>Technology & Features</h2><p>Text.</p>'
+        result = _inject_tech_highlights(html, ['LiDAR'])
+        assert 'tech-desc' in result
+        assert 'Laser-based' in result

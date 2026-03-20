@@ -186,7 +186,7 @@ OUTPUT the complete enhanced article as HTML."""
 
 
 
-def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None, competitor_context=None):
+def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None, competitor_context=None, competitor_makes=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
     
@@ -196,6 +196,7 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
         web_context: Optional string containing web search results
         source_title: Original title from RSS/YouTube source (for entity grounding)
         competitor_context: Optional pre-formatted competitor block from competitor_lookup.py
+        competitor_makes: Optional list of brand names from competitor_lookup (for hallucination guard)
     
     Returns:
         HTML article content
@@ -656,8 +657,8 @@ Rules: Use ONLY confirmed specs. Skip any item you don't have data for. Minimum 
   e.g. "With 2,185 kg curb weight and AWD, expect planted highway stability but reduced agility in tight corners"
   This section brings the car to life — make the reader FEEL what it's like behind the wheel.
   If NO driving data exists → OMIT this section.
-- <h2>Pricing & Availability</h2> — CONCISE. If you have a confirmed starting price, start with:
-  <div class="price-tag"><span class="price-main">$34,300</span><span class="price-note">Starting · Model Year 2026</span></div>
+- <h2>Pricing & Availability</h2> — CONCISE. If you have a confirmed starting price, you MUST use this HTML block (do NOT write the price as plain text):
+  <div class="price-tag"><span class="price-main">$34,300</span> <span class="price-note">Starting · Model Year 2026</span></div>
   Then 2-3 bullet points about availability, markets, trim pricing.
   Do NOT fabricate MSRP prices. If pricing is unknown, say "pricing has not been announced yet."
 
@@ -786,7 +787,7 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
         print(f"✓ Article generated successfully with {provider_display}! Length: {len(article_content)} characters, {word_count} words")
         
         # Full post-processing pipeline (unified)
-        article_content = post_process_article(article_content)
+        article_content = post_process_article(article_content, allowed_competitor_makes=competitor_makes or [])
         
         # Validate article quality
         quality = validate_article_quality(article_content)

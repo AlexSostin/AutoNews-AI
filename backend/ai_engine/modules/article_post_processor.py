@@ -511,6 +511,65 @@ def _strip_empty_compare_cards(html: str) -> str:
     return html
 
 
+# ── Hallucination guard for compare cards ──────────────────────────────
+def _strip_hallucinated_compare_cards(html: str, allowed_makes: list[str]) -> str:
+    """
+    Remove compare-card divs whose car brand is NOT in the approved competitor list.
+
+    LLMs sometimes ignore the 'CRITICAL: Do NOT invent' instruction and add cars
+    from internal knowledge (e.g. Aito M7/M9 when they weren't in the DB list).
+    This function parses the compare-card-name and checks if the make is allowed.
+
+    Args:
+        html: generated article HTML
+        allowed_makes: list of brand names from competitor_lookup (e.g. ['BYD', 'Denza', 'VOYAH'])
+                       If empty, no filtering is applied (safe fallback).
+    Returns:
+        Cleaned HTML with hallucinated cards removed.
+    """
+    if not allowed_makes:
+        return html  # No allowlist — can't filter, skip
+
+    if 'compare-grid' not in html:
+        return html
+
+    # Normalise allowed makes for case-insensitive matching
+    allowed_lower = {m.strip().lower() for m in allowed_makes}
+
+    # Pattern for non-featured cards (featured = subject car, never remove)
+    card_pattern = re.compile(
+        r'(<div\s+class="compare-card">\s*'
+        r'<div\s+class="compare-card-name">(.*?)</div>'
+        r'.*?'
+        r'</div>)',
+        re.DOTALL
+    )
+
+    removed_cards = []
+
+    def _check_hallucinated(m):
+        card_name = re.sub(r'<[^>]+>', '', m.group(2)).strip()  # plain text of card-name
+        # Check if any allowed make appears in the card name (word-boundary aware)
+        for make in allowed_lower:
+            if re.search(r'\b' + re.escape(make) + r'\b', card_name, re.IGNORECASE):
+                return m.group(0)  # Allowed — keep
+        # Not in allowed list — this is a hallucinated card
+        removed_cards.append(card_name)
+        return ''
+
+    html = card_pattern.sub(_check_hallucinated, html)
+
+    if removed_cards:
+        print(f"  🚫 Hallucination guard: removed {len(removed_cards)} invented competitor card(s): {removed_cards}")
+        # Clean up leftover empty compare-grid
+        html = re.sub(r'<div\s+class="compare-grid">\s*<div\s+class="compare-card featured">.*?</div>\s*</div>', 
+                      lambda m: m.group(0) if 'compare-card">' in m.group(0) else '',
+                      html, flags=re.DOTALL)
+        html = re.sub(r'\n\s*\n\s*\n', '\n\n', html)
+
+    return html
+
+
 # ── Dedup guard (shared helper) ────────────────────────────────────────
 def _dedup_guard(html: str) -> str:
     """If the article's first H2 appears twice, trim at second occurrence."""
@@ -621,13 +680,20 @@ def _repair_compare_grid(html: str) -> str:
 
 
 
-def post_process_article(html: str) -> str:
+def post_process_article(html: str, allowed_competitor_makes: list[str] | None = None) -> str:
     """
     Run the full post-processing pipeline on generated HTML.
 
     Includes: HTML cleanup, banned phrase removal, repetition reduction,
     price validation, duplicate paragraph detection, self-consistency,
-    car name shortening, source typo fixes, and empty compare card removal.
+    car name shortening, source typo fixes, and empty/hallucinated compare card removal.
+
+    Args:
+        html: Raw HTML from LLM.
+        allowed_competitor_makes: Optional list of brand names that were passed to the LLM
+            as approved competitors (from competitor_lookup). Any compare-card whose make
+            is NOT in this list is treated as a hallucination and removed.
+            Pass None or [] to skip this check (e.g. when no competitor data was provided).
 
     This is the single entry-point for callers (RSS generate, merge, publisher, etc.)
     """
@@ -641,4 +707,6 @@ def post_process_article(html: str) -> str:
     html = _shorten_car_names(html)
     html = _clean_source_typos(html)
     html = _strip_empty_compare_cards(html)
+    if allowed_competitor_makes:
+        html = _strip_hallucinated_compare_cards(html, allowed_competitor_makes)
     return html
