@@ -133,37 +133,66 @@ export default function NewArticlePage() {
       return;
     }
 
-    // Generate unique task ID for WebSocket tracking
-    const newTaskId = `gen_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    setTaskId(newTaskId);
     setGenerating(true);
-
-    // Drive the floating generation drawer
     useGenerationStore.getState().startGeneration(formData.youtube_url);
 
     try {
-      const response = await api.post('/articles/generate_from_youtube/', {
+      // Dispatch Celery task — returns immediately with task_id
+      const { data: startData } = await api.post('/articles/generate_from_youtube/', {
         youtube_url: formData.youtube_url,
-        task_id: newTaskId,
-        provider: provider
+        provider: provider,
       });
 
-      if (response.data.success) {
-        const slug = String(response.data.article?.slug || response.data.article?.id);
-        useGenerationStore.getState().finishGeneration(slug);
-        router.push(`/admin/articles/${response.data.article.id}/edit`);
-      } else {
-        const errMsg = response.data.error || 'Generation failed';
-        useGenerationStore.getState().failGeneration(errMsg, !!response.data.timeout);
+      if (!startData.success || !startData.task_id) {
+        const errMsg = startData.error || 'Failed to start generation';
+        useGenerationStore.getState().failGeneration(errMsg);
         setGenerating(false);
-        setTaskId('');
+        return;
       }
+
+      const taskId = startData.task_id;
+
+      // Poll generate_status every 3 seconds
+      const poll = async (): Promise<void> => {
+        try {
+          const { data } = await api.get('/articles/generate_status/', {
+            params: { task_id: taskId },
+          });
+
+          if (data.status === 'done') {
+            const articleId = data.article_id || data.article?.id;
+            useGenerationStore.getState().finishGeneration(String(articleId));
+            if (articleId) {
+              router.push(`/admin/articles/${articleId}/edit`);
+            }
+            return;
+          }
+
+          if (data.status === 'error') {
+            useGenerationStore.getState().failGeneration(
+              data.error || 'Generation failed',
+              !!data.timeout,
+            );
+            setGenerating(false);
+            return;
+          }
+
+          // Still pending/running — wait 3s and poll again
+          await new Promise(r => setTimeout(r, 3000));
+          return poll();
+        } catch (err: any) {
+          const errMsg = err.response?.data?.error || err.message || 'Polling error';
+          useGenerationStore.getState().failGeneration(errMsg);
+          setGenerating(false);
+        }
+      };
+
+      await poll();
     } catch (error: any) {
       const errMsg = error.response?.data?.error || error.message || 'Generation failed';
       const isTimeout = error.response?.status === 408 || !!error.response?.data?.timeout;
       useGenerationStore.getState().failGeneration(errMsg, isTimeout);
       setGenerating(false);
-      setTaskId('');
     }
   };
 

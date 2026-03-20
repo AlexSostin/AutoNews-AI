@@ -637,3 +637,39 @@ def regenerate_article_task(self, article_id, slug, provider, user_id=None):
         close_old_connections()
 
 
+
+
+@shared_task(
+    name='news.tasks.generate_from_youtube_task',
+    bind=True,
+    soft_time_limit=9 * 60,
+    time_limit=10 * 60,
+)
+def generate_from_youtube_task(self, youtube_url, provider='gemini', user_id=None):
+    """
+    Async Celery task: generate a NEW article from a YouTube URL.
+    Dispatched by generate_from_youtube view, polled via generate_status.
+    Avoids blocking Django web workers for 5-10 minutes.
+    """
+    close_old_connections()
+    try:
+        from ai_engine.main import generate_article_from_youtube
+        result = generate_article_from_youtube(
+            youtube_url,
+            provider=provider,
+            is_published=False,
+        )
+        return result
+    except Exception as e:
+        from celery.exceptions import SoftTimeLimitExceeded
+        if isinstance(e, SoftTimeLimitExceeded):
+            logger.error(f"[CELERY/GENERATE_YT] Timed out after 9 min for {youtube_url}")
+            return {
+                'success': False,
+                'message': 'Generation timed out after 9 minutes. The video may be too long or the AI is busy — please try again.',
+                'timeout': True,
+            }
+        logger.error(f"[CELERY/GENERATE_YT] Task failed for {youtube_url}: {e}")
+        return {'success': False, 'message': str(e)}
+    finally:
+        close_old_connections()

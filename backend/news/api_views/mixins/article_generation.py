@@ -31,128 +31,103 @@ class ArticleGenerationMixin:
     @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])
     @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def generate_from_youtube(self, request):
-        """Generate article from YouTube URL with WebSocket progress"""
-        import uuid
-        from news.models import Article
-        
+        """
+        Start async article generation from a YouTube URL.
+        Returns task_id immediately; poll generate_status for progress.
+
+        POST /api/v1/articles/generate_from_youtube/
+        Body: { youtube_url, provider? }
+        Response: { success, task_id }
+        """
         youtube_url = request.data.get('youtube_url')
-        task_id = request.data.get('task_id') or str(uuid.uuid4())[:8]
-        
+
         if not youtube_url:
             return Response(
-                {'error': 'youtube_url is required'}, 
+                {'error': 'youtube_url is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Validate YouTube URL
+
         if not is_valid_youtube_url(youtube_url):
             return Response(
-                {'error': 'Invalid YouTube URL format'}, 
+                {'error': 'Invalid YouTube URL format'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Import AI engine
-        import traceback
-        
-        # Add both backend and ai_engine paths for proper imports
-        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        ai_engine_dir = os.path.join(backend_dir, 'ai_engine')
-        
-        if backend_dir not in sys.path:
-            sys.path.insert(0, backend_dir)
-        if ai_engine_dir not in sys.path:
-            sys.path.insert(0, ai_engine_dir)
-        
-        try:
-            from ai_engine.main import generate_article_from_youtube
-            from ai_engine.modules.youtube_client import YouTubeClient
-        except Exception as import_error:
-            print(f"Import error: {import_error}")
-            print(traceback.format_exc())
-            return Response(
-                {'error': f'Failed to import AI engine: {str(import_error)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        
-        # Get AI provider from request (mostly gemini going forward)
+
         provider = request.data.get('provider', 'gemini')
         if provider != 'gemini':
             provider = 'gemini'
-            
-        # Generate article — 10 minute hard timeout via signal.alarm (Linux only)
-        import signal as _signal
-
-        class _GenerationTimeout(Exception):
-            pass
-
-        def _timeout_handler(signum, frame):
-            raise _GenerationTimeout("Generation timed out after 10 minutes")
-
-        # signal.SIGALRM is only available on Unix; skip on Windows
-        _use_alarm = hasattr(_signal, 'SIGALRM')
-        if _use_alarm:
-            _signal.signal(_signal.SIGALRM, _timeout_handler)
-            _signal.alarm(600)  # 10 minutes
 
         try:
-            result = generate_article_from_youtube(
-                youtube_url,
-                task_id=task_id,
+            from news.tasks import generate_from_youtube_task
+            task = generate_from_youtube_task.delay(
+                youtube_url=youtube_url,
                 provider=provider,
-                is_published=False  # Save as Draft!
+                user_id=request.user.id if request.user else None,
             )
-        except _GenerationTimeout:
-            return Response(
-                {
-                    'error': 'Generation timed out after 10 minutes. '
-                             'The video may be too long or the AI service is overloaded. '
-                             'Please try again.',
-                    'timeout': True,
-                },
-                status=status.HTTP_408_REQUEST_TIMEOUT
-            )
-        except Exception as gen_error:
+            return Response({
+                'success': True,
+                'message': 'Generation task started.',
+                'task_id': task.id,
+            })
+        except Exception as e:
             import traceback
-            print(f"Generation error: {gen_error}")
-            print(traceback.format_exc())
+            logger.error(f'generate_from_youtube task dispatch failed: {e}\n{traceback.format_exc()}')
             return Response(
-                {'error': f'Article generation failed: {str(gen_error)}'},
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        finally:
-            if _use_alarm:
-                _signal.alarm(0)  # cancel alarm regardless of outcome
 
-        
-        if result.get('success'):
-            article_id = result['article_id']
-            print(f"[generate_from_youtube] Draft Article created with ID: {article_id}")
-            
-            # Invalidate cache so new article appears immediately
-            from django.core.cache import cache
-            invalidate_article_cache(article_id=article_id)
-            
-            # Fetch the article to verify
-            try:
-                article = Article.objects.get(id=article_id)
-                serializer = self.get_serializer(article)
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser],
+            url_path='generate_status')
+    def generate_status(self, request):
+        """
+        Poll the status of an async generate_from_youtube task.
+        GET /api/v1/articles/generate_status/?task_id=...
+        Returns: { status: pending|running|done|error, article_id?, article?, error?, timeout? }
+        """
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response({'error': 'task_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from celery.result import AsyncResult
+        task = AsyncResult(task_id)
+
+        if task.state == 'PENDING':
+            return Response({'status': 'pending'})
+        elif task.state == 'STARTED':
+            return Response({'status': 'running'})
+        elif task.state == 'SUCCESS':
+            result = task.result
+            if isinstance(result, dict) and not result.get('success'):
                 return Response({
-                    'success': True,
-                    'message': 'Article generated successfully (Draft)',
-                    'article': serializer.data
+                    'status': 'error',
+                    'error': result.get('message', 'Generation failed.'),
+                    'timeout': result.get('timeout', False),
                 })
-            except Article.DoesNotExist:
-                return Response(
-                    {'error': f'Article was created but cannot be found (ID: {article_id})'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
+            # Fetch created article
+            article_id = result.get('article_id') if isinstance(result, dict) else None
+            article_data = None
+            if article_id:
+                from news.models import Article
+                article = Article.objects.filter(id=article_id).first()
+                if article:
+                    serializer = self.get_serializer(article)
+                    article_data = serializer.data
+                    # Invalidate homepage cache now that article exists
+                    invalidate_article_cache(article_id=article_id)
+            return Response({
+                'status': 'done',
+                'article_id': article_id,
+                'article': article_data,
+            })
+        elif task.state == 'FAILURE':
+            return Response({
+                'status': 'error',
+                'error': str(task.info),
+            })
         else:
-            return Response(
-                {'error': result.get('error', 'Unknown error')},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-    
+            return Response({'status': task.state.lower()})
+
     @action(detail=False, methods=['post'], permission_classes=[IsAdminUser], url_path='translate-enhance')
     @method_decorator(ratelimit(key='ip', rate='10/h', method='POST', block=True))
     def translate_enhance(self, request):
