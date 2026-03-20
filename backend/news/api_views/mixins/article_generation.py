@@ -94,6 +94,15 @@ class ArticleGenerationMixin:
 
         if task.state == 'PENDING':
             return Response({'status': 'pending'})
+        elif task.state == 'PROGRESS':
+            # Real progress data from update_state() in the AI pipeline
+            info = task.info or {}
+            return Response({
+                'status': 'running',
+                'step': info.get('step'),
+                'progress': info.get('progress', 0),
+                'message': info.get('message', ''),
+            })
         elif task.state == 'STARTED':
             return Response({'status': 'running'})
         elif task.state == 'SUCCESS':
@@ -757,6 +766,14 @@ Return JSON:
 
         if task.state == 'PENDING':
             return Response({'status': 'pending'})
+        elif task.state == 'PROGRESS':
+            info = task.info or {}
+            return Response({
+                'status': 'running',
+                'step': info.get('step'),
+                'progress': info.get('progress', 0),
+                'message': info.get('message', ''),
+            })
         elif task.state == 'STARTED':
             return Response({'status': 'running'})
         elif task.state == 'SUCCESS':

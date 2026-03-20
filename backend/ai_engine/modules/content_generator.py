@@ -22,27 +22,38 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 
-def _send_progress(task_id, step, progress, message):
-    """Send progress update via WebSocket."""
-    if not task_id:
-        print(f"[{progress}%] {message}")
-        return
-    try:
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
-        channel_layer = get_channel_layer()
-        if channel_layer:
-            async_to_sync(channel_layer.group_send)(
-                f"generation_{task_id}",
-                {
-                    "type": "send_progress",
-                    "step": step,
-                    "progress": progress,
-                    "message": message
-                }
+def _send_progress(task_id, step, progress, message, celery_task=None):
+    """Send progress update via Celery state (primary) and WebSocket (fallback)."""
+    print(f"[{progress}%] {message}")
+
+    # Primary: Celery state update — readable via AsyncResult.info on polling
+    if celery_task is not None:
+        try:
+            celery_task.update_state(
+                state='PROGRESS',
+                meta={'step': step, 'progress': progress, 'message': message},
             )
-    except Exception as e:
-        print(f"WebSocket progress error: {e}")
+        except Exception as e:
+            print(f"Celery update_state error: {e}")
+
+    # Secondary: WebSocket (channels) — if configured
+    if task_id:
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"generation_{task_id}",
+                    {
+                        "type": "send_progress",
+                        "step": step,
+                        "progress": progress,
+                        "message": message
+                    }
+                )
+        except Exception as e:
+            pass  # WebSocket not configured — that's fine
 
 
 def _truncate_summary(text: str, max_len: int = 3000) -> str:
@@ -742,10 +753,13 @@ def _inject_inline_image_placeholders(html: str, max_images: int = 2) -> str:
     return html
 
 
-def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None):
+def _generate_article_content(youtube_url, task_id=None, provider='gemini', video_title=None, exclude_article_id=None, celery_task=None):
     """
     Internal function to generate article content without saving to DB.
     Returns dictionary with all article data.
+
+    Args:
+        celery_task: Bound Celery task instance (self) — enables real-time progress via update_state().
     """
     # Import modules (with fallback for different run contexts)
     try:
@@ -766,7 +780,8 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         from modules.utils import clean_video_title
 
     def send_progress(step, progress, message):
-        _send_progress(task_id, step, progress, message)
+        _send_progress(task_id, step, progress, message, celery_task=celery_task)
+
 
     try:
         import time as _time

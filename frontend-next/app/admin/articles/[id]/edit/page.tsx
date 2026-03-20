@@ -534,7 +534,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                 
                 if (startData.success && startData.task_id) {
                   const taskId = startData.task_id;
-                  let pollCount = 0;
+                  let fallbackTick = 0;
                   
                   const poll = async (): Promise<void> => {
                     try {
@@ -556,10 +556,14 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                         return;
                       }
                       
-                      // Advance drawer progress on each tick (caps at 95%)
-                      pollCount++;
-                      const pct = Math.min(Math.round(5 + 90 * (1 - Math.exp(-pollCount / 30))), 95);
-                      useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
+                      // Use real progress from backend if available, else simulate
+                      if (data.progress && data.progress > 0) {
+                        useGenerationStore.getState().updateProgress(data.progress, percentToStep(data.progress));
+                      } else {
+                        fallbackTick++;
+                        const pct = Math.min(Math.round(5 + 90 * (1 - Math.exp(-fallbackTick / 30))), 95);
+                        useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
+                      }
 
                       // Still running
                       await new Promise(r => setTimeout(r, 3000));

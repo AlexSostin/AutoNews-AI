@@ -620,7 +620,7 @@ def regenerate_article_task(self, article_id, slug, provider, user_id=None):
     close_old_connections()
     try:
         from ai_engine.modules.regenerator import regenerate_existing_article
-        result = regenerate_existing_article(article_id, provider=provider, user_id=user_id)
+        result = regenerate_existing_article(article_id, provider=provider, user_id=user_id, celery_task=self)
         return result
     except Exception as e:
         from celery.exceptions import SoftTimeLimitExceeded
@@ -658,6 +658,7 @@ def generate_from_youtube_task(self, youtube_url, provider='gemini', user_id=Non
             youtube_url,
             provider=provider,
             is_published=False,
+            celery_task=self,
         )
         return result
     except Exception as e:

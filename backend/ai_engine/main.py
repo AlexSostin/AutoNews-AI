@@ -82,7 +82,7 @@ def main(youtube_url):
 # Workflow 1: Direct Publish (legacy/manual)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', is_published=True):
+def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', is_published=True, celery_task=None):
     """Generate and publish immediately (LEGACY/MANUAL flow)"""
     
     # 0. Check duplicate first
@@ -95,7 +95,8 @@ def generate_article_from_youtube(youtube_url, task_id=None, provider='gemini', 
             'duplicate': True
         }
         
-    result = _generate_article_content(youtube_url, task_id, provider)
+    result = _generate_article_content(youtube_url, task_id, provider, celery_task=celery_task)
+
     
     if not result['success']:
         return result

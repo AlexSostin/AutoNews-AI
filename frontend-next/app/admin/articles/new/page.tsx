@@ -152,8 +152,8 @@ export default function NewArticlePage() {
 
       const taskId = startData.task_id;
 
-      // Simulate progress advancement during polling (backend doesn't send per-step info)
-      let pollCount = 0;
+      // Fallback counter for when backend hasn't sent real progress yet
+      let fallbackTick = 0;
 
       // Poll generate_status every 3 seconds
       const poll = async (): Promise<void> => {
@@ -180,10 +180,14 @@ export default function NewArticlePage() {
             return;
           }
 
-          // Advance drawer progress on each tick (caps at 95%)
-          pollCount++;
-          const pct = Math.min(Math.round(5 + 90 * (1 - Math.exp(-pollCount / 30))), 95);
-          useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
+          // Use real progress from backend if available, else simulate
+          if (data.progress && data.progress > 0) {
+            useGenerationStore.getState().updateProgress(data.progress, percentToStep(data.progress));
+          } else {
+            fallbackTick++;
+            const pct = Math.min(Math.round(5 + 90 * (1 - Math.exp(-fallbackTick / 30))), 95);
+            useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
+          }
 
           // Still pending/running — wait 3s and poll again
           await new Promise(r => setTimeout(r, 3000));

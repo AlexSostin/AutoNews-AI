@@ -10,7 +10,7 @@ from ai_engine.main import _generate_article_content, generate_title_variants
 
 logger = logging.getLogger(__name__)
 
-def regenerate_existing_article(article_id, provider='gemini', user_id=None):
+def regenerate_existing_article(article_id, provider='gemini', user_id=None, celery_task=None):
     """
     Core logic for regenerating an existing article (YouTube or RSS).
     Used by the Celery task to run async and avoid proxy timeouts.
@@ -34,7 +34,7 @@ def regenerate_existing_article(article_id, provider='gemini', user_id=None):
         if youtube_url:
             # YouTube article -> full regeneration
             source_type = 'youtube'
-            result = _generate_article_content(youtube_url, provider=provider, exclude_article_id=article.id)
+            result = _generate_article_content(youtube_url, provider=provider, exclude_article_id=article.id, celery_task=celery_task)
             
             if not result.get('success'):
                 return {'success': False, 'message': f"AI generation failed: {result.get('error', 'Unknown error')}"}
