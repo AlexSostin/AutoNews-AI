@@ -416,7 +416,7 @@ def check_semantic_duplicates(text: str, threshold: float = 0.85, max_results: i
         import numpy as np
         from news.models import ArticleEmbedding
         
-        # Generate embedding for new content
+        # Generate embedding for new content (with Redis cache)
         from ai_engine.modules.ai_provider import get_light_provider
         ai = get_light_provider()
         
@@ -425,7 +425,22 @@ def check_semantic_duplicates(text: str, threshold: float = 0.85, max_results: i
         if not text_preview or len(text_preview) < 50:
             return []
         
-        new_embedding = ai.generate_embedding(text_preview)
+        # Cache embedding by content hash — avoids re-embedding same RSS content
+        import hashlib
+        from django.core.cache import cache as django_cache
+        cache_key = f"emb_dedup:{hashlib.md5(text_preview.encode()).hexdigest()}"
+        cached_emb = django_cache.get(cache_key)
+        
+        if cached_emb is not None:
+            new_embedding = cached_emb
+            logger.debug(f"Semantic dedup: using cached embedding ({cache_key[:30]})")
+        else:
+            new_embedding = ai.generate_embedding(text_preview)
+            if new_embedding:
+                # Cache for 7 days
+                django_cache.set(cache_key, new_embedding, timeout=7 * 86400)
+                logger.debug(f"Semantic dedup: cached new embedding ({cache_key[:30]})")
+        
         if not new_embedding:
             return []
         

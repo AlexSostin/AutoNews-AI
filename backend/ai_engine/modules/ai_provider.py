@@ -1,8 +1,16 @@
 """
 AI Provider Factory - supports Gemini
-Uses google-genai (new unified SDK) for Gemini access
+Uses google-genai (new unified SDK) for Gemini access.
+
+Model routing: PRO tier (3.1-pro) for article generation, FLASH tier for everything else.
+Rate limiter: Redis counters prevent 429s by auto-skipping models near their limits.
 """
 import os
+import time
+import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Safe import of google-genai (new SDK)
 try:
@@ -30,6 +38,99 @@ if GEMINI_API_KEY and GENAI_AVAILABLE:
 # Tracks which model was actually used in the last successful generation
 _last_model_used = ''
 
+# ─── Model Tier Configuration ────────────────────────────────────────────
+# Callers that NEED Pro-quality output (long-form generation, creative work)
+PRO_CALLERS = frozenset({
+    'article_generate',
+    'rss_generate',
+    'article_review',
+    'article_enhance',
+    'comparison',
+})
+
+# Model cascades by tier
+PRO_MODELS = [
+    'gemini-3.1-pro-preview',
+    'gemini-3-flash-preview',
+    'gemini-2.5-pro-exp-03-25',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+]
+FLASH_MODELS = [
+    'gemini-3-flash-preview',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+]
+
+# Rate limits per model (from Google AI Studio dashboard)
+# We use 80% of the limit as our soft cap
+MODEL_RATE_LIMITS = {
+    'gemini-3.1-pro-preview': {'rpm': 25, 'rpd': 250},
+    'gemini-3-flash-preview': {'rpm': 1000, 'rpd': 10000},
+    'gemini-2.5-pro-exp-03-25': {'rpm': 10, 'rpd': 500},
+    'gemini-2.5-flash': {'rpm': 1000, 'rpd': 10000},
+    'gemini-2.0-flash': {'rpm': 2000, 'rpd': None},  # unlimited RPD
+}
+RATE_LIMIT_THRESHOLD = 0.80  # Skip model at 80% of its limit
+
+
+def _check_rate_limit(model_name: str) -> bool:
+    """
+    Check if we should skip this model because it's near its rate limit.
+    Uses Redis counters for RPM (per-minute) and RPD (per-day).
+    
+    Returns True if model should be SKIPPED.
+    """
+    limits = MODEL_RATE_LIMITS.get(model_name)
+    if not limits:
+        return False  # Unknown model, allow
+    
+    try:
+        from django.core.cache import cache
+        
+        # Check RPM (requests per minute)
+        minute_key = f"rl_rpm:{model_name}:{int(time.time()) // 60}"
+        rpm_count = cache.get(minute_key, 0)
+        rpm_limit = limits['rpm']
+        if rpm_count >= int(rpm_limit * RATE_LIMIT_THRESHOLD):
+            logger.info(f"⚡ Rate limit: {model_name} RPM {rpm_count}/{rpm_limit} — skipping")
+            return True
+        
+        # Check RPD (requests per day)
+        rpd_limit = limits.get('rpd')
+        if rpd_limit:
+            day_key = f"rl_rpd:{model_name}:{time.strftime('%Y%m%d')}"
+            rpd_count = cache.get(day_key, 0)
+            if rpd_count >= int(rpd_limit * RATE_LIMIT_THRESHOLD):
+                logger.info(f"⚡ Rate limit: {model_name} RPD {rpd_count}/{rpd_limit} — skipping")
+                return True
+        
+        return False
+    except Exception:
+        return False  # Redis down → allow all
+
+
+def _record_rate_limit(model_name: str):
+    """Increment rate limit counters after a successful API call."""
+    try:
+        from django.core.cache import cache
+        
+        # Increment RPM counter (expires in 60s)
+        minute_key = f"rl_rpm:{model_name}:{int(time.time()) // 60}"
+        try:
+            cache.incr(minute_key)
+        except ValueError:
+            cache.set(minute_key, 1, timeout=60)
+        
+        # Increment RPD counter (expires end of day → 24h is safe)
+        day_key = f"rl_rpd:{model_name}:{time.strftime('%Y%m%d')}"
+        try:
+            cache.incr(day_key)
+        except ValueError:
+            cache.set(day_key, 1, timeout=86400)
+    except Exception:
+        pass
+
 
 class AIProvider:
     """Base class for AI providers"""
@@ -49,17 +150,12 @@ class GeminiProvider(AIProvider):
         if not GENAI_AVAILABLE or not gemini_client:
             raise Exception("google-genai library not available or client not initialised")
         
-        # Model priority (updated March 2026):
-        # gemini-3.1-pro (best quality, preview) > gemini-3-flash (frontier at Flash price)
-        # > gemini-2.5-pro-exp (free backup) > gemini-2.5-flash > gemini-2.0-flash (last resort)
-        # NOTE: gemini-3-pro was SHUT DOWN on March 9 2026 — do NOT use it
-        model_names_to_try = [
-            'gemini-3.1-pro-preview',
-            'gemini-3-flash-preview',
-            'gemini-2.5-pro-exp-03-25',
-            'gemini-2.5-flash',
-            'gemini-2.0-flash',
-        ]
+        # Smart model routing: PRO tier for heavy tasks, FLASH for lightweight
+        if caller in PRO_CALLERS:
+            model_names_to_try = PRO_MODELS
+        else:
+            model_names_to_try = FLASH_MODELS
+            logger.debug(f"🔀 Routing '{caller}' to FLASH tier")
         
         # Build config with proper system_instruction isolation
         # (prevents prompt injection from user content overriding system behavior)
@@ -72,6 +168,10 @@ class GeminiProvider(AIProvider):
         
         last_error = None
         for model_name in model_names_to_try:
+            # Rate limit check — skip models near their quota
+            if _check_rate_limit(model_name):
+                continue
+            
             try:
                 response = gemini_client.models.generate_content(
                     model=model_name,
@@ -91,7 +191,11 @@ class GeminiProvider(AIProvider):
                                 text += part.text
                 
                 if text:
-                    print(f"✅ Generated with {model_name}")
+                    tier = 'PRO' if caller in PRO_CALLERS else 'FLASH'
+                    print(f"✅ Generated with {model_name} [{tier}] caller={caller}")
+                    
+                    # Record rate limit counter
+                    _record_rate_limit(model_name)
                     # Record which model succeeded for provider tracker
                     import ai_engine.modules.ai_provider as _self_mod
                     _self_mod._last_model_used = model_name
