@@ -139,6 +139,77 @@ export async function generateMetadata({ params }: { params: Promise<{ brand: st
     };
 }
 
+// Extracted JSON-LD block
+function renderJsonLd(data: ModelData) {
+    return (
+        <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+                __html: JSON.stringify([
+                    {
+                        '@context': 'https://schema.org',
+                        '@type': 'Vehicle',
+                        name: data.full_name,
+                        brand: { '@type': 'Brand', name: data.brand },
+                        model: data.model,
+                        ...(data.vehicle_specs ? {
+                            ...(data.vehicle_specs.fuel_type && { fuelType: data.vehicle_specs.fuel_type }),
+                            ...(data.vehicle_specs.transmission && { vehicleTransmission: data.vehicle_specs.transmission }),
+                            ...(data.vehicle_specs.body_type && { bodyType: data.vehicle_specs.body_type }),
+                            ...(data.vehicle_specs.seats && { seatingCapacity: data.vehicle_specs.seats }),
+                            ...(data.vehicle_specs.year && { vehicleModelDate: String(data.vehicle_specs.year) }),
+                            ...(data.vehicle_specs.drivetrain && { driveWheelConfiguration: data.vehicle_specs.drivetrain }),
+                            ...(data.vehicle_specs.cargo_liters && { cargoVolume: { '@type': 'QuantitativeValue', value: data.vehicle_specs.cargo_liters, unitCode: 'LTR' } }),
+                            ...(data.vehicle_specs.weight_kg && { weight: { '@type': 'QuantitativeValue', value: data.vehicle_specs.weight_kg, unitCode: 'KGM' } }),
+                            ...(data.vehicle_specs.acceleration_0_100 && { accelerationTime: `${data.vehicle_specs.acceleration_0_100}s 0-100 km/h` }),
+                            ...(data.vehicle_specs.top_speed_kmh && { speed: { '@type': 'QuantitativeValue', value: data.vehicle_specs.top_speed_kmh, unitCode: 'KMH' } }),
+                            ...(data.vehicle_specs.country_of_origin && { manufacturer: { '@type': 'Organization', name: data.brand, location: data.vehicle_specs.country_of_origin } }),
+                        } : {}),
+                        ...(data.specs.engine && data.specs.engine !== 'Not specified' && {
+                            vehicleEngine: { '@type': 'EngineSpecification', name: data.specs.engine },
+                        }),
+                        ...(data.vehicle_specs?.power_hp && {
+                            vehicleEngine: {
+                                '@type': 'EngineSpecification',
+                                ...(data.specs.engine && data.specs.engine !== 'Not specified' && { name: data.specs.engine }),
+                                enginePower: { '@type': 'QuantitativeValue', value: data.vehicle_specs.power_hp, unitText: 'hp' },
+                                ...(data.vehicle_specs.torque_nm && { torque: { '@type': 'QuantitativeValue', value: data.vehicle_specs.torque_nm, unitText: 'Nm' } }),
+                            },
+                        }),
+                        image: data.images[0] || undefined,
+                        ...(data.vehicle_specs?.price_usd_from && {
+                            offers: {
+                                '@type': 'AggregateOffer',
+                                priceCurrency: 'USD',
+                                lowPrice: data.vehicle_specs.price_usd_from,
+                                ...(data.vehicle_specs.price_usd_to && { highPrice: data.vehicle_specs.price_usd_to }),
+                                availability: 'https://schema.org/InStock',
+                            },
+                        }),
+                        ...(!data.vehicle_specs?.price_usd_from && data.specs.price && data.specs.price !== 'Not specified' && {
+                            offers: {
+                                '@type': 'Offer',
+                                price: data.specs.price.replace(/[^0-9.]/g, ''),
+                                priceCurrency: 'USD',
+                            },
+                        }),
+                    },
+                    {
+                        '@context': 'https://schema.org',
+                        '@type': 'BreadcrumbList',
+                        itemListElement: [
+                            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.freshmotors.net' },
+                            { '@type': 'ListItem', position: 2, name: 'Cars', item: 'https://www.freshmotors.net/cars' },
+                            { '@type': 'ListItem', position: 3, name: data.brand, item: `https://www.freshmotors.net/cars/${data.brand_slug}` },
+                            { '@type': 'ListItem', position: 4, name: data.model },
+                        ],
+                    },
+                ]),
+            }}
+        />
+    );
+}
+
 // Spec row component
 function SpecRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
     if (!value || value === 'Not specified') return null;
@@ -158,6 +229,96 @@ function formatDate(dateStr: string) {
     } catch {
         return dateStr;
     }
+}
+
+function renderOldSpecsFallback(data: ModelData) {
+    return (
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600">
+                <h2 className="text-xl font-bold text-white">📊 Specifications</h2>
+            </div>
+            <div className="px-6 py-2">
+                <SpecRow label="Engine" value={data.specs.engine} />
+                <SpecRow label="Horsepower" value={data.specs.horsepower} />
+                <SpecRow label="Torque" value={data.specs.torque} />
+                <SpecRow label="0-60 mph" value={data.specs.zero_to_sixty} />
+                <SpecRow label="Top Speed" value={data.specs.top_speed} />
+                <SpecRow label="Price" value={data.specs.price ? (data.specs.price_date ? `${data.specs.price} (as of ${data.specs.price_date})` : data.specs.price) : ''} highlight />
+                <SpecRow label="Release Date" value={data.specs.release_date} />
+            </div>
+            <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
+                <p className="text-xs text-gray-400 leading-relaxed">
+                    ⓘ Specifications are sourced from manufacturer data and video reviews. Actual specs may vary by market, configuration, and model year. Always verify with your local dealer.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+function renderRightColumn(data: ModelData) {
+    return (
+        <div className="space-y-6">
+            {/* Source Articles */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                <div className="px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600">
+                    <h2 className="text-lg font-bold text-white">📰 Reviews & Articles</h2>
+                </div>
+                <div className="p-4 space-y-1">
+                    {data.trims.map((trim, i) => (
+                        <Link
+                            key={i}
+                            href={`/articles/${trim.article_slug}`}
+                            className="block p-3 rounded-xl hover:bg-indigo-50 transition-colors group"
+                        >
+                            <div className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors text-sm line-clamp-2">
+                                {trim.article_title}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1.5">
+                                {trim.trim !== 'Standard' && (
+                                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                                        {trim.trim}
+                                    </span>
+                                )}
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            </div>
+
+            {/* Related from same brand — with dates */}
+            {data.related_articles.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                    <div className="px-6 py-4 border-b border-gray-100">
+                        <h2 className="text-lg font-bold text-gray-900">More from {data.brand}</h2>
+                    </div>
+                    <div className="p-4 space-y-1">
+                        {data.related_articles.map((article) => (
+                            <Link
+                                key={article.id}
+                                href={`/articles/${article.slug}`}
+                                className="block p-3 rounded-xl hover:bg-gray-50 transition-colors group"
+                            >
+                                <div className="font-medium text-gray-700 group-hover:text-indigo-600 transition-colors text-sm line-clamp-2">
+                                    {article.title}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                    {formatDate(article.created_at)}
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Back to brand */}
+            <Link
+                href={`/cars/${data.brand_slug}`}
+                className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+            >
+                ← All {data.brand} Models
+            </Link>
+        </div>
+    );
 }
 
 export default async function ModelPage({ params }: { params: Promise<{ brand: string; model: string }> }) {
@@ -257,27 +418,7 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                     {/* Left Column — Specs + Trims + Gallery */}
                     <div className="lg:col-span-2 space-y-8">
                         {/* Old Specs Table — only shown when NO VehicleSpecs exist (fallback) */}
-                        {hasSpecs && !(data.vehicle_specs_list?.length > 0 || data.vehicle_specs) && (
-                            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                                <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600">
-                                    <h2 className="text-xl font-bold text-white">📊 Specifications</h2>
-                                </div>
-                                <div className="px-6 py-2">
-                                    <SpecRow label="Engine" value={data.specs.engine} />
-                                    <SpecRow label="Horsepower" value={data.specs.horsepower} />
-                                    <SpecRow label="Torque" value={data.specs.torque} />
-                                    <SpecRow label="0-60 mph" value={data.specs.zero_to_sixty} />
-                                    <SpecRow label="Top Speed" value={data.specs.top_speed} />
-                                    <SpecRow label="Price" value={data.specs.price ? (data.specs.price_date ? `${data.specs.price} (as of ${data.specs.price_date})` : data.specs.price) : ''} highlight />
-                                    <SpecRow label="Release Date" value={data.specs.release_date} />
-                                </div>
-                                <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
-                                    <p className="text-xs text-gray-400 leading-relaxed">
-                                        ⓘ Specifications are sourced from manufacturer data and video reviews. Actual specs may vary by market, configuration, and model year. Always verify with your local dealer.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                        {hasSpecs && !(data.vehicle_specs_list?.length > 0 || data.vehicle_specs) && renderOldSpecsFallback(data)}
 
                         {/* VehicleSpecs — Trim Comparison or Single Spec */}
                         {(data.vehicle_specs_list?.length > 0 || data.vehicle_specs) && (
@@ -386,136 +527,12 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                     </div>
 
                     {/* Right Column — Articles & Related */}
-                    <div className="space-y-6">
-                        {/* Source Articles */}
-                        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                            <div className="px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600">
-                                <h2 className="text-lg font-bold text-white">📰 Reviews & Articles</h2>
-                            </div>
-                            <div className="p-4 space-y-1">
-                                {data.trims.map((trim, i) => (
-                                    <Link
-                                        key={i}
-                                        href={`/articles/${trim.article_slug}`}
-                                        className="block p-3 rounded-xl hover:bg-indigo-50 transition-colors group"
-                                    >
-                                        <div className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors text-sm line-clamp-2">
-                                            {trim.article_title}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1.5">
-                                            {trim.trim !== 'Standard' && (
-                                                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                                                    {trim.trim}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Related from same brand — with dates */}
-                        {data.related_articles.length > 0 && (
-                            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                                <div className="px-6 py-4 border-b border-gray-100">
-                                    <h2 className="text-lg font-bold text-gray-900">More from {data.brand}</h2>
-                                </div>
-                                <div className="p-4 space-y-1">
-                                    {data.related_articles.map((article) => (
-                                        <Link
-                                            key={article.id}
-                                            href={`/articles/${article.slug}`}
-                                            className="block p-3 rounded-xl hover:bg-gray-50 transition-colors group"
-                                        >
-                                            <div className="font-medium text-gray-700 group-hover:text-indigo-600 transition-colors text-sm line-clamp-2">
-                                                {article.title}
-                                            </div>
-                                            <div className="text-xs text-gray-400 mt-1">
-                                                {formatDate(article.created_at)}
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Back to brand */}
-                        <Link
-                            href={`/cars/${data.brand_slug}`}
-                            className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
-                        >
-                            ← All {data.brand} Models
-                        </Link>
-                    </div>
+                    {renderRightColumn(data)}
                 </div>
             </section>
 
             {/* JSON-LD Vehicle Schema + Breadcrumb + Product */}
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{
-                    __html: JSON.stringify([
-                        {
-                            '@context': 'https://schema.org',
-                            '@type': 'Vehicle',
-                            name: data.full_name,
-                            brand: { '@type': 'Brand', name: data.brand },
-                            model: data.model,
-                            ...(data.vehicle_specs ? {
-                                ...(data.vehicle_specs.fuel_type && { fuelType: data.vehicle_specs.fuel_type }),
-                                ...(data.vehicle_specs.transmission && { vehicleTransmission: data.vehicle_specs.transmission }),
-                                ...(data.vehicle_specs.body_type && { bodyType: data.vehicle_specs.body_type }),
-                                ...(data.vehicle_specs.seats && { seatingCapacity: data.vehicle_specs.seats }),
-                                ...(data.vehicle_specs.year && { vehicleModelDate: String(data.vehicle_specs.year) }),
-                                ...(data.vehicle_specs.drivetrain && { driveWheelConfiguration: data.vehicle_specs.drivetrain }),
-                                ...(data.vehicle_specs.cargo_liters && { cargoVolume: { '@type': 'QuantitativeValue', value: data.vehicle_specs.cargo_liters, unitCode: 'LTR' } }),
-                                ...(data.vehicle_specs.weight_kg && { weight: { '@type': 'QuantitativeValue', value: data.vehicle_specs.weight_kg, unitCode: 'KGM' } }),
-                                ...(data.vehicle_specs.acceleration_0_100 && { accelerationTime: `${data.vehicle_specs.acceleration_0_100}s 0-100 km/h` }),
-                                ...(data.vehicle_specs.top_speed_kmh && { speed: { '@type': 'QuantitativeValue', value: data.vehicle_specs.top_speed_kmh, unitCode: 'KMH' } }),
-                                ...(data.vehicle_specs.country_of_origin && { manufacturer: { '@type': 'Organization', name: data.brand, location: data.vehicle_specs.country_of_origin } }),
-                            } : {}),
-                            ...(data.specs.engine && data.specs.engine !== 'Not specified' && {
-                                vehicleEngine: { '@type': 'EngineSpecification', name: data.specs.engine },
-                            }),
-                            ...(data.vehicle_specs?.power_hp && {
-                                vehicleEngine: {
-                                    '@type': 'EngineSpecification',
-                                    ...(data.specs.engine && data.specs.engine !== 'Not specified' && { name: data.specs.engine }),
-                                    enginePower: { '@type': 'QuantitativeValue', value: data.vehicle_specs.power_hp, unitText: 'hp' },
-                                    ...(data.vehicle_specs.torque_nm && { torque: { '@type': 'QuantitativeValue', value: data.vehicle_specs.torque_nm, unitText: 'Nm' } }),
-                                },
-                            }),
-                            image: data.images[0] || undefined,
-                            ...(data.vehicle_specs?.price_usd_from && {
-                                offers: {
-                                    '@type': 'AggregateOffer',
-                                    priceCurrency: 'USD',
-                                    lowPrice: data.vehicle_specs.price_usd_from,
-                                    ...(data.vehicle_specs.price_usd_to && { highPrice: data.vehicle_specs.price_usd_to }),
-                                    availability: 'https://schema.org/InStock',
-                                },
-                            }),
-                            ...(!data.vehicle_specs?.price_usd_from && data.specs.price && data.specs.price !== 'Not specified' && {
-                                offers: {
-                                    '@type': 'Offer',
-                                    price: data.specs.price.replace(/[^0-9.]/g, ''),
-                                    priceCurrency: 'USD',
-                                },
-                            }),
-                        },
-                        {
-                            '@context': 'https://schema.org',
-                            '@type': 'BreadcrumbList',
-                            itemListElement: [
-                                { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.freshmotors.net' },
-                                { '@type': 'ListItem', position: 2, name: 'Cars', item: 'https://www.freshmotors.net/cars' },
-                                { '@type': 'ListItem', position: 3, name: data.brand, item: `https://www.freshmotors.net/cars/${data.brand_slug}` },
-                                { '@type': 'ListItem', position: 4, name: data.model },
-                            ],
-                        },
-                    ]),
-                }}
-            />
+            {renderJsonLd(data)}
         </main>
     );
 }

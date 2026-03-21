@@ -81,7 +81,7 @@ export default function AdBanner({
   };
 
   return (
-    <div className={`ad-container ${className}`}>
+    <div className={`ad-container w-full max-w-full overflow-hidden ${className}`}>
       {ads.map(ad => (
         <div key={ad.id} className="relative">
           {/* Banner type */}
@@ -91,7 +91,7 @@ export default function AdBanner({
               target="_blank"
               rel="noopener noreferrer sponsored"
               onClick={() => handleAdClick(ad)}
-              className="block rounded-xl overflow-hidden hover:opacity-95 transition-opacity"
+              className="block rounded-xl overflow-hidden hover:opacity-95 transition-opacity w-full max-w-full"
             >
               <img
                 src={ad.image.startsWith('http') ? ad.image : `${getApiUrl().replace('/api/v1', '')}/media/${ad.image}`}

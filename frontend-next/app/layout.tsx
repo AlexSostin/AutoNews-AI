@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from 'next/link';
 import Script from 'next/script';
 import AdSenseScript from "@/components/public/AdSenseScript";
 import ErrorBoundary from "@/components/public/ErrorBoundary";
@@ -32,7 +31,7 @@ async function getGAId() {
       return data.google_analytics_id;
     }
   } catch (e) {
-    // Silent error in layout
+    console.debug('Failed to get GA ID', e);
   }
   return null;
 }
@@ -141,7 +140,7 @@ export default async function RootLayout({
         {/* AdSense Injected via Client Component to avoid hydration and data-nscript issues */}
         <AdSenseScript />
       </head>
-      <body className="antialiased min-h-screen flex flex-col bg-gray-50">
+      <body className="antialiased min-h-screen flex flex-col bg-gray-50 overflow-x-hidden">
         <ErrorProvider>
           <GoogleAuthProvider>
             <Toaster
