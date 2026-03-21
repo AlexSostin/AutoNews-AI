@@ -605,25 +605,29 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
             _s_prefix = summary[:60].lower().strip()
             _p_prefix = _first_para[:60].lower().strip()
             if _s_prefix == _p_prefix or (_s_prefix[:40] and _s_prefix[:40] in _p_prefix):
-                print(f"⚠️ Summary copies first paragraph — rebuilding from specs")
-                _make = specs.get('make', '')
-                _model = specs.get('model', '')
-                _year = specs.get('year', '')
-                _hp = specs.get('horsepower', '')
-                _price = specs.get('price', '')
-                _range = specs.get('range', '')
+                _bad = {'', 'None', 'Not specified', 'N/A', 'none', 'n/a', 'not specified'}
+                _clean = lambda v: '' if (v is None or str(v).strip() in _bad) else str(v).strip()
+                _make = _clean(specs.get('make'))
+                _model = _clean(specs.get('model'))
+                _year = _clean(specs.get('year'))
+                _hp = _clean(specs.get('horsepower'))
+                _price = _clean(specs.get('price'))
+                _range = _clean(specs.get('range'))
                 if _make and _model:
-                    _parts = [f"The {_year} {_make} {_model}".strip()]
+                    _name = f"The {_year + ' ' if _year else ''}{_make} {_model}"
+                    _parts = [_name]
                     if _hp:
                         _parts.append(f"delivers {_hp}")
-                    if _range and str(_range) != 'Not specified':
+                    if _range:
                         _parts.append(f"with {_range} range")
-                    if _price and str(_price) != 'Not specified':
+                    if _price:
                         _parts.append(f"starting at {_price}")
                     summary = ', '.join(_parts) + '.'
                     if len(summary) > 200:
                         summary = _truncate_summary(summary, max_len=200)
                     print(f"✅ Rebuilt summary from specs ({len(summary)} chars): {summary[:80]}")
+                else:
+                    print(f"⚠️ Cannot rebuild summary: make={repr(_make)}, model={repr(_model)}")
         
         # 6.1 SEO description — use AI-generated if available, else template fallback
         seo_description = ''

@@ -682,90 +682,113 @@ def _normalize_compare_rows(html: str) -> str:
     """
     Ensure all compare-cards in a compare-grid have identical row labels.
     
-    If the AI used different labels across cards (e.g. '0-100 km/h' in one,
+    If the AI used different labels across cards (e.g. 'Torque' in one,
     'Power' in another), this normalizes them to the most common label set.
     Missing rows get 'N/A' values.
     """
     import re
+    from collections import Counter
     
     if 'compare-grid' not in html:
         return html
     
-    # Find all compare-grid blocks
-    grid_pattern = re.compile(
-        r'(<div\s+class="compare-grid">)(.*?)(</div>\s*(?=<[^d]|$))',
+    # Find each compare-grid block
+    grid_open_re = re.compile(r'<div\s+class="compare-grid">', re.IGNORECASE)
+    row_re = re.compile(
+        r'<div\s+class="compare-row">\s*<span\s+class="k">(.*?)</span>\s*<span\s+class="v">(.*?)</span>\s*</div>',
         re.DOTALL | re.IGNORECASE
     )
+    card_open_re = re.compile(r'<div\s+class="compare-card(\s[^"]*)?">', re.IGNORECASE)
     
-    def normalize_grid(match):
-        grid_open = match.group(1)
-        grid_content = match.group(2)
-        grid_close = match.group(3)
+    result = html
+    for grid_match in list(grid_open_re.finditer(html)):
+        grid_start = grid_match.start()
+        # Find the end of this grid: count div depth
+        depth = 0
+        pos = grid_start
+        grid_end = None
+        while pos < len(html):
+            open_m = re.match(r'<div[\s>]', html[pos:], re.IGNORECASE)
+            close_m = re.match(r'</div>', html[pos:], re.IGNORECASE)
+            if open_m:
+                depth += 1
+                pos += open_m.end()
+            elif close_m:
+                depth -= 1
+                if depth == 0:
+                    grid_end = pos + close_m.end()
+                    break
+                pos += close_m.end()
+            else:
+                pos += 1
         
-        # Extract all cards
-        card_pattern = re.compile(
-            r'(<div\s+class="compare-card[^"]*">)(.*?)(</div>(?:\s*</div>)?)',
-            re.DOTALL | re.IGNORECASE
-        )
-        cards = list(card_pattern.finditer(grid_content))
-        if len(cards) < 2:
-            return match.group(0)
+        if grid_end is None:
+            continue
         
-        # Extract row labels from each card
-        row_pattern = re.compile(
-            r'<div\s+class="compare-row">\s*<span\s+class="k">(.*?)</span>\s*<span\s+class="v">(.*?)</span>\s*</div>',
-            re.DOTALL | re.IGNORECASE
-        )
+        grid_html = html[grid_start:grid_end]
         
-        card_rows = []
-        for card in cards:
-            rows = row_pattern.findall(card.group(2))
-            card_rows.append(rows)  # list of (label, value) tuples
+        # Find all card boundaries
+        card_matches = list(card_open_re.finditer(grid_html))
+        if len(card_matches) < 2:
+            continue
         
-        # Get all unique label sets
-        label_sets = [tuple(r[0].strip() for r in rows) for rows in card_rows]
-        
-        # Check if they're all the same — if so, no work needed
-        if len(set(label_sets)) <= 1:
-            return match.group(0)
-        
-        # Find the most common label set (majority wins)
-        from collections import Counter
-        label_counter = Counter(label_sets)
-        canonical_labels = list(label_counter.most_common(1)[0][0])
-        
-        print(f"  🔧 compare-grid: normalizing row labels to {canonical_labels}")
-        
-        # Rebuild each card with canonical labels
-        result_content = grid_content
-        for i, card in enumerate(reversed(cards)):
-            existing = {r[0].strip(): r[1].strip() for r in card_rows[len(cards) - 1 - i]}
+        # Extract each card's content by finding boundaries
+        cards_data = []
+        for ci, cm in enumerate(card_matches):
+            card_start = cm.start()
+            card_end = card_matches[ci + 1].start() if ci + 1 < len(card_matches) else grid_html.rfind('</div>')
+            card_html = grid_html[card_start:card_end]
             
-            # Build new rows matching canonical order
-            new_rows = []
+            css_class = (cm.group(1) or '').strip()  # e.g. 'featured' or ''
+            rows = row_re.findall(card_html)  # list of (label, value) tuples
+            
+            # Extract badge and name
+            badge_m = re.search(r'<div\s+class="compare-badge">(.*?)</div>', card_html, re.IGNORECASE)
+            name_m = re.search(r'<div\s+class="compare-card-name">(.*?)</div>', card_html, re.IGNORECASE)
+            
+            cards_data.append({
+                'css': css_class,
+                'badge': badge_m.group(1) if badge_m else None,
+                'name': name_m.group(1) if name_m else '',
+                'rows': rows,  # [(label, value), ...]
+            })
+        
+        # Get label sets from each card
+        label_sets = [tuple(r[0].strip() for r in cd['rows']) for cd in cards_data]
+        
+        # Already consistent?
+        if len(set(label_sets)) <= 1:
+            continue
+        
+        # Find canonical labels (majority wins)
+        canonical_labels = list(Counter(label_sets).most_common(1)[0][0])
+        print(f"  🔧 compare-grid: normalizing {len(cards_data)} cards to labels {canonical_labels}")
+        
+        # Rebuild the grid
+        new_cards = []
+        for cd in cards_data:
+            existing = {r[0].strip(): r[1].strip() for r in cd['rows']}
+            
+            lines = []
+            css = f' {cd["css"]}' if cd['css'] else ''
+            lines.append(f'<div class="compare-card{css}">')
+            if cd['badge']:
+                lines.append(f'<div class="compare-badge">{cd["badge"]}</div>')
+            lines.append(f'<div class="compare-card-name">{cd["name"]}</div>')
+            
             for label in canonical_labels:
                 value = existing.get(label, 'N/A')
-                new_rows.append(
+                lines.append(
                     f'<div class="compare-row"><span class="k">{label}</span>'
                     f'<span class="v">{value}</span></div>'
                 )
-            
-            # Replace old rows in this card
-            card_inner = card.group(2)
-            # Remove all existing compare-row divs
-            cleaned_inner = row_pattern.sub('', card_inner).rstrip()
-            # Add normalized rows
-            new_rows_html = '\n    '.join(new_rows)
-            new_inner = cleaned_inner + '\n    ' + new_rows_html + '\n  '
-            
-            # Replace in result
-            old_full = card.group(0)
-            new_full = card.group(1) + new_inner + card.group(3)
-            result_content = result_content[:card.start() - 0] + new_full + result_content[card.end():]
+            lines.append('</div>')
+            new_cards.append('\n'.join(lines))
         
-        return grid_open + result_content + grid_close
+        new_grid = '<div class="compare-grid">\n' + '\n'.join(new_cards) + '\n</div>'
+        result = result[:grid_start] + new_grid + result[grid_end:]
     
-    return grid_pattern.sub(normalize_grid, html)
+    return result
 
 
 def post_process_article(html: str, allowed_competitor_makes: list[str] | None = None) -> str:
