@@ -20,7 +20,7 @@ import FavoriteButton from '@/components/public/FavoriteButton';
 import ArticleFeedbackCapsules from '@/components/public/ArticleFeedbackCapsules';
 import CommentSection from '@/components/public/CommentSection';
 import FeedbackButton from '@/components/public/FeedbackButton';
-import { Calendar, User, Rss, ExternalLink, Youtube, Tag, Clock } from 'lucide-react';
+import { Calendar, User, Rss, ExternalLink, Tag, Clock } from 'lucide-react';
 import AuthorCard from '@/components/public/AuthorCard';
 import JsonLd from '@/components/public/JsonLd';
 import TableOfContents, { TocHeading } from '@/components/public/TableOfContents';
@@ -324,30 +324,12 @@ export default function ArticleUnit({ article, onBecameActive, index = 0 }: Arti
                 <AdBanner position="after_content" />
 
                 {hasYoutubeVideo && (() => {
-                    const channelName = article.youtube_channel_name || article.author_name;
-                    const channelUrl  = article.youtube_channel_url  || article.author_channel_url;
                     return (
                         <div className="rounded-2xl overflow-hidden"
                             style={{
                                 boxShadow: '0 4px 24px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.14)',
                                 background: '#0f0f0f',
                             }}>
-                            {/* Channel attribution header */}
-                            {channelName && (
-                                <div className="flex items-center gap-3 px-4 py-2.5"
-                                    style={{ background: 'linear-gradient(90deg, #1a1a1a 0%, #2d0000 100%)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                    <Youtube size={16} className="text-red-500 shrink-0" />
-                                    <span className="text-xs text-gray-400 font-semibold">Video by</span>
-                                    {channelUrl ? (
-                                        <a href={channelUrl} target="_blank" rel="noopener noreferrer"
-                                            className="text-white font-bold text-sm hover:text-red-400 transition-colors truncate">
-                                            {channelName}
-                                        </a>
-                                    ) : (
-                                        <span className="text-white font-bold text-sm truncate">{channelName}</span>
-                                    )}
-                                </div>
-                            )}
                             {/* Video embed */}
                             <div className="relative w-full aspect-video">
                                 <iframe
