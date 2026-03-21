@@ -586,97 +586,77 @@ def _dedup_guard(html: str) -> str:
 def _repair_compare_grid(html: str) -> str:
     """
     Repair malformed compare-grid HTML where the AI closes divs too early,
-    leaving compare-row / compare-card elements as siblings OUTSIDE the grid.
+    leaving compare-row / compare-card elements as siblings OUTSIDE their proper parents.
 
-    Pattern to fix (raw string level — BS4 auto-repairs on parse so we can't use DOM):
-        <div class="compare-grid">...<div class="compare-card featured">
-          <div class="compare-row">Power...</div>
-        </div></div>             ← compare-grid closed too early!
-        <div class="compare-row">EV Range...</div>    ← orphaned
-        <div class="compare-card">BMW...</div>         ← orphaned
-
-    Strategy:
-    1. Find </div> that closes a compare-grid (by tracking depth)
-    2. Check if the content immediately following is compare-row or compare-card divs
-    3. If yes, extract them and inject before the closing </div> of the grid
+    Strategy using DOM parsing:
+    1. Fix orphaned compare-row inside grids (but outside compare-card) by moving them into the preceding compare-card.
+    2. Fix orphaned compare-row/compare-card outside grids by pulling them back into the preceding compare-grid.
     """
-    # Pattern: closing </div> followed by whitespace+newlines then compare-row/compare-card
-    # We use a loop to handle multiple grids and multiple orphan runs
-    ORPHAN_PATTERN = re.compile(
-        r'(</div>)'                               # closing tag (candidate grid close)
-        r'(\s*)'                                  # whitespace
-        r'((?:'                                   # one or more orphaned blocks:
-        r'<div\s+class="compare-(?:row|card)[^"]*">'  # compare-row or compare-card open
-        r'.*?</div>'                              # content + close
-        r'\s*'                                    # optional whitespace
-        r')+)',                                   # end repeat
-        re.DOTALL
-    )
-
-    def _is_grid_close(html, closing_pos):
-        """Check if the </div> at closing_pos actually closes a compare-grid."""
-        # Walk backward to find the matching opening tag
-        depth = 0
-        pos = closing_pos - 1
-        while pos >= 0:
-            # Find nearest opening or closing div tag going backward
-            open_tag = html.rfind('<div', 0, pos + 1)
-            close_tag = html.rfind('</div>', 0, pos + 1)
-            if open_tag < 0:
-                break
-            if close_tag > open_tag:
-                depth += 1
-                pos = close_tag - 1
-            else:
-                if depth == 0:
-                    # This open tag matches our closing — check if it's a compare-grid
-                    tag_end = html.find('>', open_tag)
-                    tag_text = html[open_tag:tag_end + 1]
-                    return 'compare-grid' in tag_text
-                depth -= 1
-                pos = open_tag - 1
-        return False
-
     if 'compare-grid' not in html:
         return html
 
-    # Find all </div> followed by orphaned compare-* elements
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        print("  ⚠️ BeautifulSoup not found, skipping deep compare-grid repair")
+        return html
+
+    soup = BeautifulSoup(html, 'html.parser')
     changed = False
-    result = html
 
-    # Use a single-pass regex scan with manual verification
-    offset = 0
-    max_iterations = 20  # Safety limit
-    iteration = 0
-
-    while iteration < max_iterations:
-        iteration += 1
-        m = ORPHAN_PATTERN.search(result, offset)
-        if not m:
-            break
-
-        closing_div_pos = m.start(1)
-
-        # Verify this </div> closes a compare-grid
-        if not _is_grid_close(result, closing_div_pos):
-            offset = m.end(1)
+    # 0. Fix bare spans that should have been compare-rows
+    for span_k in soup.find_all('span', class_='k'):
+        parent = span_k.parent
+        # Check if already correctly wrapped in compare-row
+        if parent and parent.name == 'div' and 'compare-row' in parent.get('class', []):
             continue
+            
+        span_v = span_k.find_next_sibling('span', class_='v')
+        if span_v:
+            new_row = soup.new_tag('div', **{'class': 'compare-row'})
+            span_k.insert_before(new_row)
+            new_row.append(span_k.extract())
+            new_row.append(span_v.extract())
+            changed = True
 
-        # Extract the orphaned block
-        orphaned_content = m.group(3)
-        whitespace = m.group(2)
+    # 1. Fix orphaned compare-row inside grids (but outside compare-card)
+    for grid in soup.find_all('div', class_='compare-grid'):
+        last_card = None
+        for child in list(grid.children):
+            if child.name == 'div' and 'compare-card' in child.get('class', []):
+                last_card = child
+            elif child.name == 'div' and 'compare-row' in child.get('class', []):
+                if last_card:
+                    last_card.append(child)
+                    changed = True
 
-        # Rebuild: move orphaned content inside the grid before its closing </div>
-        # i.e.: </div>[orphans] → [orphans]</div>
-        replacement = orphaned_content.rstrip() + '\n' + m.group(1)
-        result = result[:closing_div_pos] + replacement + result[m.end():]
+    # 2. Fix orphaned compare-row and compare-card outside grids
+    for grid in soup.find_all('div', class_='compare-grid'):
+        sibling = grid.find_next_sibling()
+        while sibling and sibling.name == 'div':
+            sibling_classes = sibling.get('class', [])
+            if 'compare-card' in sibling_classes:
+                # Move card into the grid
+                grid.append(sibling.extract())
+                changed = True
+                sibling = grid.find_next_sibling()
+            elif 'compare-row' in sibling_classes:
+                # Move row into the last card of the grid
+                last_card = grid.find_all('div', class_='compare-card')
+                if last_card:
+                    last_card[-1].append(sibling.extract())
+                    changed = True
+                    sibling = grid.find_next_sibling()
+                else:
+                    break
+            else:
+                break
 
-        orphan_count = orphaned_content.count('<div class="compare-')
-        print(f"  🔧 compare-grid repair: moved {orphan_count} orphaned element(s) inside grid")
-        changed = True
-        # Don't advance offset — re-check from same position (might be more to fix)
-
-    return result if changed else html
+    if changed:
+        print("  🔧 compare-grid repair: fixed malformed grid structure via DOM")
+        return str(soup)
+        
+    return html
 
 def _normalize_compare_rows(html: str) -> str:
     """

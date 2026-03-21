@@ -63,7 +63,7 @@ Acceleration: [0-60 mph or 0-100 km/h time - e.g., "5.5 seconds (0-60 mph)". ALW
 Top Speed: [Max speed with unit - e.g., "155 mph" or "250 km/h". ALWAYS specify mph or km/h]
 Drivetrain: [Drive type - "AWD", "FWD", "RWD", or "4WD". Write "Not specified" if not mentioned]
 Battery: [Battery capacity for EVs - e.g., "75 kWh"]
-Range: [Driving range - e.g., "400 km" or "250 miles". ALWAYS specify km or miles]
+Range: [Driving range - e.g., "400 km". If a hybrid mentions two ranges, write BOTH: "120 km EV / 1,000 km Combined". ALWAYS specify km or miles]
 Price: [Starting price with currency - e.g., "$45,000" or "€50,000" or "¥169,800"]
   ⚠️ CHINESE PRICE FORMAT: Chinese prices often use 万 (wàn) = 10,000.
   So "11.5万" = ¥115,000 (NOT ¥11,500). "19万" = ¥190,000. "7.98万" = ¥79,800.

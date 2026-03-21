@@ -259,7 +259,8 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
             f"\n⚠️ PRICE-AWARE COMPARISONS — CRITICAL:\n"
             f"- Only compare with vehicles in a SIMILAR price range (within ±40% of subject car price).\n"
             f"- A $22,000 car compared to a $61,000 car is NONSENSICAL and looks unprofessional.\n"
-            f"- If no competitors in the price range exist in the list, pick the CLOSEST by price.\n"
+            f"- If NO provided competitor is within a reasonable price range, DO NOT INCLUDE the 'How It Compares' section AT ALL.\n"
+            f"- It is BETTER to omit the section than to make a nonsensical comparison.\n"
             f"- Comparison makes sense: $22k vs $27k, $45k vs $55k, $80k vs $100k.\n"
             f"- Comparison does NOT make sense: $22k vs $61k, $25k vs $80k.\n"
             f"{'='*47}\n"
@@ -415,6 +416,7 @@ CRITICAL REQUIREMENTS:
    - Give the car a PERSONALITY: "This is the daily driver for someone who's outgrown their Model 3"
    - Add real-world context: "600 km WLTP range means weekend trips without touching a charger"
    - Explain what specs MEAN for the buyer, not just list numbers
+   - ⚠️ HYBRID RANGE RULE: For PHEVs and EREVs, explicitly state BOTH the electric-only range and the combined range (e.g., "120 km EV / 1,200 km Combined"). Do not just say "120 km range".
    - USE WEB CONTEXT DATA: If web search found sales figures, orders, market reception, awards,
      or real-world test data — INCLUDE IT in the article. This is the most valuable data you have.
      ✅ "Over 80,000 firm orders within a month of launch" — this is GOLD, always include real numbers
@@ -605,56 +607,24 @@ Rules:
   If HP is in kW, convert: 1 kW ≈ 1.34 hp.
   If NO specs are available → OMIT this section.
 
-  ═══ POWERTRAIN SPEC TEMPLATE (MANDATORY for this section) ═══
-  For EACH motor/engine in the car, list SEPARATELY:
-
-  ▸ PLATFORM: [e.g. SEA (Geely), e-Platform 3.0 (BYD), MEB (VW), CMA (Volvo/Geely), E-GMP (Hyundai/Kia)] — ONLY if known
-  ▸ VOLTAGE ARCHITECTURE: [400V or 800V] — determines charging speed. 800V = ultra-fast DC charging (10-80% in ~18 min)
-  ▸ POWERTRAIN TYPE: [BEV | EREV | PHEV | ICE | Hybrid]
-  ▸ MOTOR 1 (traction): [type e.g. permanent magnet] — [HP] / [kW] — [torque Nm] — drives [front/rear/all]
-  ▸ MOTOR 2 (if dual-motor): [type] — [HP] / [kW] — [torque Nm] — drives [front/rear]
-  ▸ RANGE EXTENDER (if EREV/PHEV): [engine type e.g. 1.5T turbo] — [HP] / [kW]
-    ⚠️ This is a GENERATOR — it does NOT drive the wheels. NEVER list this as the car's power.
-  ▸ TOTAL SYSTEM OUTPUT: [combined HP] — this is the headline number readers care about
-  ▸ BATTERY: [capacity kWh] — [chemistry e.g. LFP/NMC/ternary lithium] — [supplier e.g. CATL/BYD]
-  ▸ RANGE: [electric-only km] + [combined km if EREV/PHEV] — [test cycle: WLTP/CLTC/EPA]
-  ▸ 0-100 km/h: [seconds] — ONLY if confirmed
-  ▸ TOP SPEED: [km/h] — ONLY if confirmed
-  ▸ DIMENSIONS: length × width × height (mm), wheelbase (mm), curb weight (kg)
-
-  ⚠️ CRITICAL EREV/PHEV/HYBRID RULES:
-  - The RANGE EXTENDER is a generator that charges the battery. It does NOT drive the wheels.
-  - NEVER list range extender HP as the car's total power.
-  - ALWAYS clarify: "The 1.5T range extender (XX kW) charges the battery;
-    the electric traction motor (XX kW / XX HP) drives the [rear/all] wheels."
-  - If the source only provides ONE power figure for an EREV → it could be the range extender.
-    Research which motor it refers to before publishing.
-
-  ⚠️ SANITY CHECKS — if these fail, the data is likely WRONG:
-  - Full-size SUV (5+ meters) with TOTAL power under 150 HP → VERIFY, almost certainly wrong
-  - Sports car / GT with under 200 HP → VERIFY
-  - Any car with 0-100 under 5s but under 300 HP → VERIFY
-  - EREV with only one HP figure → it might be the generator, NOT the traction motor
-
-  ⚠️ PHEV / DM-i / DM-p POWER RULES:
-  - For BYD DM-i: the ICE engine is a GENERATOR (typically 81-115 kW / 110-154 HP)
-  - The TRACTION motor drives the wheels (typically 145-200 kW / 194-268 HP)
-  - TOTAL SYSTEM OUTPUT ≈ traction motor power (NOT engine + motor combined for DM-i)
-  - For DM-p: engine + motor CAN combine (AWD) — total is higher (e.g. 260-350 kW)
-  - If you calculate "337 HP" for a DM-i sedan by adding engine + motor → WRONG
-  - DM-i sedans/SUVs typically: 139-197 HP system output. 300+ HP is DM-p territory.
-  - Cross-check: if source says "145 kW motor + 102 kW engine" on DM-i → system output is ~145 kW (194 HP), NOT 247 kW
-  ═══════════════════════════════════════════════
-
-  ═══ POWERTRAIN SPECS GRID (use inside Performance section) ═══
-  After your prose paragraphs in Performance, add a data grid:
-  <div class="powertrain-specs">
-    <div class="ps-item"><div class="ps-label">POWERTRAIN TYPE</div><div class="ps-val">BEV / EREV / PHEV</div></div>
-    <div class="ps-item"><div class="ps-label">BATTERY</div><div class="ps-val">77 kWh (NMC)</div></div>
-    <div class="ps-item"><div class="ps-label">RANGE</div><div class="ps-val">620 km WLTP</div></div>
-    <div class="ps-item"><div class="ps-label">0-100 KM/H</div><div class="ps-val">3.8 sec</div></div>
-  </div>
-  Include ONLY fields you have confirmed data for. This replaces the ▸ bullet format.
+  ═══ POWERTRAIN SPECS TABLE (MANDATORY for this section) ═══
+  After your prose paragraphs in Performance, add a clean HTML table summarizing the technical specifications:
+  <table class="specs-table">
+    <tbody>
+      <tr><th>PLATFORM</th><td>SEA (Geely)</td></tr>
+      <tr><th>VOLTAGE ARCHITECTURE</th><td>800V</td></tr>
+      <tr><th>POWERTRAIN TYPE</th><td>BEV AWD</td></tr>
+      <tr><th>MOTOR(S)</th><td>Permanent Magnet Synchronous</td></tr>
+      <tr><th>SYSTEM OUTPUT</th><td>421 hp / 310 kW</td></tr>
+      <tr><th>TORQUE</th><td>440 Nm</td></tr>
+      <tr><th>BATTERY</th><td>77 kWh (NMC, CATL)</td></tr>
+      <tr><th>RANGE</th><td>620 km WLTP</td></tr>
+      <tr><th>0-100 KM/H</th><td>3.8 sec</td></tr>
+      <tr><th>DIMENSIONS</th><td>4,915 mm L × 1,905 mm W × 1,770 mm H</td></tr>
+      <tr><th>WHEELBASE</th><td>2,825 mm</td></tr>
+    </tbody>
+  </table>
+  Include ONLY fields you have confirmed data for. Do NOT output messy bullet points for specs. Use the table format above exclusively. Ensure it is placed right after your text paragraphs in the Performance section.
   ═══════════════════════════════════════════════
 
 - <h2>Design & Interior</h2> — Styling, materials, space.
@@ -672,9 +642,15 @@ Rules:
   e.g. "With 2,185 kg curb weight and AWD, expect planted highway stability but reduced agility in tight corners"
   This section brings the car to life — make the reader FEEL what it's like behind the wheel.
   If NO driving data exists → OMIT this section.
-- <h2>Pricing & Availability</h2> — CONCISE. If you have a confirmed starting price, you MUST use this HTML block (do NOT write the price as plain text):
+- <h2>Pricing & Availability</h2> — CONCISE. If you have a confirmed starting price, you MUST use this heading and include the pricing tag:
   <div class="price-tag"><span class="price-main">$34,300</span> <span class="price-note">Starting · Model Year 2026</span></div>
-  Then 2-3 bullet points about availability, markets, trim pricing.
+  If you have multiple trims or price points, output them in a styled table:
+  <div class="pricing-table">
+    <div class="pricing-row"><span class="p-tier">Entry-Level EREV</span><span class="p-price">CNY 146,900 (approx. $21,300)</span></div>
+    <div class="pricing-row"><span class="p-tier">Mid-Range BEV</span><span class="p-price">CNY 156,900 (approx. $22,700)</span></div>
+    <div class="pricing-row featured"><span class="p-tier">Flagship BEV (800V)</span><span class="p-price">CNY 176,900 (approx. $25,500)</span></div>
+  </div>
+  Do NOT use plain <ul> bullet lists for prices or trims. Always use the .pricing-table format. If you don't have multiple trims, you can omit the .pricing-table and just write a short paragraph.
   Do NOT fabricate MSRP prices. If pricing is unknown, say "pricing has not been announced yet."
 
 ═══ PROS & CONS (use styled blocks, NOT plain <ul>) ═══
@@ -1008,7 +984,13 @@ OMIT any section where you have NO real data.
 - <h2>Design & Interior</h2> — Only what is visible/confirmed. Compare to ONE car if genuine.
 - <h2>Technology & Features</h2> — SPECIFIC items from the press release. If NONE confirmed → OMIT.
 - <h2>Why This Matters</h2> — Market context: what gap does this fill? Why should readers care?
-- <h2>Pricing & Availability</h2> — ONLY confirmed data. Use <ul><li> tags.
+- <h2>Pricing & Availability</h2> — ONLY confirmed data. Use the following structured tags if you have pricing:
+  <div class="price-tag"><span class="price-main">$34,300</span> <span class="price-note">Starting</span></div>
+  <div class="pricing-table">
+    <div class="pricing-row"><span class="p-tier">Standard Range</span><span class="p-price">CNY 200,000</span></div>
+    <div class="pricing-row featured"><span class="p-tier">Long Range AWD</span><span class="p-price">CNY 250,000</span></div>
+  </div>
+  Do NOT use plain <ul> bullet lists for pricing trims.
   If pricing unknown, say "pricing has not yet been announced."
 - <h2>Pros & Cons</h2> — Punchy, specific, REAL attributes only. Use <ul><li> tags.
   Cons must describe REAL WEAKNESSES — not missing info or product stage:

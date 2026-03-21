@@ -422,6 +422,7 @@ class VehicleSpecs(models.Model):
         ('EV', 'Electric Vehicle'),
         ('Hybrid', 'Hybrid'),
         ('PHEV', 'Plug-in Hybrid'),
+        ('EREV', 'Extended Range EV'),
         ('Gas', 'Gasoline'),
         ('Diesel', 'Diesel'),
         ('Hydrogen', 'Hydrogen'),

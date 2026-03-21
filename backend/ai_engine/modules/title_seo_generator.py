@@ -97,6 +97,7 @@ ARTICLE PREVIEW:
 - Do NOT write a long essay. Just 2-3 punchy sentences.
 
 ═══ OUTPUT FORMAT (strict) ═══
+You MUST output EXACTLY these three keys, starting at the beginning of the line. DO NOT use markdown bolding like **SUMMARY:**.
 TITLE: [your title here]
 SEO_DESCRIPTION: [your description here, STRICTLY 150-160 chars]
 SUMMARY: [your 150-200 char summary here]

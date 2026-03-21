@@ -30,6 +30,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   const [reformatting, setReformatting] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [regeneratingSeo, setRegeneratingSeo] = useState(false);
   const [autoResolving, setAutoResolving] = useState(false);
 
   const [generatingAI, setGeneratingAI] = useState<number | null>(null);
@@ -587,9 +588,34 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                 setRegenerating(false);
               }
             }}
+            onRegenerateSeo={async () => {
+              if (!articleId || !formData.content) return;
+              if (!confirm('🪄 Generate perfect-length Title, Summary, and SEO description from the current article text?')) return;
+              setRegeneratingSeo(true);
+              try {
+                const { data } = await api.post(`/articles/${articleId}/regenerate-seo/`, {
+                  content: formData.content,
+                });
+                if (data.success) {
+                  setFormData(prev => ({
+                    ...prev,
+                    title: data.title || prev.title,
+                    summary: data.summary || prev.summary,
+                    seo_description: data.seo_description || prev.seo_description,
+                  }));
+                  alert(`✅ ${data.message}`);
+                } else {
+                  alert(`❌ ${data.message || 'SEO Regeneration failed'}`);
+                }
+              } catch (err: any) {
+                alert(`❌ Error: ${err.response?.data?.message || err.message}`);
+              }
+              setRegeneratingSeo(false);
+            }}
             isReformatting={reformatting}
             isEnriching={enriching}
             isRegenerating={regenerating}
+            isRegeneratingSeo={regeneratingSeo}
             hasYoutubeUrl={!!formData.youtube_url}
             isAutoResolving={autoResolving}
             onAutoResolve={async () => {

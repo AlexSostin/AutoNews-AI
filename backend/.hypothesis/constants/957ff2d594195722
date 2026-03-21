@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0121_add_erev_fuel_type.py
+# hypothesis_version: 6.151.9
+
+['Diesel', 'EREV', 'EV', 'Electric Vehicle', 'Extended Range EV', 'Gas', 'Gasoline', 'Hybrid', 'Hydrogen', 'PHEV', 'Plug-in Hybrid', 'fuel_type', 'news', 'vehiclespecs']

@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/management/commands/backup_db.py
+# hypothesis_version: 6.151.9
+
+[300, 1024, 5432, '%Y-%m-%d_%H%M', '--keep', '--no-owner', '--no-privileges', '--output', '--upload', '-Fc', '-U', '-d', '-h', '-p', '/', '/tmp/db_backups', 'DATABASE_URL', 'PGPASSWORD', 'db_backups', 'freshmotors_*.sql.gz', 'keep', 'output', 'pg_dump', 'raw', 'store_true', 'upload', 'wb']

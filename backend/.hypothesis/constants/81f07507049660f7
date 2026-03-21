@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/generation_errors.py
+# hypothesis_version: 6.151.9
+
+[300, 500, '429', 'All steps succeeded.', 'GenerationError', 'ab_variants', 'context_length', 'critical', 'deep_specs', 'degradation_report', 'error', 'error_step', 'events', 'has_critical', 'is_token_limit', 'max tokens', 'needs_retry', 'needs_token_retry', 'next_js_revalidation', 'quality_gate', 'quota exceeded', 'rate limit', 'resource_exhausted', 'retry_after_seconds', 'screenshot', 'step', 'success', 'token_count', 'token_tracking', 'too many tokens', 'unknown', 'video_facts', 'web_context', '🔴 CRITICAL', '🟡 non-critical']

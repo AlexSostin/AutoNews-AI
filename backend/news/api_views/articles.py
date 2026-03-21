@@ -277,6 +277,10 @@ class ArticleViewSet(
                     instance.image_3 = None
                     changed = True
                     
+                from ai_engine.modules.image_placeholders import replace_inline_images_in_article
+                if replace_inline_images_in_article(instance):
+                    changed = True
+                    
                 if changed:
                     instance.save()
                     serializer = self.get_serializer(instance)

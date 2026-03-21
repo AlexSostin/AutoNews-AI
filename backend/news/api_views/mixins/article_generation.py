@@ -545,6 +545,90 @@ OUTPUT: Return the COMPLETE reformatted HTML with every word preserved. Do NOT t
                 'message': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser],
+            url_path='regenerate-seo')
+    def regenerate_seo(self, request, slug=None):
+        """
+        Regenerate SEO fields (title, summary, seo_description) based on the current body text.
+        """
+        import json
+        article = self.get_object()
+        content = request.data.get('content', article.content)
+        
+        if not content or len(content) < 100:
+            return Response({'success': False, 'message': 'Content too short to generate SEO'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        system_prompt = "You are an expert automotive SEO copywriter. Output strictly valid JSON without markdown wrapping."
+        
+        prompt = f"""Read this automotive article and generate high-converting SEO fields for it.
+
+ARTICLE:
+{sanitize_for_prompt(content, max_length=15000)}
+
+Please output exactly this JSON format:
+{{
+  "title": "A 50-60 character punchy headline",
+  "summary": "A roughly 20-word summary of the most important specs/points for a UI card",
+  "seo_description": "A 140-150 character meta description designed for Google search"
+}}
+"""
+        try:
+            from ai_engine.modules.ai_provider import get_light_provider
+            ai = get_light_provider()
+            result = ai.generate_completion(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                temperature=0.2,
+                max_tokens=300,
+                caller='regenerate_seo'
+            )
+            
+            cleaned = result.strip()
+            cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+            cleaned = re.sub(r'\s*```$', '', cleaned)
+            
+            data = json.loads(cleaned)
+            
+            updated_fields = []
+            if 'title' in data and data['title']:
+                article.title = data['title']
+                updated_fields.append('title')
+            if 'summary' in data and data['summary']:
+                article.summary = data['summary']
+                updated_fields.append('summary')
+            if 'seo_description' in data and data['seo_description']:
+                article.seo_description = data['seo_description']
+                updated_fields.append('seo_description')
+                
+            if updated_fields:
+                article.save(update_fields=updated_fields + ['updated_at'])
+                try:
+                    invalidate_article_cache(article)
+                except Exception:
+                    pass
+            
+            try:
+                from news.models import AdminActionLog
+                AdminActionLog.log(article, request.user, 'edit_save', details={'note': 'Regenerated SEO with AI', 'fields': updated_fields})
+            except Exception:
+                pass
+                
+            return Response({
+                'success': True,
+                'title': article.title,
+                'summary': article.summary,
+                'seo_description': article.seo_description,
+                'message': 'SEO and Summary successfully regenerated!'
+            })
+            
+        except Exception as e:
+            logger.error(f'Regenerate SEO failed: {e}')
+            return Response({
+                'success': False,
+                'message': f'Failed to generate SEO: {str(e)}',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=False, methods=['post'], permission_classes=[IsAdminUser],
             url_path='auto-fill-metadata')
     def auto_fill_metadata(self, request):

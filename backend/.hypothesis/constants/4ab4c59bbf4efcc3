@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/image_placeholders.py
+# hypothesis_version: 6.151.9
+
+[200, '"', '&quot;', '<[^>]+>', '<h2[^>]*>', '<p>\\s*</p>', 'Image', '\\n\\s*\\n\\s*\\n', '\\{\\{IMAGE_\\d+\\}\\}', 'compare-grid', 'content', 'fm-verdict', 'http', 'image_2', 'image_3', 'powertrain-specs', 'price-tag', 'pros-cons', 'spec-bar', 'title', 'url', '{{IMAGE', '{{IMAGE_2}}', '{{IMAGE_3}}']

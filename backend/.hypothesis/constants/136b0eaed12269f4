@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/article_self_review.py
+# hypothesis_version: 6.151.9
+
+[0.3, 0.7, 0.85, 200, 300, 400, 16384, '-->', '<!-- Generated', '</a>', '</article>', '</div>', '</div>\\s*$', '</em>', '</h2>', '</h3>', '</li>', '</p>', '</section>', '</span>', '</span></div>', '</strong>', '</table>', '</tbody>', '</td>', '</th>', '</tr>', '</ul>', '<[^>]+>', '<h2[^>]*>.*?</h2>', '<p', 'article_review', 'article_verdict', 'gemini']

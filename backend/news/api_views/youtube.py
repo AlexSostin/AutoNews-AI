@@ -100,6 +100,9 @@ class YouTubeChannelViewSet(viewsets.ModelViewSet):
             # Fetch latest 10 videos
             videos = client.get_latest_videos(identifier, max_results=10)
             
+            # Enrich with duration and view count
+            videos = client.enrich_videos_metadata(videos)
+            
             # Enrich with article status (published / draft / pending / null)
             if videos:
                 from news.models import Article

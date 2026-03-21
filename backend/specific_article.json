@@ -1,0 +1,6 @@
+✓ Sessions stored in Redis
+✓ Cloudinary configured: cloud=dj3achp25
+✓ Cloudinary storage configured for media files
+INFO 2026-03-21 17:49:18,380 AXES: BEGIN version 8.3.1, blocking by username or ip_address
+70 objects imported automatically (use -v 2 for details).
+

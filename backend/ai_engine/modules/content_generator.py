@@ -610,9 +610,42 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                 _make = _clean(specs.get('make'))
                 _model = _clean(specs.get('model'))
                 _year = _clean(specs.get('year'))
-                _hp = _clean(specs.get('horsepower'))
+                _hp_raw = _clean(specs.get('horsepower'))
                 _price = _clean(specs.get('price'))
                 _range = _clean(specs.get('range'))
+
+                # Normalize hp: prefer hp value; if kW only, convert; always append unit
+                _hp = ''
+                if _hp_raw:
+                    _hp_nums = re.findall(r'(\d+)', _hp_raw)
+                    _has_hp = 'hp' in _hp_raw.lower() or 'bhp' in _hp_raw.lower() or 'ps' in _hp_raw.lower()
+                    _has_kw = 'kw' in _hp_raw.lower()
+                    if _hp_nums:
+                        if _has_hp:
+                            # Already has hp unit, find the hp number
+                            _hp_match = re.search(r'(\d+)\s*(?:hp|bhp|ps)', _hp_raw, re.IGNORECASE)
+                            _hp = f"{_hp_match.group(1)} hp" if _hp_match else f"{_hp_nums[0]} hp"
+                        elif _has_kw:
+                            # kW only — convert to hp for display (1 kW ≈ 1.341 hp)
+                            _kw_val = int(_hp_nums[0])
+                            _hp = f"{round(_kw_val * 1.341)} hp"
+                        else:
+                            # Bare number — assume hp if in realistic hp range
+                            _n = int(_hp_nums[0])
+                            if 50 <= _n <= 2000:
+                                _hp = f"{_n} hp"
+
+                # If specs are empty (e.g. promo video), try extracting from generated HTML spec bar
+                if not _hp:
+                    _m = re.search(r'<div class="spec-label">POWER</div>\s*<div class="spec-value">([^<]+)</div>', article_html or '', re.IGNORECASE)
+                    if _m: _hp = _clean(_m.group(1))
+                if not _range:
+                    _m = re.search(r'<div class="spec-label">RANGE</div>\s*<div class="spec-value">([^<]+)</div>', article_html or '', re.IGNORECASE)
+                    if _m: _range = _clean(_m.group(1))
+                if not _price:
+                    _m = re.search(r'<div class="spec-label">(?:\w+\s+)?PRICE</div>\s*<div class="spec-value">([^<]+)</div>', article_html or '', re.IGNORECASE)
+                    if _m: _price = _clean(_m.group(1))
+                
                 if _make and _model:
                     _name = f"The {_year + ' ' if _year else ''}{_make} {_model}"
                     _parts = [_name]
@@ -631,7 +664,7 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         
         # 6.1 SEO description — use AI-generated if available, else template fallback
         seo_description = ''
-        if ai_seo_desc and len(ai_seo_desc) >= 100:
+        if ai_seo_desc and len(ai_seo_desc) >= 80:
             seo_description = ai_seo_desc
             # POST-VALIDATION: ensure SEO description fits 160 chars and ends properly
             if len(seo_description) > 160:
@@ -705,6 +738,9 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         # 8.5. Inject inline image placeholders into article body
         # Places {{IMAGE_2}} and {{IMAGE_3}} between h2 sections at logical positions
         if len(screenshot_paths) >= 2:
+            # Primary: body_type only — fuel_type matching was causing too many misses
+            # (EREV cars stored inconsistently in DB; price proximity handles segment well)
+            # fuel_type is preserved as a soft signal in the weight function (body_bonus)
             try:
                 article_html = _inject_inline_image_placeholders(article_html, len(screenshot_paths) - 1)
             except Exception as img_err:

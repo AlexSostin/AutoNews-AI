@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/image_placeholders.py
+# hypothesis_version: 6.151.9
+
+[200, '<[^>]+>', '<h2[^>]*>', 'compare-grid', 'fm-verdict', 'powertrain-specs', 'price-tag', 'pros-cons', 'spec-bar', '{{IMAGE_2}}', '{{IMAGE_3}}']

@@ -31,7 +31,10 @@ GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
 gemini_client = None
 if GEMINI_API_KEY and GENAI_AVAILABLE:
     try:
-        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        gemini_client = genai.Client(
+            api_key=GEMINI_API_KEY,
+            http_options={'timeout': 150000}  # Timeout is in milliseconds (150s)
+        )
     except Exception as e:
         print(f"Warning: Failed to create Gemini client: {e}")
 
@@ -46,6 +49,7 @@ PRO_CALLERS = frozenset({
     'article_review',
     'article_enhance',
     'comparison',
+    'article_verdict_fallback',
 })
 
 # Model cascades by tier

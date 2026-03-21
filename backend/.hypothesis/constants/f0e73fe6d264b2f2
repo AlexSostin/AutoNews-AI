@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/ai_provider.py
+# hypothesis_version: 6.151.9
+
+[0.8, 250, 500, 1000, 2000, 3000, 10000, 86400, 150000, 'FLASH', 'GEMINI_API_KEY', 'GEMINI_MODEL', 'Google Gemini', 'PRO', 'article_enhance', 'article_generate', 'article_review', 'available', 'comparison', 'display_name', 'gemini', 'gemini-2.0-flash', 'gemini-2.5-flash', 'model', 'name', 'prompt_token_count', 'rpd', 'rpm', 'rss_generate', 'text', 'timeout', 'unknown', 'usage_metadata']

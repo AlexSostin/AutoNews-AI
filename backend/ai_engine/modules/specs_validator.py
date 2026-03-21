@@ -120,7 +120,8 @@ def _get_competitor_context_safe(specs: dict, send_progress) -> tuple:
         _fuel_map = {
             'ev': 'EV', 'electric': 'EV', 'bev': 'EV',
             'phev': 'PHEV', 'plug-in': 'PHEV',
-            'hybrid': 'Hybrid', 'erev': 'Hybrid',
+            'hybrid': 'Hybrid',
+            'erev': 'EREV', 'rev': 'EREV', 'range extender': 'EREV',
             'gas': 'Gas', 'petrol': 'Gas', 'ice': 'Gas',
             'diesel': 'Diesel', 'hydrogen': 'Hydrogen',
         }

@@ -348,47 +348,8 @@ class PendingArticleViewSet(viewsets.ModelViewSet):
                 logger.warning(f"[APPROVE] No images found in pending article")
             
             # Replace inline image placeholders {{IMAGE_2}}/{{IMAGE_3}} with <figure> tags
-            if '{{IMAGE_2}}' in article.content or '{{IMAGE_3}}' in article.content:
-                updated_content = article.content
-                inline_replaced = 0
-                for slot, field_name in [(2, 'image_2'), (3, 'image_3')]:
-                    placeholder = '{{IMAGE_' + str(slot) + '}}'
-                    if placeholder not in updated_content:
-                        continue
-                    img_field = getattr(article, field_name, None)
-                    img_url = ''
-                    if img_field:
-                        try:
-                            img_url = img_field.url if hasattr(img_field, 'url') and img_field.name else ''
-                        except ValueError:
-                            img_url = ''
-                    if img_url:
-                        figure_html = (
-                            f'<figure class="article-inline-image">'
-                            f'<img src="{img_url}" alt="{article.title}" loading="lazy" />'
-                            f'</figure>'
-                        )
-                        updated_content = updated_content.replace(placeholder, figure_html)
-                        inline_replaced += 1
-                    else:
-                        updated_content = updated_content.replace(placeholder, '')
-                if inline_replaced > 0:
-                    article.content = updated_content
-                    article.save(update_fields=['content'])
-                    logger.info(f"[APPROVE] 📸 {inline_replaced} inline image(s) embedded into article content")
-            
-            # Safety-net: remove ANY leftover {{IMAGE_N}} placeholders
-            # (can remain if images failed to download or weren't available)
-            import re as _re
-            leftover_pattern = _re.compile(r'\{\{IMAGE_\d+\}\}')
-            if leftover_pattern.search(article.content):
-                cleaned = leftover_pattern.sub('', article.content)
-                # Also clean up empty paragraphs left behind
-                cleaned = _re.sub(r'<p>\s*</p>', '', cleaned)
-                cleaned = _re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned)
-                article.content = cleaned
-                article.save(update_fields=['content'])
-                logger.info("[APPROVE] 🧹 Cleaned leftover {{IMAGE_N}} placeholders")
+            from ai_engine.modules.image_placeholders import replace_inline_images_in_article
+            replace_inline_images_in_article(article)
             
             # Auto-create gallery images from extra screenshots (beyond the 3 inline)
             gallery_images = (pending.specs or {}).get('gallery_images', [])

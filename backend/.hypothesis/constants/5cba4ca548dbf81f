@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/predecessor_lookup.py
+# hypothesis_version: 6.151.9
+
+[100, ' hp', ' kWh', ' km', '$', '+', ',', '-id', '-model_year', '0-100', '?', 'Battery', 'CNY', 'EUR', 'Power', 'Range', 'USD', 'Weight', '[\\d,]+', 'acceleration_0_100', 'battery_kwh', 'body_type', 'currency', 'horsepower', 'hp', 'kWh', 'kg', 'km', 'length_mm', 'make', 'model', 'power_hp', 'power_kw', 'price', 'price_from', 'range', 'range_km', 's', 'top_speed', 'torque_nm', 'trim', 'weight_kg', 'wheelbase_mm', 'year', '¥', '€']

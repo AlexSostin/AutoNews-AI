@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/competitor_lookup.py
+# hypothesis_version: 6.151.9
+
+[0.1, 0.2, 0.4, 0.7, 0.8, 1.0, 1.25, 1.35, 1.6, 1.7, 2.0, 3.0, ' / ', ': ', 'CLTC', 'EPA', 'WLTP', 'article', 'avg_engagement', 'competitor_make', 'competitor_model', 'id', 'make', 'model', 'pair_count', 'power_hp', 'price_usd', 'range_km', 'rule_based', 'trim']

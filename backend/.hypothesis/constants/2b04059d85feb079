@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/admin_2fa_middleware.py
+# hypothesis_version: 6.151.9
+
+['/admin/', '/admin/jsi18n/', '/admin/login/', '/admin/logout/', '/admin/verify-2fa/', 'POST', 'admin_2fa_verified', 'news', 'next', 'totp_code', 'user']

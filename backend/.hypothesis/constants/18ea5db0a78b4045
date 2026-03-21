@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/generation_progress.py
+# hypothesis_version: 6.151.9
+
+[600, 'PROGRESS', 'message', 'progress', 'running', 'send_progress', 'status', 'step', 'type']

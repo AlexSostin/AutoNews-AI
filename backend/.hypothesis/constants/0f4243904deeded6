@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/ai_engine/modules/specs_validator.py
+# hypothesis_version: 6.151.9
+
+[1.5, 500, 2018, 2028, 2500, '-id', '0-100 (s)', 'Battery (kWh)', 'Body Type', 'Diesel', 'Drivetrain', 'EREV', 'EV', 'Fuel Type', 'Gas', 'Hybrid', 'Hydrogen', 'Not specified', 'PHEV', 'Power (hp)', 'Power (kW)', 'Torque (Nm)', 'Trim', 'Year', '[\\d.]+', '\\d+', '\\d{4}', 'acceleration', 'acceleration_0_100', 'battery_kwh', 'bev', 'body_type', 'diesel', 'drivetrain', 'electric', 'erev', 'ev', 'fuel_type', 'gas', 'horsepower', 'hybrid', 'hydrogen', 'ice', 'make', 'model', 'model_year', 'petrol', 'phev', 'plug-in', 'power_hp', 'power_kw', 'powertrain_type', 'price_usd', 'range', 'range extender', 'rev', 'top_speed', 'torque', 'torque_nm', 'trim_name', 'year']

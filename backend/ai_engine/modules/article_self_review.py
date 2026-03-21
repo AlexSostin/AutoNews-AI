@@ -118,6 +118,36 @@ OUTPUT RULES:
             print(f"  ⚠️ Review trimmed too aggressively ({reviewed_words} vs {word_count} words, >15% loss), keeping original")
             return html
 
+        # Check if the reviewed HTML ends prematurely (no closing tags)
+        stripped_end = reviewed.rstrip()
+        
+        # Determine if it's cleanly closed. The end might be a comment or an alt text block, or a closing tag.
+        is_clean_end = (
+            stripped_end.endswith('</div>') or 
+            stripped_end.endswith('</p>') or 
+            stripped_end.endswith('</ul>') or 
+            stripped_end.endswith('</li>') or
+            stripped_end.endswith('-->') or
+            stripped_end.endswith('</a>') or
+            stripped_end.endswith('</h2>') or
+            stripped_end.endswith('</h3>') or
+            stripped_end.endswith('</th>') or
+            stripped_end.endswith('</td>') or
+            stripped_end.endswith('</tr>') or
+            stripped_end.endswith('</tbody>') or
+            stripped_end.endswith('</table>') or
+            stripped_end.endswith('</section>') or
+            stripped_end.endswith('</article>') or
+            stripped_end.endswith('</span>') or
+            stripped_end.endswith('</strong>') or
+            stripped_end.endswith('</em>') or
+            stripped_end.endswith('</span></div>')
+        )
+        
+        if not is_clean_end:
+            print(f"  ⚠️ Review returned truncated HTML (missing closing tags at the very end). Keeping original.")
+            return html
+
         elapsed = round(_time.time() - start, 1)
         diff = reviewed_words - word_count
         diff_str = f"+{diff}" if diff >= 0 else str(diff)
@@ -184,21 +214,20 @@ def _ensure_verdict_written(html: str, analysis_data, provider: str = 'gemini') 
     )
 
     # ── Step 3: Generate verdict via AI ───────────────────────────────────
-    article_text = re.sub(r'<[^>]+>', ' ', html)[:2500]
+    verdict_prompt = f"""You are an expert automotive journalist writing the final 'FreshMotors Verdict' section for an article.
 
-    verdict_prompt = f"""You are writing the final section of an automotive article for FreshMotors.com.
+<article_context_data>
+{str(analysis_data)[:15000]}
+</article_context_data>
 
-Here is the article so far (plain text summary):
-{article_text}
-
-Write ONLY the FreshMotors Verdict section — a single paragraph of 70-100 words.
+Write ONLY the FreshMotors Verdict section — a single paragraph of 70-100 words summarizing the vehicle and giving a final recommendation.
 Rules:
 - Be specific and opinionated about WHO should buy this car and WHY
 - Mention 1-2 real strengths (use specific specs from the article)  
 - Mention 1 genuine weakness or caveat
 - End with a clear recommendation
 - Write in plain prose — NO bullet points, NO subheadings
-- Output ONLY the verdict paragraph wrapped in <p> tags, nothing else
+- Output ONLY the HTML paragraph wrapped in <p> tags, nothing else
 - Do NOT include the <h2>FreshMotors Verdict</h2> heading — just the paragraph
 
 Example of good verdict:
@@ -224,6 +253,10 @@ Example of good verdict:
             '</div>'
         )
 
+        verdict_word_count = len(verdict_para.split())
+        if verdict_word_count < 30:
+            raise ValueError(f"Verdict too short ({verdict_word_count} words < 30) — forcing fallback")
+            
         # Insert before alt-texts div, comment tag, or at the end
         alt_pos = html.find('<div class="alt-texts"')
         comment_pos = html.find('<!-- Generated')
@@ -238,30 +271,29 @@ Example of good verdict:
         else:
             html = html.rstrip() + '\n' + verdict_block
 
-        verdict_word_count = len(verdict_para.split())
         print(f"  ✅ Verdict injected ({verdict_word_count} words)")
-        if verdict_word_count < 60:
-            print(f"  ⚠️ Verdict too short ({verdict_word_count} words < 60) — will regenerate")
 
     try:
         ai = get_light_provider()
         verdict_para = ai.generate_completion(
             prompt=verdict_prompt,
-            system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph as instructed.",
+            system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph. DO NOT auto-complete the article text. Write a FRESH verdict.",
             temperature=0.7,
             max_tokens=300,
             caller='article_verdict'
         )
         if verdict_para:
             _inject_verdict(verdict_para)
+        else:
+            raise ValueError("Empty verdict from light provider")
     except Exception as e:
-        print(f"  ⚠️ Verdict injector failed: {e}")
+        print(f"  ⚠️ Verdict injector failed/short: {e}")
         try:
-            print("  🔄 Retrying verdict with Gemini fallback...")
+            print("  🔄 Retrying verdict with Gemini Pro fallback...")
             fallback_ai = get_ai_provider('gemini')
             verdict_para = fallback_ai.generate_completion(
                 prompt=verdict_prompt,
-                system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph as instructed.",
+                system_prompt="You are a precise automotive journalist. Output only a single <p> paragraph. DO NOT auto-complete the article text.",
                 temperature=0.7,
                 max_tokens=300,
                 caller='article_verdict_fallback'

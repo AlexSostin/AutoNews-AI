@@ -67,11 +67,9 @@ def get_competitor_context(
         # ── Step 2: relevant segment filter ─────────────────────────────────
         segment_qs = qs
 
-        # Primary: same fuel_type
-        if fuel_type:
-            segment_qs = segment_qs.filter(fuel_type__iexact=fuel_type)
-
-        # Secondary: same body_type
+        # Primary: body_type only — fuel_type was causing too many misses
+        # because EREV/PHEV/Hybrid cars are stored inconsistently in DB.
+        # Price proximity (Step 4) and body_type are reliable enough signals.
         if body_type:
             segment_qs = segment_qs.filter(body_type__iexact=body_type)
 
@@ -90,12 +88,7 @@ def get_competitor_context(
                     segment_qs = fallback_qs
                     count = segment_qs.count()
             
-            if count < 2 and fuel_type:
-                fallback_qs = qs.filter(fuel_type__iexact=fuel_type)
-                if fallback_qs.count() >= 2:
-                    segment_qs = fallback_qs
-                    count = segment_qs.count()
-
+            # Fallback: price range (±60%) regardless of body type
             # Price-priority fallback: find ANY car in a similar price range
             if count < 2 and price_usd and price_usd > 0:
                 price_lo = int(price_usd * 0.4)
@@ -126,10 +119,10 @@ def get_competitor_context(
             if power_qs.count() >= 2:
                 segment_qs = power_qs
 
-        # ── Step 4: price proximity filter (±50%) ──────────────────────────
+        # ── Step 4: price proximity filter (-20% / +25%) ──────────────────────────
         if price_usd and price_usd > 0:
-            lo = int(price_usd * 0.5)
-            hi = int(price_usd * 1.5)
+            lo = int(price_usd * 0.8)
+            hi = int(price_usd * 1.25)
             price_qs = segment_qs.filter(price_usd_from__gte=lo, price_usd_from__lte=hi)
             if price_qs.count() >= 2:
                 segment_qs = price_qs
@@ -205,7 +198,7 @@ def get_competitor_context(
         import random
 
         def _candidate_weight(v):
-            """Calculate selection weight: body match × engagement × spec richness."""
+            """Calculate selection weight: body match × engagement × price proximity × spec richness."""
             key = (v.make.lower(), v.model_name.lower())
             avg_eng, _ = score_map.get(key, (None, 0))
 
@@ -216,16 +209,25 @@ def get_competitor_context(
             # Engagement score (default 1.0 for unknown)
             eng_weight = max(avg_eng, 0.1) if avg_eng is not None else 1.0
 
+            # Price proximity bonus (massive weight for very close price matches)
+            price_bonus = 1.0
+            if price_usd and price_usd > 0 and v.price_usd_from:
+                diff_pct = abs(v.price_usd_from - price_usd) / price_usd
+                if diff_pct <= 0.10:
+                    price_bonus = 3.0  # Within 10%
+                elif diff_pct <= 0.20:
+                    price_bonus = 2.0  # Within 20%
+
             # Spec richness (1-5)
             spec_richness = sum([
                 1 if v.power_hp else 0,
-                1 if v.range_wltp or v.range_km else 0,
+                1 if v.range_wltp or v.range_km or v.combined_range_km else 0,
                 1 if v.price_usd_from else 0,
                 1 if v.battery_kwh else 0,
                 1 if v.acceleration_0_100 else 0,
             ]) or 1  # minimum 1
 
-            return body_bonus * eng_weight * spec_richness
+            return body_bonus * eng_weight * price_bonus * spec_richness
 
         # ── Step 7: weighted random selection ────────────────────────────────
         # ALL slots are picked via weighted random sampling.
@@ -260,8 +262,8 @@ def get_competitor_context(
         # wildly different from the subject car. This prevents nonsensical
         # comparisons (e.g. $22K SUV vs $43K luxury sedan).
         if price_usd and price_usd > 0:
-            price_lo = int(price_usd * 0.4)
-            price_hi = int(price_usd * 1.7)  # tightened: was 2.5x → 2.0x → 1.7x
+            price_lo = int(price_usd * 0.70)
+            price_hi = int(price_usd * 1.35)  # tightened: was 1.7x → 1.35x (-30% / +35%)
             before_count = len(selected)
             selected = [
                 c for c in selected
@@ -337,7 +339,12 @@ def _format_competitor_line(v) -> tuple[str, dict]:
         range_label = "EPA"
     elif v.range_cltc:
         range_label = "CLTC"
-    if range_val:
+        
+    if v.combined_range_km and range_val:
+        spec_parts.append(f"{range_val} km EV / {v.combined_range_km} km Combined")
+    elif v.combined_range_km:
+        spec_parts.append(f"{v.combined_range_km} km Combined")
+    elif range_val:
         spec_parts.append(f"{range_val} km{' ' + range_label if range_label else ''}")
 
     # Battery

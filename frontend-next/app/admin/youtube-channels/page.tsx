@@ -53,6 +53,7 @@ interface Video {
   thumbnail: string;
   published_at: string;
   url: string;
+  duration_seconds?: number;
   article_status?: 'published' | 'pending' | 'draft' | null;
   status?: 'idle' | 'loading' | 'success' | 'error';
   errorMsg?: string;
@@ -60,6 +61,15 @@ interface Video {
   pendingId?: number;
   progressMessage?: string;
   progressPercent?: number;
+}
+
+function formatDuration(seconds?: number) {
+  if (!seconds) return '';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export default function YouTubeChannelsPage() {
@@ -727,12 +737,17 @@ export default function YouTubeChannelsPage() {
                 <div className="space-y-4">
                   {scannedVideos.map((video) => (
                     <div key={video.id} className="flex gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                      <div className="w-40 flex-shrink-0">
+                      <div className="w-40 flex-shrink-0 relative">
                         <img
                           src={video.thumbnail}
                           alt={video.title}
                           className="w-full h-24 object-cover rounded-lg shadow-sm"
                         />
+                        {video.duration_seconds && (
+                          <div className="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-[11px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                            {formatDuration(video.duration_seconds)}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <h3 className="font-bold text-gray-900 line-clamp-1">{video.title}</h3>

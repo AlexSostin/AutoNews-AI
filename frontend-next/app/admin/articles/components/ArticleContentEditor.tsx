@@ -38,11 +38,13 @@ interface ArticleContentEditorProps {
     onReformat: () => void;
     onEnrich: () => void;
     onRegenerate: () => void;
+    onRegenerateSeo?: () => void;
     onAutoFill?: () => void;
     onAutoResolve?: () => void;
     isReformatting: boolean;
     isEnriching: boolean;
     isRegenerating: boolean;
+    isRegeneratingSeo?: boolean;
     isAutoFilling?: boolean;
     isAutoResolving?: boolean;
     hasYoutubeUrl: boolean;
@@ -60,11 +62,13 @@ const CustomToolbar = ({
     onReformat,
     onEnrich,
     onRegenerate,
+    onRegenerateSeo,
     onAutoFill,
     onAutoResolve,
     isReformatting,
     isEnriching,
     isRegenerating,
+    isRegeneratingSeo,
     isAutoFilling,
     isAutoResolving,
     hasYoutubeUrl,
@@ -73,11 +77,13 @@ const CustomToolbar = ({
     onReformat: () => void;
     onEnrich: () => void;
     onRegenerate: () => void;
+    onRegenerateSeo?: () => void;
     onAutoFill?: () => void;
     onAutoResolve?: () => void;
     isReformatting: boolean;
     isEnriching: boolean;
     isRegenerating: boolean;
+    isRegeneratingSeo?: boolean;
     isAutoFilling?: boolean;
     isAutoResolving?: boolean;
     hasYoutubeUrl: boolean;
@@ -112,6 +118,18 @@ const CustomToolbar = ({
             {isRegenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             {isRegenerating ? 'Regenerating...' : '🔄 Regenerate'}
         </button>
+        {onRegenerateSeo && (
+            <button
+                type="button"
+                onClick={onRegenerateSeo}
+                disabled={isRegeneratingSeo || isReformatting || !content.trim()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg text-xs font-bold hover:from-blue-600 hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                title="Regenerate Title, Summary and SEO Description from article body"
+            >
+                {isRegeneratingSeo ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                {isRegeneratingSeo ? 'Generating...' : '🪄 Regenerate SEO'}
+            </button>
+        )}
         {onAutoFill && (
             <button
                 type="button"
@@ -146,11 +164,13 @@ export function ArticleContentEditor({
     onReformat,
     onEnrich,
     onRegenerate,
+    onRegenerateSeo,
     onAutoFill,
     onAutoResolve,
     isReformatting,
     isEnriching,
     isRegenerating,
+    isRegeneratingSeo,
     isAutoFilling,
     isAutoResolving,
     hasYoutubeUrl,
@@ -170,11 +190,13 @@ export function ArticleContentEditor({
                     onReformat={onReformat}
                     onEnrich={onEnrich}
                     onRegenerate={onRegenerate}
+                    onRegenerateSeo={onRegenerateSeo}
                     onAutoFill={onAutoFill}
                     onAutoResolve={onAutoResolve}
                     isReformatting={isReformatting}
                     isEnriching={isEnriching}
                     isRegenerating={isRegenerating}
+                    isRegeneratingSeo={isRegeneratingSeo}
                     isAutoFilling={isAutoFilling}
                     isAutoResolving={isAutoResolving}
                     hasYoutubeUrl={hasYoutubeUrl}

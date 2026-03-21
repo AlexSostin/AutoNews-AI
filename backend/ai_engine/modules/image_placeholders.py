@@ -102,3 +102,64 @@ def _inject_inline_image_placeholders(html: str, max_images: int = 2) -> str:
 
     print(f"  📸 Inserted {placed} inline image placeholder(s) into article body")
     return html
+
+def replace_inline_images_in_article(article) -> bool:
+    """
+    Replace {{IMAGE_2}} and {{IMAGE_3}} placeholders with actual <figure> tags
+    if the article has those images uploaded. Cleans up any unfulfilled placeholders.
+    Saves the article if changes were made.
+    """
+    if not getattr(article, 'content', None):
+        return False
+        
+    import re
+    if '{{IMAGE' not in article.content:
+        return False
+
+    updated_content = article.content
+    inline_replaced = 0
+
+    for slot, field_name in [(2, 'image_2'), (3, 'image_3')]:
+        placeholder = f'{{{{IMAGE_{slot}}}}}'
+        if placeholder not in updated_content:
+            continue
+            
+        img_field = getattr(article, field_name, None)
+        img_url = ''
+        if img_field:
+            try:
+                img_url = img_field.url if hasattr(img_field, 'url') and img_field.name else ''
+            except ValueError:
+                img_url = ''
+        
+        if not img_url:
+            raw_val = getattr(article, field_name, '')
+            if isinstance(raw_val, str) and raw_val.startswith('http'):
+                img_url = raw_val
+
+        if img_url:
+            title = getattr(article, 'title', 'Image').replace('"', '&quot;')
+            figure_html = (
+                f'<figure class="article-inline-image">'
+                f'<img src="{img_url}" alt="{title}" loading="lazy" />'
+                f'</figure>'
+            )
+            updated_content = updated_content.replace(placeholder, figure_html)
+            inline_replaced += 1
+        else:
+            updated_content = updated_content.replace(placeholder, '')
+
+    # Safety-net cleanup for any residual {{IMAGE_X}} placeholders
+    leftover_pattern = re.compile(r'\{\{IMAGE_\d+\}\}')
+    if leftover_pattern.search(updated_content):
+        updated_content = leftover_pattern.sub('', updated_content)
+        updated_content = re.sub(r'<p>\s*</p>', '', updated_content)
+        updated_content = re.sub(r'\n\s*\n\s*\n', '\n\n', updated_content)
+
+    if article.content != updated_content:
+        logger.info(f"📸 Replaced {inline_replaced} inline images and cleaned placeholders for article {article.id}")
+        article.content = updated_content
+        article.save(update_fields=['content'])
+        return True
+        
+    return False

@@ -1,11 +1,10 @@
 import logging
 import re
 from news.models import Article, Tag, CarSpecification, RSSNewsItem, PendingArticle as PendingArticleModel, AdminActionLog, ArticleTitleVariant
-from ai_engine.modules.web_search import search_and_extract
-from ai_engine.modules.article_generator import expand_press_release
+from ai_engine.modules.article_prompt_builder import expand_press_release
 from ai_engine.modules.utils import clean_title
 from ai_engine.modules.publisher import extract_summary
-from news.services.article_service import invalidate_article_cache
+from news.api_views._shared import invalidate_article_cache
 from ai_engine.main import _generate_article_content, generate_title_variants
 
 logger = logging.getLogger(__name__)
@@ -66,7 +65,9 @@ def regenerate_existing_article(article_id, provider='gemini', user_id=None, cel
                     press_release_text = re.sub(r'\s+', ' ', press_release_text).strip()
             elif source_url:
                 try:
-                    web_results = search_and_extract(article.title, max_results=3)
+                    from ai_engine.modules.searcher import _search_ddgs
+                    raw_results = _search_ddgs(article.title, max_results=3)
+                    web_results = " ".join([r.get('desc', '') for r in raw_results]) if raw_results else ""
                     press_release_text = web_results if web_results else article.title
                 except Exception:
                     press_release_text = article.title
@@ -222,6 +223,9 @@ def regenerate_existing_article(article_id, provider='gemini', user_id=None, cel
                 })
         except Exception:
             pass
+            
+        from ai_engine.modules.image_placeholders import replace_inline_images_in_article
+        replace_inline_images_in_article(article)
         
         return {
             'success': True,

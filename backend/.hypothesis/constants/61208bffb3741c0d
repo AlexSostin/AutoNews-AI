@@ -1,0 +1,4 @@
+# file: /home/kille_wsl/Projects/FreshMotors_GoogleAntigravity/AutoNews-AI/backend/news/migrations/0120_add_content_type_to_rssnewsitem.py
+# hypothesis_version: 6.151.9
+
+['Debut / Reveal', 'General', 'News / Update', 'Review / Test Drive', 'content_type', 'debut', 'general', 'news', 'noise', 'review', 'rssnewsitem']

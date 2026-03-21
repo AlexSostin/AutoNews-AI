@@ -1,0 +1,11 @@
+✓ Sessions stored in Redis
+✓ Cloudinary configured: cloud=dj3achp25
+✓ Cloudinary storage configured for media files
+INFO 2026-03-21 17:50:29,201 AXES: BEGIN version 8.3.1, blocking by username or ip_address
+70 objects imported automatically (use -v 2 for details).
+
+{"title": "2026 Leapmotor C16: 800V Family SUV with 1,150 km Range Starting at $21,300", "content": "<h2>2026 Leapmotor C16: The $21,300 Family SUV with 1,150 km Range and 800V Fast Charging</h2>\n<p>Leapmotor is no longer just another face in the crowded Chinese EV landscape; it is now a global conte"}
+{"title": "2026 Zeekr 9X: A 646 HP Luxury EREV SUV with 1,200 KM Range for $65,400", "content": "<h2>2026 ZEEKR 9X: The 646 hp Luxury EREV SUV with a 1,200 km Range</h2>\n<p>The significance of the 9X cannot be overstated for Geely\u2019s premium marque. While the <a data-seo-linker=\"true\" href=\"/artic"}
+{"title": "BYD Great Tang: The 1,000-Volt Flagship SUV Shattering EV Performance Metrics", "content": "<h2>A New Benchmark in the Premium Electric SUV Segment</h2>\n\n<p>The electric vehicle landscape is experiencing a seismic shift, and the epicenter of this technological revolution continues to be the "}
+{"title": "2026 BYD Leopard 5 PHEV", "content": "<div class=\"ai-editor-note ai-fact-check-block\" data-issues='[\"Article claims a combined range of 1300 km, but this information is not present in the provided web context.\", \"Article claims a performa"}
+{"title": "2025 BYD Tang L DM-p AWD 7-Seater", "content": "<div class=\"ai-editor-note ai-fact-check-block\" data-issues=\"[&quot;Article claims the 2025 BYD TANG L DM P AWD has a total range of 1,389 km, but the web context states the BYD Datang SUV has a recor"}

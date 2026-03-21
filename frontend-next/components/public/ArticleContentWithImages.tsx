@@ -113,27 +113,39 @@ export default function ArticleContentWithImages({ content, images, imageSource,
     let current = '';
     let depth = 0;
     let compoundDepth = 0;
+    const compoundStack: boolean[] = [];
 
-    const tokens = cleanContent.split(/(<?\/?[^>]+>)/g);
+    // CRITICAL FIX: Split precisely on HTML tags, discarding empty segments
+    const tokens = cleanContent.split(/(<[^>]+>)/g);
 
     for (const token of tokens) {
+      if (!token.trim()) {
+        current += token;
+        continue;
+      }
+      
       const openMatch = token.match(/^<(ul|ol|table|blockquote|pre|div|section)[\s>]/i);
       const closeMatch = token.match(/^<\/(ul|ol|table|blockquote|pre|div|section)>/i);
 
       if (openMatch) {
         depth++;
-        if (isCompoundOpen(token)) compoundDepth++;
+        const compound = isCompoundOpen(token);
+        compoundStack.push(compound);
+        if (compound) compoundDepth++;
       }
       current += token;
 
       if (closeMatch) {
         depth--;
-        if (compoundDepth > 0 && closeMatch[1].toLowerCase() === 'div') {
+        const wasCompound = compoundStack.pop();
+        if (wasCompound) {
           compoundDepth--;
         }
+        
         if (depth <= 0) {
           depth = 0;
           compoundDepth = 0;
+          compoundStack.length = 0;
           if (current.trim()) { topLevelBlocks.push(current); current = ''; }
         }
       } else if (depth === 0 && compoundDepth === 0) {
@@ -200,6 +212,19 @@ export default function ArticleContentWithImages({ content, images, imageSource,
     const el = wrapperRef.current;
     if (!el || !contentParts) return;
 
+    // 0. Fix bare spans that the AI hallucinated instead of compare-row
+    el.querySelectorAll('span.k').forEach((spanK) => {
+      if (spanK.parentElement?.classList.contains('compare-row')) return;
+      const spanV = spanK.nextElementSibling;
+      if (spanV && spanV.tagName.toLowerCase() === 'span' && spanV.classList.contains('v')) {
+        const newRow = document.createElement('div');
+        newRow.className = 'compare-row';
+        spanK.parentElement?.insertBefore(newRow, spanK);
+        newRow.appendChild(spanK);
+        newRow.appendChild(spanV);
+      }
+    });
+
     // 1. Repair compare-grid: move orphaned compare-rows into their card
     el.querySelectorAll('.compare-grid').forEach((grid) => {
       const orphanedRows = grid.querySelectorAll(':scope > .compare-row');
@@ -228,19 +253,85 @@ export default function ArticleContentWithImages({ content, images, imageSource,
       });
     });
 
-    // 3. Repair any compare-card divs that escaped compare-grid
+    // 3. Repair any compare-card or compare-row elements that escaped compare-grid
     el.querySelectorAll('.article-element').forEach((wrapper) => {
-      const orphanedCards = wrapper.querySelectorAll(':scope > .compare-card');
-      orphanedCards.forEach((card) => {
+      const orphanedNodes = wrapper.querySelectorAll(':scope > .compare-card, :scope > .compare-row');
+      orphanedNodes.forEach((node) => {
         // Find nearest preceding compare-grid
-        let prev = card.previousElementSibling;
+        let prev = node.previousElementSibling;
         while (prev && !prev.classList.contains('compare-grid')) {
           prev = prev.previousElementSibling;
         }
         if (prev?.classList.contains('compare-grid')) {
-          prev.appendChild(card);
+          if (node.classList.contains('compare-card')) {
+            prev.appendChild(node);
+          } else if (node.classList.contains('compare-row')) {
+            const cards = prev.querySelectorAll('.compare-card');
+            if (cards.length > 0) {
+              cards[cards.length - 1].appendChild(node);
+            }
+          }
         }
       });
+    });
+
+    // 4. Upgrade legacy plain pricing bullet lists to premium pricing-table
+    el.querySelectorAll('.price-tag').forEach((tag) => {
+      let nextEl = tag.nextElementSibling;
+      
+      // If the <ul> is in the next article-element wrapper instead of immediately sibling
+      if (!nextEl) {
+        const parentWrapper = tag.closest('.article-element');
+        if (parentWrapper && parentWrapper.nextElementSibling) {
+          nextEl = parentWrapper.nextElementSibling.firstElementChild;
+        }
+      }
+
+      if (nextEl && nextEl.tagName.toLowerCase() === 'ul' && !nextEl.classList.contains('pricing-table-upgraded')) {
+        const pricingTable = document.createElement('div');
+        pricingTable.className = 'pricing-table pricing-table-upgraded';
+        
+        let validRows = 0;
+        nextEl.querySelectorAll('li').forEach((li) => {
+          // Typically: <strong>Trim Name:</strong> $Price (approx...)
+          const strong = li.querySelector('strong');
+          let tierName = 'Trim Level';
+          let priceText = li.textContent || '';
+          
+          if (strong) {
+            tierName = (strong.textContent || '').replace(':', '').trim();
+            priceText = priceText.replace(strong.textContent || '', '').trim();
+          } else {
+            // If no bold text, try splitting by colon
+            const parts = priceText.split(':');
+            if (parts.length > 1) {
+              tierName = parts[0].trim();
+              priceText = parts.slice(1).join(':').trim();
+            }
+          }
+          
+          // Clean up leading punctuation
+          priceText = priceText.replace(/^[-–—:]\s*/, '');
+          
+          if (priceText) {
+            const row = document.createElement('div');
+            row.className = 'pricing-row';
+            
+            // Auto-detect high-end / flagship features for 'featured' highlight
+            if (/flagship|top|awd|performance|max|ultra/i.test(tierName)) {
+              row.classList.add('featured');
+            }
+            
+            row.innerHTML = `<span class="p-tier">${tierName}</span><span class="p-price">${priceText}</span>`;
+            pricingTable.appendChild(row);
+            validRows++;
+          }
+        });
+
+        if (validRows > 0) {
+          nextEl.parentElement?.replaceChild(pricingTable, nextEl);
+        }
+      }
     });
   }, [contentParts]);
 
