@@ -9,6 +9,7 @@ from ai_engine.main import _generate_article_content, generate_title_variants
 
 logger = logging.getLogger(__name__)
 
+# Trigger backend deploy to sync `fix(ai-engine)` logic
 def regenerate_existing_article(article_id, provider='gemini', user_id=None, celery_task=None):
     """
     Core logic for regenerating an existing article (YouTube or RSS).
