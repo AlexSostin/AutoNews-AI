@@ -162,13 +162,49 @@ SUMMARY: [your 150-200 char summary here]
                     if not seo_desc.endswith('.'):
                         seo_desc += '...'
                 print(f"⚠️ SEO desc truncated to {len(seo_desc)} chars: {seo_desc[:60]}…")
-            # Fix truncated endings: dangling numbers, prices, specs, or
-            # incomplete phrases (e.g. "...and a blistering 2." or "...starting from $")
-            if seo_desc and re.search(r'[\s,](\$?\d{1,3}|[a-z]{1,3})[.!]?$', seo_desc):
-                last_period = seo_desc.rfind('. ')
-                if last_period > 60:
-                    seo_desc = seo_desc[:last_period + 1]
-                    print(f"⚠️ SEO desc trimmed (dangling fragment): {seo_desc}")
+            # ── Clean up truncated/dangling endings ──
+            # Strategy: find the last REAL sentence boundary (". " followed by
+            # uppercase, or "." at string end after 5+ word chars).
+            # Iterate until the description ends cleanly.
+            if seo_desc:
+                def _find_last_sentence_end(text: str, min_pos: int = 30) -> int:
+                    """Find the last '. ' that is a real sentence boundary (not a decimal)."""
+                    pos = len(text)
+                    while pos > min_pos:
+                        # Search backwards for '. '
+                        idx = text.rfind('. ', 0, pos)
+                        if idx < min_pos:
+                            # Try bare '.' at end of string
+                            if text[pos - 1] == '.' and pos - 1 > min_pos:
+                                # Verify it's not a decimal: char before '.' should not be digit
+                                pre = text[pos - 2] if pos >= 2 else ''
+                                if not pre.isdigit():
+                                    return pos  # '.' is at the very end
+                            return -1
+                        # Verify it's not a decimal: "4.3" or "$2. " 
+                        pre_char = text[idx - 1] if idx > 0 else ''
+                        if pre_char.isdigit():
+                            pos = idx  # skip this one, keep looking
+                            continue
+                        return idx + 1  # include the period
+                    return -1
+
+                # Check if current desc ends cleanly
+                needs_trim = False
+                if seo_desc[-1] not in '.!?':
+                    needs_trim = True
+                elif re.search(r'[\s,](\$?[\d,]{1,6}|[a-z]{1,3})[.!]?$', seo_desc):
+                    needs_trim = True
+
+                if needs_trim:
+                    cut = _find_last_sentence_end(seo_desc)
+                    if cut > 30:
+                        seo_desc = seo_desc[:cut]
+                        print(f"⚠️ SEO desc trimmed to sentence boundary ({len(seo_desc)} chars): {seo_desc[:60]}…")
+                    elif len(seo_desc) < 80:
+                        # Too short after trimming attempt — reject
+                        print(f"⚠️ SEO desc rejected (no clean sentence boundary): {seo_desc[:60]}…")
+                        seo_desc = None
 
         
         # Validate summary
