@@ -189,8 +189,63 @@ export default function ArticleContentWithImages({ content, images, imageSource,
     setContentParts(parts);
   }, [content, images]);
 
+  // ── DOM repair ──────────────────────────────────────────────────────────
+  // Something in the browser rendering pipeline moves nested divs outside
+  // their container (compare-rows escape compare-cards, tech-items escape
+  // tech-grid). The HTML source is correct, DOMPurify preserves it, but the
+  // rendered DOM is wrong. This effect repairs the DOM after every render.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || !contentParts) return;
+
+    // 1. Repair compare-grid: move orphaned compare-rows into their card
+    el.querySelectorAll('.compare-grid').forEach((grid) => {
+      const orphanedRows = grid.querySelectorAll(':scope > .compare-row');
+      if (orphanedRows.length === 0) return;
+
+      orphanedRows.forEach((row) => {
+        // Find the nearest preceding compare-card sibling
+        let prev = row.previousElementSibling;
+        while (prev && !prev.classList.contains('compare-card')) {
+          prev = prev.previousElementSibling;
+        }
+        if (prev) {
+          prev.appendChild(row);
+        }
+      });
+    });
+
+    // 2. Repair tech-highlights: move orphaned tech-items into tech-grid
+    el.querySelectorAll('.tech-highlights').forEach((block) => {
+      const techGrid = block.querySelector('.tech-grid');
+      if (!techGrid) return;
+
+      const orphanedItems = block.querySelectorAll(':scope > .tech-item');
+      orphanedItems.forEach((item) => {
+        techGrid.appendChild(item);
+      });
+    });
+
+    // 3. Repair any compare-card divs that escaped compare-grid
+    el.querySelectorAll('.article-element').forEach((wrapper) => {
+      const orphanedCards = wrapper.querySelectorAll(':scope > .compare-card');
+      orphanedCards.forEach((card) => {
+        // Find nearest preceding compare-grid
+        let prev = card.previousElementSibling;
+        while (prev && !prev.classList.contains('compare-grid')) {
+          prev = prev.previousElementSibling;
+        }
+        if (prev?.classList.contains('compare-grid')) {
+          prev.appendChild(card);
+        }
+      });
+    });
+  }, [contentParts]);
+
   return (
-    <div className="article-content-wrapper" onClick={handleContentClick}>
+    <div className="article-content-wrapper" ref={wrapperRef} onClick={handleContentClick}>
       {contentParts !== null ? (
         /* Enhanced client version with inline images and lightbox */
         contentParts

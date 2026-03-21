@@ -160,7 +160,7 @@ class TestRegenerateArticleTask:
 
         assert result['success'] is False
         assert result.get('timeout') is True
-        assert '9 minutes' in result['message']
+        assert '14 minutes' in result['message']
 
     def test_generic_exception_returns_structured_error(self, article):
         """Any other exception → returns dict with success=False."""
@@ -205,10 +205,10 @@ class TestRegenerateArticleTask:
         """Ensure the task decorator has soft_time_limit and time_limit set."""
         from news.tasks import regenerate_article_task
         # Celery stores these on the task instance
-        assert regenerate_article_task.soft_time_limit == 9 * 60, \
-            f"Expected soft_time_limit=540, got {regenerate_article_task.soft_time_limit}"
-        assert regenerate_article_task.time_limit == 10 * 60, \
-            f"Expected time_limit=600, got {regenerate_article_task.time_limit}"
+        assert regenerate_article_task.soft_time_limit == 14 * 60, \
+            f"Expected soft_time_limit=840, got {regenerate_article_task.soft_time_limit}"
+        assert regenerate_article_task.time_limit == 15 * 60, \
+            f"Expected time_limit=900, got {regenerate_article_task.time_limit}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -272,7 +272,7 @@ class TestRegenerateEndpoint:
         mock_result.state = 'SUCCESS'
         mock_result.result = {
             'success': False,
-            'message': 'Generation timed out after 9 minutes',
+            'message': 'Generation timed out after 14 minutes',
             'timeout': True,
         }
         mock_async_result.return_value = mock_result
