@@ -678,9 +678,98 @@ def _repair_compare_grid(html: str) -> str:
 
     return result if changed else html
 
+def _normalize_compare_rows(html: str) -> str:
+    """
+    Ensure all compare-cards in a compare-grid have identical row labels.
+    
+    If the AI used different labels across cards (e.g. '0-100 km/h' in one,
+    'Power' in another), this normalizes them to the most common label set.
+    Missing rows get 'N/A' values.
+    """
+    import re
+    
+    if 'compare-grid' not in html:
+        return html
+    
+    # Find all compare-grid blocks
+    grid_pattern = re.compile(
+        r'(<div\s+class="compare-grid">)(.*?)(</div>\s*(?=<[^d]|$))',
+        re.DOTALL | re.IGNORECASE
+    )
+    
+    def normalize_grid(match):
+        grid_open = match.group(1)
+        grid_content = match.group(2)
+        grid_close = match.group(3)
+        
+        # Extract all cards
+        card_pattern = re.compile(
+            r'(<div\s+class="compare-card[^"]*">)(.*?)(</div>(?:\s*</div>)?)',
+            re.DOTALL | re.IGNORECASE
+        )
+        cards = list(card_pattern.finditer(grid_content))
+        if len(cards) < 2:
+            return match.group(0)
+        
+        # Extract row labels from each card
+        row_pattern = re.compile(
+            r'<div\s+class="compare-row">\s*<span\s+class="k">(.*?)</span>\s*<span\s+class="v">(.*?)</span>\s*</div>',
+            re.DOTALL | re.IGNORECASE
+        )
+        
+        card_rows = []
+        for card in cards:
+            rows = row_pattern.findall(card.group(2))
+            card_rows.append(rows)  # list of (label, value) tuples
+        
+        # Get all unique label sets
+        label_sets = [tuple(r[0].strip() for r in rows) for rows in card_rows]
+        
+        # Check if they're all the same — if so, no work needed
+        if len(set(label_sets)) <= 1:
+            return match.group(0)
+        
+        # Find the most common label set (majority wins)
+        from collections import Counter
+        label_counter = Counter(label_sets)
+        canonical_labels = list(label_counter.most_common(1)[0][0])
+        
+        print(f"  🔧 compare-grid: normalizing row labels to {canonical_labels}")
+        
+        # Rebuild each card with canonical labels
+        result_content = grid_content
+        for i, card in enumerate(reversed(cards)):
+            existing = {r[0].strip(): r[1].strip() for r in card_rows[len(cards) - 1 - i]}
+            
+            # Build new rows matching canonical order
+            new_rows = []
+            for label in canonical_labels:
+                value = existing.get(label, 'N/A')
+                new_rows.append(
+                    f'<div class="compare-row"><span class="k">{label}</span>'
+                    f'<span class="v">{value}</span></div>'
+                )
+            
+            # Replace old rows in this card
+            card_inner = card.group(2)
+            # Remove all existing compare-row divs
+            cleaned_inner = row_pattern.sub('', card_inner).rstrip()
+            # Add normalized rows
+            new_rows_html = '\n    '.join(new_rows)
+            new_inner = cleaned_inner + '\n    ' + new_rows_html + '\n  '
+            
+            # Replace in result
+            old_full = card.group(0)
+            new_full = card.group(1) + new_inner + card.group(3)
+            result_content = result_content[:card.start() - 0] + new_full + result_content[card.end():]
+        
+        return grid_open + result_content + grid_close
+    
+    return grid_pattern.sub(normalize_grid, html)
 
 
 def post_process_article(html: str, allowed_competitor_makes: list[str] | None = None) -> str:
+
     """
     Run the full post-processing pipeline on generated HTML.
 
@@ -698,6 +787,7 @@ def post_process_article(html: str, allowed_competitor_makes: list[str] | None =
     This is the single entry-point for callers (RSS generate, merge, publisher, etc.)
     """
     html = _repair_compare_grid(html)   # Fix malformed compare-grid structure first
+    html = _normalize_compare_rows(html) # Ensure all cards have identical row labels
     html = ensure_html_only(html)
     html = clean_banned_phrases(html)
     html = _reduce_repetition(html)

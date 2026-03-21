@@ -148,17 +148,28 @@ SUMMARY: [your 150-200 char summary here]
                 print(f"⚠️ AI SEO description rejected (too short: {len(seo_desc)}): {seo_desc}")
                 seo_desc = None
             elif len(seo_desc) > 160:
-                seo_desc = seo_desc[:157].rsplit(' ', 1)[0]
-                if not seo_desc.endswith('.'):
-                    seo_desc += '...'
-            # Fix truncated endings: dangling numbers, prices, specs
-            # e.g. "...and a quick 6." or "...Explore this $6"
-            if seo_desc and re.search(r'[\s,]\$?\d{1,2}[.!]?$', seo_desc):
-                # Cut back to last complete sentence
+                # Strategy 1: Cut at last sentence boundary (period + space) within 160
+                candidate = seo_desc[:160]
+                last_period = candidate.rfind('. ')
+                last_period_end = candidate.rfind('.')  # period at very end
+                if last_period > 80:
+                    seo_desc = candidate[:last_period + 1]
+                elif last_period_end > 80 and last_period_end == len(candidate) - 1:
+                    seo_desc = candidate[:last_period_end + 1]
+                else:
+                    # Strategy 2: cut at last word boundary, add ellipsis
+                    seo_desc = candidate[:157].rsplit(' ', 1)[0]
+                    if not seo_desc.endswith('.'):
+                        seo_desc += '...'
+                print(f"⚠️ SEO desc truncated to {len(seo_desc)} chars: {seo_desc[:60]}…")
+            # Fix truncated endings: dangling numbers, prices, specs, or
+            # incomplete phrases (e.g. "...and a blistering 2." or "...starting from $")
+            if seo_desc and re.search(r'[\s,](\$?\d{1,3}|[a-z]{1,3})[.!]?$', seo_desc):
                 last_period = seo_desc.rfind('. ')
                 if last_period > 60:
                     seo_desc = seo_desc[:last_period + 1]
-                    print(f"⚠️ SEO desc trimmed (dangling number): {seo_desc}")
+                    print(f"⚠️ SEO desc trimmed (dangling fragment): {seo_desc}")
+
         
         # Validate summary
         if summary:

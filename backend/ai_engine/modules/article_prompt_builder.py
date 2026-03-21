@@ -230,6 +230,13 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
             f"7. BRAND vs TECH PARTNER — use the CAR BRAND, not the technology supplier:\n"
             f"   Avatr (NOT Huawei) · Denza (NOT BYD) · AITO (NOT Huawei) · Zeekr (NOT Geely)\n"
             f"   Huawei/CATL/Qualcomm = tech partners, mention only in body text for their specific contribution\n"
+            f"8. ALL CARDS MUST USE IDENTICAL ROW LABELS — every card (featured + competitors) must \n"
+            f"   have the EXACT SAME compare-row labels in the EXACT SAME ORDER.\n"
+            f"   ✅ Card A: Power / Range / Price   Card B: Power / Range / Price\n"
+            f"   ❌ Card A: 0-100 / Range / Price   Card B: Power / Range / Price — FORBIDDEN!\n"
+            f"   If you don't know a value for one card, write 'N/A' rather than changing the label.\n"
+            f"9. POWER is MANDATORY in every compare-card. If HP is unknown, calculate from kW (× 1.34).\n"
+            f"   NEVER substitute Power with 0-100 KM/H. Both can coexist as separate rows.\n"
             f"\n"
             f"Format each competitor as a CARD using this HTML:\n"
             f'<div class="compare-grid">\n'
@@ -582,7 +589,15 @@ Output a compact spec bar with the car's 4-5 most important numbers. Use this EX
   <div class="spec-item"><div class="spec-label">0-100 KM/H</div><div class="spec-value">3.8 sec</div></div>
   <div class="spec-item"><div class="spec-label">POWERTRAIN</div><div class="spec-value">BEV AWD</div></div>
 </div>
-Rules: Use ONLY confirmed specs. Skip any item you don't have data for. Minimum 3, maximum 6 items.
+Rules:
+- Minimum 3, maximum 6 items.
+- POWER is MANDATORY. If exact HP is not given directly, CALCULATE it:
+  • From kW: multiply by 1.34 (e.g. 230 kW = 308 hp)
+  • From motor specs: sum front + rear motor outputs
+  • If only torque/0-100 is known: estimate HP from vehicle class (e.g. 2.98s SUV ≈ 500+ hp)
+  • NEVER substitute POWER with "0-100 KM/H" — both are independent specs
+  • NEVER omit POWER and NEVER use vague phrases like "impressive" or "powerful" instead of a number
+- Skip other items you don't have data for.
 ═══════════════════════════════════════════════
 
 - <h2>Performance & Specs</h2> — ONLY if you have real numbers.
