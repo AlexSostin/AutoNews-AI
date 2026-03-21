@@ -41,15 +41,19 @@ class TestSendProgress:
         # Should not raise
         _send_progress(None, 1, 10, "Test", celery_task=mock_task)
 
-    @patch('ai_engine.modules.generation_progress.get_channel_layer', create=True)
-    @patch('ai_engine.modules.generation_progress.async_to_sync', create=True)
-    def test_websocket_called_when_task_id_given(self, mock_async, mock_layer):
+    def test_websocket_called_when_task_id_given(self):
         mock_channel = MagicMock()
-        mock_layer.return_value = mock_channel
-        mock_sender = MagicMock()
-        mock_async.return_value = mock_sender
+        mock_async = MagicMock(return_value=MagicMock())
+        mock_channels_mod = MagicMock()
+        mock_channels_mod.get_channel_layer.return_value = mock_channel
+        mock_asgiref_mod = MagicMock()
+        mock_asgiref_mod.async_to_sync = mock_async
 
-        _send_progress("abc-123", 1, 20, "Starting")
+        with patch.dict('sys.modules', {
+            'asgiref.sync': mock_asgiref_mod,
+            'channels.layers': mock_channels_mod,
+        }):
+            _send_progress("abc-123", 1, 20, "Starting")
         # Should have attempted to send via WebSocket
         mock_async.assert_called()
 
@@ -197,7 +201,7 @@ class TestGenerateTitleAndSeo:
         result = _generate_title_and_seo("<p>test</p>", {'make': 'BMW', 'model': 'Not specified'})
         assert result is None
 
-    @patch('ai_engine.modules.title_seo_generator.get_generate_provider')
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
     def test_parses_valid_ai_response(self, mock_provider_factory):
         mock_ai = MagicMock()
         mock_ai.generate_completion.return_value = (
@@ -218,7 +222,7 @@ class TestGenerateTitleAndSeo:
         assert 'BYD Seal' in result['title']
         assert result['seo_description'] is not None
 
-    @patch('ai_engine.modules.title_seo_generator.get_generate_provider')
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
     def test_rejects_too_short_title(self, mock_provider_factory):
         mock_ai = MagicMock()
         mock_ai.generate_completion.return_value = (
@@ -236,7 +240,7 @@ class TestGenerateTitleAndSeo:
         if result:
             assert result['title'] is None
 
-    @patch('ai_engine.modules.title_seo_generator.get_generate_provider')
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
     def test_rejects_generic_title_suffix(self, mock_provider_factory):
         mock_ai = MagicMock()
         mock_ai.generate_completion.return_value = (
@@ -253,7 +257,7 @@ class TestGenerateTitleAndSeo:
         if result:
             assert result['title'] is None  # "Review" suffix rejected
 
-    @patch('ai_engine.modules.title_seo_generator.get_generate_provider')
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
     def test_handles_ai_provider_failure(self, mock_provider_factory):
         mock_provider_factory.side_effect = RuntimeError("AI provider unavailable")
 
@@ -263,7 +267,7 @@ class TestGenerateTitleAndSeo:
         )
         assert result is None
 
-    @patch('ai_engine.modules.title_seo_generator.get_generate_provider')
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
     def test_handles_empty_ai_response(self, mock_provider_factory):
         mock_ai = MagicMock()
         mock_ai.generate_completion.return_value = ""
@@ -275,7 +279,7 @@ class TestGenerateTitleAndSeo:
         )
         assert result is None
 
-    @patch('ai_engine.modules.title_seo_generator.get_generate_provider')
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
     def test_truncates_long_seo_desc(self, mock_provider_factory):
         mock_ai = MagicMock()
         long_seo = "The 2026 BYD Seal is an " + "amazing " * 25 + "electric sedan."
@@ -293,7 +297,7 @@ class TestGenerateTitleAndSeo:
         if result and result['seo_description']:
             assert len(result['seo_description']) <= 160
 
-    @patch('ai_engine.modules.title_seo_generator.get_generate_provider')
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
     def test_rejects_garbage_summary(self, mock_provider_factory):
         mock_ai = MagicMock()
         mock_ai.generate_completion.return_value = (
@@ -386,7 +390,7 @@ class TestGetCompetitorContextSafe:
         assert ctx == ""
         assert data == []
 
-    @patch('ai_engine.modules.specs_validator.get_competitor_context')
+    @patch('ai_engine.modules.competitor_lookup.get_competitor_context')
     def test_calls_competitor_lookup(self, mock_lookup):
         mock_lookup.return_value = ("Context string", [{'name': 'Tesla Model 3'}])
         send_progress = MagicMock()
@@ -400,7 +404,7 @@ class TestGetCompetitorContextSafe:
         assert len(data) == 1
         send_progress.assert_called()
 
-    @patch('ai_engine.modules.specs_validator.get_competitor_context')
+    @patch('ai_engine.modules.competitor_lookup.get_competitor_context')
     def test_handles_lookup_failure(self, mock_lookup):
         mock_lookup.side_effect = RuntimeError("DB error")
         send_progress = MagicMock()
