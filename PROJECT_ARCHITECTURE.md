@@ -1,8 +1,7 @@
 # FreshMotors — Project Architecture
 
 This document provides a comprehensive overview of the FreshMotors platform architecture, technology stack, and core workflows.
-
-**Last Updated**: 13 March 2026
+**Last Updated**: 22 March 2026
 
 ---
 
@@ -85,9 +84,11 @@ AutoNews-AI/
 | `ai_engine/modules/article_reviewer.py` | AI Editor — reviews and improves generated articles |
 | `ai_engine/modules/auto_publisher.py` | Automated publishing engine with quality scoring, safety gating, circuit breaker (MAX_RETRIES, backoff), draft/publish toggle |
 | `ai_engine/modules/tag_suggester.py` | Tag learning system: keyword extraction, brand detection, historical pattern matching |
+| `ai_engine/modules/smart_tagger.py` | Assigns AI-learned tags accurately by cross-checking existing tags before full generation |
 | `ai_engine/modules/screenshot_maker.py` | Video frame capture (ffmpeg) |
 | `ai_engine/modules/content_formatter.py` | Content formatting and image distribution |
 | `ai_engine/modules/spec_refill.py` | Auto-refill missing car spec fields via AI |
+| `ai_engine/modules/specs_tribunal.py` | Conflict resolution engine: compares audio, visuals, web, and DB to output "Absolute Truth" for car specs |
 | `ai_engine/modules/specs_enricher.py` | Post-publish spec enrichment pipeline |
 | `ai_engine/modules/feed_discovery.py` | Auto-discover RSS feeds for brands |
 | `ai_engine/modules/license_checker.py` | RSS feed license/copyright validation (via Groq) |
@@ -313,6 +314,9 @@ AutoNews-AI/
 | Mobile E2E Layout Overflow (`mobile.spec.ts`) | Responsive `AdBanner.tsx` and header elements broke the 375px mobile viewport | Applied `overflow-x-hidden` on global layout `<body...>` and `max-w-full overflow-hidden` on ad components to lock viewport. |
 | Railway Deployment Sync Blocked | Backend auto-deploy got skipped because frontend-only commit failed in GitHub Actions | Analyzed GH Actions check suite failures and added safe trigger commits to bypass Railway's Watch Paths filter to strictly sync both services. |
 | Backend CI Flakiness (Redis collision) | Parallel `pytest-xdist` workers shared the same Redis cache, bleeding `health_summary_v2` state across processes and failing `test_resolved_not_counted`. | Implemented `MockCache` and patched `django.core.cache` via an `autouse` fixture, isolating cache access to a local Python dict per worker. |
+| Admin UI Latency | 5 heavy aggregate database queries (`pending_articles`, `unresolved_feedback`, etc.) fired sequentially to populate the Admin Menu Badges on every React render. | Implemented Polling + Django Cache (`System Graph API`) with a 60s TTL, reducing 5 database hits to 0 on subsequent sidebar renders. |
+| Next.js SSR 500 Crash (`expected usize`) | Re-architected fetch wrapped inside Next.js `layout.tsx` failed to serialize `AbortSignal.timeout()` in Rust/Turbopack. | Removed `AbortSignal`, adjusted `next: { revalidate: 3601 }` to reliably bust the corrupted fetch cache pool. |
+| ESLint Flat Config 9 Memory Leak | Incorrect configuration parameter in `eslint.config.mjs` made it parse ignored `.next` cache and thousands of minified `node_modules`. | Changed `globalIgnores` fn to proper `{ ignores: [...] }` object block, eliminating 6700+ false lint warnings and unblocking Railway CI deploys. |
 
 ---
 
