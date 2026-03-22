@@ -10,6 +10,7 @@ from unittest.mock import patch
 from django.utils import timezone
 from django.core.cache import cache
 from django.contrib.auth.models import User
+from django.test import override_settings
 from rest_framework.test import APIClient
 from rest_framework import status
 
@@ -42,6 +43,16 @@ def admin_client(db):
 @pytest.fixture
 def anon_client():
     return APIClient(**UA)
+
+
+@pytest.fixture(autouse=True)
+def dummy_cache(settings):
+    """Use DummyCache to avoid cross-test pollution and xdist race conditions."""
+    settings.CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        }
+    }
 
 
 def _find_node(nodes, node_id):

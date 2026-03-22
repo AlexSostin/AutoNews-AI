@@ -22,6 +22,19 @@ class SystemGraphView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        from django.core.cache import cache
+        cache_key = 'system_graph_data'
+        data = cache.get(cache_key)
+        
+        if not data:
+            logger.info("System Graph cache miss. Generating synchronously...")
+            data = self.build_system_graph_data()
+            cache.set(cache_key, data, timeout=300)  # 5 minutes fallback TTL
+            
+        return Response(data)
+
+    @staticmethod
+    def build_system_graph_data():
         from news.models import (
             Article, PendingArticle, Category, Tag, TagGroup,
             ArticleImage, Comment, Rating, Favorite, ArticleFeedback,
@@ -756,13 +769,13 @@ class SystemGraphView(APIView):
         level_order = {'error': 0, 'warning': 1, 'info': 2}
         warnings.sort(key=lambda w: level_order.get(w['level'], 3))
 
-        return Response({
+        return {
             'success': True,
             'nodes': nodes,
             'edges': edges,
             'warnings': warnings,
             'generated_at': now.isoformat(),
-        })
+        }
 
 
 

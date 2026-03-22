@@ -185,21 +185,57 @@ from ai_engine.modules.title_seo_generator import _generate_title_and_seo, _trun
 class TestGenerateTitleAndSeo:
     """Tests for _generate_title_and_seo — AI-based title/SEO generation."""
 
-    def test_returns_none_when_make_missing(self):
-        result = _generate_title_and_seo("<p>test</p>", {'make': '', 'model': 'Seal'})
-        assert result is None
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
+    def test_returns_none_when_make_missing(self, mock_provider_factory):
+        mock_ai = MagicMock()
+        mock_ai.generate_completion.return_value = (
+            "TITLE: 2026 The Vehicle: Great new car\n"
+            "SEO_DESCRIPTION: The Vehicle is a great new car with a lot of features and excellent performance.\n"
+            "SUMMARY: The Vehicle is a great new car. It has many features."
+        )
+        mock_provider_factory.return_value = mock_ai
+        result = _generate_title_and_seo("<p>test</p>", {'make': '', 'model': 'Seal', 'year': '2026'})
+        assert result is not None
+        assert 'The Vehicle' in result['title']
 
-    def test_returns_none_when_model_missing(self):
-        result = _generate_title_and_seo("<p>test</p>", {'make': 'BYD', 'model': ''})
-        assert result is None
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
+    def test_returns_none_when_model_missing(self, mock_provider_factory):
+        mock_ai = MagicMock()
+        mock_ai.generate_completion.return_value = (
+            "TITLE: 2026 The Vehicle: Great new car\n"
+            "SEO_DESCRIPTION: The Vehicle is a great new car with a lot of features and excellent performance.\n"
+            "SUMMARY: The Vehicle is a great new car. It has many features."
+        )
+        mock_provider_factory.return_value = mock_ai
+        result = _generate_title_and_seo("<p>test</p>", {'make': 'BYD', 'model': '', 'year': '2026'})
+        assert result is not None
+        assert 'The Vehicle' in result['title']
 
-    def test_returns_none_when_make_not_specified(self):
-        result = _generate_title_and_seo("<p>test</p>", {'make': 'Not specified', 'model': 'X'})
-        assert result is None
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
+    def test_returns_none_when_make_not_specified(self, mock_provider_factory):
+        mock_ai = MagicMock()
+        mock_ai.generate_completion.return_value = (
+            "TITLE: 2026 The Vehicle: Great new car\n"
+            "SEO_DESCRIPTION: The Vehicle is a great new car with a lot of features and excellent performance.\n"
+            "SUMMARY: The Vehicle is a great new car. It has many features."
+        )
+        mock_provider_factory.return_value = mock_ai
+        result = _generate_title_and_seo("<p>test</p>", {'make': 'Not specified', 'model': 'X', 'year': '2026'})
+        assert result is not None
+        assert 'The Vehicle' in result['title']
 
-    def test_returns_none_when_model_not_specified(self):
-        result = _generate_title_and_seo("<p>test</p>", {'make': 'BMW', 'model': 'Not specified'})
-        assert result is None
+    @patch('ai_engine.modules.ai_provider.get_generate_provider')
+    def test_returns_none_when_model_not_specified(self, mock_provider_factory):
+        mock_ai = MagicMock()
+        mock_ai.generate_completion.return_value = (
+            "TITLE: 2026 The Vehicle: Great new car\n"
+            "SEO_DESCRIPTION: The Vehicle is a great new car with a lot of features and excellent performance.\n"
+            "SUMMARY: The Vehicle is a great new car. It has many features."
+        )
+        mock_provider_factory.return_value = mock_ai
+        result = _generate_title_and_seo("<p>test</p>", {'make': 'BMW', 'model': 'Not specified', 'year': '2026'})
+        assert result is not None
+        assert 'The Vehicle' in result['title']
 
     @patch('ai_engine.modules.ai_provider.get_generate_provider')
     def test_parses_valid_ai_response(self, mock_provider_factory):

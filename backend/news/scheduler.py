@@ -956,6 +956,12 @@ def start_scheduler():
     backup_timer.start()
     logger.info("[SCHEDULER] 🗄️ Database backup scheduled (daily)")
 
+    # System Graph caching — every 60s, start after 90 seconds
+    system_graph_timer = threading.Timer(90, _run_system_graph_cache)
+    system_graph_timer.daemon = True
+    system_graph_timer.start()
+    logger.info("[SCHEDULER] 📊 System Graph cache scheduled (every 60s)")
+
 
 def _run_db_backup():
     """Run daily database backup and upload to Cloudinary."""
@@ -1015,3 +1021,27 @@ def _auto_resolve_stale_errors():
         next_timer = threading.Timer(6 * 3600, _auto_resolve_stale_errors)
         next_timer.daemon = True
         next_timer.start()
+
+
+def _run_system_graph_cache():
+    """Build the system graph and cache it for the dashboard (every 60s)."""
+    from django.db import close_old_connections
+    close_old_connections()
+    try:
+        from news.api_views.system_graph import SystemGraphView
+        from django.core.cache import cache
+        
+        data = SystemGraphView.build_system_graph_data()
+        cache.set('system_graph_data', data, timeout=300)
+    except Exception as e:
+        logger.error(f"[SCHEDULER] ❌ System Graph caching failed: {e}")
+        _log_scheduler_error('system_graph_cache', e)
+    finally:
+        _schedule_system_graph_cache()
+
+
+def _schedule_system_graph_cache():
+    """Schedule the next System Graph cache update."""
+    timer = threading.Timer(60, _run_system_graph_cache)
+    timer.daemon = True
+    timer.start()

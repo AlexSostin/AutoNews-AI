@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, X, ChevronDown } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 import api from '@/lib/api';
 
 export interface Category {
@@ -16,7 +16,7 @@ export interface Tag {
     group_name?: string;
 }
 
-interface TagSelectorProps<T extends { category_ids: number[]; tags: number[] }> {
+interface TagSelectorProps<T extends { category_ids: number[]; tags: number[]; title?: string; content?: string }> {
     categories: Category[];
     tags: Tag[];
     setTags: React.Dispatch<React.SetStateAction<Tag[]>>;
@@ -25,7 +25,7 @@ interface TagSelectorProps<T extends { category_ids: number[]; tags: number[] }>
     handleTagToggle: (tagId: number) => void;
 }
 
-export function TagSelector<T extends { category_ids: number[]; tags: number[] }>({
+export function TagSelector<T extends { category_ids: number[]; tags: number[]; title?: string; content?: string }>({
     categories,
     tags,
     setTags,
@@ -34,47 +34,31 @@ export function TagSelector<T extends { category_ids: number[]; tags: number[] }
     handleTagToggle,
 }: TagSelectorProps<T>) {
     const [tagSearch, setTagSearch] = useState('');
-    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-    const [letterFilter, setLetterFilter] = useState<Record<string, string | null>>({});
-    const [addingTagGroup, setAddingTagGroup] = useState<string | null>(null);
-    const [newTagName, setNewTagName] = useState('');
+    const [isAutoTagging, setIsAutoTagging] = useState(false);
 
-    const LETTER_COLORS: Record<string, string> = {
-        A: 'bg-blue-500', B: 'bg-emerald-500', C: 'bg-violet-500', D: 'bg-amber-500',
-        E: 'bg-rose-500', F: 'bg-cyan-500', G: 'bg-indigo-500', H: 'bg-orange-500',
-        I: 'bg-teal-500', J: 'bg-pink-500', K: 'bg-lime-600', L: 'bg-purple-500',
-        M: 'bg-sky-500', N: 'bg-red-500', O: 'bg-green-500', P: 'bg-fuchsia-500',
-        Q: 'bg-yellow-600', R: 'bg-blue-600', S: 'bg-emerald-600', T: 'bg-violet-600',
-        U: 'bg-amber-600', V: 'bg-rose-600', W: 'bg-cyan-600', X: 'bg-indigo-600',
-        Y: 'bg-orange-600', Z: 'bg-teal-600',
+    const handleAutoTagAI = async () => {
+        if (!formData.title) {
+            alert("Please provide a title to use the Smart Tagger AI.");
+            return;
+        }
+        setIsAutoTagging(true);
+        try {
+            const res = await api.post('/articles/smart_tags/', {
+                title: formData.title,
+                content: formData.content || ''
+            });
+            if (res.data.tags) {
+                const newTagIds = res.data.tags.map((t: Tag) => t.id);
+                setFormData((prev) => ({ ...prev, tags: newTagIds }) as T);
+            }
+        } catch (err: any) {
+            alert(`Failed to auto-tag: ${err?.response?.data?.error || err.message}`);
+        } finally {
+            setIsAutoTagging(false);
+        }
     };
-    const getLetterColor = (letter: string) => LETTER_COLORS[letter.toUpperCase()] || 'bg-gray-500';
-    const ALPHA_GROUPED = ['Manufacturers', 'Models'];
 
     const searchLower = tagSearch.toLowerCase();
-    const grouped = tags.reduce((acc, tag) => {
-        const group = tag.group_name || 'General';
-        if (!acc[group]) acc[group] = [];
-        acc[group].push(tag);
-        return acc;
-    }, {} as Record<string, Tag[]>);
-
-    const renderTagButton = (tag: Tag) => (
-        <button
-            key={tag.id}
-            type="button"
-            onClick={() => handleTagToggle(tag.id)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all border-2 ${formData.tags.includes(tag.id)
-                ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
-                : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
-                }`}
-        >
-            {tag.name}
-            {formData.tags.includes(tag.id) && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 bg-white/20 rounded-full text-[10px]">✓</span>
-            )}
-        </button>
-    );
 
     return (
         <>
@@ -114,7 +98,40 @@ export function TagSelector<T extends { category_ids: number[]; tags: number[] }
             {/* Tags - only shown when tags are provided */}
             {tags.length > 0 && (
                 <div className={categories.length > 0 ? 'border-t pt-6' : ''}>
-                    <label className="block text-lg font-bold text-gray-900 mb-2">Tags</label>
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="block text-lg font-bold text-gray-900">Tags</label>
+                        <div className="flex items-center gap-2">
+                            {formData.tags?.length > 0 && (
+                                <button
+                                    type="button"
+                                    title="Clear all selected tags"
+                                    onClick={() => {
+                                        if (confirm('Clear all selected tags?')) {
+                                            setFormData(prev => ({ ...prev, tags: [] }) as T);
+                                        }
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-colors border border-rose-100 shadow-sm"
+                                >
+                                    🧹 Clear All
+                                </button>
+                            )}
+                            {formData.title !== undefined && (
+                                <button
+                                    type="button"
+                                    onClick={handleAutoTagAI}
+                                    disabled={isAutoTagging}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-colors border border-indigo-100 shadow-sm disabled:opacity-50"
+                                >
+                                    {isAutoTagging ? (
+                                        <span className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                                    ) : (
+                                        '🏷️'
+                                    )}
+                                    {isAutoTagging ? 'Auto-Tagging...' : 'Smart Auto-Tag AI'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                     <p className="text-sm text-gray-600 mb-4">Select relevant tags grouped by category</p>
 
                     {/* Search Filter + Quick Create */}
@@ -184,193 +201,31 @@ export function TagSelector<T extends { category_ids: number[]; tags: number[] }
                         </div>
                     )}
 
-                    <div className="space-y-2">
-                        {Object.entries(grouped)
-                            .sort(([a], [b]) => {
-                                if (a === 'General') return 1;
-                                if (b === 'General') return -1;
-                                return a.localeCompare(b);
-                            })
-                            .map(([groupName, groupTags]) => {
-                                const filteredTags = tagSearch
-                                    ? groupTags.filter(t => t.name.toLowerCase().includes(searchLower))
-                                    : groupTags;
-
-                                if (tagSearch && filteredTags.length === 0) return null;
-
-                                const selectedCount = groupTags.filter(t => formData.tags.includes(t.id)).length;
-                                const isCollapsed = collapsedGroups.has(groupName) && !tagSearch;
-
-                                const toggleCollapse = () => {
-                                    setCollapsedGroups(prev => {
-                                        const next = new Set(prev);
-                                        if (next.has(groupName)) next.delete(groupName);
-                                        else next.add(groupName);
-                                        return next;
-                                    });
-                                };
-
-                                return (
-                                    <div key={groupName} className="bg-gray-50/50 rounded-xl border border-gray-100 overflow-hidden">
-                                        <div
-                                            onClick={toggleCollapse}
-                                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100/50 transition-colors cursor-pointer select-none"
-                                        >
-                                            <span className="flex items-center gap-2 text-sm font-black text-indigo-900 uppercase tracking-wider">
-                                                <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-                                                {groupName}
-                                                {selectedCount > 0 && (
-                                                    <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-bold rounded-full normal-case tracking-normal">
-                                                        {selectedCount}
-                                                    </span>
-                                                )}
-                                            </span>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setAddingTagGroup(addingTagGroup === groupName ? null : groupName);
-                                                        setNewTagName('');
-                                                    }}
-                                                    className="p-1 rounded-lg hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 transition-colors"
-                                                    title={`Add new tag to ${groupName}`}
-                                                >
-                                                    <Plus className="w-4 h-4" />
-                                                </button>
-                                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
-                                            </div>
-                                        </div>
-
-                                        {/* Inline new tag input */}
-                                        {addingTagGroup === groupName && (
-                                            <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={newTagName}
-                                                    onChange={(e) => setNewTagName(e.target.value)}
-                                                    onKeyDown={async (e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            const name = newTagName.trim();
-                                                            if (!name) return;
-                                                            try {
-                                                                const payload: { name: string; group?: number } = { name };
-                                                                const groupId = groupTags[0]?.group;
-                                                                if (groupId) payload.group = groupId;
-                                                                const res = await api.post('/tags/', payload);
-                                                                const created = res.data as Tag;
-                                                                setTags((prev: Tag[]) => [...prev, created]);
-                                                                setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), created.id] }) as T);
-                                                                setNewTagName('');
-                                                                setAddingTagGroup(null);
-                                                            } catch (err: unknown) {
-                                                                const e = err as { response?: { data?: { name?: string[]; detail?: string } }; message?: string };
-                                                                alert(`Failed: ${e.response?.data?.name?.[0] || e.response?.data?.detail || e.message}`);
-                                                            }
-                                                        } else if (e.key === 'Escape') {
-                                                            setAddingTagGroup(null);
-                                                            setNewTagName('');
-                                                        }
-                                                    }}
-                                                    placeholder={`New ${groupName.replace(/s$/, '').toLowerCase()} name...`}
-                                                    autoFocus
-                                                    className="flex-1 px-3 py-1.5 text-sm border border-emerald-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none text-gray-900"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        const name = newTagName.trim();
-                                                        if (!name) return;
-                                                        try {
-                                                            const payload: { name: string; group?: number } = { name };
-                                                            const groupId = groupTags[0]?.group;
-                                                            if (groupId) payload.group = groupId;
-                                                            const res = await api.post('/tags/', payload);
-                                                            const created = res.data as Tag;
-                                                            setTags((prev: Tag[]) => [...prev, created]);
-                                                            setFormData((prev) => ({ ...prev, tags: [...(prev.tags as number[]), created.id] }) as T);
-                                                            setNewTagName('');
-                                                            setAddingTagGroup(null);
-                                                        } catch (err: unknown) {
-                                                            const e = err as { response?: { data?: { name?: string[]; detail?: string } }; message?: string };
-                                                            alert(`Failed: ${e.response?.data?.name?.[0] || e.response?.data?.detail || e.message}`);
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors"
-                                                >
-                                                    Add
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { setAddingTagGroup(null); setNewTagName(''); }}
-                                                    className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {!isCollapsed && (
-                                            <div className="px-4 pb-4">
-                                                {/* Alphabet quick-filter for Manufacturers & Models */}
-                                                {ALPHA_GROUPED.includes(groupName) && (() => {
-                                                    const existingLetters = new Set(filteredTags.map(t => (t.name[0] || '').toUpperCase()));
-                                                    const activeLetter = letterFilter[groupName] || null;
-                                                    return (
-                                                        <div className="flex flex-wrap gap-1 mb-3 pb-3 border-b border-gray-100">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setLetterFilter(prev => ({ ...prev, [groupName]: null }))}
-                                                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${!activeLetter
-                                                                    ? 'bg-indigo-600 text-white shadow-sm'
-                                                                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                                                                    }`}
-                                                            >
-                                                                All
-                                                            </button>
-                                                            {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => {
-                                                                const hasItems = existingLetters.has(letter);
-                                                                const isActive = activeLetter === letter;
-                                                                return (
-                                                                    <button
-                                                                        key={letter}
-                                                                        type="button"
-                                                                        onClick={() => hasItems && setLetterFilter(prev => ({
-                                                                            ...prev,
-                                                                            [groupName]: isActive ? null : letter
-                                                                        }))}
-                                                                        className={`w-6 h-6 rounded text-[11px] font-bold transition-all flex items-center justify-center ${isActive
-                                                                            ? `${getLetterColor(letter)} text-white shadow-sm`
-                                                                            : hasItems
-                                                                                ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                                                                                : 'text-gray-200 cursor-default'
-                                                                            }`}
-                                                                    >
-                                                                        {letter}
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    );
-                                                })()}
-
-                                                {/* Tag pills */}
-                                                <div className="flex flex-wrap gap-2">
-                                                    {(() => {
-                                                        const activeLetter = letterFilter[groupName] || null;
-                                                        const visibleTags = ALPHA_GROUPED.includes(groupName) && activeLetter
-                                                            ? filteredTags.filter(t => (t.name[0] || '').toUpperCase() === activeLetter)
-                                                            : filteredTags;
-                                                        return visibleTags.map(renderTagButton);
-                                                    })()}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                    </div>
+                    {/* Search results dropdown */}
+                    {tagSearch && (
+                        <div className="mb-4 bg-white border border-gray-200 rounded-xl shadow-lg p-3 flex flex-wrap gap-2 max-h-64 overflow-y-auto">
+                            {tags
+                                .filter(t => !formData.tags.includes(t.id) && t.name.toLowerCase().includes(searchLower))
+                                .slice(0, 30)
+                                .map(tag => (
+                                    <button
+                                        key={tag.id}
+                                        type="button"
+                                        onClick={() => {
+                                            handleTagToggle(tag.id);
+                                            setTagSearch('');
+                                        }}
+                                        className="px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 transition-colors flex items-center"
+                                    >
+                                        <span className="text-xs text-gray-400 mr-2 font-normal">{tag.group_name || 'General'}</span>
+                                        {tag.name}
+                                    </button>
+                                ))}
+                            {tags.filter(t => t.name.toLowerCase().includes(searchLower)).length === 0 && (
+                                <p className="text-sm text-gray-500 py-2 px-2">No matching tags found. You can click Create to add it.</p>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </>

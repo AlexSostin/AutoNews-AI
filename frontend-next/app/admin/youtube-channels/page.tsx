@@ -78,6 +78,7 @@ export default function YouTubeChannelsPage() {
 
   const [loading, setLoading] = useState(true);
   const [rssPendingCount, setRssPendingCount] = useState(0);
+  const [sortBy, setSortBy] = useState<'most_processed' | 'pending_desc' | 'name_asc' | 'name_desc' | 'newest'>('most_processed');
 
   // Existing state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -91,16 +92,18 @@ export default function YouTubeChannelsPage() {
     default_category: ''
   });
   const [saving, setSaving] = useState(false);
-  const [scanning, setScanning] = useState(false);
+
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // New Scan state
   const [showScanModal, setShowScanModal] = useState(false);
   const [scannedVideos, setScannedVideos] = useState<Video[]>([]);
   const [scanningChannel, setScanningChannel] = useState<YouTubeChannel | null>(null);
-  const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
+
   const [scanLoading, setScanLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [videoToConfirm, setVideoToConfirm] = useState<Video | null>(null);
 
 
 
@@ -142,7 +145,7 @@ export default function YouTubeChannelsPage() {
         default_category: formData.default_category ? parseInt(formData.default_category, 10) : null
       };
 
-      const response = editingChannel
+      editingChannel
         ? await api.put(url, payload)
         : await api.post(url, payload);
 
@@ -190,8 +193,7 @@ export default function YouTubeChannelsPage() {
   const handleScanAll = async () => {
     setScanning(true);
     try {
-      const response = await api.post('/youtube-channels/scan_all/');
-      setMessage({ type: 'success', text: response.data.message });
+      await api.post('/youtube-channels/scan_all/');
       fetchData();
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to trigger scan' });
@@ -321,10 +323,9 @@ export default function YouTubeChannelsPage() {
     }
   };
 
-  // Direct generation with simple confirm
+  // Direct generation with custom non-blocking confirm modal
   const handleGenerateFromVideo = (video: Video) => {
-    if (!confirm(`Generate article from: "${video.title.slice(0, 60)}"?`)) return;
-    doGenerateFromVideo(video);
+    setVideoToConfirm(video);
   };
 
   const handleApproveToDraft = async (pendingId: number, videoId: string) => {
@@ -359,21 +360,24 @@ export default function YouTubeChannelsPage() {
         </div>
 
         <div className="flex gap-2">
-          {/* <button
-            onClick={handleScanAll}
-            disabled={scanning}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white text-gray-700 text-sm shadow-sm"
           >
-            <RefreshCw size={18} className={scanning ? 'animate-spin' : ''} />
-            Scan All
-          </button> */}
+            <option value="most_processed">Most Processed (Default)</option>
+            <option value="pending_desc">Most Pending</option>
+            <option value="name_asc">Name (A-Z)</option>
+            <option value="name_desc">Name (Z-A)</option>
+            <option value="newest">Newest Added</option>
+          </select>
           <button
             onClick={() => {
               setEditingChannel(null);
               setFormData({ name: '', channel_url: '', is_enabled: true, is_partner: false, auto_publish: false, default_category: '' });
               setShowAddModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-sm"
           >
             <Plus size={18} />
             Add Channel
@@ -451,9 +455,27 @@ export default function YouTubeChannelsPage() {
               </tr>
             </thead>
             <tbody>
-              {channels.length > 0 ? (
-                channels.map((channel) => (
-                  <tr key={channel.id} className="border-b border-gray-100 hover:bg-gray-50">
+              {(() => {
+                const sortedChannels = [...channels].sort((a, b) => {
+                  switch (sortBy) {
+                    case 'most_processed':
+                      return (b.videos_processed || 0) - (a.videos_processed || 0);
+                    case 'pending_desc':
+                      return (b.pending_count || 0) - (a.pending_count || 0);
+                    case 'name_asc':
+                      return a.name.localeCompare(b.name);
+                    case 'name_desc':
+                      return b.name.localeCompare(a.name);
+                    case 'newest':
+                      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                    default:
+                      return 0;
+                  }
+                });
+
+                return sortedChannels.length > 0 ? (
+                  sortedChannels.map((channel) => (
+                    <tr key={channel.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="bg-red-100 p-2 rounded-full">
@@ -547,7 +569,8 @@ export default function YouTubeChannelsPage() {
                     </button>
                   </td>
                 </tr>
-              )}
+                );
+              })()}
             </tbody>
           </table>
         </div>
@@ -864,6 +887,36 @@ export default function YouTubeChannelsPage() {
         </div>
       )}
 
+
+      {/* Confirm Generation Modal */}
+      {videoToConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Generation</h3>
+            <p className="text-gray-600 mb-6 font-medium">
+              Generate article from: <br />
+              <strong className="text-gray-900 line-clamp-2 mt-1">&quot;{videoToConfirm.title}&quot;</strong>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setVideoToConfirm(null)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  doGenerateFromVideo(videoToConfirm);
+                  setVideoToConfirm(null);
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-bold shadow-sm"
+              >
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -84,88 +84,96 @@ export function PhotoSearchModal({
 
                 {/* Results Grid */}
                 <div className="flex-1 overflow-y-auto p-6">
-                    {photoSearchLoading && photoSearchResults.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-                            <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mb-3" />
-                            <p className="text-sm font-medium">Searching for photos...</p>
-                        </div>
-                    ) : photoSearchResults.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                            <Search className="w-10 h-10 mb-3" />
-                            <p className="text-sm font-medium">No photos found. Try a different search query.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {photoSearchResults.map((photo, index) => (
-                                <div
-                                    key={index}
-                                    className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer hover:shadow-lg ${savingPhoto === photo.url
-                                        ? 'border-emerald-500 ring-2 ring-emerald-200'
-                                        : 'border-gray-200 hover:border-emerald-400'
-                                        }`}
-                                    onClick={() => !savingPhoto && selectPhoto(photo.url)}
-                                >
-                                    <div className="aspect-[4/3] bg-gray-100">
-                                        <Image
-                                            src={photo.thumbnail}
-                                            alt={photo.title}
-                                            fill
-                                            unoptimized
-                                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                                            onError={(e) => {
-                                                (e.target as HTMLImageElement).style.display = 'none';
-                                            }}
-                                        />
-                                    </div>
-                                    {/* Overlay on hover */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                                        <p className="text-white text-xs font-medium line-clamp-2">{photo.title}</p>
-                                        <p className="text-white/70 text-[10px] mt-0.5">{photo.source}</p>
-                                        {photo.width > 0 && (
-                                            <p className="text-white/50 text-[10px]">{photo.width}×{photo.height}</p>
+                    {(() => {
+                        if (photoSearchLoading && photoSearchResults.length === 0) {
+                            return (
+                                <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+                                    <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mb-3" />
+                                    <p className="text-sm font-medium">Searching for photos...</p>
+                                </div>
+                            );
+                        }
+                        if (photoSearchResults.length === 0) {
+                            return (
+                                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                                    <Search className="w-10 h-10 mb-3" />
+                                    <p className="text-sm font-medium">No photos found. Try a different search query.</p>
+                                </div>
+                            );
+                        }
+                        return (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {photoSearchResults.map((photo, index) => (
+                                    <div
+                                        key={index}
+                                        className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer hover:shadow-lg ${savingPhoto === photo.url
+                                            ? 'border-emerald-500 ring-2 ring-emerald-200'
+                                            : 'border-gray-200 hover:border-emerald-400'
+                                            }`}
+                                        onClick={() => !savingPhoto && selectPhoto(photo.url)}
+                                    >
+                                        <div className="aspect-[4/3] bg-gray-100">
+                                            <Image
+                                                src={photo.thumbnail}
+                                                alt={photo.title}
+                                                fill
+                                                unoptimized
+                                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                }}
+                                            />
+                                        </div>
+                                        {/* Overlay on hover */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                                            <p className="text-white text-xs font-medium line-clamp-2">{photo.title}</p>
+                                            <p className="text-white/70 text-[10px] mt-0.5">{photo.source}</p>
+                                            {photo.width > 0 && (
+                                                <p className="text-white/50 text-[10px]">{photo.width}×{photo.height}</p>
+                                            )}
+                                        </div>
+                                        {/* License badge */}
+                                        {photo.license === 'editorial' && (
+                                            <span className="absolute top-2 left-2 bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow" title="From press/manufacturer site — safe for editorial use">
+                                                ✅ EDITORIAL
+                                            </span>
+                                        )}
+                                        {photo.license === 'cc' && (
+                                            <span className="absolute top-2 left-2 bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow" title="Creative Commons — free to use with attribution">
+                                                🆓 CC
+                                            </span>
+                                        )}
+                                        {photo.license === 'unknown' && (
+                                            <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow" title="Unknown license — verify before commercial use">
+                                                ⚠️ CHECK
+                                            </span>
+                                        )}
+                                        {/* Download button */}
+                                        <a
+                                            href={photo.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            download
+                                            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                            title="Open full-res image (right-click → Save As)"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                        </a>
+                                        {/* Saving spinner */}
+                                        {savingPhoto === photo.url && (
+                                            <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                                                <div className="flex flex-col items-center">
+                                                    <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                                                    <p className="text-xs font-medium text-emerald-700 mt-1">Saving...</p>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
-                                    {/* License badge */}
-                                    {photo.license === 'editorial' && (
-                                        <span className="absolute top-2 left-2 bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow" title="From press/manufacturer site — safe for editorial use">
-                                            ✅ EDITORIAL
-                                        </span>
-                                    )}
-                                    {photo.license === 'cc' && (
-                                        <span className="absolute top-2 left-2 bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow" title="Creative Commons — free to use with attribution">
-                                            🆓 CC
-                                        </span>
-                                    )}
-                                    {photo.license === 'unknown' && (
-                                        <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow" title="Unknown license — verify before commercial use">
-                                            ⚠️ CHECK
-                                        </span>
-                                    )}
-                                    {/* Download button */}
-                                    <a
-                                        href={photo.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        download
-                                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                                        title="Open full-res image (right-click → Save As)"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                    </a>
-                                    {/* Saving spinner */}
-                                    {savingPhoto === photo.url && (
-                                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-                                            <div className="flex flex-col items-center">
-                                                <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-                                                <p className="text-xs font-medium text-emerald-700 mt-1">Saving...</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Footer */}

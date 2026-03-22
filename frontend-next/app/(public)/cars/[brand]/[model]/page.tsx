@@ -243,7 +243,11 @@ function renderOldSpecsFallback(data: ModelData) {
                 <SpecRow label="Torque" value={data.specs.torque} />
                 <SpecRow label="0-60 mph" value={data.specs.zero_to_sixty} />
                 <SpecRow label="Top Speed" value={data.specs.top_speed} />
-                <SpecRow label="Price" value={data.specs.price ? (data.specs.price_date ? `${data.specs.price} (as of ${data.specs.price_date})` : data.specs.price) : ''} highlight />
+                <SpecRow label="Price" value={(() => {
+                    if (!data.specs.price) return '';
+                    if (data.specs.price_date) return `${data.specs.price} (as of ${data.specs.price_date})`;
+                    return data.specs.price;
+                })()} highlight />
                 <SpecRow label="Release Date" value={data.specs.release_date} />
             </div>
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
@@ -423,11 +427,11 @@ export default async function ModelPage({ params }: { params: Promise<{ brand: s
                         {/* VehicleSpecs — Trim Comparison or Single Spec */}
                         {(data.vehicle_specs_list?.length > 0 || data.vehicle_specs) && (
                             <VehicleSpecsTable
-                                vehicleSpecsList={
-                                    data.vehicle_specs_list?.length > 0
-                                        ? data.vehicle_specs_list
-                                        : (data.vehicle_specs ? [data.vehicle_specs] : [])
-                                }
+                                vehicleSpecsList={(() => {
+                                    if (data.vehicle_specs_list?.length > 0) return data.vehicle_specs_list;
+                                    if (data.vehicle_specs) return [data.vehicle_specs];
+                                    return [];
+                                })()}
                             />
                         )}
 

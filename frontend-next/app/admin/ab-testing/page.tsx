@@ -392,10 +392,12 @@ export default function ABTestingPage() {
                                         <div className="space-y-3">
                                             {test.variants.map((v) => {
                                                 const isLeading = bestVariant?.variant === v.variant && !hasWinner && test.total_impressions >= 30;
+                                                let variantClass = 'bg-white border-gray-200';
+                                                if (v.is_winner) variantClass = 'bg-amber-50 border-amber-300 ring-2 ring-amber-200';
+                                                else if (isLeading) variantClass = 'bg-green-50 border-green-200';
+                                                
                                                 return (
-                                                    <div key={v.id} className={`flex items-start gap-4 p-4 rounded-lg border ${v.is_winner ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200'
-                                                        : isLeading ? 'bg-green-50 border-green-200'
-                                                            : 'bg-white border-gray-200'}`}>
+                                                    <div key={v.id} className={`flex items-start gap-4 p-4 rounded-lg border ${variantClass}`}>
                                                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm border ${getVariantColor(v.variant)}`}>
                                                             {v.variant}
                                                         </span>
@@ -433,11 +435,16 @@ export default function ABTestingPage() {
                                                     {test.variants.map((v) => {
                                                         const maxCtr = Math.max(...test.variants.map((x) => x.ctr), 1);
                                                         const width = maxCtr > 0 ? (v.ctr / maxCtr) * 100 : 0;
+                                                        
+                                                        let barColorClass = 'bg-purple-500';
+                                                        if (v.variant === 'A') barColorClass = 'bg-blue-500';
+                                                        else if (v.variant === 'B') barColorClass = 'bg-emerald-500';
+
                                                         return (
                                                             <div key={v.id} className="flex items-center gap-2">
                                                                 <span className="w-6 text-sm font-medium text-gray-500">{v.variant}</span>
                                                                 <div className="flex-1 bg-gray-200 rounded-full h-5 overflow-hidden">
-                                                                    <div className={`h-full rounded-full transition-all duration-500 ${v.variant === 'A' ? 'bg-blue-500' : v.variant === 'B' ? 'bg-emerald-500' : 'bg-purple-500'}`}
+                                                                    <div className={`h-full rounded-full transition-all duration-500 ${barColorClass}`}
                                                                         style={{ width: `${Math.max(width, 2)}%` }} />
                                                                 </div>
                                                                 <span className="w-16 text-sm text-gray-600 text-right">{v.ctr}%</span>

@@ -33,6 +33,49 @@ except ImportError:
     from modules.ai_provider import get_ai_provider
     from modules.prompt_sanitizer import wrap_untrusted, sanitize_for_prompt, ANTI_INJECTION_NOTICE
 
+
+def parse_ai_response(raw: str) -> dict:
+    """Extract and parse JSON from raw AI response (handles markdown fences)."""
+    import json
+    import re
+
+    if not raw or not isinstance(raw, str):
+        return {}
+
+    # Remove markdown code fences if present
+    cleaned = raw.strip()
+    if cleaned.startswith('```'):
+        # Remove opening fence (```json or ```)
+        cleaned = re.sub(r'^```(?:json)?\s*\n?', '', cleaned)
+        # Remove closing fence
+        cleaned = re.sub(r'\n?```\s*$', '', cleaned)
+        cleaned = cleaned.strip()
+
+    # Try direct parse
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # Try to find JSON object in the text
+    match = re.search(r'\{[\s\S]*\}', cleaned)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    # Try aggressive manual fix for trailing commas
+    try:
+        cleaned_no_commas = re.sub(r',\s*}', '}', cleaned)
+        cleaned_no_commas = re.sub(r',\s*]', ']', cleaned_no_commas)
+        return json.loads(cleaned_no_commas)
+    except Exception:
+        pass
+
+    return {}
+
+
 from ai_engine.modules.article_post_processor import (
     post_process_article,
     _detect_missing_sections,
@@ -139,12 +182,18 @@ INSTRUCTIONS:
 8. Do NOT change the car name, year, or model designation
 9. Output ONLY clean HTML (h2, p, ul, li tags) — NO html/head/body tags
 
-OUTPUT the complete enhanced article as HTML."""
+OUTPUT FORMAT - You MUST return a valid JSON object (and NOTHING else) with these exact keys:
+{{
+  "original_analysis": "What missing facts did we find in the web data?",
+  "enhancement_plan": "What sections of the existing article will be updated?",
+  "final_html_article": "<p>Enhanced HTML article content...</p>"
+}}
+"""
 
-    system_prompt = "You are an expert automotive journalist enhancing an existing article with new facts. Keep the original tone and add only real, verified information."
+    system_prompt = "You are an expert automotive journalist enhancing an existing article with new facts. Keep the original tone and add only real, verified information. ALWAYS OUTPUT VALID JSON ONLY."
     
     try:
-        enhanced = ai.generate_completion(
+        raw_response = ai.generate_completion(
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.5,  # Lower temperature for factual enhancement
@@ -152,8 +201,14 @@ OUTPUT the complete enhanced article as HTML."""
             caller='article_enhance'
         )
         
-        if not enhanced or len(enhanced) < 200:
+        if not raw_response or len(raw_response) < 200:
             return None
+            
+        parsed_json = parse_ai_response(raw_response)
+        enhanced = parsed_json.get("final_html_article") or parsed_json.get("content") or raw_response
+        
+        enhanced = re.sub(r'^```(?:html)?\s*\n?', '', enhanced.strip())
+        enhanced = re.sub(r'\n?```\s*$', '', enhanced)
         
         # Full post-processing pipeline
         enhanced = post_process_article(enhanced)
@@ -186,7 +241,7 @@ OUTPUT the complete enhanced article as HTML."""
 
 
 
-def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None, competitor_context=None, competitor_makes=None):
+def generate_article(analysis_data, provider='gemini', web_context=None, source_title=None, competitor_context=None, competitor_makes=None, tribunal_context=None):
     """
     Generates a structured HTML article based on the analysis using selected AI provider.
     
@@ -209,6 +264,10 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     web_data_section = ""
     if web_context:
         web_data_section = f"\nCRITICAL WEB DATA — USE THIS IN YOUR ARTICLE (sales figures, real specs, market reception, test results):\n{wrap_untrusted(web_context, 'WEB_CONTEXT')}\n{ANTI_INJECTION_NOTICE}"
+
+    tribunal_section = ""
+    if tribunal_context:
+        tribunal_section = f"\n{tribunal_context}\n\n👉 CRITICAL TRIBUNAL RULING: The specs above are the ABSOLUTE GROUND TRUTH. If the transcript or web context contradicts these numbers, IGNORE THEM. Base the entire article on these verified specs.\n"
 
     competitor_section = ""
     if has_competitors:
@@ -237,13 +296,14 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
             f"   If you don't know a value for one card, write 'N/A' rather than changing the label.\n"
             f"9. POWER is MANDATORY in every compare-card. If HP is unknown, calculate from kW (× 1.34).\n"
             f"   NEVER substitute Power with 0-100 KM/H. Both can coexist as separate rows.\n"
+            f"10. For the 'This Vehicle' (the main car) compare card, YOU MUST USE THE EXACT SPECS PROVIDED IN THE CRITICAL TRIBUNAL RULING ABOVE. Do not write 'TBA' if the Tribunal gave you the number!\n"
             f"\n"
             f"Format each competitor as a CARD using this HTML:\n"
             f'<div class="compare-grid">\n'
             f'  <div class="compare-card featured">\n'
             f'    <div class="compare-badge">This Vehicle</div>\n'
             f'    <div class="compare-card-name">[Year] [Brand] [Model]</div>\n'
-            f'    <div class="compare-row"><span class="k">Power</span><span class="v">421 hp</span></div>\n'
+            f'    <div class="compare-row"><span class="k">Power</span><span class="v">[From Tribunal]</span></div>\n'
             f'    <div class="compare-row"><span class="k">Range</span><span class="v">620 km WLTP</span></div>\n'
             f'    <div class="compare-row"><span class="k">Price</span><span class="v">$34,300</span></div>\n'
             f'  </div>\n'
@@ -364,18 +424,29 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     prompt = f"""
 {entity_anchor}
 {web_data_section}
+{tribunal_section}
 {competitor_section}
 {exchange_rates_block}
 TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
 
 Create a professional, SEO-optimized automotive article based on the analysis below.
-Output ONLY clean HTML content (use <h2>, <p>, <ul>, etc.) - NO <html>, <head>, or <body> tags.
+
+OUTPUT FORMAT - You MUST return a valid JSON object (and NOTHING else) with these exact keys:
+{{
+  "extracted_hard_facts": "List 3-5 naked facts/numbers from the data (price, HP, range, battery, top speed). If a spec is unknown, do not list it.",
+  "target_audience_and_tone": "Briefly state who the reader is and what tone you will use.",
+  "seo_outline": "List the planned HTML headings (e.g. H2: Performance, H2: Pricing).",
+  "final_html_article": "<p>Full HTML article content...</p>"
+}}
+
+Inside the "final_html_article" field, output ONLY clean HTML content (use <h2>, <p>, <ul>, etc.) - NO <html>, <head>, or <body> tags.
 
 ═══════════════════════════════════════════════
 GOLDEN RULE — TRUTH OVER COMPLETENESS
 ═══════════════════════════════════════════════
 - ONLY state facts that come from the analysis data, web context, or your VERIFIED training knowledge
 - If a spec (HP, price, range, torque) is NOT in the source data and you are NOT confident about it → SKIP IT. Do not guess.
+- ⚠️ ANTI-HALLUCINATION GUARD: If the source data makes extreme or unbelievable claims (e.g. 1700+ hp for a $50k car) that are NOT corroborated by the WEB_CONTEXT, you MUST frame them cautiously as 'reviewer claims' or 'rumors', NOT as confirmed facts. When in doubt, lean on the realistic numbers from the WEB_CONTEXT.
 - Clearly separate CONFIRMED facts from EXPECTED/RUMORED information:
   ✅ "The BYD Seal produces 313 hp" (confirmed, on sale)
   ✅ "The interior is expected to feature a 15-inch display, based on spy shots" (clearly marked as expected)
@@ -724,7 +795,10 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
 - NEVER write phrases like "not detailed in the provided transcript", "as shown in the video", "the transcript mentions", "from the source material", "based on the transcript", "according to the video"
 - NEVER explain what information is MISSING from the source — if you don't have data, skip the claim silently
 - Write as if you are a journalist who has driven and researched the car yourself, not summarizing someone else's content
-- The final article must read as ORIGINAL JOURNALISM, not a summary of a YouTube review"""
+- The final article must read as ORIGINAL JOURNALISM, not a summary of a YouTube review
+
+ALWAYS OUTPUT VALID JSON ONLY. No markdown wrappers outside the JSON, no plain text commentary.
+"""
     
     try:
         # Use AI provider factory
@@ -747,7 +821,7 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
                 else:
                     break  # Article structure is fine, no point retrying
             
-            article_content = ai.generate_completion(
+            raw_response = ai.generate_completion(
                 prompt=current_prompt,
                 system_prompt=system_prompt,
                 temperature=0.65,
@@ -755,9 +829,16 @@ CRITICAL WORD COUNT RULE: Your article MUST be at minimum 1000 words, targeting 
                 caller='article_generate'
             )
             
-            if not article_content:
+            if not raw_response:
                 raise Exception(f"{provider_display} returned empty article")
             
+            parsed_json = parse_ai_response(raw_response)
+            article_content = parsed_json.get("final_html_article") or parsed_json.get("content") or raw_response
+
+            # Quick fix if AI accidentally wrapped the HTML in markdown inside json (which shouldn't happen, but just in case)
+            article_content = re.sub(r'^```(?:html)?\s*\n?', '', article_content.strip())
+            article_content = re.sub(r'\n?```\s*$', '', article_content)
+
             # Check word count
             stripped = re.sub(r'<[^>]+>', ' ', article_content)
             word_count = len(stripped.split())
@@ -950,7 +1031,15 @@ If Performance has no confirmed specs → OMIT the Performance section entirely.
 If Technology has no confirmed features → OMIT the Technology section entirely.
 A 500-word article with 4 solid sections > 1200-word article with 8 empty ones.
 
-Article Structure (Output ONLY clean HTML — NO <html>/<head>/<body> tags):
+OUTPUT FORMAT - You MUST return a valid JSON object (and NOTHING else) with these exact keys:
+{{
+  "extracted_hard_facts": "List 3-5 naked facts/numbers from the source (price, HP, range, battery, top speed). If a spec is unknown, do not list it.",
+  "target_audience_and_tone": "Briefly state who the reader is and what tone you will use.",
+  "seo_outline": "List the planned HTML headings (e.g. H2: Performance, H2: Pricing).",
+  "final_html_article": "<p>Full HTML article content...</p>"
+}}
+
+Inside the "final_html_article" field, output ONLY clean HTML content (use <h2>, <p>, <ul>, etc.) - NO <html>, <head>, or <body> tags.
 OMIT any section where you have NO real data.
 - <h2>[Year] [Brand] [Model]: [Engaging Hook]</h2>
 - Introduction with hook + key CONFIRMED specs from the press release
@@ -1052,6 +1141,8 @@ Remember: Every sentence should earn its place. Be accurate, engaging, and helpf
 - NEVER explain what information is MISSING — if you don't have data, skip the claim silently. NEVER write "not specified", "not detailed", "not disclosed", "not confirmed", "not provided", "not available", "remain unknown", or any variation.
 - Write as ORIGINAL JOURNALISM — the reader should never know where the source data came from
 
+ALWAYS OUTPUT VALID JSON ONLY. No markdown wrappers outside the JSON, no plain text commentary.
+
 ⛔ ANTI-CLICHÉ RULES (Google AdSense compliance):
 - NEVER use these AI-typical phrases: "paradigm shift", "tour de force", "game-changer", "game-changing", "redefines the segment", "disrupting the market", "pushing the boundaries", "breath of fresh air", "masterpiece", "technological marvel"
 - NEVER use hype language: "jaw-dropping", "mind-blowing", "eye-watering", "nothing short of", "extraordinary", "phenomenal"
@@ -1068,7 +1159,7 @@ Vary section headers too — don't always use the same H2 titles across articles
     try:
         # Use AI provider factory
         ai = get_ai_provider(provider)
-        article_content = ai.generate_completion(
+        raw_response = ai.generate_completion(
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=0.65,
@@ -1076,8 +1167,14 @@ Vary section headers too — don't always use the same H2 titles across articles
             caller='rss_generate'
         )
         
-        if not article_content:
+        if not raw_response:
             raise Exception(f"{provider_display} returned empty article")
+            
+        parsed_json = parse_ai_response(raw_response)
+        article_content = parsed_json.get("final_html_article") or parsed_json.get("content") or raw_response
+        
+        article_content = re.sub(r'^```(?:html)?\s*\n?', '', article_content.strip())
+        article_content = re.sub(r'\n?```\s*$', '', article_content)
             
         print(f"✓ Press release expanded successfully with {provider_display}! Length: {len(article_content)} characters")
         

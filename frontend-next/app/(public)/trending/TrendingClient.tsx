@@ -87,24 +87,28 @@ export default function TrendingClient({ initialArticles, initialCount }: Trendi
       </section>
 
       <div className="container mx-auto px-4 py-12">
-        {loading ? (
-          <ArticleGridSkeleton count={12} />
-        ) : articles.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
-            <div className="text-6xl mb-4">📊</div>
-            <p className="text-gray-600 text-lg">No trending articles found.</p>
-          </div>
-        ) : (
-          <>
+        {(() => {
+          if (loading) return <ArticleGridSkeleton count={12} />;
+          if (articles.length === 0) {
+            return (
+              <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
+                <div className="text-6xl mb-4">📊</div>
+                <p className="text-gray-600 text-lg">No trending articles found.</p>
+              </div>
+            );
+          }
+          return (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {articles.map((article, index) => (
                 <div key={article.id} className="relative">
                   {/* Ranking Badge */}
                   {currentPage === 1 && index < 3 && (
                     <div className="absolute -top-2 -left-2 z-10">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
-                        index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
-                          'bg-gradient-to-br from-orange-400 to-orange-600'
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${
+                        ['bg-gradient-to-br from-yellow-400 to-yellow-600',
+                         'bg-gradient-to-br from-gray-300 to-gray-500',
+                         'bg-gradient-to-br from-orange-400 to-orange-600'][index] || 'bg-gray-500'
                         }`}>
                         {index + 1}
                       </div>
@@ -123,7 +127,8 @@ export default function TrendingClient({ initialArticles, initialCount }: Trendi
               />
             )}
           </>
-        )}
+        );
+      })()}
       </div>
     </main>
   );

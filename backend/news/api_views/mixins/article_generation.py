@@ -230,54 +230,17 @@ class ArticleGenerationMixin:
                     if cat:
                         article.categories.add(cat)
 
-                # --- Auto-assign tags from seo_keywords + smart matching ---
+                # --- Smart Tag Assignment ---
                 tags_assigned = []
                 try:
-                    all_tags = list(Tag.objects.select_related('group').all())
-                    title_lower = result['title'].lower()
-                    content_lower = result.get('content', '').lower()
-                    combined_text = f"{title_lower} {content_lower}"
-                    seo_kw_list = result.get('seo_keywords', [])
-                    keywords_text = ' '.join(kw.lower() for kw in seo_kw_list)
-
-                    # Tags too generic for content matching (only match via exact keyword)
-                    GENERIC_TAGS = {'technology', 'navigation', 'advanced', 'performance', 'budget', 'luxury'}
-
-                    for tag in all_tags:
-                        tag_lower = tag.name.lower()
-                        matched = False
-
-                        # Skip year tags (e.g. "2025") from fuzzy matching
-                        if tag_lower.isdigit():
-                            if any(kw.strip().lower() == tag_lower for kw in seo_kw_list):
-                                matched = True
-                        # 1. Exact keyword match
-                        elif any(kw.strip().lower() == tag_lower for kw in seo_kw_list):
-                            matched = True
-                        # 2. Keyword contains tag name
-                        elif len(tag_lower) >= 3 and tag_lower not in GENERIC_TAGS and tag_lower in keywords_text:
-                            matched = True
-                        # 3. Tag name appears in title
-                        elif len(tag_lower) >= 2 and (f' {tag_lower} ' in f' {title_lower} ' or title_lower.startswith(f'{tag_lower} ')):
-                            matched = True
-                        # 4. Brand/body/fuel tags — check content too
-                        elif tag.group and tag.group.name in ('Manufacturers', 'Brands', 'Body Types', 'Fuel Types', 'Segments'):
-                            if tag_lower not in GENERIC_TAGS and f' {tag_lower} ' in f' {combined_text} ':
-                                matched = True
-                        # 5. Special fuel type matching
-                        elif tag_lower in ('ev', 'electric') and ('electric' in combined_text or ' ev ' in f' {combined_text} ' or 'bev' in combined_text):
-                            matched = True
-                        elif tag_lower == 'phev' and 'phev' in combined_text:
-                            matched = True
-                        elif tag_lower == 'hybrid' and 'hybrid' in combined_text:
-                            matched = True
-
-                        if matched and tag.name not in tags_assigned:
-                            article.tags.add(tag)
-                            tags_assigned.append(tag.name)
-
+                    from ai_engine.modules.smart_tagger import assign_tags
+                    tag_ids = assign_tags(result.get('title', ''), result.get('content', ''))
+                    if tag_ids:
+                        article.tags.set(tag_ids)
+                        from news.models import Tag
+                        tags_assigned = list(Tag.objects.filter(id__in=tag_ids).values_list('name', flat=True))
                 except Exception as tag_err:
-                    logger.warning(f'Auto-tag assignment failed: {tag_err}')
+                    logger.warning(f'Smart tag assignment failed: {tag_err}')
 
                 # --- Handle image upload ---
                 image_file = request.FILES.get('image')
@@ -559,52 +522,40 @@ OUTPUT: Return the COMPLETE reformatted HTML with every word preserved. Do NOT t
             return Response({'success': False, 'message': 'Content too short to generate SEO'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        system_prompt = "You are an expert automotive SEO copywriter. Output strictly valid JSON without markdown wrapping."
-        
-        prompt = f"""Read this automotive article and generate high-converting SEO fields for it.
-
-ARTICLE:
-{sanitize_for_prompt(content, max_length=15000)}
-
-Please output exactly this JSON format:
-{{
-  "title": "A 50-60 character punchy headline",
-  "summary": "A roughly 20-word summary of the most important specs/points for a UI card",
-  "seo_description": "A 140-150 character meta description designed for Google search"
-}}
-"""
         try:
-            from ai_engine.modules.ai_provider import get_light_provider
-            ai = get_light_provider()
-            result = ai.generate_completion(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                temperature=0.2,
-                max_tokens=300,
-                caller='regenerate_seo'
-            )
+            from ai_engine.modules.title_seo_generator import _generate_title_and_seo
             
-            cleaned = result.strip()
-            cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
-            cleaned = re.sub(r'\s*```$', '', cleaned)
+            specs_dict = {}
+            if hasattr(article, 'carspecification') and article.carspecification:
+                cs = article.carspecification
+                specs_dict = {
+                    'make': cs.make,
+                    'model': cs.model,
+                    'year': cs.release_date,
+                    'horsepower': cs.horsepower,
+                    'price': cs.price,
+                }
+                
+            ai_result = _generate_title_and_seo(content, specs_dict)
             
-            data = json.loads(cleaned)
-            
+            if not ai_result:
+                return Response({'success': False, 'message': 'AI failed to generate SEO metadata.'}, status=500)
+                
             updated_fields = []
-            if 'title' in data and data['title']:
-                article.title = data['title']
+            if ai_result.get('title'):
+                article.title = ai_result['title']
                 updated_fields.append('title')
-            if 'summary' in data and data['summary']:
-                article.summary = data['summary']
+            if ai_result.get('summary'):
+                article.summary = ai_result['summary']
                 updated_fields.append('summary')
-            if 'seo_description' in data and data['seo_description']:
-                article.seo_description = data['seo_description']
+            if ai_result.get('seo_description'):
+                article.seo_description = ai_result['seo_description']
                 updated_fields.append('seo_description')
                 
             if updated_fields:
                 article.save(update_fields=updated_fields + ['updated_at'])
                 try:
-                    invalidate_article_cache(article)
+                    invalidate_article_cache(article_id=article.id, slug=article.slug)
                 except Exception:
                     pass
             

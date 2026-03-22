@@ -102,6 +102,9 @@ CATEGORY: {category}
 
 OUTPUT FORMAT - Return a JSON object (and NOTHING else) with these fields:
 {{
+  "extracted_hard_facts": "List 3-5 naked facts/numbers from the source text. If a spec is unknown, do not list it.",
+  "target_audience_and_tone": "Briefly state who the reader is and what tone you will use.",
+  "seo_outline": "List the planned HTML headings (H2/H3).",
   "title": "Engaging, SEO-optimized title with year/brand/model if applicable (plain text, no HTML)",
   "content": "<h2>Section Title</h2><p>Full HTML article content...</p>",
   "summary": "2-3 sentence article summary for preview cards (plain text)",

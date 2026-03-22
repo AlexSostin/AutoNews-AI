@@ -200,7 +200,11 @@ export default function BrandModelsGrid({
                                 {[
                                     { label: 'Engine', value: model.engine || '—' },
                                     { label: 'Power', value: model.horsepower || '—' },
-                                    { label: 'Price', value: model.price ? (model.price_date ? `${model.price} (${model.price_date})` : model.price) : '—', highlight: true },
+                                    { label: 'Price', value: (() => {
+                                        if (!model.price) return '—';
+                                        if (model.price_date) return `${model.price} (${model.price_date})`;
+                                        return model.price;
+                                    })(), highlight: true },
                                     { label: 'Articles', value: String(model.article_count) },
                                 ].map((spec, i) => (
                                     <div

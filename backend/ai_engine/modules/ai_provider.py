@@ -49,21 +49,22 @@ PRO_CALLERS = frozenset({
     'article_review',
     'article_enhance',
     'comparison',
+    'specs_tribunal',
     'article_verdict_fallback',
 })
 
 # Model cascades by tier
 PRO_MODELS = [
+    'gemini-2.0-flash',
+    'gemini-2.5-pro-exp-03-25',
     'gemini-3.1-pro-preview',
     'gemini-3-flash-preview',
-    'gemini-2.5-pro-exp-03-25',
     'gemini-2.5-flash',
-    'gemini-2.0-flash',
 ]
 FLASH_MODELS = [
-    'gemini-3-flash-preview',
-    'gemini-2.5-flash',
     'gemini-2.0-flash',
+    'gemini-2.5-flash',
+    'gemini-3-flash-preview',
 ]
 
 # Rate limits per model (from Google AI Studio dashboard)

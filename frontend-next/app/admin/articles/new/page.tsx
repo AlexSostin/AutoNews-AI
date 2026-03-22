@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Search, Image as ImageIcon, Loader2, RefreshCw, Zap, Wand2 } from 'lucide-react';
+import { ArrowLeft, Youtube, Sparkles, Save, Languages, Eye, X, Loader2, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { sanitizeHtml } from '@/lib/sanitize';
@@ -11,7 +11,7 @@ import GenerationProgress from '@/components/admin/GenerationProgress';
 import { useGenerationStore, percentToStep } from '@/lib/useGenerationStore';
 import { TagSelector } from '../[id]/edit/components/TagSelector';
 import { PhotoSearchModal } from '../[id]/edit/components/PhotoSearchModal';
-import { PageHeader } from '@/app/admin/components/ui/PageHeader';
+
 import { ArticleBasicInfo } from '@/app/admin/articles/components/ArticleBasicInfo';
 import { ArticleContentEditor } from '@/app/admin/articles/components/ArticleContentEditor';
 import { ArticleSeoMeta } from '@/app/admin/articles/components/ArticleSeoMeta';
@@ -38,7 +38,7 @@ export default function NewArticlePage() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [taskId, setTaskId] = useState<string>('');
-  const [provider, setProvider] = useState('gemini');
+  const provider = 'gemini';
   const [activeTab, setActiveTab] = useState<'youtube' | 'translate'>('youtube');
 
   // Translate tab state
@@ -63,8 +63,7 @@ export default function NewArticlePage() {
   const [photoSearchResults, setPhotoSearchResults] = useState<any[]>([]);
   const [savingPhoto, setSavingPhoto] = useState<string | null>(null);
   const [imageSource, setImageSource] = useState<string>('unknown');
-  const [generatingAI, setGeneratingAI] = useState<number | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
 
   const [formData, setFormData] = useState({
     title: '',
@@ -127,6 +126,48 @@ export default function NewArticlePage() {
     });
   };
 
+  const pollGenerationStatus = async (currentTaskId: string, currentTick: number): Promise<void> => {
+    try {
+      const { data } = await api.get('/articles/generate_status/', {
+        params: { task_id: currentTaskId },
+      });
+
+      if (data.status === 'done') {
+        const articleId = data.article_id || data.article?.id;
+        useGenerationStore.getState().finishGeneration(String(articleId));
+        if (articleId) {
+          router.push(`/admin/articles/${articleId}/edit`);
+        }
+        return;
+      }
+
+      if (data.status === 'error') {
+        useGenerationStore.getState().failGeneration(
+          data.error || 'Generation failed',
+          !!data.timeout,
+        );
+        setGenerating(false);
+        return;
+      }
+
+      let nextTick = currentTick;
+      if (data.progress && data.progress > 0) {
+        useGenerationStore.getState().updateProgress(data.progress, percentToStep(data.progress), data.message || undefined);
+      } else {
+        nextTick++;
+        const pct = Math.min(Math.round(5 + 90 * (1 - Math.exp(-nextTick / 30))), 95);
+        useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
+      }
+
+      await new Promise(r => setTimeout(r, 3000));
+      return pollGenerationStatus(currentTaskId, nextTick);
+    } catch (err: any) {
+      const errMsg = err.response?.data?.error || err.message || 'Polling error';
+      useGenerationStore.getState().failGeneration(errMsg);
+      setGenerating(false);
+    }
+  };
+
   const handleGenerateFromYoutube = async () => {
     if (!formData.youtube_url) {
       alert('Please enter a YouTube URL');
@@ -137,7 +178,6 @@ export default function NewArticlePage() {
     useGenerationStore.getState().startGeneration(formData.youtube_url);
 
     try {
-      // Dispatch Celery task — returns immediately with task_id
       const { data: startData } = await api.post('/articles/generate_from_youtube/', {
         youtube_url: formData.youtube_url,
         provider: provider,
@@ -150,56 +190,8 @@ export default function NewArticlePage() {
         return;
       }
 
-      const taskId = startData.task_id;
-
-      // Fallback counter for when backend hasn't sent real progress yet
-      let fallbackTick = 0;
-
-      // Poll generate_status every 3 seconds
-      const poll = async (): Promise<void> => {
-        try {
-          const { data } = await api.get('/articles/generate_status/', {
-            params: { task_id: taskId },
-          });
-
-          if (data.status === 'done') {
-            const articleId = data.article_id || data.article?.id;
-            useGenerationStore.getState().finishGeneration(String(articleId));
-            if (articleId) {
-              router.push(`/admin/articles/${articleId}/edit`);
-            }
-            return;
-          }
-
-          if (data.status === 'error') {
-            useGenerationStore.getState().failGeneration(
-              data.error || 'Generation failed',
-              !!data.timeout,
-            );
-            setGenerating(false);
-            return;
-          }
-
-          // Use real progress from backend if available, else simulate
-          if (data.progress && data.progress > 0) {
-            useGenerationStore.getState().updateProgress(data.progress, percentToStep(data.progress), data.message || undefined);
-          } else {
-            fallbackTick++;
-            const pct = Math.min(Math.round(5 + 90 * (1 - Math.exp(-fallbackTick / 30))), 95);
-            useGenerationStore.getState().updateProgress(pct, percentToStep(pct));
-          }
-
-          // Still pending/running — wait 3s and poll again
-          await new Promise(r => setTimeout(r, 3000));
-          return poll();
-        } catch (err: any) {
-          const errMsg = err.response?.data?.error || err.message || 'Polling error';
-          useGenerationStore.getState().failGeneration(errMsg);
-          setGenerating(false);
-        }
-      };
-
-      await poll();
+      setTaskId(startData.task_id);
+      await pollGenerationStatus(startData.task_id, 0);
     } catch (error: any) {
       const errMsg = error.response?.data?.error || error.message || 'Generation failed';
       const isTimeout = error.response?.status === 408 || !!error.response?.data?.timeout;
@@ -793,7 +785,7 @@ export default function NewArticlePage() {
           setFormData={setFormData}
           imageSource={imageSource}
           setImageSource={setImageSource}
-          setPreviewImage={setPreviewImage}
+          setPreviewImage={() => {}}
           openPhotoSearch={(slot: number) => {
             setPhotoSearchSlot(slot);
             setPhotoSearchQuery(formData.title || formData.slug || '');
@@ -804,7 +796,7 @@ export default function NewArticlePage() {
           generateAIImage={async () => {
             alert('Please save the article first before generating AI images.');
           }}
-          generatingAI={generatingAI}
+          generatingAI={null}
           restoreYouTubeThumbnail={async () => { alert('Please save the article first.'); }}
           restoringYT={false}
         />

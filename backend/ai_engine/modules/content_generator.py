@@ -352,6 +352,33 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         # Step 8: INTERNAL SPEC VERIFICATION — check our own DB for verified specs
         internal_specs_context = _get_internal_specs_context(specs)
 
+        # ---------------------------------------------------------------------
+        # NEW: THE SPECS TRIBUNAL -> Absolute Truth Consolidation
+        # ---------------------------------------------------------------------
+        tribunal_summary = ""
+        try:
+            from ai_engine.modules.specs_tribunal import convene_specs_tribunal
+            send_progress(4, 64, "⚖️ Convening Specs Tribunal...")
+            tribunal_result = convene_specs_tribunal(
+                transcript_analysis=analysis,
+                video_facts=video_facts if 'video_facts' in locals() else {},
+                web_context=web_context,
+                internal_specs_text=internal_specs_context,
+                provider=provider
+            )
+            if tribunal_result and tribunal_result.get('verified_specs'):
+                # 1. Update the master specs dictionary with the True specs
+                for k, v in tribunal_result['verified_specs'].items():
+                    if v and v != "Not specified":
+                        specs[k] = v
+                
+                # 2. Extract the summary for the writer
+                tribunal_summary = tribunal_result.get('summary_for_writer', "")
+                if tribunal_summary:
+                    print(f"⚖️ Tribunal ruled on specs!")
+        except Exception as e:
+            print(f"⚠️ Specs Tribunal failed: {e}")
+
         # Append internal specs to web_context so the generator sees them
         enriched_web_context = web_context
         if internal_specs_context:
@@ -360,13 +387,14 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
         # Collect approved competitor makes for hallucination guard
         allowed_competitor_makes = list({c.get('make', '') for c in competitor_data if c.get('make')})
 
-        # Pass web context + competitor context to generator
+        # Pass web context + competitor context + TRIBUNAL context to generator
         article_html = generate_article(
             analysis, provider=provider,
             web_context=enriched_web_context,
             source_title=video_title,
             competitor_context=competitor_context or None,
             competitor_makes=allowed_competitor_makes or None,
+            tribunal_context=tribunal_summary or None
         )
         
         if not article_html or len(article_html) < 100:

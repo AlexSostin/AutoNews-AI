@@ -472,3 +472,43 @@ class ArticleViewSet(
             'scheduled_count': len(updated),
             'articles': updated,
         })
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])
+    def smart_tags(self, request):
+        """
+        Manually trigger the Smart Tagging Agent for an article.
+        Expects {"title": "...", "content": "..."} in the payload.
+        Returns a list of suggested tags.
+        """
+        title = request.data.get('title', '')
+        content = request.data.get('content', '')
+        
+        if not title:
+            return Response({"error": "Title is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from ai_engine.modules.smart_tagger import assign_tags
+            
+            # This returns a list of integer Tag IDs
+            tag_ids = assign_tags(title, content)
+            
+            # Fetch the actual distinct tag objects
+            tags = Tag.objects.filter(id__in=tag_ids).select_related('group')
+            
+            tags_data = []
+            for t in tags:
+                tags_data.append({
+                    "id": t.id,
+                    "name": t.name,
+                    "slug": t.slug,
+                    "group": {
+                        "name": t.group.name if t.group else "Uncategorized",
+                        "slug": t.group.slug if t.group else "uncategorized"
+                    } if hasattr(t, 'group') and t.group else None
+                })
+                
+            return Response({"tags": tags_data}, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error in smart_tags action: {e}", exc_info=True)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

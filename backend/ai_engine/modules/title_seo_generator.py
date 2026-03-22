@@ -59,8 +59,9 @@ def _generate_title_and_seo(article_html: str, specs: dict) -> dict:
     range_val = specs.get('range', '')
     
     if not make or make == 'Not specified' or not model or model == 'Not specified':
-        print("⚠️ Cannot generate AI title: missing make/model")
-        return None
+        print("⚠️ Warning: Generating AI title with missing make/model (using fallback)")
+        make = "The Vehicle"
+        model = ""
     
     # Format specs nicely
     year_str = f"{year} " if year else ""
@@ -75,10 +76,16 @@ def _generate_title_and_seo(article_html: str, specs: dict) -> dict:
     prompt = f"""Generate a TITLE, SEO DESCRIPTION, and SUMMARY for this car article.
 
 CAR: {year_str}{make} {model}{trim_str}
-KEY SPECS: {hp_str}{price_str}{range_str}
+BACKGROUND SPECS: {hp_str}{price_str}{range_str}
 
 ARTICLE PREVIEW:
 {article_preview}
+
+═══ CRITICAL SYNCHRONIZATION RULE ═══
+The generated TITLE, SEO DESCRIPTION, and SUMMARY MUST perfectly match the facts, numbers, and claims made in the ARTICLE PREVIEW. 
+DO NOT USE ANY NUMBERS FROM THE 'BACKGROUND SPECS' UNLESS THEY EXPLICITLY APPEAR IN THE 'ARTICLE PREVIEW'. 
+If the ARTICLE PREVIEW omits horsepower, or says "TBA", your SUMMARY MUST ALSO OMIT HORSEPOWER. 
+If the BACKGROUND SPECS contradict or have extra info not in the ARTICLE PREVIEW, IGNORE the background specs. The ARTICLE PREVIEW is the absolute source of truth.
 
 ═══ TITLE RULES ═══
 - LENGTH: 50-90 characters (STRICT — count carefully)
@@ -95,6 +102,10 @@ ARTICLE PREVIEW:
 - Include the car name and its most impressive spec or selling point.
 - Must be a complete, engaging sentence — NOT truncated mid-word.
 - Do NOT write a long essay. Just 2-3 punchy sentences.
+
+═══ LANGUAGE RULE ═══
+- ALL OUTPUT MUST BE STRICTLY IN ENGLISH. 
+- DO NOT INCLUDE ANY CHINESE CHARACTERS (e.g., 万元起). Translate all currencies and formats to standard Western English equivalents (e.g., $19,700 or CNY 139,800).
 
 ═══ OUTPUT FORMAT (strict) ═══
 You MUST output EXACTLY these three keys, starting at the beginning of the line. DO NOT use markdown bolding like **SUMMARY:**.
@@ -116,14 +127,16 @@ SUMMARY: [your 150-200 char summary here]
         
         if not result:
             return None
+            
+        print(f"\n--- AI RAW OUTPUT ---\n{result}\n---------------------\n")
         
         # Parse the response
         title = None
         seo_desc = None
         
-        title_match = re.search(r'TITLE:\s*(.+?)(?=\nSEO_DESCRIPTION:|\nSUMMARY:|$)', result, re.IGNORECASE | re.DOTALL)
-        seo_match = re.search(r'SEO_?DESCRIPTION:\s*(.+?)(?=\nSUMMARY:|\nTITLE:|$)', result, re.IGNORECASE | re.DOTALL)
-        summary_match = re.search(r'SUMMARY:\s*(.+?)(?=\nSEO_DESCRIPTION:|\nTITLE:|$)', result, re.IGNORECASE | re.DOTALL)
+        title_match = re.search(r'TITLE\s*:\s*(.+?)(?=\nSEO_?DESCRIPTION\s*:|\nSUMMARY\s*:|$)', result, re.IGNORECASE | re.DOTALL)
+        seo_match = re.search(r'SEO_?DESCRIPTION\s*:\s*(.+?)(?=\nSUMMARY\s*:|\nTITLE\s*:|$)', result, re.IGNORECASE | re.DOTALL)
+        summary_match = re.search(r'SUMMARY\s*:\s*(.+?)(?=\nSEO_?DESCRIPTION\s*:|\nTITLE\s*:|$)', result, re.IGNORECASE | re.DOTALL)
         
         title = title_match.group(1).strip().strip('"').strip("'") if title_match else None
         seo_desc = seo_match.group(1).strip().strip('"').strip("'") if seo_match else None
