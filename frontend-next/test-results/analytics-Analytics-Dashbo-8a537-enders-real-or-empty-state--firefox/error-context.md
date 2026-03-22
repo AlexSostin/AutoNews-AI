@@ -1,6 +1,0 @@
-# Page snapshot
-
-```yaml
-- button "Open Next.js Dev Tools" [ref=e9] [cursor=pointer]:
-  - img [ref=e10]
-```

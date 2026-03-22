@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { FormCard, FormField } from '@/app/admin/components/forms/FormCard';
+import { FormCard } from '@/app/admin/components/forms/FormCard';
 import { Tag as TagIcon, Youtube } from 'lucide-react';
 
 interface ArticleSeoMetaProps {

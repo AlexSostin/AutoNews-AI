@@ -70,16 +70,21 @@ interface ArticleImageManagerProps {
 // ── Image metadata ────────────────────────────────────────────────────────
 function ImageMeta({ src }: { src: string }) {
     const [meta, setMeta] = useState<{ w: number; h: number; size?: string } | null>(null);
-    const imgRef = useRef<HTMLImageElement>(null);
-    const handleLoad = useCallback(() => {
-        const img = imgRef.current;
-        if (img) setMeta(prev => ({ ...prev, w: img.naturalWidth, h: img.naturalHeight, size: prev?.size }));
-    }, []);
+
     React.useEffect(() => {
         if (!src || !src.startsWith('http')) return;
+        
+        let active = true;
+        const img = new window.Image();
+        img.onload = () => {
+             if (active) setMeta(prev => ({ ...prev, w: img.naturalWidth, h: img.naturalHeight, size: prev?.size }));
+        };
+        img.src = src;
+
         const ctrl = new AbortController();
         fetch(src, { method: 'HEAD', signal: ctrl.signal })
             .then(res => {
+                if (!active) return;
                 const len = res.headers.get('content-length');
                 if (len) {
                     const kb = Math.round(parseInt(len) / 1024);
@@ -87,11 +92,14 @@ function ImageMeta({ src }: { src: string }) {
                 }
             })
             .catch(() => { });
-        return () => ctrl.abort();
+        return () => {
+             active = false;
+             ctrl.abort();
+        };
     }, [src]);
+
     return (
         <>
-            <img ref={imgRef} src={src} onLoad={handleLoad} alt="" className="hidden" />
             {meta && (meta.w > 0 || meta.size) && (
                 <div className="text-[10px] text-gray-400 mt-1 font-mono">
                     {meta.w > 0 && `${meta.w}×${meta.h}`}{meta.w > 0 && meta.size && ' • '}{meta.size}
@@ -485,18 +493,44 @@ export function ArticleImageManager({
                         const hasImage = (!!currentImg && !isDeleted) || !!fileImg;
                         const isDragTarget = dragOver === cardIdx && dragSource !== null && dragSource !== cardIdx;
                         const isGallery = card.kind === 'gallery';
+                        let cardClassName = 'border-gray-200 bg-gray-50/30';
+                        if (isDragTarget) {
+                            cardClassName = 'border-indigo-400 bg-indigo-50/30 scale-[1.02]';
+                        } else if (dragOver === cardIdx) {
+                            cardClassName = 'border-blue-300 bg-blue-50/20';
+                        } else if (isGallery) {
+                            cardClassName = 'border-teal-200 bg-teal-50/20';
+                        }
+
+                        const handleGalleryReplace = (file: File) => {
+                            if (card.kind === 'gallery' && card.gallerySlot.id > 0 && articleId) {
+                                api.delete(`/article-images/${card.gallerySlot.id}/`).catch(() => { });
+                                const fd = new FormData();
+                                fd.append('article', articleId);
+                                fd.append('image', file);
+                                fd.append('order', '0');
+                                api.post('/article-images/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+                                    .then(res => {
+                                        setGallerySlots(prev => {
+                                            const updated = [...prev];
+                                            const urlStr = String(res.data.image);
+                                            updated[card.galleryIndex] = { 
+                                                id: res.data.id, 
+                                                url: urlStr.startsWith('http') ? urlStr : `https://heroic-healing-production-2365.up.railway.app${urlStr}` 
+                                            };
+                                            return updated;
+                                        });
+                                    })
+                                    .catch(() => { });
+                            } else {
+                                placeFileInCard(cardIdx, file);
+                            }
+                        };
 
                         return (
                             <div
                                 key={cardIdx}
-                                className={`rounded-xl border-2 transition-all overflow-visible ${isDragTarget
-                                    ? 'border-indigo-400 bg-indigo-50/30 scale-[1.02]'
-                                    : dragOver === cardIdx
-                                        ? 'border-blue-300 bg-blue-50/20'
-                                        : isGallery
-                                            ? 'border-teal-200 bg-teal-50/20'
-                                            : 'border-gray-200 bg-gray-50/30'
-                                    }`}
+                                className={`rounded-xl border-2 transition-all overflow-visible ${cardClassName}`}
                                 onDragOver={(e) => { e.preventDefault(); setDragOver(cardIdx); }}
                                 onDragLeave={() => setDragOver(null)}
                                 onDrop={(e) => {
@@ -558,7 +592,7 @@ export function ArticleImageManager({
                                                             setFormData((prev: any) => ({ ...prev, [card.deleteKey]: true }));
                                                             onSlotChange?.(card.slot, currentImg || null, null);
                                                         } else {
-                                                            removeGallerySlot(card.galleryIndex);
+                                                            removeGallerySlot((card as GalleryCard).galleryIndex);
                                                         }
                                                     }}
                                                     className="bg-red-500/90 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm hover:bg-red-600 transition-colors font-medium"
@@ -599,7 +633,8 @@ export function ArticleImageManager({
                                                         } else {
                                                             setGallerySlots(prev => {
                                                                 const updated = [...prev];
-                                                                updated[card.galleryIndex] = { ...updated[card.galleryIndex], file: undefined };
+                                                                const gIdx = (card as GalleryCard).galleryIndex;
+                                                                updated[gIdx] = { ...updated[gIdx], file: undefined };
                                                                 return updated;
                                                             });
                                                         }
@@ -674,27 +709,7 @@ export function ArticleImageManager({
                                             <input type="file" accept="image/*" className="hidden"
                                                 onChange={(e) => {
                                                     const file = e.target.files?.[0];
-                                                    if (file) {
-                                                        if (card.gallerySlot.id > 0 && articleId) {
-                                                            // Delete old + upload new
-                                                            api.delete(`/article-images/${card.gallerySlot.id}/`).catch(() => { });
-                                                            const fd = new FormData();
-                                                            fd.append('article', articleId);
-                                                            fd.append('image', file);
-                                                            fd.append('order', '0');
-                                                            api.post('/article-images/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-                                                                .then(res => {
-                                                                    setGallerySlots(prev => {
-                                                                        const updated = [...prev];
-                                                                        updated[card.galleryIndex] = { id: res.data.id, url: res.data.image.startsWith('http') ? res.data.image : `https://heroic-healing-production-2365.up.railway.app${res.data.image}` };
-                                                                        return updated;
-                                                                    });
-                                                                })
-                                                                .catch(() => { });
-                                                        } else {
-                                                            placeFileInCard(cardIdx, file);
-                                                        }
-                                                    }
+                                                    if (file) handleGalleryReplace(file);
                                                 }} />
                                         </label>
                                     )}

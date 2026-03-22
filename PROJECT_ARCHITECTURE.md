@@ -309,6 +309,10 @@ AutoNews-AI/
 | `Cannot assign to read-only property pushState` | Direct `window.history.pushState()` conflicts with Next.js App Router hydration | Replaced with `window.history.replaceState({...state, slug})` — spreads existing state to preserve `__NA`/`__N` flags |
 | `Failed to load chunk` (ChunkLoadError) | Stale JS chunks in browser after new deploy | `ErrorBoundary` auto-reloads on `ChunkLoadError` or `Loading chunk` errors |
 | `FATAL: too many clients already` (PostgreSQL) | Scheduler threads held DB connections open (no cleanup after scan) | Added `close_old_connections()` in `finally` block of `_run_rss_scan()`; `CONN_MAX_AGE=0` always |
+| React UI Cognitive Complexity (SonarCloud) | `profile/page.tsx` & `cars/[brand]/[model]/page.tsx` had bloated inline JSX | Extracted modals and JSON-LD schemas into dedicated helper functions, achieving 0 SonarCloud Cognitive Complexity flags. |
+| Mobile E2E Layout Overflow (`mobile.spec.ts`) | Responsive `AdBanner.tsx` and header elements broke the 375px mobile viewport | Applied `overflow-x-hidden` on global layout `<body...>` and `max-w-full overflow-hidden` on ad components to lock viewport. |
+| Railway Deployment Sync Blocked | Backend auto-deploy got skipped because frontend-only commit failed in GitHub Actions | Analyzed GH Actions check suite failures and added safe trigger commits to bypass Railway's Watch Paths filter to strictly sync both services. |
+| Backend CI Flakiness (Redis collision) | Parallel `pytest-xdist` workers shared the same Redis cache, bleeding `health_summary_v2` state across processes and failing `test_resolved_not_counted`. | Implemented `MockCache` and patched `django.core.cache` via an `autouse` fixture, isolating cache access to a local Python dict per worker. |
 
 ---
 

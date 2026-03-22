@@ -27,6 +27,22 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
   const tag = typeof resolvedParams.tag === 'string' ? resolvedParams.tag : '';
   const search = typeof resolvedParams.search === 'string' ? resolvedParams.search : '';
 
+  const buildUrl = (updates: Record<string, string | number | null>) => {
+    const params = new URLSearchParams();
+    const state = { page, category, tag, search, ...updates };
+    if (state.category) params.append('category', String(state.category));
+    if (state.tag) params.append('tag', String(state.tag));
+    if (state.search) params.append('search', String(state.search));
+    
+    // Only append page if it's > 1 or explicitly requested
+    if (state.page && Number(state.page) > 1) {
+       params.append('page', String(state.page));
+    }
+    
+    const qs = params.toString();
+    return qs ? '/articles?' + qs : '/articles';
+  };
+
   let articles: Article[] = [];
   let totalCount = 0;
   let categories: Category[] = [];
@@ -144,7 +160,7 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
                   <span className="text-sm text-gray-600 font-medium">Active filters:</span>
                   {category && (
                     <Link
-                      href={`/articles?${tag ? `tag=${tag}&` : ''}${search ? `search=${search}` : ''}`}
+                      href={buildUrl({ category: null })}
                       className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
                       {categories.find((c: Category) => c.slug === category)?.name} ✕
@@ -152,7 +168,7 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
                   )}
                   {tag && (
                     <Link
-                      href={`/articles?${category ? `category=${category}&` : ''}${search ? `search=${search}` : ''}`}
+                      href={buildUrl({ tag: null })}
                       className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
                       {tagsObj.find((t: Tag) => t.slug === tag)?.name} ✕
@@ -160,7 +176,7 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
                   )}
                   {search && (
                     <Link
-                      href={`/articles?${category ? `category=${category}&` : ''}${tag ? `tag=${tag}` : ''}`}
+                      href={buildUrl({ search: null })}
                       className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm hover:bg-indigo-200 transition-colors"
                     >
                       &ldquo;{search}&rdquo; ✕
@@ -223,7 +239,7 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
                 <div className="flex justify-center items-center gap-2 mt-12 pt-8 border-t border-gray-200">
                   {page > 1 && (
                     <Link
-                      href={`/articles?page=${page - 1}${category ? `&category=${category}` : ''}${tag ? `&tag=${tag}` : ''}${search ? `&search=${search}` : ''}`}
+                      href={buildUrl({ page: page - 1 })}
                       className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-2 font-medium"
                     >
                       <ChevronLeft size={20} />
@@ -247,7 +263,7 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
                       return (
                         <Link
                           key={pageNum}
-                          href={`/articles?page=${pageNum}${category ? `&category=${category}` : ''}${tag ? `&tag=${tag}` : ''}${search ? `&search=${search}` : ''}`}
+                          href={buildUrl({ page: pageNum })}
                           className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-all ${page === pageNum
                             ? 'bg-indigo-600 text-white shadow-md'
                             : 'bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50'
@@ -261,7 +277,7 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
 
                   {page < totalPages && (
                     <Link
-                      href={`/articles?page=${page + 1}${category ? `&category=${category}` : ''}${tag ? `&tag=${tag}` : ''}${search ? `&search=${search}` : ''}`}
+                      href={buildUrl({ page: page + 1 })}
                       className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-2 font-medium"
                     >
                       Next

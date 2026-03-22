@@ -187,6 +187,187 @@ export default function LoginPage() {
     }
   };
 
+  const render2FAForm = () => (
+    <form onSubmit={handleTotpSubmit} className="space-y-6">
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-100 mb-2">
+          <Smartphone className="text-indigo-600" size={28} />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">Two-Factor Authentication</h2>
+        <p className="text-gray-500 text-sm">
+          Open <strong>Google Authenticator</strong> and enter the 6-digit code for <strong>FreshMotors</strong>
+        </p>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+          {error}
+        </div>
+      )}
+
+      <div className="flex justify-center">
+        <input
+          ref={totpInputRef}
+          id="totp-code"
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={totpCode}
+          onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+          className="w-full text-center text-4xl font-mono tracking-[0.5em] px-6 py-5 border-2 border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 bg-gray-50"
+          placeholder="······"
+          autoComplete="one-time-code"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={isLoading || totpCode.length !== 6}
+        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-indigo-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+      >
+        <ShieldCheck size={20} />
+        {isLoading ? 'Verifying...' : 'Verify & Login'}
+      </button>
+
+      {/* Passkey alternative — shown when user has both 2FA and passkeys */}
+      {pendingPasskeyToken && passkeySupported && (
+        <>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+            <div className="relative flex justify-center text-xs"><span className="px-2 bg-white text-gray-400">or</span></div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setRequires2FA(false); setRequiresPasskey(true); }}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-indigo-500 text-white py-3 rounded-xl font-semibold hover:from-violet-600 hover:to-indigo-600 transition-all shadow-lg shadow-violet-500/20 text-sm"
+          >
+            <Fingerprint size={18} />
+            Use Passkey Instead
+          </button>
+        </>
+      )}
+
+      <button
+        type="button"
+        onClick={() => { setRequires2FA(false); setTotpCode(''); setError(''); setPending2FACredentials({ username: '', password: '' }); setGoogleUserId(''); setPendingPasskeyToken(''); }}
+        className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
+      >
+        ← Back to login
+      </button>
+    </form>
+  );
+
+  const renderPasskeyForm = () => (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-violet-100 mb-2">
+          <Fingerprint className="text-violet-600" size={28} />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">Verify with Passkey</h2>
+        <p className="text-gray-500 text-sm">
+          Tap the button and confirm with your fingerprint or Face ID
+        </p>
+      </div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">{error}</div>
+      )}
+      <button
+        type="button"
+        onClick={handlePasskeyVerify}
+        disabled={isPasskeyLoading}
+        className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:from-violet-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-violet-500/30 text-base"
+      >
+        <Fingerprint size={22} className={isPasskeyLoading ? 'animate-pulse' : ''} />
+        {isPasskeyLoading ? 'Waiting for biometric...' : 'Tap to confirm with fingerprint'}
+      </button>
+      {passkeyHas2FA && (
+        <>
+          <div className="relative mt-4">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+            <div className="relative flex justify-center text-xs"><span className="px-2 bg-white text-gray-400">or</span></div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setRequiresPasskey(false); setRequires2FA(true); }}
+            className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-lg text-sm"
+          >
+            <Smartphone size={18} />
+            Use Authenticator App Instead
+          </button>
+        </>
+      )}
+      <button
+        type="button"
+        onClick={() => { setRequiresPasskey(false); setError(''); }}
+        className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors mt-6 block"
+      >
+        ← Back to login
+      </button>
+    </div>
+  );
+
+  const renderPasswordForm = () => (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      <div>
+        <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+          Username
+        </label>
+        <input
+          id="username"
+          type="text"
+          value={formData.username}
+          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
+          required
+        />
+      </div>
+
+      <div className="relative">
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+          Password
+        </label>
+        <input
+          id="password"
+          type={showPassword ? 'text' : 'password'}
+          value={formData.password}
+          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
+          required
+          autoComplete="current-password"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          onClick={() => setShowPassword((v) => !v)}
+          className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
+          style={{ background: 'none', border: 'none', padding: 0 }}
+        >
+          {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+        </button>
+      </div>
+
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-indigo-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+      >
+        {isLoading ? 'Logging in...' : 'Login'}
+      </button>
+    </form>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800 flex items-center justify-center px-4 py-8">
       <div className="max-w-md w-full">
@@ -206,189 +387,12 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          {/* ── STEP 2: 2FA TOTP input ── */}
-          {requires2FA ? (
-            <form onSubmit={handleTotpSubmit} className="space-y-6">
-              <div className="text-center space-y-2">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-100 mb-2">
-                  <Smartphone className="text-indigo-600" size={28} />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">Two-Factor Authentication</h2>
-                <p className="text-gray-500 text-sm">
-                  Open <strong>Google Authenticator</strong> and enter the 6-digit code for <strong>FreshMotors</strong>
-                </p>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex justify-center">
-                <input
-                  ref={totpInputRef}
-                  id="totp-code"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
-                  className="w-full text-center text-4xl font-mono tracking-[0.5em] px-6 py-5 border-2 border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 bg-gray-50"
-                  placeholder="······"
-                  autoComplete="one-time-code"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || totpCode.length !== 6}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-indigo-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-              >
-                <ShieldCheck size={20} />
-                {isLoading ? 'Verifying...' : 'Verify & Login'}
-              </button>
-
-              {/* Passkey alternative — shown when user has both 2FA and passkeys */}
-              {pendingPasskeyToken && passkeySupported && (
-                <>
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                    <div className="relative flex justify-center text-xs"><span className="px-2 bg-white text-gray-400">or</span></div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setRequires2FA(false); setRequiresPasskey(true); }}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-indigo-500 text-white py-3 rounded-xl font-semibold hover:from-violet-600 hover:to-indigo-600 transition-all shadow-lg shadow-violet-500/20 text-sm"
-                  >
-                    <Fingerprint size={18} />
-                    Use Passkey Instead
-                  </button>
-                </>
-              )}
-
-              <button
-                type="button"
-                onClick={() => { setRequires2FA(false); setTotpCode(''); setError(''); setPending2FACredentials({ username: '', password: '' }); setGoogleUserId(''); setPendingPasskeyToken(''); }}
-                className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                ← Back to login
-              </button>
-            </form>
-          ) : requiresPasskey ? (
-            /* ── STEP 1.5: Passkey verification (after password, before JWT) ── */
-            <div className="space-y-6">
-              <div className="text-center space-y-2">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-violet-100 mb-2">
-                  <Fingerprint className="text-violet-600" size={28} />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">Verify with Passkey</h2>
-                <p className="text-gray-500 text-sm">
-                  Tap the button and confirm with your fingerprint or Face ID
-                </p>
-              </div>
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">{error}</div>
-              )}
-              <button
-                type="button"
-                onClick={handlePasskeyVerify}
-                disabled={isPasskeyLoading}
-                className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:from-violet-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-violet-500/30 text-base"
-              >
-                <Fingerprint size={22} className={isPasskeyLoading ? 'animate-pulse' : ''} />
-                {isPasskeyLoading ? 'Waiting for biometric...' : 'Tap to confirm with fingerprint'}
-              </button>
-              {passkeyHas2FA && (
-                <>
-                  <div className="relative mt-4">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                    <div className="relative flex justify-center text-xs"><span className="px-2 bg-white text-gray-400">or</span></div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setRequiresPasskey(false); setRequires2FA(true); }}
-                    className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-lg text-sm"
-                  >
-                    <Smartphone size={18} />
-                    Use Authenticator App Instead
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => { setRequiresPasskey(false); setError(''); }}
-                className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors mt-6 block"
-              >
-                ← Back to login
-              </button>
-            </div>
-          ) : (
-            /* ── STEP 1: username + password ── */
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {success && (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-                  {success}
-                </div>
-              )}
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                  {error}
-                </div>
-              )}
-
-
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                  Username
-                </label>
-                <input
-                  id="username"
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
-                  required
-                />
-              </div>
-
-              <div className="relative">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
-                  required
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute top-[2.75rem] right-3 flex items-center text-gray-400 hover:text-indigo-600 focus:outline-none"
-                  style={{ background: 'none', border: 'none', padding: 0 }}
-                >
-                  {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
-                </button>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-indigo-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-              >
-                {isLoading ? 'Logging in...' : 'Login'}
-              </button>
-            </form>
-          )}
+          {requires2FA && render2FAForm()}
+          {!requires2FA && requiresPasskey && renderPasskeyForm()}
+          {!requires2FA && !requiresPasskey && renderPasswordForm()}
 
           {/* Google OAuth — step 1 only */}
-          {!requires2FA && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+          {!requires2FA && !requiresPasskey && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
             <>
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
@@ -416,7 +420,7 @@ export default function LoginPage() {
             </>
           )}
 
-          {!requires2FA && (
+          {!requires2FA && !requiresPasskey && (
             <div className="mt-6 text-center space-y-2">
               <p className="text-gray-600 text-sm">
                 Don&apos;t have an account?{' '}

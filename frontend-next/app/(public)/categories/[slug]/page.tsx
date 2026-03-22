@@ -11,10 +11,8 @@ const LOCAL_API_URL = 'http://localhost:8000/api/v1';
 
 const getApiUrl = () => {
   // 1. If running on server (Docker/Node), use internal Docker URL if available
-  if (typeof window === 'undefined') {
-    if (process.env.API_INTERNAL_URL) {
-      return process.env.API_INTERNAL_URL;
-    }
+  if (typeof window === 'undefined' && process.env.API_INTERNAL_URL) {
+    return process.env.API_INTERNAL_URL;
   }
 
   // 2. Custom domain API

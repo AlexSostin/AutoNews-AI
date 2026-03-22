@@ -1,4 +1,5 @@
 import { Loader2, Search, X, Download } from 'lucide-react';
+import Image from 'next/image';
 
 interface PhotoResult {
     url: string;
@@ -105,11 +106,12 @@ export function PhotoSearchModal({
                                     onClick={() => !savingPhoto && selectPhoto(photo.url)}
                                 >
                                     <div className="aspect-[4/3] bg-gray-100">
-                                        <img
+                                        <Image
                                             src={photo.thumbnail}
                                             alt={photo.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            loading="lazy"
+                                            fill
+                                            unoptimized
+                                            className="object-cover group-hover:scale-105 transition-transform duration-300"
                                             onError={(e) => {
                                                 (e.target as HTMLImageElement).style.display = 'none';
                                             }}

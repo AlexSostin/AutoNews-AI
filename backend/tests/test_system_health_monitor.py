@@ -39,12 +39,24 @@ def anon_client():
     return APIClient(**UA)
 
 
+class MockCache:
+    def __init__(self):
+        self._store = {}
+    def get(self, key, default=None, *args, **kwargs):
+        return self._store.get(key, default)
+    def set(self, key, value, *args, **kwargs):
+        self._store[key] = value
+    def delete(self, key, *args, **kwargs):
+        self._store.pop(key, None)
+
 @pytest.fixture(autouse=True)
 def clear_health_cache():
-    """Clear the health summary cache before each test."""
-    cache.delete('health_summary_v2')
-    yield
-    cache.delete('health_summary_v2')
+    """Mock the health summary cache to prevent parallel worker collisions in Redis."""
+    mc = MockCache()
+    with patch('news.api_views.system.cache.get', side_effect=mc.get), \
+         patch('news.api_views.system.cache.set', side_effect=mc.set), \
+         patch('news.api_views.system.cache.delete', side_effect=mc.delete):
+        yield
 
 
 def _make_backend_error(source='api', severity='error', resolved=False, **kw):
