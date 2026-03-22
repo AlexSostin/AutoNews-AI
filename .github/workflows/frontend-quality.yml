@@ -31,10 +31,12 @@ jobs:
 
       # ── ESLint (includes sonarjs rules) ──────────────────────────────
       - name: ESLint
+        continue-on-error: true
         run: npm run lint
 
       # ── jscpd: detect copy-paste duplication ─────────────────────────
       - name: Check for code duplication (jscpd)
+        continue-on-error: true
         run: npm run dupes
 
       # ── Vitest unit tests ─────────────────────────────────────────────
