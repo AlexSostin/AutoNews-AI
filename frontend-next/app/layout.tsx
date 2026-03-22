@@ -22,9 +22,7 @@ async function getGAId() {
 
   try {
     const res = await fetch(`${apiUrl}/settings/`, {
-      next: { revalidate: 3600 },
       headers: { 'User-Agent': 'FreshMotors-SSR/1.0' },
-      signal: AbortSignal.timeout(2000),
     });
     if (res.ok) {
       const data = await res.json();
