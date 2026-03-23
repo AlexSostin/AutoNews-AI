@@ -229,6 +229,59 @@ def _fetch_via_ytdlp(youtube_url: str, max_retries: int = 2) -> tuple[str | None
 
 
 # ══════════════════════════════════════════════════════════════════
+#  Tier 3: Gemini Full Video Processing (Audio + OCR)
+# ══════════════════════════════════════════════════════════════════
+
+def _fetch_via_gemini_video(youtube_url: str) -> str | None:
+    """
+    Sends the YouTube URL directly to Gemini to extract all spoken words
+    and visible on-screen text. Used ONLY when YouTube subtitles are completely absent.
+    Cost: ~$0.02 - $0.05 per video.
+    """
+    try:
+        from google import genai
+        from google.genai import types
+        import os
+        
+        API_KEY = os.getenv('GEMINI_API_KEY')
+        if not API_KEY:
+            return None
+            
+        client = genai.Client(api_key=API_KEY)
+        
+        print(f"  🎬 Tier 3 (Gemini Video): processing full video stream...")
+        
+        prompt = (
+            "You are a professional automotive transcriber. Watch this video from start to finish. "
+            "Write down a highly detailed, chronological transcript. Include:\n"
+            "1. EVERY word spoken by the presenter (in the original language, e.g., English or Chinese).\n"
+            "2. ALL text, spec tables, pricing, and numbers visible on the screen.\n"
+            "Merge these into a single, cohesive text block that reads like a comprehensive review script."
+        )
+        
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[
+                types.Part.from_uri(file_uri=youtube_url, mime_type="video/mp4"),
+                prompt
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=4000,
+            )
+        )
+        
+        text = response.text
+        if text and len(text) > 100:
+            print(f"  ✅ Tier 3 (Gemini Video) success! Extracted {len(text)} chars.")
+            return text
+            
+    except Exception as e:
+        print(f"  ⚠️ Tier 3 (Gemini Video) failed: {e}")
+        
+    return None
+
+# ══════════════════════════════════════════════════════════════════
 #  Main entry point
 # ══════════════════════════════════════════════════════════════════
 
@@ -264,8 +317,18 @@ def transcribe_from_youtube(youtube_url, max_retries=2):
         video_info = _get_video_info_fallback(youtube_url)
         if not video_info:
             return f"ERROR: Failed to get video info for {youtube_url}"
+            
+    # ── Tier 3: Gemini Video API ──
+    print(f"  📝 Tier 2 failed (no auto-subs). Trying Gemini Video API (Tier 3)...")
+    transcript = _fetch_via_gemini_video(youtube_url)
+    if transcript and len(transcript) > 100:
+        print(f"✓ Transcript complete via Gemini Video. Length: {len(transcript)}")
+        # Append some metadata to help AI writer
+        title = video_info.get('title', 'Unknown Title')
+        channel = video_info.get('channel', video_info.get('author', 'Unknown Channel'))
+        return f"Video Title: {title}\nChannel: {channel}\n\n[Full Video Transcript & Visuals from Gemini Analysis]\n{transcript}"
 
-    # ── Tier 3: Metadata fallback ──
+    # ── Tier 4: Metadata fallback ──
     print("  ⚠️ No valid subtitles from any tier, using metadata fallback")
     title = video_info.get('title', 'Unknown Title')
     description = video_info.get('description', '')

@@ -273,38 +273,6 @@ class TestGenerateArticleContent:
         assert result['success'] is False
         assert result.get('reason') == 'duplicate'
 
-    @patch('ai_engine.modules.content_generator.requests.get')
-    @patch('ai_engine.modules.transcriber.transcribe_from_youtube')
-    @patch('ai_engine.modules.analyzer.analyze_transcript')
-    @patch('ai_engine.modules.analyzer.categorize_article')
-    @patch('ai_engine.modules.analyzer.extract_specs_dict')
-    @patch('ai_engine.modules.article_generator.generate_article')
-    @patch('ai_engine.modules.downloader.extract_video_screenshots')
-    @patch('ai_engine.modules.spec_refill.compute_coverage')
-    @patch('ai_engine.modules.provider_tracker.record_generation')
-    def test_with_groq_provider(
-        self, mock_record, mock_coverage,
-        mock_screenshots,
-        mock_gen_article, mock_specs, mock_categorize,
-        mock_analyze, mock_transcribe, mock_oembed
-    ):
-        from ai_engine.main import _generate_article_content
-
-        mock_oembed.return_value = MagicMock(status_code=200, json=lambda: {'title': 'test'})
-        mock_transcribe.return_value = 'Transcript about the NIO ET9 luxury sedan' * 5
-        mock_analyze.return_value = MOCK_ANALYSIS
-        mock_categorize.return_value = ('Reviews', ['NIO'])
-        mock_specs.return_value = {'make': 'NIO', 'model': 'ET9', 'year': 2026}
-        mock_gen_article.return_value = '<h2>2026 NIO ET9</h2><p>Review content</p>' * 3
-        mock_screenshots.return_value = []
-        mock_coverage.return_value = (3, 12, 25, [])
-        mock_record.return_value = None
-
-        result = _generate_article_content(
-            'https://www.youtube.com/watch?v=groq_test_1',
-            provider='groq'
-        )
-        assert result['success'] is True
 
     @patch('ai_engine.modules.content_generator.requests.get')
     @patch('ai_engine.modules.transcriber.transcribe_from_youtube')

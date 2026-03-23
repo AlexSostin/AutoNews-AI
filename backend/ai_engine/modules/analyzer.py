@@ -1,20 +1,9 @@
-from groq import Groq
 import sys
 import os
 import logging
 import re
 
 logger = logging.getLogger(__name__)
-
-# Import config - try multiple paths, fallback to env
-try:
-    from ai_engine.config import GROQ_API_KEY, GROQ_MODEL
-except ImportError:
-    try:
-        from config import GROQ_API_KEY, GROQ_MODEL
-    except ImportError:
-        GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-        GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
 
 # Import AI provider
 try:
@@ -24,9 +13,6 @@ except ImportError:
     from modules.ai_provider import get_ai_provider, get_light_provider
     from modules.prompt_sanitizer import wrap_untrusted, ANTI_INJECTION_NOTICE
 
-# Legacy client for backwards compatibility
-client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-
 def analyze_transcript(transcript_text, video_title=None, provider='gemini'):
     """
     Analyzes the transcript to extract car details using selected AI provider.
@@ -34,12 +20,12 @@ def analyze_transcript(transcript_text, video_title=None, provider='gemini'):
     Args:
         transcript_text: The video transcript text
         video_title: The YouTube video title (optional but recommended for context)
-        provider: 'groq' (default) or 'gemini'
+        provider: 'gemini'
     
     Returns:
         Structured analysis text
     """
-    provider_name = "Groq" if provider == 'groq' else "Google Gemini"
+    provider_name = "Google Gemini"
     print(f"Analyzing transcript with {provider_name}...")
     
     context_str = f"Video Title: {video_title}\n" if video_title else ""
@@ -247,7 +233,7 @@ Tags: [tag1], [tag2], [tag3], [tag4], [tag5], [tag6]
 """
     
     try:
-        # Use AI provider factory (not hardcoded Groq)
+        # Use AI provider factory
         ai = get_light_provider()
         result = ai.generate_completion(
             prompt=prompt,

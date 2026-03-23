@@ -307,7 +307,7 @@ export default function LoginPage() {
   );
 
   const renderPasswordForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" suppressHydrationWarning>
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
           {success}
@@ -330,6 +330,7 @@ export default function LoginPage() {
           onChange={(e) => setFormData({ ...formData, username: e.target.value })}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white"
           required
+          suppressHydrationWarning
         />
       </div>
 
@@ -345,6 +346,7 @@ export default function LoginPage() {
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900 bg-white pr-12"
           required
           autoComplete="current-password"
+          suppressHydrationWarning
         />
         <button
           type="button"

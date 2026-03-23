@@ -7,6 +7,7 @@ import "./globals.css";
 import BackToTop from "@/components/public/BackToTop";
 import CookieConsent from "@/components/public/CookieConsent";
 import { Toaster } from 'react-hot-toast';
+import axios from 'axios';
 
 async function getGAId() {
   // Primary: environment variable (most reliable)
@@ -21,15 +22,13 @@ async function getGAId() {
     || PRODUCTION_API_URL;
 
   try {
-    const res = await fetch(`${apiUrl}/settings/`, {
+    const res = await axios.get(`${apiUrl}/settings/`, {
       headers: { 'User-Agent': 'FreshMotors-SSR/1.0' },
+      timeout: 3000,
     });
-    if (res.ok) {
-      const data = await res.json();
-      return data.google_analytics_id;
-    }
+    return res.data?.google_analytics_id || null;
   } catch (e) {
-    console.debug('Failed to get GA ID', e);
+    console.debug('Failed to get GA ID', e instanceof Error ? e.message : String(e));
   }
   return null;
 }
@@ -100,23 +99,20 @@ export default async function RootLayout({
         `}} />
         {gaId && (
           <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-              strategy="afterInteractive"
-            />
-            <Script id="google-analytics" strategy="afterInteractive">
-              {`
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}></script>
+            <script dangerouslySetInnerHTML={{
+              __html: `
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
                 gtag('config', '${gaId}');
-              `}
-            </Script>
+              `
+            }} />
           </>
         )}
         {/* Restore auth cookies from localStorage before page load */}
-        <Script id="auth-restore" strategy="beforeInteractive">
-          {`
+        <script dangerouslySetInnerHTML={{
+          __html: `
             (function() {
               try {
                 var accessToken = localStorage.getItem('access_token');
@@ -133,8 +129,8 @@ export default async function RootLayout({
                 }
               } catch(e) {}
             })();
-          `}
-        </Script>
+          `
+        }} />
         {/* AdSense Injected via Client Component to avoid hydration and data-nscript issues */}
         <AdSenseScript />
       </head>

@@ -7,7 +7,8 @@ from datetime import timedelta
 from .models import (
     Article, Category, Tag, TagGroup, CarSpecification, SiteSettings, Comment, Rating,
     ArticleImage, Favorite, SecurityLog, EmailVerification, PasswordResetToken,
-    NewsletterSubscriber, VehicleSpecs, ArticleFeedback
+    ArticleImage, Favorite, SecurityLog, EmailVerification, PasswordResetToken,
+    NewsletterSubscriber, VehicleSpecs, ArticleFeedback, ManualCompetitorFeedback
 )
 import sys
 import os
@@ -797,6 +798,15 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
         count = queryset.update(is_active=True, unsubscribed_at=None)
         self.message_user(request, f'{count} subscribers activated.')
     activate_subscribers.short_description = 'Activate selected subscribers'
+
+@admin.register(ManualCompetitorFeedback)
+class ManualCompetitorFeedbackAdmin(admin.ModelAdmin):
+    list_display = ('subject_make', 'subject_model', 'competitor_make', 'competitor_model', 'score', 'user', 'created_at')
+    list_filter = ('score', 'penalty_reason', 'created_at')
+    search_fields = ('subject_make', 'subject_model', 'competitor_make', 'competitor_model', 'user__username')
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'
     
     def deactivate_subscribers(self, request, queryset):
         from django.utils import timezone

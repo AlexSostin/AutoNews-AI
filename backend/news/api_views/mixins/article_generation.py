@@ -762,12 +762,16 @@ Return JSON:
         if provider != 'gemini':
             provider = 'gemini'
         
+        instruction = request.data.get('instruction', '').strip()
+
+        
         try:
             from news.tasks import regenerate_article_task
             task = regenerate_article_task.delay(
                 article_id=article.id,
                 slug=article.slug,
                 provider=provider,
+                instruction=instruction,
                 user_id=request.user.id if request.user else None
             )
             

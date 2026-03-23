@@ -17,7 +17,6 @@ from ai_engine.modules.article_prompt_builder import (
     generate_article,
     expand_press_release,
     enhance_existing_article,
-    _try_fallback_provider,
 )
 
 # ── AI provider (re-exported for mock compatibility in tests) ─────────

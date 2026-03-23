@@ -6,8 +6,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   // CI: 2 parallel workers for speed (was 1 — caused 10+ min runs)
-  // Local: auto-detect based on CPU cores
-  workers: process.env.CI ? 2 : undefined,
+  /* Opt out of parallel tests on CI. */
+  workers: 1,
   reporter: process.env.CI ? 'list' : 'html',
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:3000',

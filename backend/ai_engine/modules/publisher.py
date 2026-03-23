@@ -248,8 +248,20 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
     article.categories.add(category)
     print(f"  ✓ Category assigned: {category_name}")
     
-    # Add tags
-    if tag_names:
+    # Add tags intelligently via smart_tagger
+    tags_assigned = []
+    try:
+        from ai_engine.modules.smart_tagger import assign_tags
+        tag_ids = assign_tags(article.title, article.content)
+        if tag_ids:
+            article.tags.set(tag_ids)
+            tags_assigned = list(Tag.objects.filter(id__in=tag_ids).values_list('name', flat=True))
+            print(f"  ✓ Smart Tags assigned: {', '.join(tags_assigned)}")
+    except Exception as tag_err:
+        print(f"  ⚠️ Smart tagger failed: {tag_err}")
+
+    # Fallback to legacy tag names if smart_tagger returned empty
+    if not tags_assigned and tag_names:
         added_tags = []
         for tag_name in tag_names:
             slug = slugify(tag_name)
@@ -261,7 +273,7 @@ def publish_article(title, content, category_name="Reviews", image_path=None, im
             added_tags.append(tag_name)
         
         if added_tags:
-            print(f"  ✓ Tags added: {', '.join(added_tags)}")
+            print(f"  ✓ Legacy Tags added: {', '.join(added_tags)}")
     
     # Smart brand/model tagging from specs
     if specs:

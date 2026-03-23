@@ -9,6 +9,7 @@ import CategoriesDropdown from '@/components/public/CategoriesDropdown';
 import SearchInput from '@/components/public/SearchInput';
 import { Article, Category, Tag } from '@/types';
 import PageAnalyticsTracker from '@/components/public/PageAnalyticsTracker';
+import axios from 'axios';
 
 // Runtime API URL detection for server components
 const getApiUrl = () => {
@@ -63,24 +64,24 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<{ [key:
     const SSR_HEADERS = { 'User-Agent': 'FreshMotors-SSR/1.0 (Next.js)', 'Accept': 'application/json' };
 
     const [articlesRes, categoriesRes, tagsRes] = await Promise.all([
-      fetch(`${apiUrl}/articles/?${queryParams.toString()}`, { headers: SSR_HEADERS, cache: 'no-store' }),
-      fetch(`${apiUrl}/categories/`, { headers: SSR_HEADERS, next: { revalidate: 300 } }),
-      fetch(`${apiUrl}/tags/`, { headers: SSR_HEADERS, next: { revalidate: 300 } })
+      axios.get(`${apiUrl}/articles/?${queryParams.toString()}`, { headers: SSR_HEADERS }).catch(e => { console.error("AXIOS ERROR ARTICLES:", e.message); return e.response; }),
+      axios.get(`${apiUrl}/categories/`, { headers: SSR_HEADERS }).catch(e => { console.error("AXIOS ERROR CATEGORIES:", e.message); return e.response; }),
+      axios.get(`${apiUrl}/tags/`, { headers: SSR_HEADERS }).catch(e => { console.error("AXIOS ERROR TAGS:", e.message); return e.response; })
     ]);
 
-    if (articlesRes.ok) {
-        const articlesData = await articlesRes.json();
+    if (articlesRes && articlesRes.status === 200) {
+        const articlesData = articlesRes.data;
         articles = articlesData.results || [];
         totalCount = articlesData.count || 0;
     }
 
-    if (categoriesRes.ok) {
-        const categoriesData = await categoriesRes.json();
+    if (categoriesRes && categoriesRes.status === 200) {
+        const categoriesData = categoriesRes.data;
         categories = Array.isArray(categoriesData) ? categoriesData : categoriesData.results || [];
     }
 
-    if (tagsRes.ok) {
-        const tagsData = await tagsRes.json();
+    if (tagsRes && tagsRes.status === 200) {
+        const tagsData = tagsRes.data;
         tagsObj = Array.isArray(tagsData) ? tagsData : tagsData.results || [];
     }
   } catch (error) {

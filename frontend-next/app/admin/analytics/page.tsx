@@ -83,6 +83,7 @@ export default function AnalyticsPage() {
 
       {/* ═══ 7. A/B Tests ═══ */}
       <section className="space-y-6">
+        <SectionHeader emoji="🧪" title="A/B Tests" subtitle="Headline performance and click-through rates" color="border-yellow-500" />
         <ABTestsSection />
       </section>
 

@@ -1648,6 +1648,48 @@ class CompetitorPairLog(models.Model):
         )
 
 
+class ManualCompetitorFeedback(models.Model):
+    """
+    Active ML learning log for the 'Tinder for Cars' admin dashboard.
+    Editors explicitly score AI-proposed pairings (1.0 = Perfect, 0.5 = Acceptable, -1.0 = Bad)
+    along with reason tags (price, body_type, fuel_type, prestige).
+    """
+    subject_make = models.CharField(max_length=100, db_index=True)
+    subject_model = models.CharField(max_length=100, db_index=True)
+    
+    competitor_make = models.CharField(max_length=100, db_index=True)
+    competitor_model = models.CharField(max_length=100, db_index=True)
+    
+    score = models.FloatField(
+        db_index=True,
+        help_text="1.0 = Perfect match, 0.5 = Acceptable, -1.0 = Bad match"
+    )
+    
+    penalty_reason = models.CharField(
+        max_length=50, blank=True,
+        help_text="Tag explaining a negative score (price, body_type, fuel_type, prestige)"
+    )
+    
+    user = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='manual_competitor_feedbacks'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    class Meta:
+        verbose_name = 'Manual Competitor Feedback'
+        verbose_name_plural = 'Manual Competitor Feedbacks'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['subject_make', 'subject_model']),
+            models.Index(fields=['competitor_make', 'competitor_model']),
+        ]
+        
+    def __str__(self):
+        return f"{self.subject_make} {self.subject_model} vs {self.competitor_make} {self.competitor_model} (Score: {self.score})"
+
+
 class TOTPDevice(models.Model):
     """
     TOTP 2FA device for admin accounts.

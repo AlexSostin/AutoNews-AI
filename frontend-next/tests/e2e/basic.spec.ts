@@ -11,18 +11,18 @@ test.describe('Homepage', () => {
   });
 
   test('should have navigation header', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/', { waitUntil: 'load' });
     await expect(page.locator('header')).toBeVisible();
   });
 
   test('should show article cards', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/', { waitUntil: 'load' });
     const articles = page.locator('article, [data-testid="article-card"], a[href*="/articles/"]');
     await expect(articles.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should have footer', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/', { waitUntil: 'load' });
     await expect(page.locator('footer')).toBeVisible();
   });
 });

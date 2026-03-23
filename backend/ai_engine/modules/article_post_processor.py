@@ -482,10 +482,11 @@ def _clean_source_typos(html: str) -> str:
 
 # ── Empty compare card stripper ────────────────────────────────────────
 def _strip_empty_compare_cards(html: str) -> str:
-    """Remove compare-card divs that have no compare-row children (empty cards)."""
-    # Match individual compare-card blocks (non-featured)
+    """Remove compare-card divs that have no compare-row children OR only contain N/A values."""
+    # Match individual compare-card blocks
     card_pattern = re.compile(
-        r'<div\s+class="compare-card">\s*'
+        r'<div\s+class="compare-card(?:[^"]*)?">\s*'
+        r'(?:<div\s+class="compare-badge">.*?</div>\s*)?'
         r'<div\s+class="compare-card-name">.*?</div>\s*'
         r'((?:<div\s+class="compare-row">.*?</div>\s*)*)'
         r'</div>',
@@ -495,18 +496,43 @@ def _strip_empty_compare_cards(html: str) -> str:
     removed = 0
     def _check_card(m):
         nonlocal removed
+        is_featured = 'featured' in m.group(0).split('class="compare-card', 1)[1].split('"', 1)[0]
         rows = m.group(1).strip()
+        
+        # If no rows at all, it's empty
         if not rows:
+            if not is_featured:
+                removed += 1
+                return ''
+            return m.group(0)
+            
+        # Check if ALL values are N/A, Unknown, or empty
+        val_pattern = re.compile(r'<span\s+class="v">(.*?)</span>', re.DOTALL | re.IGNORECASE)
+        values = val_pattern.findall(rows)
+        clean_values = [re.sub(r'<[^>]+>', '', v).strip().lower() for v in values]
+        
+        # If every value is missing info
+        is_empty = all(v in ('n/a', 'unknown', 'tba', '-', '', 'none', 'unavailable') for v in clean_values)
+        
+        if is_empty and not is_featured:
             removed += 1
-            return ''  # Remove completely
+            return ''
+            
         return m.group(0)
     
     html = card_pattern.sub(_check_card, html)
     
     if removed:
-        print(f"  🗑️ Compare cards: removed {removed} empty competitor card(s)")
+        print(f"  🗑️ Compare cards: removed {removed} empty/NA competitor card(s)")
         # Clean up whitespace
         html = re.sub(r'\n\s*\n\s*\n', '\n\n', html)
+        
+        # Clean up leftover empty compare-grid that ONLY has the featured card
+        html = re.sub(
+            r'<div\s+class="compare-grid">\s*<div\s+class="compare-card[^>]*featured[^>]*>.*?</div>\s*</div>', 
+            lambda m: m.group(0) if m.group(0).count('class="compare-card') > 1 else '',
+            html, flags=re.DOTALL
+        )
     
     return html
 

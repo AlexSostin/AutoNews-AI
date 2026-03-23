@@ -20,10 +20,6 @@ class TestAIProvider:
         provider = get_ai_provider('gemini')
         assert isinstance(provider, GeminiProvider)
 
-    def test_get_ai_provider_groq_raises(self):
-        from ai_engine.modules.ai_provider import get_ai_provider
-        with pytest.raises(ValueError):
-            get_ai_provider('groq')
 
     def test_get_ai_provider_unknown(self):
         from ai_engine.modules.ai_provider import get_ai_provider
@@ -40,11 +36,6 @@ class TestAIProvider:
         providers = get_available_providers()
         assert isinstance(providers, list)
 
-    def test_groq_unknown_raises(self):
-        """Groq was removed — requesting it should raise ValueError."""
-        from ai_engine.modules.ai_provider import get_ai_provider
-        with pytest.raises(ValueError):
-            get_ai_provider('groq')
 
     def test_gemini_no_key_raises(self):
         from ai_engine.modules.ai_provider import GeminiProvider

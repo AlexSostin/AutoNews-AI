@@ -5,9 +5,8 @@ load_dotenv()
 
 # API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # Optional, not used by default
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")  # Main AI provider (free, fast)
 
-# AI Provider: 'groq' (recommended) or 'openai'
+# AI Provider: 'gemini' (recommended) or 'openai'
 AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")
 
 # Paths
@@ -20,7 +19,6 @@ LOGS_DIR = os.path.join(OUTPUT_DIR, "logs")
 
 # Module Settings
 WHISPER_MODEL = "whisper-1"  # OpenAI Whisper (optional)
-GROQ_MODEL = "openai/gpt-oss-120b"  # GPT OSS 120B — best reasoning + multilingual on Groq (Mar 2026)
 LLM_MODEL = "gpt-4-turbo"  # OpenAI GPT (optional)
 
 # Pexels API Configuration (Free image search)

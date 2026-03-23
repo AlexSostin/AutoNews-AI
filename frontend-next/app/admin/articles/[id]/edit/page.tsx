@@ -521,16 +521,20 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
             onRegenerate={async () => {
               if (!articleId) return;
               const isYoutube = !!formData.youtube_url;
-              const confirmMsg = isYoutube
-                ? '🔄 REGENERATE ARTICLE?\n\nThis will:\n• Re-download YouTube transcript\n• Re-generate title, content, summary\n• Update tags, specs, A/B titles\n\n⚠️ Current content will be backed up but REPLACED!\n\nContinue?'
-                : '🔄 REGENERATE RSS ARTICLE?\n\nThis will:\n• Re-expand the original press release with AI\n• Re-generate title, content, summary\n• Update A/B titles\n\n⚠️ Current content will be backed up but REPLACED!\n\nContinue?';
-              if (!confirm(confirmMsg)) return;
+              const promptMsg = isYoutube
+                ? '🔄 REGENERATE ARTICLE?\n\nThis will:\n• Re-download YouTube transcript\n• Re-generate title, content, summary\n• Update tags, specs, A/B titles\n\nOptionally, provide custom instructions to the AI (e.g. "Use the name VOYAH Courage", or leave blank):\n\n⚠️ Current content will be backed up but REPLACED!'
+                : '🔄 REGENERATE RSS ARTICLE?\n\nThis will:\n• Re-expand the original press release with AI\n• Re-generate title, content, summary\n• Update A/B titles\n\nOptionally, provide custom instructions to the AI (e.g. "Make it more technical", or leave blank):\n\n⚠️ Current content will be backed up but REPLACED!';
+              
+              const instruction = prompt(promptMsg);
+              if (instruction === null) return; // User clicked Cancel
+              
               setRegenerating(true);
               const genLabel = formData.title || articleId || 'Article';
               useGenerationStore.getState().startGeneration(genLabel);
               try {
                 const { data: startData } = await api.post(`/articles/${articleId}/regenerate/`, {
                   provider: 'gemini',
+                  instruction: instruction,
                 });
                 
                 if (startData.success && startData.task_id) {

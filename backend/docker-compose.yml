@@ -68,10 +68,11 @@ services:
   frontend:
     build:
       context: ../frontend-next
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: autonews_frontend
     env_file:
       - .env
+      - ../frontend-next/.env.local
     volumes:
       - ../frontend-next:/app
       - /app/.next
@@ -79,6 +80,7 @@ services:
       - "3000:3000"
     command: npm run dev
     environment:
+      - NODE_OPTIONS=--dns-result-order=ipv4first
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true

@@ -13,15 +13,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Import config - try multiple paths, fallback to env
-try:
-    from ai_engine.config import GROQ_API_KEY, GROQ_MODEL
-except ImportError:
-    try:
-        from config import GROQ_API_KEY, GROQ_MODEL
-    except ImportError:
-        GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-        GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
+
 
 # Import utils
 try:
@@ -65,6 +57,15 @@ def parse_ai_response(raw: str) -> dict:
         except json.JSONDecodeError:
             pass
 
+    # NEW: Try aggressive manual extraction of final_html_article if JSON is hopelessly broken
+    # This happens when AI outputs unescaped quotes inside the HTML value
+    html_match = re.search(r'"final_html_article"\s*:\s*"(.*?)"\s*\}?\s*$', cleaned, re.DOTALL)
+    if html_match:
+        html_content = html_match.group(1)
+        # Clean up common escaping issues
+        html_content = html_content.replace('\\"', '"').replace('\\n', '\n').replace('\\t', '\t')
+        return {"final_html_article": html_content}
+
     # Try aggressive manual fix for trailing commas
     try:
         cleaned_no_commas = re.sub(r',\s*}', '}', cleaned)
@@ -88,30 +89,7 @@ from ai_engine.modules.article_self_review import (
 from ai_engine.modules.html_normalizer import ensure_html_only
 
 
-# ── Provider fallback (shared helper) ──────────────────────────────────
-def _try_fallback_provider(
-    provider: str, prompt: str, system_prompt: str,
-    caller_prefix: str = 'article',
-) -> str:
-    """Try the alternate AI provider as a fallback. Returns content or empty string."""
-    fallback = 'gemini' if provider == 'groq' else 'groq'
-    fallback_display = 'Google Gemini' if fallback == 'gemini' else 'Groq'
-    try:
-        print(f"🔄 Retrying with fallback provider: {fallback_display}...")
-        ai_fallback = get_ai_provider(fallback)
-        content = ai_fallback.generate_completion(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            temperature=0.65,
-            max_tokens=16384,
-            caller=f'{caller_prefix}_fallback'
-        )
-        if content:
-            print(f"✓ Fallback successful with {fallback_display}!")
-            return post_process_article(content)
-    except Exception as fallback_err:
-        logger.error(f"Fallback also failed with {fallback_display}: {fallback_err}")
-    return ""
+
 
 def enhance_existing_article(existing_html: str, specs: dict = None, provider='gemini'):
     """
@@ -122,7 +100,7 @@ def enhance_existing_article(existing_html: str, specs: dict = None, provider='g
     Args:
         existing_html: The current article HTML content
         specs: Dict with make, model, year etc.
-        provider: 'gemini' or 'groq'
+        provider: 'gemini'
     
     Returns:
         dict with 'title', 'content', 'summary' or None if enhancement fails
@@ -247,7 +225,7 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     
     Args:
         analysis_data: The analysis from the transcript
-        provider: 'groq' (default) or 'gemini'
+        provider: 'gemini'
         web_context: Optional string containing web search results
         source_title: Original title from RSS/YouTube source (for entity grounding)
         competitor_context: Optional pre-formatted competitor block from competitor_lookup.py
@@ -256,7 +234,7 @@ def generate_article(analysis_data, provider='gemini', web_context=None, source_
     Returns:
         HTML article content
     """
-    provider_display = "Groq" if provider == 'groq' else "Google Gemini"
+    provider_display = "Google Gemini"
     print(f"Generating article with {provider_display}...")
 
     has_competitors = bool(competitor_context)
@@ -474,6 +452,13 @@ CRITICAL REQUIREMENTS:
    - If the source says "SONG DM-i" — write "SONG DM-i" everywhere, NOT "Song Plus DM-i" in the verdict.
    - BEFORE submitting: verify the EXACT model name appears identically in title, opening, specs block, and verdict.
 
+   ⚠️ CHINESE CAR EXPORT NAMES — CRITICAL:
+   - YouTube reviewers often literally translate domestic Chinese car names into English (e.g., translating "Voyah Zhiyin" literally as "Voyah Knowledge" or "BYD Haibao" as "Sea Leopard").
+   - You MUST identify the OFFICIAL global export name or official Pinyin name of the car.
+   - Examples: Use "Voyah Courage" (export) or "Voyah Zhiyin" (Pinyin), NOT "Knowledge". Use "BYD Seal" (NOT "BYD Sea Leopard"). Use "GWM Ora 03" (NOT "Good Cat").
+   - Cross-reference any strange translated name from the source with the WEB CONTEXT to find the real, official English market name.
+   - Use the OFFICIAL global name in the title and throughout the article.
+
 2. **Engaging Opening** — write like a journalist, not a spec sheet:
    ✅ "BYD's latest plug-in hybrid SUV undercuts most competitors by $10,000 — and matches their range"
    ✅ "The Zeekr 7X brings 421 hp and 600 km of range to a segment dominated by Tesla"
@@ -538,8 +523,8 @@ CRITICAL REQUIREMENTS:
 
 6. **THIN DATA MODE** — If the source only has 3-5 confirmed specs:
    - Write 600-700 words using ONLY what you know. Do NOT pad.
-   - Use structure: Introduction → What We Know → Pricing → Verdict.
-   - SKIP Performance, Technology, Driving Experience sections entirely.
+   - Use this exact custom structure: Introduction → What We Know → Pricing → Verdict.
+   - ⚠️ CRITICAL: You MUST ABSOLUTELY NOT output the standard headings like <h2>Performance & Specs</h2>, <h2>Design & Interior</h2>, <h2>Technology & Features</h2>. SKIP them entirely!
    - Do NOT write paragraphs explaining what you DON'T know.
    - A tight 450-word article with 4 solid paragraphs > a bloated 1000-word article full of repetition.
 
@@ -913,25 +898,24 @@ ALWAYS OUTPUT VALID JSON ONLY. No markdown wrappers outside the JSON, no plain t
         logger.error(f"Failed analysis_data (first 500 chars): {str(analysis_data)[:500]}")
         print(f"❌ Error during article generation with {provider_display}: {e}")
         
-        # Provider fallback
-        return _try_fallback_provider(provider, prompt, system_prompt, 'article_generate')
+        raise
 
 
-def expand_press_release(press_release_text, source_url, provider='gemini', web_context=None, source_title=None):
+def expand_press_release(press_release_text, source_url, provider='gemini', web_context=None, source_title=None, instruction=None):
     """
     Expands a short press release (200-300 words) into a full automotive article (600-800 words).
     
     Args:
         press_release_text: The original press release content
         source_url: URL of the original press release (for attribution)
-        provider: 'groq' (default) or 'gemini'
+        provider: 'gemini'
         web_context: Optional additional context from web search
         source_title: Original title from RSS source (for entity grounding)
     
     Returns:
         HTML article content with proper attribution
     """
-    provider_display = "Groq" if provider == 'groq' else "Google Gemini"
+    provider_display = "Google Gemini"
     print(f"Expanding press release with {provider_display}...")
     
     web_data_section = ""
@@ -966,6 +950,10 @@ def expand_press_release(press_release_text, source_url, provider='gemini', web_
 {entity_anchor}
 {web_data_section}
 TODAY'S DATE: {current_date}. Use this to determine what is "upcoming", "current", or "past". Do NOT reference dates that have already passed as future events.
+
+{f'''🚨 USER CUSTOM INSTRUCTIONS (HIGHEST PRIORITY) 🚨
+{wrap_untrusted(instruction, 'USER_INSTRUCTION')}
+(⚡ CRITICAL: You MUST strictly follow these instructions. If they tell you to change the car name, specs, or ANYTHING else, you MUST DO IT. These instructions OVERRIDE all other rules on this page.)''' if instruction else ''}
 
 Expand the following press release into a comprehensive, SEO-optimized automotive article.
 
@@ -1211,6 +1199,18 @@ Vary section headers too — don't always use the same H2 titles across articles
         
         article_content = _dedup_guard(article_content)
         
+        article_content = article_content.strip()
+        
+        # Inject raw AI log as an HTML comment for debugging
+        import json
+        try:
+            # We dump raw_response safely to avoid breaking HTML
+            raw_encoded = json.dumps({"raw_response": raw_response})
+            # Store it inside a special tag that the frontend strips but backend saves
+            article_content += f"\n<!-- AI_GENERATION_LOG: {raw_encoded} -->\n"
+        except Exception:
+            pass
+            
         return article_content
         
     except Exception as e:
@@ -1218,9 +1218,5 @@ Vary section headers too — don't always use the same H2 titles across articles
         logger.error(f"Failed press_release_text (first 500 chars): {str(press_release_text)[:500]}")
         print(f"❌ Error expanding press release with {provider_display}: {str(e)}")
         
-        # Provider fallback
-        result = _try_fallback_provider(provider, prompt, system_prompt, 'rss_generate')
-        if result:
-            return result
         raise
 

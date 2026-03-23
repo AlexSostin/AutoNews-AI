@@ -684,6 +684,12 @@ def _generate_article_content(youtube_url, task_id=None, provider='gemini', vide
                     if _price:
                         _parts.append(f"starting at {_price}")
                     summary = ', '.join(_parts) + '.'
+                    
+                    # Ensure minimum 150 chars
+                    if len(summary) < 150:
+                        _hook = " Read our comprehensive review to explore full specifications, real-world features, pricing details, and see how it stacks up against the competition."
+                        summary += _hook
+                        
                     if len(summary) > 200:
                         summary = _truncate_summary(summary, max_len=200)
                     print(f"✅ Rebuilt summary from specs ({len(summary)} chars): {summary[:80]}")

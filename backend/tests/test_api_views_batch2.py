@@ -161,7 +161,7 @@ class TestGenerateFromYouTubeDeep:
         mock_delay.return_value = mock_task
         resp = staff_client.post('/api/v1/articles/generate_from_youtube/', {
             'youtube_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-            'provider': 'groq',
+            'provider': 'anthropic',
         }, format='json', **UA)
         assert resp.status_code == 200
         mock_delay.assert_called_once()

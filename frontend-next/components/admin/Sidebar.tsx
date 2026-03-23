@@ -38,6 +38,7 @@ import {
   GitCompareArrows,
   Inbox,
   Coins,
+  BrainCircuit,
   LucideIcon
 } from 'lucide-react';
 import { logout, isSuperuser } from '@/lib/auth';
@@ -107,6 +108,7 @@ const menuSections: MenuSection[] = [
   {
     title: 'Tools',
     items: [
+      { href: '/admin/ml-training', icon: BrainCircuit, label: 'ML Trainer' },
       { href: '/admin/automation', icon: Bot, label: 'Automation' },
       { href: '/admin/token-usage', icon: Coins, label: 'Token Usage' },
       { href: '/admin/ab-testing', icon: FlaskConical, label: 'A/B Testing' },

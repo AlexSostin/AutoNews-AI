@@ -610,7 +610,7 @@ def _score_new_pending_articles():
     soft_time_limit=14 * 60,   # 14 min → raises SoftTimeLimitExceeded for clean shutdown
     time_limit=15 * 60,        # 15 min → hard kill if soft limit not caught
 )
-def regenerate_article_task(self, article_id, slug, provider, user_id=None):
+def regenerate_article_task(self, article_id, slug, provider, instruction=None, user_id=None):
     """
     Async Celery task to regenerate an existing article.
     Runs the logic from `ai_engine.modules.regenerator` and avoids HTTP proxy timeouts.
@@ -620,7 +620,7 @@ def regenerate_article_task(self, article_id, slug, provider, user_id=None):
     close_old_connections()
     try:
         from ai_engine.modules.regenerator import regenerate_existing_article
-        result = regenerate_existing_article(article_id, provider=provider, user_id=user_id, celery_task=self)
+        result = regenerate_existing_article(article_id, provider=provider, instruction=instruction, user_id=user_id, celery_task=self)
         return result
     except Exception as e:
         from celery.exceptions import SoftTimeLimitExceeded

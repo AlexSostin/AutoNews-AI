@@ -12,7 +12,7 @@ import Image from 'next/image';
 import ClientHomepage from '@/components/public/ClientHomepage';
 import { fixImageUrl } from '@/lib/config';
 import type { Metadata } from 'next';
-
+import axios from 'axios';
 export const metadata: Metadata = {
   alternates: {
     canonical: '/',
@@ -42,51 +42,29 @@ const SSR_HEADERS = {
 
 async function getSettings() {
   try {
-    const res = await fetch(`${getApiUrl()}/settings/`, {
-      headers: SSR_HEADERS,
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return null;
-    return await res.json();
+    const res = await axios.get(`${getApiUrl()}/settings/`, { headers: SSR_HEADERS });
+    return res.data;
   } catch { return null; }
 }
 
 async function getArticles() {
   try {
-    const res = await fetch(`${getApiUrl()}/articles/?is_published=true`, {
-      headers: SSR_HEADERS,
-      cache: 'no-store',  // Always fresh — no ISR cache for article list
-    });
-    if (!res.ok) return { results: [] };
-    return await res.json();
+    const res = await axios.get(`${getApiUrl()}/articles/?is_published=true`, { headers: SSR_HEADERS });
+    return res.data;
   } catch { return { results: [] }; }
 }
 
 async function getCategories() {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${getApiUrl()}/categories/`, {
-      headers: SSR_HEADERS,
-      next: { revalidate: 300, tags: ['categories'] },
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : data.results || [];
+    const res = await axios.get(`${getApiUrl()}/categories/`, { headers: SSR_HEADERS, timeout: 5000 });
+    return Array.isArray(res.data) ? res.data : res.data.results || [];
   } catch { return []; }
 }
 
 async function getBrands() {
   try {
-    const res = await fetch(`${getApiUrl()}/cars/brands/`, {
-      headers: SSR_HEADERS,
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data.slice(0, 8) : [];
+    const res = await axios.get(`${getApiUrl()}/cars/brands/`, { headers: SSR_HEADERS });
+    return Array.isArray(res.data) ? res.data.slice(0, 8) : [];
   } catch { return []; }
 }
 

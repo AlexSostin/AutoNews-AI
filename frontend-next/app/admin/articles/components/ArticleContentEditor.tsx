@@ -332,6 +332,33 @@ export function ArticleContentEditor({
               p { margin-bottom: 1em; }
               a { color: #4f46e5; text-decoration: none; }
               a:hover { text-decoration: underline; }
+              
+              /* AutoNews AI generated components */
+              .fm-verdict { background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 16px; margin-top: 24px; border-radius: 4px; }
+              .verdict-label { font-weight: 700; color: #1e293b; margin-bottom: 8px; text-transform: uppercase; font-size: 13px; letter-spacing: 0.05em; }
+              
+              .spec-bar { display: flex; flex-wrap: wrap; gap: 20px; background: #f1f5f9; padding: 16px; border-radius: 8px; margin: 20px 0; }
+              .spec-item { display: flex; flex-direction: column; }
+              .spec-label { font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 2px; }
+              .spec-value { font-size: 16px; color: #0f172a; font-weight: 600; }
+              
+              .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0; }
+              .compare-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+              .compare-card.featured { border-color: #3b82f6; border-width: 2px; background: #f8fafc; }
+              .compare-badge { display: inline-block; background: #3b82f6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-bottom: 8px; }
+              .compare-card-name { font-weight: 700; font-size: 16px; margin-bottom: 16px; color: #0f172a; }
+              .compare-row { display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding: 8px 0; font-size: 14px; }
+              .compare-row:last-child { border-bottom: none; padding-bottom: 0; }
+              .compare-row .k { color: #64748b; }
+              .compare-row .v { color: #0f172a; font-weight: 500; }
+              
+              .pros-cons { display: flex; flex-wrap: wrap; gap: 24px; margin: 24px 0; }
+              .pc-block { flex: 1; min-width: 250px; padding: 20px; border-radius: 12px; }
+              .pc-block.pros { background: #f0fdf4; border: 1px solid #bbf7d0; }
+              .pc-block.cons { background: #fef2f2; border: 1px solid #fecaca; }
+              .pc-title { font-weight: 700; font-size: 16px; margin-bottom: 12px; color: #0f172a; }
+              .pc-list { margin: 0; padding-left: 20px; }
+              .pc-list li { margin-bottom: 8px; color: #334155; }
             `,
 
                     }}

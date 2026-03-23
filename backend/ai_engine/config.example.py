@@ -1,4 +1,5 @@
-GROQ_API_KEY = "your_groq_api_key_here"
-GROQ_MODEL = "openai/gpt-oss-120b"  # GPT OSS 120B — best reasoning + multilingual on Groq (Mar 2026)
+OPENAI_API_KEY = "your_openai_api_key_here"  # Optional
+GEMINI_API_KEY = "your_gemini_api_key_here"  # Required
+GEMINI_MODEL = "gemini-1.5-pro-002"
 
-AI_PROVIDER = "groq"  # Recommended: 'groq' (free and fast)
+AI_PROVIDER = "gemini"  # Recommended: 'gemini'

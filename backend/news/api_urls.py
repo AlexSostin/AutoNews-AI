@@ -173,7 +173,7 @@ from .cars import CarBrandsListView, CarBrandDetailView, CarModelDetailView, Bra
 from .api_views.ai_costs import AICostDashboardView, TimingHistoryView
 from .api_views.moderation import ModerationQueueView
 from .api_views.token_usage import TokenUsageSummaryView, TokenUsageRealtimeView
-
+from .api_views.ml_trainer import MLTrainerNextPairView, MLTrainerSubmitFeedbackView
 
 class RepairArticleHTMLView(APIView):
     """Repair malformed HTML (compare-grid, spec-bar) in article content."""
@@ -301,6 +301,10 @@ urlpatterns = [
     path('admin/token-usage/realtime/', TokenUsageRealtimeView.as_view(), name='admin_token_usage_realtime'),
     path('admin/moderation/', ModerationQueueView.as_view(), name='admin_moderation'),
     path('admin/scheduled-tasks/', ScheduledTasksView.as_view(), name='admin_scheduled_tasks'),
+    
+    # ML Trainer
+    path('admin/ml-training/next-pair/', MLTrainerNextPairView.as_view(), name='admin_ml_trainer_next_pair'),
+    path('admin/ml-training/submit-feedback/', MLTrainerSubmitFeedbackView.as_view(), name='admin_ml_trainer_submit_feedback'),
     
     # Nav badge counts (comments pending, feedback unresolved, new subscribers, rss pending)
     path('nav-badges/', NavBadgesView.as_view(), name='nav_badges'),

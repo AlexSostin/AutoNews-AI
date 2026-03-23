@@ -201,17 +201,7 @@ def _ensure_verdict_written(html: str, analysis_data, provider: str = 'gemini') 
     
     print(f"  🔧 Verdict injector: {'found but only ' + str(verdict_words) + ' words' if verdict_words else 'missing'} — generating verdict...")
 
-    # ── Step 2: Strip ALL existing verdict artifacts ──────────────────────
-    # Remove orphaned/empty fm-verdict divs
-    html = re.sub(
-        r'<div\s+class="fm-verdict">\s*<div\s+class="verdict-label">.*?</div>\s*(?:<p>.*?</p>\s*)?</div>\s*',
-        '', html, flags=re.IGNORECASE | re.DOTALL
-    )
-    # Remove bare <h2>...Verdict...</h2> + any trailing truncated <p>
-    html = re.sub(
-        r'<h2[^>]*>[^<]*(?:verdict|conclusion|final)[^<]*</h2>\s*(?:<p>.*?</p>\s*)*',
-        '', html, flags=re.IGNORECASE | re.DOTALL
-    )
+    # We do NOT strip the old verdict yet. If the API fails, we want to keep the old weak verdict.
 
     # ── Step 3: Generate verdict via AI ───────────────────────────────────
     verdict_prompt = f"""You are an expert automotive journalist writing the final 'FreshMotors Verdict' section for an article.
@@ -245,6 +235,20 @@ Example of good verdict:
         # Remove any fm-verdict wrapper the model might have added
         verdict_para = re.sub(r'<div[^>]*class="fm-verdict"[^>]*>.*?<div class="verdict-label">.*?</div>', '', verdict_para, flags=re.IGNORECASE | re.DOTALL).strip()
         verdict_para = re.sub(r'</div>\s*$', '', verdict_para).strip()
+
+        verdict_word_count = len(verdict_para.split())
+        if verdict_word_count < 30:
+            raise ValueError(f"Verdict too short ({verdict_word_count} words < 30) — forcing fallback")
+
+        # Now that we have a successful new verdict, strip the old artifacts
+        html = re.sub(
+            r'<div\s+class="fm-verdict">\s*<div\s+class="verdict-label">.*?</div>\s*(?:<p>.*?</p>\s*)?</div>\s*',
+            '', html, flags=re.IGNORECASE | re.DOTALL
+        )
+        html = re.sub(
+            r'<h2[^>]*>[^<]*(?:verdict|conclusion|final)[^<]*</h2>\s*(?:<p>.*?</p>\s*)*',
+            '', html, flags=re.IGNORECASE | re.DOTALL
+        )
 
         verdict_block = (
             '<div class="fm-verdict">\n'
@@ -302,5 +306,6 @@ Example of good verdict:
                 _inject_verdict(verdict_para)
         except Exception as fb_err:
             print(f"  ⚠️ Verdict fallback injector also failed: {fb_err}")
+            # The original HTML is completely intact because we didn't strip it yet!
 
     return html

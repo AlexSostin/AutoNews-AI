@@ -28,12 +28,12 @@ if current_dir not in sys.path:
 
 # Import config
 try:
-    from ai_engine.config import GROQ_API_KEY
+    from ai_engine.config import AI_PROVIDER
 except ImportError:
     try:
-        from config import GROQ_API_KEY
+        from config import AI_PROVIDER
     except ImportError:
-        GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+        AI_PROVIDER = os.getenv('AI_PROVIDER', 'gemini')
 
 # Import publisher
 try:

@@ -52,7 +52,7 @@ class TestProviderTracker:
         """Should recommend provider with better quality."""
         for _ in range(5):
             record_generation(provider='gemini', make='BMW', quality_score=8, spec_coverage=90.0)
-            record_generation(provider='groq', make='BMW', quality_score=5, spec_coverage=50.0)
+            record_generation(provider='openai', make='BMW', quality_score=5, spec_coverage=50.0)
 
         result = recommend_provider('BMW')
         assert result == 'gemini'
@@ -60,7 +60,7 @@ class TestProviderTracker:
     def test_summary_structure(self):
         """Summary should have correct structure."""
         record_generation(provider='gemini', make='BMW', quality_score=8, spec_coverage=90.0)
-        record_generation(provider='groq', make='Toyota', quality_score=7, spec_coverage=70.0)
+        record_generation(provider='openai', make='Toyota', quality_score=7, spec_coverage=70.0)
 
         summary = get_provider_summary()
         assert 'providers' in summary

@@ -27,11 +27,6 @@ class TestGetAiProvider:
         with pytest.raises(ValueError, match='Unknown AI provider'):
             get_ai_provider('openai')
 
-    def test_groq_removed(self):
-        """Groq was removed — requesting it should raise ValueError."""
-        from ai_engine.modules.ai_provider import get_ai_provider
-        with pytest.raises(ValueError):
-            get_ai_provider('groq')
 
     def test_case_insensitive(self):
         """Provider name is case-insensitive."""
