@@ -8,7 +8,7 @@ on:
 
 jobs:
   backup:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     # Note: secrets cannot be accessed in job-level 'if' conditions (GitHub security restriction).
     # BACKUP_ENABLED var controls this job; DATABASE_URL is checked inside the steps.
     if: vars.BACKUP_ENABLED == 'true'

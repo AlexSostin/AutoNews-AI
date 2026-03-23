@@ -12,7 +12,7 @@ on:
 jobs:
   quality:
     name: Lint + Duplicate Detection
-    runs-on: self-hosted
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: frontend-next
