@@ -171,6 +171,15 @@ jobs:
       - name: Lint
         working-directory: ./frontend-next
         run: npm run lint || true
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./frontend-next/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
       
       - name: Build
         working-directory: ./frontend-next
@@ -246,6 +255,15 @@ jobs:
           python manage.py runserver 8000 &
           sleep 10
           curl -s http://localhost:8000/api/v1/articles/ > /dev/null
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./frontend-next/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
       - name: Build & Start Background Next.js Server
         working-directory: ./frontend-next
