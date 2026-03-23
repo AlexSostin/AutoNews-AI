@@ -22,7 +22,7 @@ jobs:
           POSTGRES_PASSWORD: test_pass
           POSTGRES_DB: test_db
         ports:
-          - 5434:5432
+          - 5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -32,7 +32,7 @@ jobs:
       redis:
         image: redis:7
         ports:
-          - 6380:6379
+          - 6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -72,8 +72,8 @@ jobs:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_pass
           DB_HOST: localhost
-          DB_PORT: '5434'
-          REDIS_URL: redis://localhost:6380/0
+          DB_PORT: ${{ job.services.postgres.ports[5432] }}
+          REDIS_URL: redis://localhost:${{ job.services.redis.ports[6379] }}/0
         run: |
           python manage.py migrate
           pytest tests/ -m "not slow" -v --tb=short
@@ -91,7 +91,7 @@ jobs:
           POSTGRES_PASSWORD: test_pass
           POSTGRES_DB: test_db
         ports:
-          - 5434:5432
+          - 5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -101,7 +101,7 @@ jobs:
       redis:
         image: redis:7
         ports:
-          - 6380:6379
+          - 6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -141,8 +141,8 @@ jobs:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_pass
           DB_HOST: localhost
-          DB_PORT: '5434'
-          REDIS_URL: redis://localhost:6380/0
+          DB_PORT: ${{ job.services.postgres.ports[5432] }}
+          REDIS_URL: redis://localhost:${{ job.services.redis.ports[6379] }}/0
         run: |
           python manage.py migrate
           pytest tests/ -m "slow" -v --tb=short || true
@@ -191,7 +191,7 @@ jobs:
           POSTGRES_PASSWORD: autonews_password
           POSTGRES_DB: autonews_db
         ports:
-          - 5434:5432
+          - 5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -200,7 +200,7 @@ jobs:
       redis:
         image: redis:alpine
         ports:
-          - 6380:6379
+          - 6379
 
     steps:
       - uses: actions/checkout@v5
@@ -231,11 +231,11 @@ jobs:
         working-directory: ./backend
         env:
           DB_HOST: localhost
-          DB_PORT: 5434
+          DB_PORT: ${{ job.services.postgres.ports[5432] }}
           POSTGRES_DB: autonews_db
           POSTGRES_USER: autonews_user
           POSTGRES_PASSWORD: autonews_password
-          REDIS_URL: redis://localhost:6380/1
+          REDIS_URL: redis://localhost:${{ job.services.redis.ports[6379] }}/1
           SECRET_KEY: test-secret-key-for-ci-pipeline
           DEBUG: 'True'
         run: |
