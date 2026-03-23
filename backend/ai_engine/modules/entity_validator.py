@@ -231,13 +231,28 @@ def extract_entities(title: str) -> dict:
     title_lower = title.lower()
     found_brand = None
     found_brand_pos = len(title)  # position in title, for model extraction
+    matched_alias = None
     
-    # Sort by length desc to match "Fang Cheng Bao" before "BYD"
-    for alias in sorted(BRAND_ALIASES.keys(), key=len, reverse=True):
-        pos = title_lower.find(alias)
+    # Load dynamic DB aliases and combine with hardcoded ones
+    combined_aliases = dict(BRAND_ALIASES)
+    try:
+        # Avoid circular imports by importing locally
+        from news.models import BrandAlias
+        BrandAlias._load_cache()
+        if BrandAlias._simple_cache:
+            for alias_lower, canonical in BrandAlias._simple_cache.items():
+                combined_aliases[alias_lower] = canonical
+    except Exception as e:
+        logger.warning(f"Could not load DB BrandAliases: {e}")
+    
+    # Sort by length desc to match "Fang Cheng Bao" or "Dongfeng Voyah" before shorter aliases
+    for alias in sorted(combined_aliases.keys(), key=len, reverse=True):
+        # Make sure alias search is case-insensitive
+        pos = title_lower.find(alias.lower())
         if pos != -1:
-            found_brand = BRAND_ALIASES[alias]
+            found_brand = combined_aliases[alias]
             found_brand_pos = pos
+            matched_alias = alias
             break
     
     if found_brand:
@@ -246,7 +261,7 @@ def extract_entities(title: str) -> dict:
     # 3. Extract model name (the most important piece)
     # Strategy: take the part of the title after the brand 
     # and before common suffixes (Review, PHEV, EV, etc.)
-    model_name = _extract_model_name(title, found_brand, found_brand_pos)
+    model_name = _extract_model_name(title, found_brand, found_brand_pos, matched_alias)
     if model_name:
         result['model_name'] = model_name
     
@@ -268,7 +283,7 @@ def extract_entities(title: str) -> dict:
     return result
 
 
-def _extract_model_name(title: str, brand: Optional[str], brand_pos: int) -> Optional[str]:
+def _extract_model_name(title: str, brand: Optional[str], brand_pos: int, matched_alias: Optional[str] = None) -> Optional[str]:
     """
     Extract the model name + number from a title, after the brand.
     
@@ -293,7 +308,11 @@ def _extract_model_name(title: str, brand: Optional[str], brand_pos: int) -> Opt
         for sb in sub_brands.get(brand, []):
             clean = re.sub(re.escape(sb), '', clean, flags=re.IGNORECASE).strip()
         
-        clean = re.sub(re.escape(brand), '', clean, flags=re.IGNORECASE).strip()
+        # Prefer stripping the exact alias matched ("Dongfeng Voyah") instead of the canonical name
+        if matched_alias:
+            clean = re.sub(re.escape(matched_alias), '', clean, flags=re.IGNORECASE).strip()
+        else:
+            clean = re.sub(re.escape(brand), '', clean, flags=re.IGNORECASE).strip()
     
     # Remove common suffixes
     suffixes = [

@@ -199,7 +199,7 @@ class TestRegenerateArticleTask:
 
         assert result == expected
         from unittest.mock import ANY
-        mock_fn.assert_called_once_with(article.id, provider='gemini', user_id=None, celery_task=ANY)
+        mock_fn.assert_called_once_with(article.id, provider='gemini', user_id=None, instruction=None, celery_task=ANY)
 
     def test_task_has_time_limits_configured(self):
         """Ensure the task decorator has soft_time_limit and time_limit set."""

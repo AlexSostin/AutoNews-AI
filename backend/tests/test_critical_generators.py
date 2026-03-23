@@ -124,9 +124,11 @@ class TestGenerateArticle:
         mock_ai.generate_completion.side_effect = Exception('API quota exceeded')
         mock_provider.return_value = mock_ai
 
-        result = generate_article('Make: Tesla\nModel: Model 3\n', provider='gemini')
-        # Should return empty/None or raise gracefully
-        assert result is None or result == '' or isinstance(result, str)
+        # The function raises the exception gracefully
+        with pytest.raises(Exception) as exc:
+            generate_article('Make: Tesla\nModel: Model 3\n', provider='gemini')
+        
+        assert 'API quota exceeded' in str(exc.value)
 
 
 # ═══════════════════════════════════════════════════════════════════

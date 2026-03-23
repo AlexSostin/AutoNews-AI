@@ -12,7 +12,7 @@ env:
 jobs:
   # ─── Fast tests: mocked, no external APIs. Blocks merge on failure. ───
   backend-tests-fast:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     
     services:
       postgres:
@@ -80,7 +80,7 @@ jobs:
 
   # ─── Slow tests: live API calls, may flake. Doesn't block merge. ───
   backend-tests-slow:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     continue-on-error: true
     
     services:
@@ -148,7 +148,7 @@ jobs:
           pytest tests/ -m "slow" -v --tb=short || true
 
   frontend-build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     
     steps:
       - uses: actions/checkout@v5
@@ -179,7 +179,7 @@ jobs:
         run: npm run build
 
   e2e-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     continue-on-error: true
     needs: frontend-build
     
@@ -268,7 +268,7 @@ jobs:
         run: npx playwright test --project=chromium --project=webkit --reporter=list --timeout=60000 --retries=2 --workers=2
 
   dependency-audit:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     
     steps:
       - uses: actions/checkout@v5
